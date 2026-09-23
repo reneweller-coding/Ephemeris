@@ -21,12 +21,14 @@
  * seed branch. The coda of one piece and the intro of the next make the bridge between them; there is
  * no beat matching to do (PLAN 6.9).
  *
- * Not yet: the drums (the profile's chance is drawn but nothing plays), the composer thread and ring,
- * locking and rerolling beyond what the seed branches allow.
+ * **Curation** (SetFile.h): every stream can be drawn again on its own; the rest stays bit for bit.
+ *
+ * Not yet: the drums (the profile's chance is drawn but nothing plays), the composer thread and ring.
  */
 #pragma once
 #include "eph/Params.h"
 #include "eph/Score.h"
+#include "eph/SetFile.h"
 #include <cstdint>
 
 namespace eph {
@@ -37,11 +39,17 @@ namespace eph {
  * @param seed     the piece's seed
  * @param minutes  its length
  * @param keyShift semitones from compose.key (a concert moves from piece to piece)
+ * @param curation rerolls, or null
+ * @param unit     prefix of this piece's units in @p curation ("" alone, "piece2." in a concert)
  */
-Score composePiece(const ParamStore& p, uint64_t seed, double minutes, int keyShift = 0);
+Score composePiece(const ParamStore& p, uint64_t seed, double minutes, int keyShift = 0,
+                   const Curation* curation = nullptr, const std::string& unit = std::string());
 
 /** @brief Writes a concert of pieces, @p minutes long in all. */
-Score composeConcert(const ParamStore& p, uint64_t seed, double minutes);
+Score composeConcert(const ParamStore& p, uint64_t seed, double minutes, const Curation* curation = nullptr);
+
+/** @brief The names of a piece's units, in stream order: form, tempo, rows, rack, layers, lead, pads, hands. */
+extern const char* const kUnitNames[8];
 
 /** @brief Appends @p src to @p dst at @p dst's end; its roots are moved by @p rootOffset semitones. */
 void appendScore(Score& dst, const Score& src, int rootOffset);

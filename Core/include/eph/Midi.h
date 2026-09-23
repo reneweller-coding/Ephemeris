@@ -12,10 +12,17 @@
  * audio render at every beat, however long the ramp. The same rule as Phosphene's exporter; the code
  * is new because the parts are.
  *
- * Not yet: gestures as controller curves (PLAN 7, Phase 4) and a reader.
+ * **Gestures as controllers** (Phase 4) when the parameters are given: what a hand does to a knob is
+ * written as the knob's value, 0..127, every thirty-second note while it moves and once for a step --
+ * cutoff as CC 74, resonance CC 71, filter decay CC 75 on the channel of the row, the lead or the drone;
+ * the knobs of the whole instrument (echo, hall, tapes, atmosphere, master) on a track "controls",
+ * channel 16, CC 12 to 25 and 7 (the table in Midi.cpp).
+ *
+ * Not yet: a reader.
  */
 #pragma once
 #include "eph/Score.h"
+#include "eph/Params.h"
 #include <cstdint>
 #include <vector>
 
@@ -27,9 +34,9 @@ constexpr int kMidiPpq = 960;   ///< ticks per quarter note in exported files
 int midiChannelOf(Part part);
 
 /** @brief Encodes a score as a Standard MIDI File (format 1). Notes need not be sorted. */
-std::vector<uint8_t> encodeMidi(const Score& score, const char* title = "Ephemeris");
+std::vector<uint8_t> encodeMidi(const Score& score, const char* title = "Ephemeris", const ParamStore* params = nullptr);
 
 /** @brief Writes encodeMidi() to a file; false if it cannot be written. */
-bool writeMidiFile(const Score& score, const char* path, const char* title = "Ephemeris");
+bool writeMidiFile(const Score& score, const char* path, const char* title = "Ephemeris", const ParamStore* params = nullptr);
 
 } // namespace eph

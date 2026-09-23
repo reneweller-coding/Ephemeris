@@ -20,6 +20,7 @@ add_library(EphemerisCore STATIC
     src/Style.cpp
     src/Form.cpp
     src/Composer.cpp
+    src/SetFile.cpp
     src/Study.cpp
     src/Lead.cpp
     src/Sketch.cpp

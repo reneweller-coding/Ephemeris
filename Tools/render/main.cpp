@@ -16,6 +16,7 @@
 #include "eph/Engine.h"
 #include "eph/Composer.h"
 #include "eph/Midi.h"
+#include "eph/SetFile.h"
 #include "eph/Sketch.h"
 #include "eph/Study.h"
 #include "eph/WavWriter.h"
@@ -41,6 +42,10 @@ void usage()
                 "  --seed S         seed of everything drawn (default 1)\n"
                 "  --tail S         seconds rendered after the end, for the echo (default 6)\n"
                 "  --concert M      a concert of pieces, M minutes long (default: one piece)\n"
+                "  --reroll UNIT    draw a unit again (form, tempo, rows, rack, layers, lead, pads, hands;\n"
+                "                   in a concert pieceN.UNIT or concert); may be repeated\n"
+                "  --set-file FILE  play a saved .ephset (seed, lengths, parameters, rerolls)\n"
+                "  --save-set FILE  save what is played as an .ephset\n"
                 "  --sketch         the sketch of Phases 2 and 3 instead of a composed piece\n"
                 "  --study          the study of Phase 1 instead of a composed piece\n"
                 "  --frame          the bare frame of Phase 0: silence on the tempo map\n"
@@ -63,6 +68,8 @@ int main(int argc, char** argv)
     std::string out, midi, set;
     bool list = false, frame = false, study = false, sketch = false;
     double concert = 0.0;
+    std::string setIn, setOut;
+    Curation curation;
     double bpmArg = 0.0, tail = 6.0;
     uint64_t seed = 1;
     for (int i = 1; i < argc; ++i) {
@@ -85,6 +92,9 @@ int main(int argc, char** argv)
         else if (a == "--study") study = true;
         else if (a == "--sketch") sketch = true;
         else if (a == "--concert") concert = std::atof(next("--concert"));
+        else if (a == "--reroll") curation.reroll(next("--reroll"));
+        else if (a == "--set-file") setIn = next("--set-file");
+        else if (a == "--save-set") setOut = next("--save-set");
         else if (a == "--seed") seed = std::strtoull(next("--seed"), nullptr, 10);
         else if (a == "--tail") tail = std::atof(next("--tail"));
         else if (a == "--version") { std::printf("%s\n", EPH_VERSION); return 0; }
@@ -94,6 +104,17 @@ int main(int argc, char** argv)
 
     Engine engine;
     ParamStore& p = engine.params();
+    if (!setIn.empty()) {
+        // A saved set: its seed, lengths, parameters and rerolls; the command line's rerolls come on top.
+        SetFile sf;
+        std::string err;
+        if (!loadSet(setIn.c_str(), sf, p, &err)) { std::fprintf(stderr, "--set-file: %s\n", err.c_str()); return 2; }
+        seed = sf.seed;
+        if (minutes <= 0.0) minutes = sf.minutes;
+        if (concert <= 0.0) concert = sf.concert;
+        for (const auto& r : curation.rerolls) sf.curation.rerolls[r.first] += r.second;
+        curation = sf.curation;
+    }
     if (!set.empty()) {
         std::string err;
         if (!p.parseText(set, &err)) { std::fprintf(stderr, "--set: %s\n", err.c_str()); return 2; }
@@ -113,8 +134,16 @@ int main(int argc, char** argv)
         if (concert <= 0.0) concert = p.get(p.id(Module::Compose, 0, compose::ConcertMinutes));
         if (study) score = buildStudy(p, seed, mins);
         else if (sketch) score = buildSketch(p, seed, mins);
-        else if (concert > 0.0) score = composeConcert(p, seed, concert);
-        else score = composePiece(p, seed, mins);
+        else if (concert > 0.0) score = composeConcert(p, seed, concert, &curation);
+        else score = composePiece(p, seed, mins, 0, &curation);
+        if (!setOut.empty()) {
+            SetFile sf;
+            sf.seed = seed;
+            sf.minutes = mins;
+            sf.concert = concert;
+            sf.curation = curation;
+            if (!saveSet(setOut.c_str(), sf, p)) { std::fprintf(stderr, "cannot write %s\n", setOut.c_str()); return 1; }
+        }
         bars = score.lengthBeats / kBeatsPerBar;
     } else {
         // The frame of Phase 0: a tempo map, a length and two markers.
@@ -158,7 +187,7 @@ int main(int argc, char** argv)
     }
     const double took = std::chrono::duration<double>(std::chrono::steady_clock::now() - t0).count();
     if (!out.empty() && !wav.close()) { std::fprintf(stderr, "error writing %s\n", out.c_str()); return 1; }
-    if (!midi.empty() && !writeMidiFile(score, midi.c_str())) { std::fprintf(stderr, "cannot write %s\n", midi.c_str()); return 1; }
+    if (!midi.empty() && !writeMidiFile(score, midi.c_str(), "Ephemeris", &p)) { std::fprintf(stderr, "cannot write %s\n", midi.c_str()); return 1; }
 
     const double secs = static_cast<double>(total) / rate;
     std::printf("Ephemeris %s: %.0f bars, %.2f s + %.1f s tail at %.0f Hz, tempo %.1f BPM, key %s, seed %llu\n",

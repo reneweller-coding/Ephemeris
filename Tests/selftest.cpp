@@ -18,12 +18,14 @@
 #include "eph/Params.h"
 #include "eph/Rack.h"
 #include "eph/Score.h"
+#include "eph/SetFile.h"
 #include "eph/Study.h"
 #include "eph/TapeEcho.h"
 #include "eph/TapeKeys.h"
 #include "TestSupport.h"
 #include <algorithm>
 #include <cmath>
+#include <cstdio>
 #include <cstring>
 #include <functional>
 #include <string>
@@ -504,6 +506,51 @@ void testComposer()
 }
 
 /**
+ * Curation (SetFile.h): rerolling the lead draws new lead notes and leaves every other note and every
+ * gesture as it was; a set file brings the same piece back.
+ */
+void testCuration()
+{
+    section("curation and set files");
+    ParamStore p;
+    p.parseText("compose.style=Cosmic");
+    const Score a = composePiece(p, 21, 8.0);
+    Curation c;
+    c.reroll("lead");
+    const Score b = composePiece(p, 21, 8.0, 0, &c);
+    auto without = [](const Score& s, Part part) {
+        std::vector<std::pair<double, int>> v;
+        for (const NoteEvent& n : s.notes) if (n.part != part) v.push_back({ n.beat, n.pitch });
+        return v;
+    };
+    auto only = [](const Score& s, Part part) {
+        std::vector<std::pair<double, int>> v;
+        for (const NoteEvent& n : s.notes) if (n.part == part) v.push_back({ n.beat, n.pitch });
+        return v;
+    };
+    bool gesturesSame = a.gestures.size() == b.gestures.size();
+    for (size_t i = 0; gesturesSame && i < a.gestures.size(); ++i)
+        gesturesSame = a.gestures[i].beat == b.gestures[i].beat && a.gestures[i].to == b.gestures[i].to;
+    const bool hasLead = !only(a, Part::Lead).empty();
+    check(without(a, Part::Lead) == without(b, Part::Lead) && gesturesSame, "a reroll of the lead leaves the rest bit for bit", "");
+    check(!hasLead || only(a, Part::Lead) != only(b, Part::Lead), "and draws the lead again", hasLead ? "" : "no lead in this piece");
+
+    SetFile sf;
+    sf.seed = 21;
+    sf.minutes = 8.0;
+    sf.curation = c;
+    const std::string path = "eph_selftest.ephset";
+    const bool saved = saveSet(path.c_str(), sf, p);
+    ParamStore q;
+    SetFile back;
+    std::string err;
+    const bool loaded = loadSet(path.c_str(), back, q, &err);
+    std::remove(path.c_str());
+    const Score d = composePiece(q, back.seed, back.minutes, 0, &back.curation);
+    check(saved && loaded && without(d, Part::Count) == without(b, Part::Count), "a set file brings the same piece back", err);
+}
+
+/**
  * The offline render is the oracle only if a host's block size cannot change a sample: the study
  * rendered with blocks of 1, 37 and 512 must agree bit for bit (Engine.h).
  */
@@ -642,6 +689,7 @@ const TestSection kSections[] = {
     { "testChords", testChords },
     { "testForm", testForm },
     { "testComposer", testComposer },
+    { "testCuration", testCuration },
     { "testBlockSizes", testBlockSizes },
     { "testEcho", testEcho },
     { "testDrift", testDrift },

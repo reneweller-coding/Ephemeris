@@ -18,7 +18,7 @@ namespace eph {
 namespace {
 
 /** @brief The streams of a piece: one per step of PLAN 6, so changing one leaves the others. */
-enum Stream : uint64_t { sForm = 1, sTempo, sRows, sRack, sLayers, sLead, sPads, sHands, sAtmos };
+enum Stream : uint64_t { sForm = 1, sTempo, sRows, sRack, sLayers, sLead, sPads, sHands };
 
 /** @brief The offset in a knob's normalised range that takes it from its default to @p value. */
 float offsetTo(const ParamStore& p, int id, float value)
@@ -42,13 +42,21 @@ void writeDrone(Score& s, int keyRoot, double from, double to)
 
 } // namespace
 
-Score composePiece(const ParamStore& params, uint64_t seed, double minutes, int keyShift)
+const char* const kUnitNames[8] = { "form", "tempo", "rows", "rack", "layers", "lead", "pads", "hands" };
+
+Score composePiece(const ParamStore& params, uint64_t seed, double minutes, int keyShift,
+                   const Curation* curation, const std::string& unit)
 {
     ParamStore p;
     p.copyValuesFrom(params);
     const Style style = static_cast<Style>(p.getInt(p.id(Module::Compose, 0, compose::Style)));
     const StyleProfile& prof = styleProfile(style);
-    auto stream = [&](Stream k) { Rng r; r.seed(mixSeed(seed, k)); return r; };
+    // A unit's stream moves by its reroll counter; every other stream stays where it was.
+    auto streamSeed = [&](Stream k) {
+        const int n = curation != nullptr ? curation->count(unit + kUnitNames[k - 1]) : 0;
+        return mixSeed(seed, static_cast<uint64_t>(k) + 131u * static_cast<uint64_t>(n));
+    };
+    auto stream = [&](Stream k) { Rng r; r.seed(streamSeed(k)); return r; };
 
     const int keyId = p.id(Module::Compose, 0, compose::Key);
     const int key = ((p.getInt(keyId) + keyShift) % 12 + 12) % 12;
@@ -100,7 +108,7 @@ Score composePiece(const ParamStore& params, uint64_t seed, double minutes, int 
 
     // The rack, phase by phase: new patterns for every phase, rows in through the builds.
     Rack rack;
-    rack.setup(p, mixSeed(seed, sRack));
+    rack.setup(p, streamSeed(sRack));
     std::vector<double> rowFrom(kRows, -1.0);   // first beat each row plays, for the hands
     for (int ph = 0; ph < phases; ++ph) {
         const Section* entry = form.find(SectionType::Entry, ph);
@@ -288,11 +296,11 @@ void appendScore(Score& dst, const Score& src, int rootOffset)
     dst.sort();
 }
 
-Score composeConcert(const ParamStore& p, uint64_t seed, double minutes)
+Score composeConcert(const ParamStore& p, uint64_t seed, double minutes, const Curation* curation)
 {
     const StyleProfile& prof = styleProfile(static_cast<Style>(p.getInt(p.id(Module::Compose, 0, compose::Style))));
     Rng r;
-    r.seed(mixSeed(seed, 99));
+    r.seed(mixSeed(seed, 99u + 131u * static_cast<uint64_t>(curation != nullptr ? curation->count("concert") : 0)));
     Score out;
     double elapsed = 0.0;
     int shift = 0;
@@ -301,7 +309,8 @@ Score composeConcert(const ParamStore& p, uint64_t seed, double minutes)
         double m = prof.minutesLow + (prof.minutesHigh - prof.minutesLow) * r.uniform();
         if (left - m < prof.minutesLow * 0.6) m = left;   // no short piece at the end: the last takes the rest
         m = std::max(4.0, m);
-        Score piece = composePiece(p, mixSeed(seed, 1000 + static_cast<uint64_t>(i)), m, shift);
+        Score piece = composePiece(p, mixSeed(seed, 1000 + static_cast<uint64_t>(i)), m, shift, curation,
+                                   "piece" + std::to_string(i + 1) + ".");
         for (Marker& mk : piece.markers) mk.text = "Stueck " + std::to_string(i + 1) + ": " + mk.text;
         if (i == 0) { out = piece; out.rootShifts.clear(); out.lengthBeats = 0.0; out.notes.clear(); out.gestures.clear();
                       out.rack.clear(); out.markers.clear(); }
