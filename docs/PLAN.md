@@ -10,6 +10,27 @@ verschiedener Länge um einen gemeinsamen Grundton, die nur selten wieder zusamm
 
 ## Stand der Umsetzung
 
+**Nächste Schritte (Stand 24.09.2026, nachts).** Bewusst angehalten vor Phase 6: Der Quest-Port lässt
+sich hier nur kompilieren, nicht auf einem Gerät prüfen, und die Hörrunde des Nutzers mit den
+komponierten Stücken soll die Klangbasis bestätigen, bevor sie auf die Quest geht.
+1. **Hörrunde** (Nutzer): `out/piece_cosmic.wav` (Cosmic, 14 min), `out/piece_Melodic.wav` und
+   `out/piece_Modern.wav` (mit Schlagzeug), die Skizze `out/sketch.wav`; oder im Standalone mit "Compose"
+   und "Play". Fragen: Ist die Grundstimme jetzt hell genug? Tragen Chor und Streicher der Tape Keys? Ist
+   der Hall zu viel oder zu wenig? Sind die Formen zu lang oder zu kurz, die Stile unterscheidbar?
+2. **Quest (Phase 6)**, Weg: `Quest/` aus Phosphene kopieren (OpenXR-Sitzung, Swapchain, Punkt-Renderer,
+   Schrift, Hände, Oboe, `build_apk.ps1`, `fetch_thirdparty.ps1` sind generisch); ersetzt werden
+   `SetPlayer`, `Config` und die Anzeige. Der Ephemeris-Player komponiert ein Konzert beim Start auf dem
+   kleinen Kern, lädt es vor dem Start des Audiostroms (die Engine allokiert beim Laden) und spielt mit
+   derselben Übergabe über einen atomaren Zustand wie Phosphene. Hände: linke Höhe = Cutoff der
+   Bassreihe, rechte Höhe = Echo-Rückkopplung, linker Pinch = Play/Stop, rechter Pinch = nächstes Stück.
+   Bild: die Reihen als Umlaufbahnen (die Orrery-Ansicht aus 8.2), Abschnitt und Tonart als Text.
+   Qualitätsstufe: Sänger je Taste 6 → 3, Reihen mit 2× → 1× außer der Bassreihe.
+3. **Plugin (Rest von Phase 5)**: Host-Test und pluginval, die Tempokarte des Stücks im Host, eine
+   eigene Oberfläche mit der Orrery-Ansicht, Perform-Makros, Handbuch-Generator.
+4. **Offen aus Phase 4**: Konjunktionen als Formgrenzen, Tempogramm für die Referenzmessung,
+   Kalibrierung der Tape Keys an Mellotron-Aufnahmen (dafür fehlen noch Aufnahmen).
+5. **Release (Phase 7)**: `Deploy/` nach Phosphene (Inno Setup, `build_release.ps1`, Paketprüfung).
+
 **24.09.2026: Phase 5, erster Teil fertig: das Plugin.** VST3 und Standalone
 (`build/Plugin/Ephemeris_artefacts/Release/`), Bild des Panels in `docs/screenshot.png`.
 
