@@ -40,6 +40,49 @@ void writeDrone(Score& s, int keyRoot, double from, double to)
     }
 }
 
+/**
+ * @brief Drums for a span, by style (PLAN 5.7): an eighties kit in "Melodic", a sparse one in "Modern",
+ *        a lone tom now and then in "Doom". General MIDI numbers; toms are tuned by the engine.
+ */
+void writeDrums(Score& s, Style style, double from, double to, Rng& rng)
+{
+    auto hit = [&](double beat, int note, float vel) {
+        if (beat >= from && beat < to) s.notes.push_back({ beat, 0.1, Part::Drums, note, vel, false, false });
+    };
+    const bool sixteenths = rng.uniform() < 0.5f, shaker = rng.uniform() < 0.4f;
+    int bar = 0;
+    for (double b = std::ceil(from / kBeatsPerBar) * kBeatsPerBar; b < to; b += kBeatsPerBar, ++bar) {
+        const bool fill = (bar % 8) == 7;
+        switch (style) {
+        case Style::Melodic:
+            hit(b, 36, 0.95f);
+            hit(b + 2.0, 36, 0.9f);
+            if (rng.uniform() < 0.3f) hit(b + 1.75, 36, 0.6f);
+            hit(b + 1.0, 38, 0.85f);
+            if (!fill) hit(b + 3.0, 38, 0.85f);
+            for (double h = 0.0; h < 4.0; h += sixteenths ? 0.25 : 0.5)
+                if (!(fill && h >= 3.0)) hit(b + h, 42, std::fmod(h, 1.0) == 0.5 ? 0.75f : 0.5f);
+            if (rng.uniform() < 0.5f && !fill) hit(b + 3.5, 46, 0.6f);
+            if (fill) { hit(b + 3.0, 48, 0.8f); hit(b + 3.25, 48, 0.7f); hit(b + 3.5, 45, 0.8f); hit(b + 3.75, 45, 0.75f); }
+            if (shaker) for (double h = 0.0; h < 4.0; h += 0.25) hit(b + h, 70, 0.35f);
+            break;
+        case Style::Modern:
+            hit(b, 36, 0.9f);
+            if (rng.uniform() < 0.4f) hit(b + 2.5, 36, 0.7f);
+            hit(b + 2.0, 38, 0.8f);   // half time
+            for (double h = 0.5; h < 4.0; h += 1.0) if (rng.uniform() < 0.5f) hit(b + h, 37, 0.6f);
+            for (double h = 0.0; h < 4.0; h += 0.25) if (rng.uniform() < 0.6f) hit(b + h, 42, 0.3f + 0.3f * rng.uniform());
+            if (shaker) for (double h = 0.0; h < 4.0; h += 0.5) hit(b + h, 70, 0.3f);
+            if ((bar % 16) == 15) { hit(b + 3.0, 48, 0.7f); hit(b + 3.5, 45, 0.7f); }
+            break;
+        case Style::Doom:
+            if (bar % 2 == 0) hit(b, 45, 0.8f);
+            break;
+        default: break;
+        }
+    }
+}
+
 } // namespace
 
 const char* const kUnitNames[8] = { "form", "tempo", "rows", "rack", "layers", "lead", "pads", "hands" };
@@ -163,6 +206,7 @@ Score composePiece(const ParamStore& params, uint64_t seed, double minutes, int 
     const bool tapeOn = layers.uniform() < prof.tapeChance;
     const bool stringsOn = layers.uniform() < prof.stringsChance;
     const bool bleepsOn = layers.uniform() < prof.bleepChance;
+    const bool drumsOn = layers.uniform() < prof.drumsChance;   // drawn last, so the draws above stay as they were
     const Section* coda = form.find(SectionType::Coda, phases - 1);
     writeDrone(s, key, 0.0, coda != nullptr ? coda->beat + coda->length * 0.8 : form.lengthBeats);
 
@@ -204,6 +248,12 @@ Score composePiece(const ParamStore& params, uint64_t seed, double minutes, int 
         }
         const Section* bridge = form.find(SectionType::Bridge, ph + 1);
         if (tapeOn && bridge != nullptr) writeChords(s, pp, bridge->beat, bridge->beat + bridge->length, pads);
+        // The drums come late: from the second build (or the peak) to the end of the peak.
+        if (drumsOn && peak != nullptr) {
+            const Section* second = nullptr;
+            for (const Section& sec : form.sections) if (sec.phase == ph && sec.type == SectionType::Build && sec.index == 1) second = &sec;
+            writeDrums(s, style, second != nullptr ? second->beat : peak->beat, peak->beat + peak->length, layers);
+        }
     }
 
     // The atmosphere: wind and sweeps where no rows play, bleeps in the builds.

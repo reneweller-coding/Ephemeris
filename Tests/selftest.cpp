@@ -479,6 +479,7 @@ void testComposer()
     check(std::fabs(secs - 600.0) < 60.0, "as long as asked", fmt("%.0f s for 600", secs));
     int outside = 0, total = 0;
     for (const NoteEvent& n : a.notes) {
+        if (n.part == Part::Drums) continue;   // General MIDI instrument numbers, not pitches
         int shift = 0;
         for (const auto& e : a.rootShifts) { if (e.first > n.beat) break; shift = e.second; }
         ++total;

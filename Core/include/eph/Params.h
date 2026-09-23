@@ -67,6 +67,8 @@ enum class Module : int { Compose = 0, Row, Master,
                           Strings,
                           /** Phase 3: the springs of the tape echo. */
                           Spring,
+                          /** Phase 4: the drum kit. */
+                          Drums,
                           Count };
 
 constexpr int kRows = 8;   ///< instances of the row module (the rows of the rack) and of the voice module
@@ -127,6 +129,10 @@ enum : int { Attack, Release, Feet, Tone, Ensemble, Level, Pan, EchoSend, Reverb
 /** @brief Parameters of the springs (module Spring; Spring.h): fed from the echo's send. */
 namespace spring {
 enum : int { Decay, Tone, Return, Count };
+}
+/** @brief Parameters of the drum kit (module Drums; Drums.h). */
+namespace drums {
+enum : int { KickHz, Decay, Tone, Level, EchoSend, ReverbSend, Count };
 }
 /** @brief Parameters of the atmosphere (module Atmos; Atmos.h). */
 namespace atmos {

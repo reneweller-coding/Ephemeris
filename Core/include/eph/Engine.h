@@ -18,6 +18,7 @@
  */
 #pragma once
 #include "eph/Atmos.h"
+#include "eph/Drums.h"
 #include "eph/Dynamics.h"
 #include "eph/ModVoice.h"
 #include "eph/Params.h"
@@ -105,6 +106,7 @@ private:
     static constexpr int kDroneVoice = kRows + 1;
     static constexpr int kTapeVoice = kRows + 2;   ///< not a ModVoice: the tape keyboard's events
     static constexpr int kStringsVoice = kRows + 3;   ///< not a ModVoice: the string machine's events
+    static constexpr int kDrumsVoice = kRows + 4;     ///< not a ModVoice: the drum kit's hits
     ModVoice voices_[kVoices];
     /** Whether a voice runs in the current cell: decided at the cell's start and on a note-on, never
      *  when it falls silent mid-span -- that would tie its oscillator phase to the host's block size. */
@@ -116,6 +118,9 @@ private:
     Atmos atmos_;
     StringMachine strings_;
     Spring spring_;
+    DrumKit drums_;
+    bool drumsRunning_ = false;
+    float drumLevel_ = 0.0f, drumEcho_ = 0.0f, drumReverb_ = 0.0f;
     float springReturn_ = 0.0f;
     bool stringsRunning_ = false;
     float strL_ = 0.0f, strR_ = 0.0f, strEcho_ = 0.0f, strReverb_ = 0.0f;

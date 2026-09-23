@@ -31,13 +31,14 @@ void Engine::load(const Score& score)
     // is legato: the voice glides instead of retriggering.
     events_.clear();
     int id = 0;
-    bool slideInto[kVoices + 2] = {};
+    bool slideInto[kVoices + 3] = {};
     for (const NoteEvent& n : score_.notes) {
         int row = static_cast<int>(n.part) - static_cast<int>(Part::Row1);
         if (n.part == Part::Lead) row = kLeadVoice;
         else if (n.part == Part::Drone) row = kDroneVoice;
         else if (n.part == Part::TapeKeys) row = kTapeVoice;
         else if (n.part == Part::Strings) row = kStringsVoice;
+        else if (n.part == Part::Drums) row = kDrumsVoice;
         else if (row < 0 || row >= kRows) continue;
         const int64_t on = std::llround(score_.tempo.secondsAt(n.beat) * sampleRate_);
         const int64_t off = std::max(on + 1, static_cast<int64_t>(std::llround(score_.tempo.secondsAt(n.beat + n.length) * sampleRate_)));
@@ -68,6 +69,8 @@ void Engine::load(const Score& score)
     atmos_.prepare(sampleRate_, mixSeed(score_.seed, 600));
     comp_.prepare(sampleRate_);
     spring_.prepare(sampleRate_);
+    drums_.prepare(sampleRate_, mixSeed(score_.seed, 800));
+    drumsRunning_ = false;
     strings_.prepare(sampleRate_, mixSeed(score_.seed, 700));
     stringsRunning_ = false;
     limiter_.prepare(sampleRate_);
@@ -160,6 +163,18 @@ void Engine::updateCell()
         tapeR_ = level * std::sin(a);
         tapeEcho_ = t(tape::EchoSend);
         tapeReverb_ = t(tape::ReverbSend);
+    }
+    {
+        auto d = [&](int index) { return played(params_.id(Module::Drums, 0, index)); };
+        DrumSettings ds;
+        ds.kickHz = d(drums::KickHz);
+        ds.decay = d(drums::Decay);
+        ds.tone = d(drums::Tone);
+        drums_.set(ds);
+        drumsRunning_ = drums_.active();
+        drumLevel_ = dbToGain(d(drums::Level));
+        drumEcho_ = d(drums::EchoSend);
+        drumReverb_ = d(drums::ReverbSend);
     }
     {
         auto t = [&](int index) { return played(params_.id(Module::Strings, 0, index)); };
@@ -268,6 +283,16 @@ void Engine::renderSpan(float* L, float* R, int n)
             revR[i] += buf[i] * gr * h;
         }
     }
+    if (drumsRunning_) {
+        float dL[kCell], dR[kCell];
+        drums_.process(dL, dR, n);
+        for (int i = 0; i < n; ++i) {
+            const float l = dL[i] * drumLevel_, r = dR[i] * drumLevel_;
+            L[i] += l; R[i] += r;
+            sendL[i] += l * drumEcho_; sendR[i] += r * drumEcho_;
+            revL[i] += l * drumReverb_; revR[i] += r * drumReverb_;
+        }
+    }
     if (stringsRunning_) {
         float sL[kCell], sR[kCell];
         strings_.process(sL, sR, n);
@@ -334,7 +359,17 @@ bool Engine::process(float* L, float* R, int n)
         // Every event due at this sample, offs before ons.
         while (evCursor_ < events_.size() && events_[evCursor_].sample <= sample_) {
             const Ev& e = events_[evCursor_++];
-            if (e.row == kStringsVoice) {
+            if (e.row == kDrumsVoice) {
+                if (e.on) {
+                    // The toms are tuned to the root of the moment, the high one a fifth above.
+                    int shift = 0;
+                    const double now = beat();
+                    for (const auto& rs : score_.rootShifts) { if (rs.first > now) break; shift = rs.second; }
+                    const float low = static_cast<float>(midiToHz(43 + ((score_.keyRoot + shift - 7) % 12 + 12) % 12));
+                    drums_.hit(e.pitch, e.velocity, e.pitch == 48 || e.pitch == 47 || e.pitch == 50 ? low * 1.5f : low);
+                    drumsRunning_ = true;
+                }
+            } else if (e.row == kStringsVoice) {
                 if (e.on) { strings_.noteOn(e.pitch, e.velocity, e.id); stringsRunning_ = true; }
                 else strings_.noteOff(e.id);
             } else if (e.row == kTapeVoice) {

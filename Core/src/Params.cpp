@@ -196,6 +196,16 @@ const ParamDesc kSpringParams[spring::Count] = {
     { "return", "Return", "dB",  -60.0f,   12.0f,  -6.0f, Curve::Linear },
 };
 
+/** The drum kit: an electronic kit of the eighties, sitting back in the mix. */
+const ParamDesc kDrumsParams[drums::Count] = {
+    { "kick_hz", "Kick Pitch",  "Hz",  35.0f,  80.0f,  50.0f, Curve::Linear },
+    { "decay",   "Decay",       "",     0.3f,   2.0f,   1.0f, Curve::Log },
+    { "tone",    "Tone",        "",     0.0f,   1.0f,   0.5f, Curve::Linear },
+    { "level",   "Level",       "dB", -60.0f,   6.0f,  -9.0f, Curve::Linear },
+    { "echo",    "Echo Send",   "",     0.0f,   1.0f,   0.05f, Curve::Linear },
+    { "reverb",  "Reverb Send", "",     0.0f,   1.0f,   0.2f, Curve::Linear },
+};
+
 /** The hall: long and dark, as the style's spaces are (a first setting, to be judged by ear). */
 const ParamDesc kReverbParams[reverb::Count] = {
     { "size",     "Size",       "",     0.3f,     3.0f,    1.8f, Curve::Linear },
@@ -262,6 +272,7 @@ const ModuleSpec kModules[static_cast<int>(Module::Count)] = {
     { "atmos",   kAtmosParams,   atmos::Count,   1 },
     { "strings", kStringsParams, strings::Count, 1 },
     { "spring",  kSpringParams,  spring::Count,  1 },
+    { "drums",   kDrumsParams,   drums::Count,   1 },
 };
 
 bool isDiscrete(Curve c) { return c == Curve::Int || c == Curve::Choice || c == Curve::Toggle; }

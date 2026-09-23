@@ -21,6 +21,7 @@ add_library(EphemerisCore STATIC
     src/Form.cpp
     src/Composer.cpp
     src/SetFile.cpp
+    src/Drums.cpp
     src/Study.cpp
     src/Lead.cpp
     src/Sketch.cpp
