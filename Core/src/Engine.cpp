@@ -67,6 +67,7 @@ void Engine::load(const Score& score)
     tape_.prepare(sampleRate_, mixSeed(score_.seed, 500));
     atmos_.prepare(sampleRate_, mixSeed(score_.seed, 600));
     comp_.prepare(sampleRate_);
+    spring_.prepare(sampleRate_);
     strings_.prepare(sampleRate_, mixSeed(score_.seed, 700));
     stringsRunning_ = false;
     limiter_.prepare(sampleRate_);
@@ -202,6 +203,9 @@ void Engine::updateCell()
     reverb_.set(rv(reverb::Size), rv(reverb::Decay), rv(reverb::Damping),
                 rv(reverb::PreDelay) * 0.001f * static_cast<float>(sampleRate_), rv(reverb::LowCut), rv(reverb::HighCut));
     reverbReturn_ = dbToGain(rv(reverb::Return));
+    auto sp = [&](int index) { return played(params_.id(Module::Spring, 0, index)); };
+    spring_.set(sp(spring::Decay), sp(spring::Tone));
+    springReturn_ = sp(spring::Return) <= -59.9f ? 0.0f : dbToGain(sp(spring::Return));
     master_ = dbToGain(played(params_.id(Module::Master, 0, master::Level)));
     const float amount = played(params_.id(Module::Master, 0, master::Compress));
     comp_.set(-16.0f, 1.0f + 0.5f * amount, 6.0f, 30.0f, 300.0f);
@@ -301,6 +305,13 @@ void Engine::renderSpan(float* L, float* R, int n)
     std::fill(wetL, wetL + n, 0.0f);
     std::fill(wetR, wetR + n, 0.0f);
     echo_.process(sendL, sendR, wetL, wetR, n);
+    // The springs take the echo's send, as in a tape echo with springs built in; they return beside it.
+    float sprL[kCell] = {}, sprR[kCell] = {};
+    spring_.process(sendL, sendR, sprL, sprR, n);
+    for (int i = 0; i < n; ++i) {
+        wetL[i] += sprL[i] * springReturn_ / std::max(echoReturn_, 1e-6f);
+        wetR[i] += sprR[i] * springReturn_ / std::max(echoReturn_, 1e-6f);
+    }
     // The echo's repeats go into the hall too, as they do on a desk where the echo returns to a channel.
     for (int i = 0; i < n; ++i) {
         revL[i] += wetL[i] * echoReturn_ * 0.5f;

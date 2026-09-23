@@ -187,6 +187,13 @@ const ParamDesc kStringsParams[strings::Count] = {
     { "reverb",   "Reverb Send",  "",     0.0f,    1.0f,   0.45f, Curve::Linear },
 };
 
+/** The springs: a short, bright-ish tank under the echo, quiet by default. */
+const ParamDesc kSpringParams[spring::Count] = {
+    { "decay",  "Decay",  "s",    0.3f,    8.0f,   2.2f, Curve::Log },
+    { "tone",   "Tone",   "Hz", 1500.0f, 9000.0f, 4500.0f, Curve::Log },
+    { "return", "Return", "dB",  -60.0f,   12.0f,  -6.0f, Curve::Linear },
+};
+
 /** The hall: long and dark, as the style's spaces are (a first setting, to be judged by ear). */
 const ParamDesc kReverbParams[reverb::Count] = {
     { "size",     "Size",       "",     0.3f,     3.0f,    1.8f, Curve::Linear },
@@ -252,6 +259,7 @@ const ModuleSpec kModules[static_cast<int>(Module::Count)] = {
     { "drone",   kDroneParams,   lead::Count,    1 },
     { "atmos",   kAtmosParams,   atmos::Count,   1 },
     { "strings", kStringsParams, strings::Count, 1 },
+    { "spring",  kSpringParams,  spring::Count,  1 },
 };
 
 bool isDiscrete(Curve c) { return c == Curve::Int || c == Curve::Choice || c == Curve::Toggle; }

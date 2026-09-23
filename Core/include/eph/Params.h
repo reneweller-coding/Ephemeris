@@ -65,6 +65,8 @@ enum class Module : int { Compose = 0, Row, Master,
                           Drone, Atmos,
                           /** Phase 3: the string machine. */
                           Strings,
+                          /** Phase 3: the springs of the tape echo. */
+                          Spring,
                           Count };
 
 constexpr int kRows = 8;   ///< instances of the row module (the rows of the rack) and of the voice module
@@ -119,6 +121,10 @@ namespace drone = lead;
 /** @brief Parameters of the string machine (module Strings; StringMachine.h). */
 namespace strings {
 enum : int { Attack, Release, Feet, Tone, Ensemble, Level, Pan, EchoSend, ReverbSend, Count };
+}
+/** @brief Parameters of the springs (module Spring; Spring.h): fed from the echo's send. */
+namespace spring {
+enum : int { Decay, Tone, Return, Count };
 }
 /** @brief Parameters of the atmosphere (module Atmos; Atmos.h). */
 namespace atmos {

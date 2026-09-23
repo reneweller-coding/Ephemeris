@@ -23,6 +23,7 @@
 #include "eph/Params.h"
 #include "eph/Reverb.h"
 #include "eph/Score.h"
+#include "eph/Spring.h"
 #include "eph/StringMachine.h"
 #include "eph/TapeEcho.h"
 #include "eph/TapeKeys.h"
@@ -114,6 +115,8 @@ private:
     TruePeakLimiter limiter_;
     Atmos atmos_;
     StringMachine strings_;
+    Spring spring_;
+    float springReturn_ = 0.0f;
     bool stringsRunning_ = false;
     float strL_ = 0.0f, strR_ = 0.0f, strEcho_ = 0.0f, strReverb_ = 0.0f;
     bool atmosRunning_ = false;
