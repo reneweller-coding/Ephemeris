@@ -57,6 +57,10 @@ enum class Module : int { Compose = 0, Row, Master,
                           Voice, Echo,
                           /** Phase 2: the lead voice. */
                           Lead,
+                          /** Phase 3: the hall. */
+                          Reverb,
+                          /** Phase 3: the tape keyboard. */
+                          Tape,
                           Count };
 
 constexpr int kRows = 8;   ///< instances of the row module (the rows of the rack) and of the voice module
@@ -71,7 +75,9 @@ enum : int { Active, Length, Division, Direction, Octave, Transpose, Mutation, G
              // Phase 1: the send into the tape echo.
              EchoSend,
              // Phase 2: what the row does -- plays notes, or transposes the rows that play (PLAN 5.1).
-             Mode, Count };
+             Mode,
+             // Phase 3: the send into the hall.
+             ReverbSend, Count };
 }
 /** @brief Parameters of the master section. */
 namespace master {
@@ -93,7 +99,18 @@ enum : int { Wave, Detune, PulseWidth, Drift, Drive, Cutoff, Resonance, EnvAmoun
  */
 namespace lead {
 enum : int { Wave, Detune, PulseWidth, Drift, Drive, Cutoff, Resonance, EnvAmount, Decay, KeyTrack,
-             Accent, AmpDecay, Glide, Level, Pan, EchoSend, Vibrato, VibratoRate, Count };
+             Accent, AmpDecay, Glide, Level, Pan, EchoSend, Vibrato, VibratoRate,
+             // Phase 3: the send into the hall.
+             ReverbSend, Count };
+}
+/** @brief Parameters of the tape keyboard (module Tape; PLAN 5.4, TapeKeys.h). */
+namespace tape {
+enum : int { Set, Vowel, Wow, Flutter, Sag, Tone, Age, Level, Pan, EchoSend, ReverbSend, Count };
+}
+extern const char* const kTapeSetNames[];       ///< names of tape.set
+/** @brief Parameters of the hall (module Reverb; PLAN 5.8): Phosphene's eight-line FDN. */
+namespace reverb {
+enum : int { Size, Decay, Damping, PreDelay, LowCut, HighCut, Return, Count };
 }
 static_assert(static_cast<int>(lead::Glide) == static_cast<int>(voice::Glide), "the first parameters of the lead are those of the voice, in the same order");
 /** @brief Parameters of the tape echo (module Echo; PLAN 5.8). */

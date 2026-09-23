@@ -12,11 +12,13 @@
 #include "eph/Lead.h"
 #include "eph/Midi.h"
 #include "eph/ModVoice.h"
+#include "eph/Pads.h"
 #include "eph/Params.h"
 #include "eph/Rack.h"
 #include "eph/Score.h"
 #include "eph/Study.h"
 #include "eph/TapeEcho.h"
+#include "eph/TapeKeys.h"
 #include "TestSupport.h"
 #include <algorithm>
 #include <cmath>
@@ -350,6 +352,77 @@ void testLead()
 }
 
 /**
+ * The tape keyboard's machine (TapeKeys.h): a held key falls silent when its tape ends, however long it
+ * is held; it sounds before that; and the capstan slows with every key pressed.
+ */
+void testTapeKeys()
+{
+    section("tape keyboard");
+    TapeKeys t;
+    t.prepare(48000.0, 3);
+    TapeSettings s;
+    s.age = 0.0f;   // no hiss, so silence is silence
+    t.set(s);
+    t.noteOn(57, 0.8f, 1);
+    std::vector<float> out(48000 * 10);
+    for (size_t i = 0; i < out.size(); i += 32) t.process(out.data() + i, 32);
+    auto energy = [&](double a, double b) {
+        double e = 0.0;
+        for (size_t i = static_cast<size_t>(a * 48000); i < static_cast<size_t>(b * 48000); ++i) e += static_cast<double>(out[i]) * out[i];
+        return e;
+    };
+    const double sounding = energy(2.0, 3.0), after = energy(8.2, 9.2);
+    check(sounding > 1.0, "a pressed key sounds", fmt("%.1f", sounding));
+    check(after < sounding * 1e-6, "silent after the tape ends, key still held", fmt("%.1f dB below", 10.0 * std::log10(sounding / std::max(after, 1e-30))));
+    check(!t.active(), "the key is free again", "");
+    s.sagCents = 1.5f;
+    t.set(s);
+    check(t.speedFor(1) == 1.0 && t.speedFor(3) < 1.0 && t.speedFor(6) < t.speedFor(3), "the capstan slows with every key",
+          fmt("%.2f and %.2f cents at 3 and 6 keys", 1200.0 * std::log2(t.speedFor(3)), 1200.0 * std::log2(t.speedFor(6))));
+}
+
+/**
+ * The chords (Pads.h): every tone in the scale built on the root sounding at its beat, no chord longer
+ * than a tape can hold, and the voices moving little from chord to chord.
+ */
+void testChords()
+{
+    section("held chords");
+    PadPlan pp;
+    pp.keyRoot = 9;
+    pp.scale = 0;
+    pp.shifts = { { 0.0, 0 }, { 32.0, -4 }, { 64.0, -2 }, { 96.0, 3 }, { 128.0, 0 } };
+    Score s;
+    s.clear(118.0);
+    Rng rng;
+    rng.seed(8);
+    const int chords = writeChords(s, pp, 0.0, 160.0, rng);
+    s.sort();
+    int outside = 0;
+    double longest = 0.0;
+    for (const NoteEvent& n : s.notes) {
+        int shift = 0;
+        for (const auto& e : pp.shifts) if (e.first <= n.beat) shift = e.second;
+        if (!inScale(n.pitch, ((pp.keyRoot + shift) % 12 + 12) % 12, pp.scale)) ++outside;
+        longest = std::max(longest, s.tempo.secondsAt(n.beat + n.length) - s.tempo.secondsAt(n.beat));
+    }
+    // Movement: the mean distance of each chord's lowest voice from the one before.
+    // A chord is the notes struck within a tenth of a beat of its first (the fingers are a few ms apart).
+    std::vector<int> lows;
+    double chordStart = -1.0;
+    for (const NoteEvent& n : s.notes) {
+        if (n.beat - chordStart > 0.1) { lows.push_back(n.pitch); chordStart = n.beat; }
+        else lows.back() = std::min(lows.back(), n.pitch);
+    }
+    double move = 0.0;
+    for (size_t i = 1; i < lows.size(); ++i) move += std::abs(lows[i] - lows[i - 1]);
+    move /= std::max<size_t>(1, lows.size() - 1);
+    check(chords >= 5 && outside == 0, "every tone in the scale of its root", fmt("%d chords, %d tones outside", chords, outside));
+    check(longest < kTapeSeconds - 0.5, "no chord held longer than a tape", fmt("longest %.2f s", longest));
+    check(move <= 3.0, "the lowest voice moves little", fmt("%.1f semitones on average", move));
+}
+
+/**
  * The offline render is the oracle only if a host's block size cannot change a sample: the study
  * rendered with blocks of 1, 37 and 512 must agree bit for bit (Engine.h).
  */
@@ -484,6 +557,8 @@ const Section kSections[] = {
     { "testTransposer", testTransposer },
     { "testHands", testHands },
     { "testLead", testLead },
+    { "testTapeKeys", testTapeKeys },
+    { "testChords", testChords },
     { "testBlockSizes", testBlockSizes },
     { "testEcho", testEcho },
     { "testDrift", testDrift },

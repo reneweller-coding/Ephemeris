@@ -10,6 +10,9 @@ add_library(EphemerisCore STATIC
     src/Rack.cpp
     src/ModVoice.cpp
     src/TapeEcho.cpp
+    src/Reverb.cpp
+    src/TapeKeys.cpp
+    src/Pads.cpp
     src/Study.cpp
     src/Lead.cpp
     src/Sketch.cpp

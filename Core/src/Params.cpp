@@ -18,6 +18,7 @@ const char* const kRowDivisionNames[] = { "1/4", "1/8", "1/8 T", "1/16", "1/16 T
 const char* const kRowDirectionNames[] = { "Forward", "Backward", "Pendulum", "Random Walk" };
 const char* const kRowModeNames[] = { "Notes", "Transposer" };
 const char* const kEchoTimeNames[] = { "1/16", "1/8", "3/16", "1/4", "3/8", "1/2" };
+const char* const kTapeSetNames[] = { "Choir", "Strings", "Flute" };
 
 double echoTimeBeats(EchoTime t)
 {
@@ -66,6 +67,7 @@ const ParamDesc kRowParams[row::Count] = {
     { "pan",       "Pan",        "",     -1.0f,  1.0f,  0.0f, Curve::Linear },
     { "echo",      "Echo Send",  "",      0.0f,  1.0f,  0.3f, Curve::Linear },
     { "mode",      "Mode",       "",      0.0f,  1.0f,  0.0f, Curve::Choice, kRowModeNames },
+    { "reverb",    "Reverb Send", "",     0.0f,  1.0f,  0.3f, Curve::Linear },
 };
 
 /**
@@ -118,6 +120,33 @@ const ParamDesc kLeadParams[lead::Count] = {
     { "echo",         "Echo Send",     "",       0.0f,     1.0f,    0.45f, Curve::Linear },
     { "vibrato",      "Vibrato",       "ct",     0.0f,   100.0f,   18.0f, Curve::Linear },
     { "vibrato_rate", "Vibrato Rate",  "Hz",     1.0f,    10.0f,    5.2f, Curve::Linear },
+    { "reverb",       "Reverb Send",   "",       0.0f,     1.0f,    0.4f, Curve::Linear },
+};
+
+/** The tape keyboard: a first setting of the machine (PLAN 5.4 wants it measured on recordings). */
+const ParamDesc kTapeParams[tape::Count] = {
+    { "set",     "Tapes",        "",      0.0f,     2.0f,    0.0f, Curve::Choice, kTapeSetNames },
+    { "vowel",   "Vowel",        "",      0.0f,     1.0f,    0.2f, Curve::Linear },   // aah .. ooh
+    { "wow",     "Wow",          "ct",    0.0f,    30.0f,    6.0f, Curve::Linear },
+    { "flutter", "Flutter",      "ct",    0.0f,    10.0f,    2.0f, Curve::Linear },
+    { "sag",     "Motor Load",   "ct",    0.0f,     5.0f,    1.0f, Curve::Linear },   // per key beyond the first
+    { "tone",    "Tone",         "Hz", 1500.0f, 16000.0f, 7000.0f, Curve::Log },
+    { "age",     "Age",          "",      0.0f,     1.0f,    0.5f, Curve::Linear },
+    { "level",   "Level",        "dB",  -60.0f,     6.0f,   -8.0f, Curve::Linear },
+    { "pan",     "Pan",          "",     -1.0f,     1.0f,   -0.1f, Curve::Linear },
+    { "echo",    "Echo Send",    "",      0.0f,     1.0f,    0.1f, Curve::Linear },
+    { "reverb",  "Reverb Send",  "",      0.0f,     1.0f,    0.5f, Curve::Linear },
+};
+
+/** The hall: long and dark, as the style's spaces are (a first setting, to be judged by ear). */
+const ParamDesc kReverbParams[reverb::Count] = {
+    { "size",     "Size",       "",     0.3f,     3.0f,    1.8f, Curve::Linear },
+    { "decay",    "Decay",      "s",    0.3f,    20.0f,    5.5f, Curve::Log },
+    { "damping",  "Damping",    "",     0.0f,     1.0f,    0.45f, Curve::Linear },
+    { "predelay", "Pre-Delay",  "ms",   0.0f,   200.0f,   25.0f, Curve::Linear },
+    { "lowcut",   "Low Cut",    "Hz",  40.0f,   500.0f,  110.0f, Curve::Log },
+    { "highcut",  "High Cut",   "Hz", 1000.0f, 20000.0f, 9000.0f, Curve::Log },
+    { "return",   "Return",     "dB",  -60.0f,   12.0f,    4.0f, Curve::Linear },   // the FDN returns quietly: +4 dB puts the tail ~10 dB under the dry mix
 };
 
 const ParamDesc kEchoParams[echo::Count] = {
@@ -166,6 +195,8 @@ const ModuleSpec kModules[static_cast<int>(Module::Count)] = {
     { "voice",   kVoiceParams,   voice::Count,   kRows },
     { "echo",    kEchoParams,    echo::Count,    1 },
     { "lead",    kLeadParams,    lead::Count,    1 },
+    { "reverb",  kReverbParams,  reverb::Count,  1 },
+    { "tape",    kTapeParams,    tape::Count,    1 },
 };
 
 bool isDiscrete(Curve c) { return c == Curve::Int || c == Curve::Choice || c == Curve::Toggle; }

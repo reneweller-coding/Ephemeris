@@ -19,8 +19,10 @@
 #pragma once
 #include "eph/ModVoice.h"
 #include "eph/Params.h"
+#include "eph/Reverb.h"
 #include "eph/Score.h"
 #include "eph/TapeEcho.h"
+#include "eph/TapeKeys.h"
 #include <cstdint>
 #include <vector>
 
@@ -95,11 +97,18 @@ private:
 
     static constexpr int kVoices = kRows + 1;   ///< the rows' voices, then the lead
     static constexpr int kLeadVoice = kRows;
+    static constexpr int kTapeVoice = kRows + 1;   ///< not a ModVoice: the tape keyboard's events
     ModVoice voices_[kVoices];
     /** Whether a voice runs in the current cell: decided at the cell's start and on a note-on, never
      *  when it falls silent mid-span -- that would tie its oscillator phase to the host's block size. */
     bool running_[kVoices] = {};
     TapeEcho echo_;
+    TapeKeys tape_;
+    bool tapeRunning_ = false;
+    float tapeL_ = 0.0f, tapeR_ = 0.0f, tapeEcho_ = 0.0f, tapeReverb_ = 0.0f;
+    Reverb reverb_;
+    float rsend_[kVoices] = {};
+    float reverbReturn_ = 0.0f;
     float gainL_[kVoices] = {}, gainR_[kVoices] = {}, send_[kVoices] = {};
     float echoReturn_ = 0.0f, master_ = 1.0f;
 };

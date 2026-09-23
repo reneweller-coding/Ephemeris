@@ -5,6 +5,7 @@
 #include "eph/Sketch.h"
 #include "eph/GestureEngine.h"
 #include "eph/Lead.h"
+#include "eph/Pads.h"
 #include "eph/Rack.h"
 #include <algorithm>
 #include <cmath>
@@ -68,6 +69,18 @@ Score buildSketch(const ParamStore& params, uint64_t seed, double minutes)
     writeLead(s, lp, at(0.40), at(0.58), leadRng);
     lp.intensity = 0.8f;
     writeLead(s, lp, at(0.60), at(0.80), leadRng);
+
+    // The tape keys: the choir from about a fifth of the way, the strings tape from the peak on (the
+    // player switches the tape set, a step on its knob), chords following the transposer.
+    Rng padRng;
+    padRng.seed(mixSeed(seed, 500));
+    PadPlan pp;
+    pp.keyRoot = rack.keyRoot();
+    pp.scale = rack.scale();
+    pp.shifts = rack.shifts();
+    writeChords(s, pp, at(0.22), at(0.92), padRng);
+    s.gestures.push_back({ p.id(Module::Tape, 0, tape::Set), at(0.62), 0.0, 0.0f, 0.5f, GestureShape::Step, 1 });
+    s.markers.push_back({ at(0.22), "Tape Keys" });
 
     // The hands.
     auto knob = [&](Module m, int inst, int index, float low, float high, float rest, float peak, float weight, double from) {
