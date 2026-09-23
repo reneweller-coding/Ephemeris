@@ -10,6 +10,53 @@ verschiedener Länge um einen gemeinsamen Grundton, die nur selten wieder zusamm
 
 ## Stand der Umsetzung
 
+**24.09.2026: Phase 4 im Wesentlichen fertig.** `eph_render` komponiert jetzt standardmäßig ein
+ganzes Stück (`--set "compose.style=Cosmic|Doom|Melodic|Modern|Drift"`, `--minutes`) oder ein Konzert
+(`--concert 60`); `--reroll lead` würfelt eine Einheit neu, `--save-set`/`--set-file` speichern und laden
+eine `.ephset`.
+
+| Prüfstein | Ergebnis |
+|---|---|
+| Fünf Stile, je zwölf Minuten, Seed 5 | alle komponiert und gerendert, 23- bis 31-fache Echtzeit, 3,2 bis 4,3 % eines Kerns |
+| Pegel je Stil (RMS) | Cosmic −18,5, Doom −23,4, Melodic −18,1, Modern −17,8, Drift −24,0 dBFS: Doom und Drift rund 5 dB leiser, wie in den Referenzen (dort −14 bis −16 gegen −20); absolut 4 bis 5 dB leiser als die Referenzen, weil der Master nur schützt und nicht verdichtet |
+| Formgrammatik, fünf Stile × sechs Seeds | 30 von 30 Formen lückenlos, mit Atmo am Anfang, Ausklang am Ende, Einsatz, Aufbau und Höhepunkt in jeder Phase, Brücken dazwischen, Mindestlängen |
+| Komponiertes Stück (Melodic, 10 min) | gleicher Seed, gleiches Stück; 598 s für 600; alle 9191 tonalen Noten (Reihen, Lead, Akkorde, Drone) in der Skala ihres Grundtons |
+| Konzert, 40 min | vier Stücke, 2399 s, Tonartenreise |
+| Kuratieren | Neuwürfeln des Leads lässt jede andere Note und jede Geste bitgleich; eine `.ephset` bringt dasselbe Stück zurück |
+| Selbsttest | 54 von 54 |
+
+Gebaut:
+- **Stilprofile** (`Style.h`): Tempo, Länge, Phasenzahl, Intro- und Coda-Anteil, Tempo- und
+  Tonartwechsel, Reihen am Höhepunkt und ihre Längen, Mutation, Transposer, Schichtwahrscheinlichkeiten,
+  Tape-Satz, Lead-Dichte, Hände, Dunkelheit, Hall, Pegel. Tempi nach der Referenzmessung gesenkt
+  (Cosmic 96–118, Doom 84–108, Melodic 104–126, Modern 90–120, Drift 80–110), Pegelversatz nach den
+  gemessenen RMS-Werten.
+- **Formgrammatik** (`Form.h`): Atmo, Sequenzphasen (Einsatz, ein bis drei Aufbauten, Lead,
+  Höhepunkt, Abbau vor einer Brücke), Brücken, Ausklang; Längen in Takten im Tempo ihrer Phase, ein
+  Spannungsbogen über alle Abschnitte; Tempowechsel am Beginn der Brücke, wo keine Reihe spielt.
+- **Komponist** (`Composer.h`): Stücke auf getrennten Seed-Strömen (Form, Tempo, Reihen, Muster,
+  Schichten, Lead, Akkorde, Hände); neue Muster in jeder Phase; Reihen kommen mit den Aufbauten, alle am
+  Höhepunkt, die Gegenreihen gehen im Abbau; Tonartwechsel als Rack-Ereignis (`RackOp::Key`), dem Lead,
+  Akkorde, Drone und Bleeps folgen; Einstellungen des Stücks (Tape-Satz, Hall, Pegel) als Schritte am
+  Anfang; die Hände auf den Knöpfen dessen, was spielt, entlang des Spannungsbogens. Konzerte reihen
+  Stücke mit Tonartenreise (Quarte, Quinte, Parallele, Ganzton).
+- **Kuratieren und `.ephset`** (`SetFile.h`): Neuwürfel-Zähler je Einheit verschieben nur deren Strom.
+- **MIDI**: Gesten als Controller (Cutoff CC 74, Resonanz 71, Decay 75 auf dem Kanal der Stimme; die
+  Knöpfe des Instruments auf einer Spur "controls").
+- **Schlagzeug** (`Drums.h`): ein kleines analoges Kit (Kick-Sweep, Snare, 808-Hats aus sechs Rechtecken,
+  im Grundton gestimmte Toms, Rim, Shaker) mit Mustern für Melodic (Achtziger-Kit mit Fills), Modern
+  (sparsam, Halftime, Rim-Offbeats) und Doom (ein einzelner Tom). Bewusste Abweichung von Abschnitt 4:
+  Phosphenes Kit ist nicht übernommen, weil es an dessen Parametertabellen, Harmonie und
+  Psytrance-Rhythmik hängt und hier acht Klänge spät im Stück genügen.
+
+Noch offen aus Phase 4:
+- **Composer-Thread und Ereignisring**: Die Engine bekommt die Partitur weiter als Ganzes; im Plugin wird
+  sie außerhalb des Audio-Threads geladen (Phase 5).
+- **Konjunktionen als Formgrenzen** (6.2): Abschnittsgrenzen liegen auf Takten, noch nicht bevorzugt dort,
+  wo die Reihen wieder zusammenfallen.
+- **Kalibrierung**: Tempo und Reihenlängen der Referenzen brauchen ein besseres Messverfahren
+  (Tempogramm); die Schichtwahrscheinlichkeiten und Längen sind Setzungen.
+
 **24.09.2026: Phase 3 im Wesentlichen fertig.** Die Skizze (`eph_render --minutes 10 --seed 3`) hat
 jetzt ein kosmisches Intro aus Wind und Sweeps mit Drone, danach die Reihen; Chor-Akkorde auf den Tape
 Keys ab einem Fünftel, beim Höhepunkt Wechsel auf das Streicherband; darüber die String-Machine von der
@@ -22,7 +69,7 @@ Mitte bis zum Ausklang; Bleeps in der Mitte; Hall, Federn und Master.
 | Tape Keys | ein gehaltener Ton verstummt nach dem Bandende (über 300 dB unter dem Klang), die Taste ist danach frei; der Capstan sinkt mit jeder Taste (−3 Cent bei drei, −7,5 bei sechs Tasten, eingestellt 1,5 je Taste) |
 | Akkorde | jeder Ton in der Skala seines Grundtons, kein Akkord länger als ein Band hält (längster 6,97 s), die tiefste Stimme bewegt sich im Mittel 0,1 Halbtöne |
 | Blockgrößen 1 / 37 / 512 | weiterhin bitgleich (mit Hall, Kompressor und Limiter) |
-| Selbsttest | 44 von 44 |
+| Selbsttest | 45 von 45 |
 
 Gebaut:
 - **Hall**: Phosphenes FDN mit acht Linien, Sends von jeder Stimme und von den Echo-Wiederholungen. Die
