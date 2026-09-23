@@ -15,6 +15,7 @@ add_library(EphemerisCore STATIC
     src/Pads.cpp
     src/Atmos.cpp
     src/Dynamics.cpp
+    src/StringMachine.cpp
     src/Study.cpp
     src/Lead.cpp
     src/Sketch.cpp

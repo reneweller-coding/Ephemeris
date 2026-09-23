@@ -31,12 +31,13 @@ void Engine::load(const Score& score)
     // is legato: the voice glides instead of retriggering.
     events_.clear();
     int id = 0;
-    bool slideInto[kVoices + 1] = {};
+    bool slideInto[kVoices + 2] = {};
     for (const NoteEvent& n : score_.notes) {
         int row = static_cast<int>(n.part) - static_cast<int>(Part::Row1);
         if (n.part == Part::Lead) row = kLeadVoice;
         else if (n.part == Part::Drone) row = kDroneVoice;
         else if (n.part == Part::TapeKeys) row = kTapeVoice;
+        else if (n.part == Part::Strings) row = kStringsVoice;
         else if (row < 0 || row >= kRows) continue;
         const int64_t on = std::llround(score_.tempo.secondsAt(n.beat) * sampleRate_);
         const int64_t off = std::max(on + 1, static_cast<int64_t>(std::llround(score_.tempo.secondsAt(n.beat + n.length) * sampleRate_)));
@@ -66,6 +67,8 @@ void Engine::load(const Score& score)
     tape_.prepare(sampleRate_, mixSeed(score_.seed, 500));
     atmos_.prepare(sampleRate_, mixSeed(score_.seed, 600));
     comp_.prepare(sampleRate_);
+    strings_.prepare(sampleRate_, mixSeed(score_.seed, 700));
+    stringsRunning_ = false;
     limiter_.prepare(sampleRate_);
     tapeRunning_ = false;
     updateCell();
@@ -158,6 +161,23 @@ void Engine::updateCell()
         tapeReverb_ = t(tape::ReverbSend);
     }
     {
+        auto t = [&](int index) { return played(params_.id(Module::Strings, 0, index)); };
+        StringSettings ss;
+        ss.attackS = t(strings::Attack);
+        ss.releaseS = t(strings::Release);
+        ss.feet = t(strings::Feet);
+        ss.toneHz = t(strings::Tone);
+        ss.ensemble = t(strings::Ensemble);
+        strings_.set(ss);
+        stringsRunning_ = strings_.active();
+        const float level = dbToGain(t(strings::Level));
+        const float a = (std::clamp(t(strings::Pan), -1.0f, 1.0f) + 1.0f) * 0.25f * kPi;
+        strL_ = level * std::cos(a) * 1.41421356f;
+        strR_ = level * std::sin(a) * 1.41421356f;
+        strEcho_ = t(strings::EchoSend);
+        strReverb_ = t(strings::ReverbSend);
+    }
+    {
         auto a = [&](int index) { return played(params_.id(Module::Atmos, 0, index)); };
         auto gain = [](float db) { return db <= -59.9f ? 0.0f : dbToGain(db); };
         AtmosSettings as;
@@ -244,6 +264,16 @@ void Engine::renderSpan(float* L, float* R, int n)
             revR[i] += buf[i] * gr * h;
         }
     }
+    if (stringsRunning_) {
+        float sL[kCell], sR[kCell];
+        strings_.process(sL, sR, n);
+        for (int i = 0; i < n; ++i) {
+            const float l = sL[i] * strL_, r = sR[i] * strR_;
+            L[i] += l; R[i] += r;
+            sendL[i] += l * strEcho_; sendR[i] += r * strEcho_;
+            revL[i] += l * strReverb_; revR[i] += r * strReverb_;
+        }
+    }
     if (atmosRunning_) {
         float aL[kCell] = {}, aR[kCell] = {}, bL[kCell] = {}, bR[kCell] = {};
         atmos_.process(aL, aR, bL, bR, n);
@@ -293,7 +323,10 @@ bool Engine::process(float* L, float* R, int n)
         // Every event due at this sample, offs before ons.
         while (evCursor_ < events_.size() && events_[evCursor_].sample <= sample_) {
             const Ev& e = events_[evCursor_++];
-            if (e.row == kTapeVoice) {
+            if (e.row == kStringsVoice) {
+                if (e.on) { strings_.noteOn(e.pitch, e.velocity, e.id); stringsRunning_ = true; }
+                else strings_.noteOff(e.id);
+            } else if (e.row == kTapeVoice) {
                 if (e.on) { tape_.noteOn(e.pitch, e.velocity, e.id); tapeRunning_ = true; }
                 else tape_.noteOff(e.id);
             } else if (e.on) { voices_[e.row].noteOn(e.pitch, e.velocity, e.accent, e.legato, e.id); running_[e.row] = true; }

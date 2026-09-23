@@ -63,6 +63,8 @@ enum class Module : int { Compose = 0, Row, Master,
                           Tape,
                           /** Phase 3: the drone (the lead's table) and the atmosphere. */
                           Drone, Atmos,
+                          /** Phase 3: the string machine. */
+                          Strings,
                           Count };
 
 constexpr int kRows = 8;   ///< instances of the row module (the rows of the rack) and of the voice module
@@ -114,6 +116,10 @@ enum : int { Set, Vowel, Wow, Flutter, Sag, Tone, Age, Level, Pan, EchoSend, Rev
 extern const char* const kTapeSetNames[];       ///< names of tape.set
 /** @brief The drone's parameters are the lead's table with other defaults (module Drone). */
 namespace drone = lead;
+/** @brief Parameters of the string machine (module Strings; StringMachine.h). */
+namespace strings {
+enum : int { Attack, Release, Feet, Tone, Ensemble, Level, Pan, EchoSend, ReverbSend, Count };
+}
 /** @brief Parameters of the atmosphere (module Atmos; Atmos.h). */
 namespace atmos {
 enum : int { Wind, WindTone, Sweeps, SweepLevel, Bleeps, BleepLevel, Level, EchoSend, ReverbSend, Count };

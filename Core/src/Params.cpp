@@ -174,6 +174,19 @@ const ParamDesc kAtmosParams[atmos::Count] = {
     { "reverb",      "Reverb Send",  "",      0.0f,     1.0f,    0.6f, Curve::Linear },
 };
 
+/** The string machine: slow in, slow out, the ensemble deep. */
+const ParamDesc kStringsParams[strings::Count] = {
+    { "attack",   "Crescendo",    "s",    0.005f,  3.0f,   0.35f, Curve::Log },
+    { "release",  "Sustain",      "s",    0.05f,   6.0f,   1.2f, Curve::Log },
+    { "feet",     "4' Mix",       "",     0.0f,    1.0f,   0.4f, Curve::Linear },
+    { "tone",     "Tone",         "Hz", 800.0f, 12000.0f, 4500.0f, Curve::Log },
+    { "ensemble", "Ensemble",     "",     0.0f,    1.0f,   0.8f, Curve::Linear },
+    { "level",    "Level",        "dB", -60.0f,    6.0f, -10.0f, Curve::Linear },
+    { "pan",      "Pan",          "",    -1.0f,    1.0f,   0.1f, Curve::Linear },
+    { "echo",     "Echo Send",    "",     0.0f,    1.0f,   0.05f, Curve::Linear },
+    { "reverb",   "Reverb Send",  "",     0.0f,    1.0f,   0.45f, Curve::Linear },
+};
+
 /** The hall: long and dark, as the style's spaces are (a first setting, to be judged by ear). */
 const ParamDesc kReverbParams[reverb::Count] = {
     { "size",     "Size",       "",     0.3f,     3.0f,    1.8f, Curve::Linear },
@@ -238,6 +251,7 @@ const ModuleSpec kModules[static_cast<int>(Module::Count)] = {
     { "tape",    kTapeParams,    tape::Count,    1 },
     { "drone",   kDroneParams,   lead::Count,    1 },
     { "atmos",   kAtmosParams,   atmos::Count,   1 },
+    { "strings", kStringsParams, strings::Count, 1 },
 };
 
 bool isDiscrete(Curve c) { return c == Curve::Int || c == Curve::Choice || c == Curve::Toggle; }

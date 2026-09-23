@@ -23,6 +23,7 @@
 #include "eph/Params.h"
 #include "eph/Reverb.h"
 #include "eph/Score.h"
+#include "eph/StringMachine.h"
 #include "eph/TapeEcho.h"
 #include "eph/TapeKeys.h"
 #include <cstdint>
@@ -102,6 +103,7 @@ private:
     static constexpr int kLeadVoice = kRows;
     static constexpr int kDroneVoice = kRows + 1;
     static constexpr int kTapeVoice = kRows + 2;   ///< not a ModVoice: the tape keyboard's events
+    static constexpr int kStringsVoice = kRows + 3;   ///< not a ModVoice: the string machine's events
     ModVoice voices_[kVoices];
     /** Whether a voice runs in the current cell: decided at the cell's start and on a note-on, never
      *  when it falls silent mid-span -- that would tie its oscillator phase to the host's block size. */
@@ -111,6 +113,9 @@ private:
     BusCompressor comp_;
     TruePeakLimiter limiter_;
     Atmos atmos_;
+    StringMachine strings_;
+    bool stringsRunning_ = false;
+    float strL_ = 0.0f, strR_ = 0.0f, strEcho_ = 0.0f, strReverb_ = 0.0f;
     bool atmosRunning_ = false;
     float atmosLevel_ = 0.0f, atmosEcho_ = 0.0f, atmosReverb_ = 0.0f;
     bool tapeRunning_ = false;

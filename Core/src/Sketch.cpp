@@ -109,6 +109,14 @@ Score buildSketch(const ParamStore& params, uint64_t seed, double minutes)
     writeChords(s, pp, at(0.22), at(0.92), padRng);
     s.gestures.push_back({ p.id(Module::Tape, 0, tape::Set), at(0.62), 0.0, 0.0f, 0.5f, GestureShape::Step, 1 });
     s.markers.push_back({ at(0.22), "Tape Keys" });
+    // The string machine above them from the middle to the close, held through each root.
+    PadPlan sp = pp;
+    sp.part = Part::Strings;
+    sp.low = 62;
+    sp.high = 81;
+    sp.restrikeSeconds = 1e6;
+    sp.colour = 0.5f;
+    writeChords(s, sp, at(0.46), at(0.88), padRng);
 
     // The hands.
     auto knob = [&](Module m, int inst, int index, float low, float high, float rest, float peak, float weight, double from) {
