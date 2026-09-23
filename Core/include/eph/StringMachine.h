@@ -43,6 +43,7 @@ public:
     void set(const StringSettings& s);
     void noteOn(int pitch, float velocity, int id);   ///< presses a key (the oldest is taken when all sound)
     void noteOff(int id);                             ///< releases a key
+    void silence();                                   ///< every key off at once (a jump in the song)
     bool active() const;                              ///< whether anything sounds or rings in the ensemble
     /** @brief Renders @p n samples into @p L and @p R (overwritten). */
     void process(float* L, float* R, int n);

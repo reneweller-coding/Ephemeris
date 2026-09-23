@@ -351,11 +351,24 @@ void Engine::renderSpan(float* L, float* R, int n)
     limiter_.process(L, R, n);
 }
 
+void Engine::seek(double beat)
+{
+    sample_ = std::llround(score_.tempo.secondsAt(std::max(0.0, beat)) * sampleRate_);
+    evCursor_ = static_cast<size_t>(std::lower_bound(events_.begin(), events_.end(), sample_,
+        [](const Ev& e, int64_t s) { return e.sample < s; }) - events_.begin());
+    for (int r = 0; r < kVoices; ++r) { voices_[r].reset(); running_[r] = false; }
+    tape_.reset();
+    strings_.silence();
+    drums_.prepare(sampleRate_, mixSeed(score_.seed, 800));
+    for (Track& t : tracks_) t.cursor = t.gestures.size();
+    cellDirty_ = true;
+}
+
 bool Engine::process(float* L, float* R, int n)
 {
     int done = 0;
     while (done < n) {
-        if ((sample_ % kCell) == 0) updateCell();
+        if ((sample_ % kCell) == 0 || cellDirty_) { updateCell(); cellDirty_ = false; }
         // Every event due at this sample, offs before ons.
         while (evCursor_ < events_.size() && events_[evCursor_].sample <= sample_) {
             const Ev& e = events_[evCursor_++];

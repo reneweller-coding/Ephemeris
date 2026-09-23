@@ -1,0 +1,75 @@
+/**
+ * @file PluginEditor.h
+ * @brief The plugin's panel (PLAN 8.1): the concert on top, the instrument in tabs below.
+ *
+ * Top: style, key, scale, lengths, compose, a new seed, play; a row of rerolls (one per unit of
+ * SetFile.h) and the files; the arrange view -- the sections of the piece as blocks, the playhead,
+ * click to jump. Below: a tab per part of the instrument, generated from the parameter tables (the
+ * rows and the voices with a selector for the instance), as in Noctuary and Phosphene, so a parameter
+ * that exists is on the panel without anyone writing it there.
+ *
+ * `EPH_SHOT=<file.png>` (and `EPH_TAB=<index>`) render the panel into a picture after the first piece is
+ * composed and quit the standalone -- how the layout is checked without a person looking.
+ */
+#pragma once
+#include "PluginProcessor.h"
+#include <juce_gui_basics/juce_gui_basics.h>
+#include <memory>
+#include <vector>
+
+/** @brief The parameters of one module instance as knobs, menus and switches. */
+class ParamPage final : public juce::Component {
+public:
+    ParamPage(EphemerisProcessor& p, std::vector<std::pair<eph::Module, int>> groups, int instances);
+    void resized() override;
+
+private:
+    void build();
+    EphemerisProcessor& proc_;
+    std::vector<std::pair<eph::Module, int>> groups_;
+    int instances_;
+    juce::ComboBox instance_;
+    juce::OwnedArray<juce::Component> controls_;
+    juce::OwnedArray<juce::Label> labels_;
+    std::vector<std::unique_ptr<juce::SliderParameterAttachment>> sliders_;
+    std::vector<std::unique_ptr<juce::ComboBoxParameterAttachment>> combos_;
+    std::vector<std::unique_ptr<juce::ButtonParameterAttachment>> buttons_;
+};
+
+/** @brief The sections of the piece as blocks, with the playhead. */
+class ArrangeView final : public juce::Component {
+public:
+    explicit ArrangeView(EphemerisProcessor& p) : proc_(p) {}
+    void paint(juce::Graphics& g) override;
+    void mouseDown(const juce::MouseEvent& e) override;
+
+private:
+    EphemerisProcessor& proc_;
+};
+
+/** @brief The editor. */
+class EphemerisEditor final : public juce::AudioProcessorEditor, private juce::Timer {
+public:
+    explicit EphemerisEditor(EphemerisProcessor& p);
+    ~EphemerisEditor() override;
+    void paint(juce::Graphics& g) override;
+    void resized() override;
+
+private:
+    void timerCallback() override;
+    EphemerisProcessor& proc_;
+    juce::Label title_, status_, rerolls_;
+    juce::ComboBox style_, key_, scale_;
+    juce::Slider minutes_, concert_;
+    juce::Label minutesLabel_, concertLabel_;
+    juce::TextButton compose_{ "Compose" }, seed_{ "New seed" }, play_{ "Play" };
+    juce::OwnedArray<juce::TextButton> rerollButtons_;
+    juce::TextButton save_{ "Save set" }, load_{ "Load set" }, export_{ "Export WAV + MIDI" };
+    std::vector<std::unique_ptr<juce::ComboBoxParameterAttachment>> combos_;
+    std::vector<std::unique_ptr<juce::SliderParameterAttachment>> sliders_;
+    ArrangeView arrange_;
+    juce::TabbedComponent tabs_{ juce::TabbedButtonBar::TabsAtTop };
+    std::unique_ptr<juce::FileChooser> chooser_;
+    juce::String shotPath_;
+    int shotTicks_ = 0;
+};

@@ -19,6 +19,13 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 add_compile_definitions(EPH_VERSION="${PROJECT_VERSION}")
 
 option(EPH_BUILD_TOOLS "Build eph_render and the tests" ON)
+# The plugin is a desktop artefact (JUCE cannot cross-compile its helper for Android).
+if(ANDROID)
+    option(EPH_BUILD_PLUGIN "Build the JUCE plugin (VST3 + Standalone)" OFF)
+else()
+    option(EPH_BUILD_PLUGIN "Build the JUCE plugin (VST3 + Standalone)" ON)
+endif()
+set(EPH_JUCE_TAG "9.0.1" CACHE STRING "JUCE git tag to fetch when no local checkout is found")
 option(EPH_AVX2 "Build the x86-64 core with AVX2 + FMA" ON)
 option(EPH_STATIC_RUNTIME "Link the MSVC runtime statically (for distribution)" OFF)
 
@@ -47,4 +54,23 @@ if(EPH_BUILD_TOOLS)
     enable_testing()
     add_subdirectory(Tools/render)
     add_subdirectory(Tests)
+endif()
+
+# The plugin (Phase 5). JUCE from ThirdParty/JUCE, else from the sibling Phosphene's checkout, else
+# fetched. Nothing under Core/ includes JUCE.
+if(EPH_BUILD_PLUGIN)
+    include(FetchContent)
+    set(JUCE_BUILD_EXTRAS OFF CACHE BOOL "" FORCE)
+    set(JUCE_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
+    if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/ThirdParty/JUCE/CMakeLists.txt)
+        set(FETCHCONTENT_SOURCE_DIR_JUCE ${CMAKE_CURRENT_SOURCE_DIR}/ThirdParty/JUCE CACHE PATH "" FORCE)
+    elseif(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/../PsytranceGenerator/ThirdParty/JUCE/CMakeLists.txt)
+        set(FETCHCONTENT_SOURCE_DIR_JUCE ${CMAKE_CURRENT_SOURCE_DIR}/../PsytranceGenerator/ThirdParty/JUCE CACHE PATH "" FORCE)
+    endif()
+    FetchContent_Declare(JUCE
+        GIT_REPOSITORY https://github.com/juce-framework/JUCE.git
+        GIT_TAG        ${EPH_JUCE_TAG}
+        GIT_SHALLOW    TRUE)
+    FetchContent_MakeAvailable(JUCE)
+    add_subdirectory(Plugin)
 endif()

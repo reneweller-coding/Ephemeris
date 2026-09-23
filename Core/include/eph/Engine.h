@@ -51,6 +51,11 @@ public:
      * @return false once the position has passed the end of the score (the echo still rings)
      */
     bool process(float* L, float* R, int n);
+    /**
+     * @brief Jumps to @p beat (a host moved its playhead): every voice falls silent, the next note and
+     *        gesture are found again, the settings are read at once. The rooms ring on.
+     */
+    void seek(double beat);
 
     /** @brief The score being played. */
     const Score& score() const { return score_; }
@@ -96,6 +101,7 @@ private:
     double sampleRate_ = 48000.0;
     int maxBlock_ = 512;
     int64_t sample_ = 0;
+    bool cellDirty_ = false;   ///< read the settings at the next sample, not only at the raster (after a seek)
     std::vector<Ev> events_;
     size_t evCursor_ = 0;
     std::vector<Track> tracks_;

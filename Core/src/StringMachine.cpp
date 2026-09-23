@@ -61,6 +61,13 @@ void StringMachine::noteOff(int id)
     for (Key& k : keys_) if (k.on && k.id == id) k.held = false;
 }
 
+void StringMachine::silence()
+{
+    for (Key& k : keys_) k = Key{};
+    std::fill(line_.begin(), line_.end(), 0.0f);
+    ring_ = 0.0f;
+}
+
 bool StringMachine::active() const
 {
     for (const Key& k : keys_) if (k.on) return true;
