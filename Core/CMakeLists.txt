@@ -17,6 +17,9 @@ add_library(EphemerisCore STATIC
     src/Dynamics.cpp
     src/StringMachine.cpp
     src/Spring.cpp
+    src/Style.cpp
+    src/Form.cpp
+    src/Composer.cpp
     src/Study.cpp
     src/Lead.cpp
     src/Sketch.cpp

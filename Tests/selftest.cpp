@@ -7,7 +7,9 @@
  * something real belong here (the user's rule, 24.09.2026): no test of what cannot break.
  */
 #include "eph/Clock.h"
+#include "eph/Composer.h"
 #include "eph/Engine.h"
+#include "eph/Form.h"
 #include "eph/GestureEngine.h"
 #include "eph/Lead.h"
 #include "eph/Midi.h"
@@ -423,6 +425,85 @@ void testChords()
 }
 
 /**
+ * The form (Form.h) for every style and a handful of seeds: sections follow each other without gap or
+ * overlap, the piece opens with the atmosphere and closes with the coda, every phase has an entry, a
+ * build and a peak, phases are joined by bridges, no section is shorter than its floor.
+ */
+void testForm()
+{
+    section("form grammar");
+    int bad = 0, pieces = 0;
+    std::string why;
+    for (int st = 0; st < static_cast<int>(Style::Count); ++st) {
+        for (uint64_t seed = 1; seed <= 6; ++seed) {
+            Rng rng;
+            rng.seed(seed);
+            const PieceForm f = drawForm(styleProfile(static_cast<Style>(st)), 14.0, 110.0, rng);
+            ++pieces;
+            double at = 0.0;
+            int entries = 0, peaks = 0, bridges = 0;
+            bool ok = f.sections.front().type == SectionType::Atmo && f.sections.back().type == SectionType::Coda;
+            for (const Section& s : f.sections) {
+                ok = ok && std::fabs(s.beat - at) < 1e-9 && s.length >= 4 * kBeatsPerBar - 1e-9;
+                if ((s.type == SectionType::Peak || s.type == SectionType::Lead) && s.length < 8 * kBeatsPerBar) ok = false;
+                at = s.beat + s.length;
+                entries += s.type == SectionType::Entry;
+                peaks += s.type == SectionType::Peak;
+                bridges += s.type == SectionType::Bridge;
+            }
+            const int phases = static_cast<int>(f.phaseBpm.size());
+            ok = ok && std::fabs(at - f.lengthBeats) < 1e-9 && entries == phases && peaks == phases && bridges == phases - 1;
+            if (!ok) { ++bad; if (why.empty()) why = fmt("style %d seed %llu", st, static_cast<unsigned long long>(seed)); }
+        }
+    }
+    check(bad == 0, "every form follows the grammar", fmt("%d of %d bad %s", bad, pieces, why.c_str()));
+}
+
+/**
+ * The composer (Composer.h): the same seed writes the same piece; a piece is as long as asked (to the
+ * bar rounding); every note of the rows, the lead, the chords and the drone is in the scale of the root
+ * sounding at its beat; the hands never exceed two; a concert moves through keys.
+ */
+void testComposer()
+{
+    section("composer");
+    ParamStore p;
+    p.parseText("compose.style=Melodic compose.scale=Aeolian");
+    const Score a = composePiece(p, 77, 10.0), b = composePiece(p, 77, 10.0);
+    bool same = a.notes.size() == b.notes.size() && a.gestures.size() == b.gestures.size();
+    for (size_t i = 0; same && i < a.notes.size(); ++i) same = a.notes[i].beat == b.notes[i].beat && a.notes[i].pitch == b.notes[i].pitch;
+    check(same && a.notes.size() > 1000, "same seed, same piece", fmt("%zu notes, %zu gestures", a.notes.size(), a.gestures.size()));
+    const double secs = a.tempo.secondsAt(a.lengthBeats);
+    check(std::fabs(secs - 600.0) < 60.0, "as long as asked", fmt("%.0f s for 600", secs));
+    int outside = 0, total = 0;
+    for (const NoteEvent& n : a.notes) {
+        int shift = 0;
+        for (const auto& e : a.rootShifts) { if (e.first > n.beat) break; shift = e.second; }
+        ++total;
+        if (!inScale(n.pitch, ((a.keyRoot + shift) % 12 + 12) % 12, 0)) ++outside;
+    }
+    check(outside == 0, "every note in the scale of the root at its beat", fmt("%d of %d outside", outside, total));
+    std::vector<std::pair<double, int>> edges;
+    for (const Gesture& g : a.gestures) {
+        if (g.length <= 0.0 || g.hand > 1) continue;
+        edges.push_back({ g.beat, 1 });
+        edges.push_back({ g.beat + g.length, -1 });
+    }
+    std::sort(edges.begin(), edges.end());
+    int live = 0, most = 0;
+    for (const auto& e : edges) { live += e.second; most = std::max(most, live); }
+    // The hands' two, plus the composer's own slow moves of the wind on the atmosphere (hand 1's knob).
+    check(most <= 3, "the hands and the wind: never more than three movements at once", fmt("%d", most));
+    const Score c = composeConcert(p, 5, 40.0);
+    int pieces = 0;
+    for (const Marker& m : c.markers) pieces += m.text.find(": Atmo") != std::string::npos;
+    std::vector<int> keys;
+    for (const auto& e : c.rootShifts) keys.push_back(e.second);
+    check(pieces >= 3 && std::fabs(c.tempo.secondsAt(c.lengthBeats) - 2400.0) < 600.0, "a concert of pieces, about as long as asked",
+          fmt("%d pieces, %.0f s", pieces, c.tempo.secondsAt(c.lengthBeats)));
+}
+
+/**
  * The offline render is the oracle only if a host's block size cannot change a sample: the study
  * rendered with blocks of 1, 37 and 512 must agree bit for bit (Engine.h).
  */
@@ -543,12 +624,12 @@ void testDrift()
     check(std::fabs(sd - sigma) < 0.15 * sigma, "stationary spread equals the knob", fmt("%.2f cents for 3", sd));
 }
 
-struct Section {
+struct TestSection {
     const char* name;
     std::function<void()> fn;
 };
 
-const Section kSections[] = {
+const TestSection kSections[] = {
     { "testTempoMap", testTempoMap },
     { "testGestures", testGestures },
     { "testParams", testParams },
@@ -559,6 +640,8 @@ const Section kSections[] = {
     { "testLead", testLead },
     { "testTapeKeys", testTapeKeys },
     { "testChords", testChords },
+    { "testForm", testForm },
+    { "testComposer", testComposer },
     { "testBlockSizes", testBlockSizes },
     { "testEcho", testEcho },
     { "testDrift", testDrift },
@@ -571,12 +654,12 @@ int main(int argc, char** argv)
     std::string only;
     for (int i = 1; i < argc; ++i) {
         if (std::strcmp(argv[i], "--list") == 0) {
-            for (const Section& s : kSections) std::printf("%s\n", s.name);
+            for (const TestSection& s : kSections) std::printf("%s\n", s.name);
             return 0;
         }
         if (std::strcmp(argv[i], "--only") == 0 && i + 1 < argc) only = std::string(",") + argv[++i] + ",";
     }
-    for (const Section& s : kSections)
+    for (const TestSection& s : kSections)
         if (only.empty() || only.find(std::string(",") + s.name + ",") != std::string::npos) s.fn();
     return finish();
 }

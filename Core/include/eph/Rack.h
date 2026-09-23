@@ -27,6 +27,9 @@
  * two or four bars; at each of its steps every note row is shifted by that offset from its next step
  * on. A fast row riding on a slow one is the epicycle of PLAN 5.1. At equal beats the transposer steps
  * first, so the downbeat of a bar already sounds in the new root.
+ *
+ * **A new key** (RackOp::Key, Phase 4) moves the whole rack -- rows, and the root the lead and the chords
+ * follow -- by some semitones from the piece's key; the transposer then moves around the new key.
  */
 #pragma once
 #include "eph/Dsp.h"
@@ -129,7 +132,9 @@ private:
     int keyRoot_ = 9;
     int scale_ = 0;
     Style style_ = Style::Cosmic;
-    int shift_ = 0;           ///< the transposer's offset, applied to every note row
+    int shift_ = 0;           ///< the transposer's offset plus the key's, applied to every note row
+    int base_ = 0;            ///< the key's offset from the piece's key (RackOp::Key)
+    int degree_ = 0;          ///< the transposer's own offset
     std::vector<std::pair<double, int>> shiftLog_;
     double position_ = 0.0;   ///< beat up to which the rack has run
 };

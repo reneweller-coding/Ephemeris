@@ -76,6 +76,7 @@ enum class RackOp : uint8_t {
     Transpose,    ///< transposition in semitones becomes @p value
     SetLength,    ///< the row's length becomes @p value steps
     Mutate,       ///< step @p value changes (the new content is in the notes that follow)
+    Key,          ///< the whole rack moves to a new key, @p value semitones from the piece's (row unused; Phase 4)
 };
 
 /** @brief One change to the rack. */

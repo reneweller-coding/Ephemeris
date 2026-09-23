@@ -45,7 +45,7 @@ void Rack::setup(const ParamStore& p, uint64_t seed)
     keyRoot_ = p.getInt(p.id(Module::Compose, 0, compose::Key));
     scale_ = p.getInt(p.id(Module::Compose, 0, compose::Scale));
     style_ = static_cast<Style>(p.getInt(p.id(Module::Compose, 0, compose::Style)));
-    shift_ = 0;
+    shift_ = base_ = degree_ = 0;
     shiftLog_.assign(1, { 0.0, 0 });
     for (int i = 0; i < kRows; ++i) {
         Row& r = rows_[i];
@@ -175,7 +175,8 @@ void Rack::playStep(int index, Row& r, Score& score, std::vector<RackEvent>& log
     const Step& s = r.steps[r.pos];
     if (r.transposer) {
         if (s.gate) {
-            shift_ = s.degree + 12 * s.octave;
+            degree_ = s.degree + 12 * s.octave;
+            shift_ = base_ + degree_;
             if (shiftLog_.empty() || shiftLog_.back().second != shift_) shiftLog_.push_back({ beat, shift_ });
         }
     } else if (s.gate) {
@@ -217,6 +218,12 @@ void Rack::run(Score& score, double endBeat)
         if (cursor < ev.size() && ev[cursor].beat <= best) {
             // Rack events first at equal beats: a transposition applies to the step on its beat.
             const RackEvent& e = ev[cursor++];
+            if (e.op == RackOp::Key) {
+                base_ = e.value;
+                shift_ = base_ + degree_;
+                if (shiftLog_.back().second != shift_) shiftLog_.push_back({ e.beat, shift_ });
+                continue;
+            }
             const int lo = e.row < 0 ? 0 : e.row, hi = e.row < 0 ? kRows - 1 : e.row;
             for (int i = lo; i <= hi && i < kRows; ++i) {
                 Row& r = rows_[i];
@@ -227,7 +234,7 @@ void Rack::run(Score& score, double endBeat)
                 case RackOp::Stop:
                     r.running = false;
                     // A transposer that stops takes the rows home to the tonic.
-                    if (r.transposer && shift_ != 0) { shift_ = 0; shiftLog_.push_back({ e.beat, 0 }); }
+                    if (r.transposer && degree_ != 0) { degree_ = 0; shift_ = base_; shiftLog_.push_back({ e.beat, shift_ }); }
                     break;
                 case RackOp::Transpose: r.transpose = e.value; break;
                 case RackOp::SetLength:

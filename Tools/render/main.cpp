@@ -2,9 +2,10 @@
  * @file main.cpp
  * @brief eph_render: offline render of a score to WAV, with MIDI export.
  *
- * The offline render is the determinism oracle (PLAN 1): same arguments, same samples. Until the
- * composer exists (Phase 4) it plays the sketch of Phase 2 (Sketch.h); `--study` plays the study of
- * Phase 1 (Study.h) and `--frame` renders the bare frame of Phase 0 -- silence on the tempo map.
+ * The offline render is the determinism oracle (PLAN 1): same arguments, same samples.
+ * Since Phase 4 it plays a piece written by the composer (Composer.h), or a concert with `--concert`;
+ * `--sketch` plays the sketch of Phases 2 and 3 (Sketch.h), `--study` the study of Phase 1 (Study.h),
+ * and `--frame` renders the bare frame of Phase 0 -- silence on the tempo map.
  *
  * Usage:
  *   eph_render [--minutes M | --bars N] [--bpm B] [--seed S] [--set "k=v ..."] [--tail S]
@@ -13,6 +14,7 @@
  *              [--list] [--version]
  */
 #include "eph/Engine.h"
+#include "eph/Composer.h"
 #include "eph/Midi.h"
 #include "eph/Sketch.h"
 #include "eph/Study.h"
@@ -38,7 +40,9 @@ void usage()
                 "  --bpm B          tempo (sets compose.bpm)\n"
                 "  --seed S         seed of everything drawn (default 1)\n"
                 "  --tail S         seconds rendered after the end, for the echo (default 6)\n"
-                "  --study          the study of Phase 1 instead of the sketch of Phase 2\n"
+                "  --concert M      a concert of pieces, M minutes long (default: one piece)\n"
+                "  --sketch         the sketch of Phases 2 and 3 instead of a composed piece\n"
+                "  --study          the study of Phase 1 instead of a composed piece\n"
                 "  --frame          the bare frame of Phase 0: silence on the tempo map\n"
                 "  --ramp-to B      with --frame: ramp the tempo linearly over the whole length to B\n"
                 "  --set \"k=v ...\"  parameter assignments\n"
@@ -57,7 +61,8 @@ int main(int argc, char** argv)
     double bars = 0.0, minutes = 0.0, rampTo = 0.0, rate = 48000.0;
     int block = 512;
     std::string out, midi, set;
-    bool list = false, frame = false, study = false;
+    bool list = false, frame = false, study = false, sketch = false;
+    double concert = 0.0;
     double bpmArg = 0.0, tail = 6.0;
     uint64_t seed = 1;
     for (int i = 1; i < argc; ++i) {
@@ -78,6 +83,8 @@ int main(int argc, char** argv)
         else if (a == "--list") list = true;
         else if (a == "--frame") frame = true;
         else if (a == "--study") study = true;
+        else if (a == "--sketch") sketch = true;
+        else if (a == "--concert") concert = std::atof(next("--concert"));
         else if (a == "--seed") seed = std::strtoull(next("--seed"), nullptr, 10);
         else if (a == "--tail") tail = std::atof(next("--tail"));
         else if (a == "--version") { std::printf("%s\n", EPH_VERSION); return 0; }
@@ -103,7 +110,11 @@ int main(int argc, char** argv)
     if (!frame) {
         const double mins = minutes > 0.0 ? minutes : (bars > 0.0 ? bars * kBeatsPerBar / bpm
                                                                   : p.get(p.id(Module::Compose, 0, compose::PieceMinutes)));
-        score = study ? buildStudy(p, seed, mins) : buildSketch(p, seed, mins);
+        if (concert <= 0.0) concert = p.get(p.id(Module::Compose, 0, compose::ConcertMinutes));
+        if (study) score = buildStudy(p, seed, mins);
+        else if (sketch) score = buildSketch(p, seed, mins);
+        else if (concert > 0.0) score = composeConcert(p, seed, concert);
+        else score = composePiece(p, seed, mins);
         bars = score.lengthBeats / kBeatsPerBar;
     } else {
         // The frame of Phase 0: a tempo map, a length and two markers.
@@ -151,7 +162,7 @@ int main(int argc, char** argv)
 
     const double secs = static_cast<double>(total) / rate;
     std::printf("Ephemeris %s: %.0f bars, %.2f s + %.1f s tail at %.0f Hz, tempo %.1f BPM, key %s, seed %llu\n",
-                EPH_VERSION, bars, engine.lengthSeconds(), tail, rate, bpm, kKeyNames[score.keyRoot % 12],
+                EPH_VERSION, bars, engine.lengthSeconds(), tail, rate, score.tempo.bpmAt(0.0), kKeyNames[score.keyRoot % 12],
                 static_cast<unsigned long long>(seed));
     std::printf("  %zu notes, %zu gestures, %zu rack events; peak %.1f dBFS, rms %.1f dBFS\n",
                 score.notes.size(), score.gestures.size(), score.rack.size(),

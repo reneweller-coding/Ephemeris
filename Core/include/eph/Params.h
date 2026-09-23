@@ -73,7 +73,9 @@ constexpr int kRows = 8;   ///< instances of the row module (the rows of the rac
 
 /** @brief Parameters of the composer (read as a snapshot when a piece is planned). */
 namespace compose {
-enum : int { Bpm, Key, Scale, Style, PieceMinutes, Count };
+enum : int { Bpm, Key, Scale, Style, PieceMinutes,
+             // Phase 4: the profile draws the tempo (off: compose.bpm), and a concert's length (0: one piece).
+             StyleTempo, ConcertMinutes, Count };
 }
 /** @brief Parameters of one row of the sequencer rack (module Row, "row1" .. "row8"). */
 namespace row {
