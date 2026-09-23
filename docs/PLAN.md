@@ -10,6 +10,58 @@ verschiedener Länge um einen gemeinsamen Grundton, die nur selten wieder zusamm
 
 ## Stand der Umsetzung
 
+**24.09.2026: Phase 3 im Wesentlichen fertig.** Die Skizze (`eph_render --minutes 10 --seed 3`) hat
+jetzt ein kosmisches Intro aus Wind und Sweeps mit Drone, danach die Reihen; Chor-Akkorde auf den Tape
+Keys ab einem Fünftel, beim Höhepunkt Wechsel auf das Streicherband; darüber die String-Machine von der
+Mitte bis zum Ausklang; Bleeps in der Mitte; Hall, Federn und Master.
+
+| Prüfstein | Ergebnis |
+|---|---|
+| Zehn Minuten mit allem | 21-fache Echtzeit, 4,7 % eines Kerns; Spitze −3,1 dBFS, RMS −20,7 dBFS, kein DC |
+| Messung wie die Referenzen | 4,5 Helligkeitsbewegungen/min, Median 6,5 s, 0,47 Okt., Bereich 1,36 Okt., RMS −18,2 dBFS, Dynamik 5,3 dB |
+| Tape Keys | ein gehaltener Ton verstummt nach dem Bandende (über 300 dB unter dem Klang), die Taste ist danach frei; der Capstan sinkt mit jeder Taste (−3 Cent bei drei, −7,5 bei sechs Tasten, eingestellt 1,5 je Taste) |
+| Akkorde | jeder Ton in der Skala seines Grundtons, kein Akkord länger als ein Band hält (längster 6,97 s), die tiefste Stimme bewegt sich im Mittel 0,1 Halbtöne |
+| Blockgrößen 1 / 37 / 512 | weiterhin bitgleich (mit Hall, Kompressor und Limiter) |
+| Selbsttest | 44 von 44 |
+
+Gebaut:
+- **Hall**: Phosphenes FDN mit acht Linien, Sends von jeder Stimme und von den Echo-Wiederholungen. Die
+  untere Grenze des Low Cut liegt jetzt bei 40 Hz statt 150, weil es hier keine phasengekoppelte Kick
+  gibt. Der Return liegt so, dass die Fahne etwa 10 dB unter dem trockenen Mix steht; die erste
+  Einstellung lag 20 dB darunter und war kaum hörbar.
+- **Tape Keys**, das Mellotron ohne Aufnahmen (5.4): Chor (sechs Sänger je Taste mit eigener Verstimmung,
+  eigenem Vibrato und Wandern, Glottis-Neigung, fünf Formanten zwischen „aah“ und „ooh“), Streicher und
+  Flöte, dazu die Maschine: ein eigenes Band je Taste (Verstimmung, Pegel, Farbe, Verzögerung, fest je
+  Taste und Seed), ein Capstan für alle mit Wow, Flutter und Motorlast, Andruckrolle, Bandende nach 8 s,
+  Rauschen, Sättigung. Der Bandsatz wird beim Anschlag gewählt; ein Wechsel gilt ab dem nächsten.
+- **Akkorde** (`Pads.h`): Dreiklang (manchmal mit Septime oder None) der Skala über dem Grundton des
+  Transposers, parallel transponiert wie die Reihen; Stimmführung per vollständiger Suche mit kleinster
+  Bewegung; Neuanschlag vor dem Bandende, Finger einige Millisekunden versetzt.
+- **Drone**: eine weitere `ModVoice` mit der Tabelle des Leads, dunkel und langsam, auf dem Grundton.
+- **Atmosphäre** (`Atmos.h`): Wind (zwei dekorrelierte Rauschen in wandernden Resonanzbändern), kosmische
+  Sweeps als Poisson-Prozess, Sample-and-Hold-Bleeps im Grundton der Reihen, vor allem ins Echo.
+- **String-Machine** (5.5): Divide-down wie bei der Solina, alle Oktaven eines Tons phasenstarr, 8' und
+  4', Ensemble aus drei Verzögerungen mit 0,6- und 6-Hz-LFO, um ein Drittel versetzt.
+- **Federn** (5.8): zwei dispersive Tanks nach Välimäki, Parker und Abel (2010), gespeist aus dem
+  Echo-Send wie in einem Bandecho mit eingebauter Feder.
+- **Master**: Phosphenes Bus-Kompressor (höchstens 1,5:1) und True-Peak-Limiter bei −1 dBTP als Schutz.
+
+Befunde und Korrekturen:
+- **Die tiefste Akkordstimme sprang im Test 4,9 Halbtöne.** Erst lag es an der Stimmführung (Zuordnung
+  nach Position statt nach Nähe), die jetzt vollständig sucht. Danach lag es am Test selbst: Er nahm den
+  zuerst angeschlagenen Ton als tiefsten, und durch den Finger-Versatz ist das irgendeine Stimme.
+- **Die Tape Keys wechselten ihren Klang mitten im Ton**, als der Bandsatz umgeschaltet wurde. Jetzt
+  merkt sich jede Taste den Satz, auf dem sie angeschlagen wurde.
+
+Bewusst verschoben:
+- **Schlagzeug** nach Phase 4: Phosphenes Kit hängt am Parametersystem, an der Harmonie und an einem
+  Psytrance-Rhythmusmodul; gebraucht wird es nur für "Melodic" und "Modern", und es gehört mit den
+  Stilprofilen zusammen.
+- **Platte (Dattorro) und Phaser**: Der Hall deckt den Raum ab; der Phaser kommt, wenn die Gesten ihn
+  brauchen.
+- **Kalibrierung der Tape Keys an Mellotron-Aufnahmen**: Dafür fehlen noch Aufnahmen, in denen das
+  Mellotron frei steht. Bis dahin sind alle Maschinenwerte erste Setzungen.
+
 **24.09.2026: Phase 2 fertig.** `eph_render --minutes 10 --seed 3` spielt die Skizze (`Sketch.h`):
 Bassreihe, Gegenreihe (13), Laufreihe (12 Achtel, eine Oktave höher), eine Transpositionsreihe von acht
 Schritten zu vier Takten, ein Lead in zwei Passagen und zwei Hände auf sieben Knöpfen entlang eines
