@@ -35,6 +35,7 @@ void Engine::load(const Score& score)
     for (const NoteEvent& n : score_.notes) {
         int row = static_cast<int>(n.part) - static_cast<int>(Part::Row1);
         if (n.part == Part::Lead) row = kLeadVoice;
+        else if (n.part == Part::Drone) row = kDroneVoice;
         else if (n.part == Part::TapeKeys) row = kTapeVoice;
         else if (row < 0 || row >= kRows) continue;
         const int64_t on = std::llround(score_.tempo.secondsAt(n.beat) * sampleRate_);
@@ -63,6 +64,9 @@ void Engine::load(const Score& score)
     echo_.prepare(sampleRate_, 2.5, mixSeed(score_.seed, 200));
     reverb_.prepare(sampleRate_);
     tape_.prepare(sampleRate_, mixSeed(score_.seed, 500));
+    atmos_.prepare(sampleRate_, mixSeed(score_.seed, 600));
+    comp_.prepare(sampleRate_);
+    limiter_.prepare(sampleRate_);
     tapeRunning_ = false;
     updateCell();
 }
@@ -120,34 +124,8 @@ void Engine::updateCell()
         send_[r] = rp(row::EchoSend);
         rsend_[r] = rp(row::ReverbSend);
     }
-    {
-        auto l = [&](int index) { return played(params_.id(Module::Lead, 0, index)); };
-        VoiceSettings s;
-        s.wave = l(lead::Wave);
-        s.detuneCents = l(lead::Detune);
-        s.pulseWidth = l(lead::PulseWidth);
-        s.driftCents = l(lead::Drift);
-        s.driveDb = l(lead::Drive);
-        s.cutoffHz = l(lead::Cutoff);
-        s.resonance = l(lead::Resonance);
-        s.envOctaves = l(lead::EnvAmount);
-        s.decayMs = l(lead::Decay);
-        s.keyTrack = l(lead::KeyTrack);
-        s.accent = l(lead::Accent);
-        s.releaseMs = l(lead::AmpDecay);
-        s.glideMs = l(lead::Glide);
-        s.vibratoCents = l(lead::Vibrato);
-        s.vibratoHz = l(lead::VibratoRate);
-        ModVoice& v = voices_[kLeadVoice];
-        v.set(s);
-        running_[kLeadVoice] = v.active() || v.held();
-        const float level = dbToGain(l(lead::Level));
-        const float a = (std::clamp(l(lead::Pan), -1.0f, 1.0f) + 1.0f) * 0.25f * kPi;
-        gainL_[kLeadVoice] = level * std::cos(a);
-        gainR_[kLeadVoice] = level * std::sin(a);
-        send_[kLeadVoice] = l(lead::EchoSend);
-        rsend_[kLeadVoice] = l(lead::ReverbSend);
-    }
+    setLeadLike(Module::Lead, kLeadVoice);
+    setLeadLike(Module::Drone, kDroneVoice);
     auto e = [&](int index) { return played(params_.id(Module::Echo, 0, index)); };
     EchoSettings es;
     const double bpm = score_.tempo.bpmAt(beat);
@@ -179,11 +157,67 @@ void Engine::updateCell()
         tapeEcho_ = t(tape::EchoSend);
         tapeReverb_ = t(tape::ReverbSend);
     }
+    {
+        auto a = [&](int index) { return played(params_.id(Module::Atmos, 0, index)); };
+        auto gain = [](float db) { return db <= -59.9f ? 0.0f : dbToGain(db); };
+        AtmosSettings as;
+        as.windGain = gain(a(atmos::Wind));
+        as.windHz = a(atmos::WindTone);
+        as.sweepsPerMinute = a(atmos::Sweeps);
+        as.sweepGain = gain(a(atmos::SweepLevel));
+        as.bleepsPerMinute = a(atmos::Bleeps);
+        as.bleepGain = gain(a(atmos::BleepLevel));
+        // The bleeps take their notes from the root the rows are in.
+        int shift = 0;
+        for (const auto& rs : score_.rootShifts) { if (rs.first > beat) break; shift = rs.second; }
+        as.rootPc = ((score_.keyRoot + shift) % 12 + 12) % 12;
+        as.scale = params_.getInt(params_.id(Module::Compose, 0, compose::Scale));
+        atmos_.set(as);
+        atmosRunning_ = atmos_.active();
+        atmosLevel_ = dbToGain(a(atmos::Level));
+        atmosEcho_ = a(atmos::EchoSend);
+        atmosReverb_ = a(atmos::ReverbSend);
+    }
     auto rv = [&](int index) { return played(params_.id(Module::Reverb, 0, index)); };
     reverb_.set(rv(reverb::Size), rv(reverb::Decay), rv(reverb::Damping),
                 rv(reverb::PreDelay) * 0.001f * static_cast<float>(sampleRate_), rv(reverb::LowCut), rv(reverb::HighCut));
     reverbReturn_ = dbToGain(rv(reverb::Return));
     master_ = dbToGain(played(params_.id(Module::Master, 0, master::Level)));
+    const float amount = played(params_.id(Module::Master, 0, master::Compress));
+    comp_.set(-16.0f, 1.0f + 0.5f * amount, 6.0f, 30.0f, 300.0f);
+    limiter_.set(played(params_.id(Module::Master, 0, master::Ceiling)), 150.0f);
+}
+
+void Engine::setLeadLike(Module m, int voiceIndex)
+{
+    {
+        auto l = [&](int index) { return played(params_.id(m, 0, index)); };
+        VoiceSettings s;
+        s.wave = l(lead::Wave);
+        s.detuneCents = l(lead::Detune);
+        s.pulseWidth = l(lead::PulseWidth);
+        s.driftCents = l(lead::Drift);
+        s.driveDb = l(lead::Drive);
+        s.cutoffHz = l(lead::Cutoff);
+        s.resonance = l(lead::Resonance);
+        s.envOctaves = l(lead::EnvAmount);
+        s.decayMs = l(lead::Decay);
+        s.keyTrack = l(lead::KeyTrack);
+        s.accent = l(lead::Accent);
+        s.releaseMs = l(lead::AmpDecay);
+        s.glideMs = l(lead::Glide);
+        s.vibratoCents = l(lead::Vibrato);
+        s.vibratoHz = l(lead::VibratoRate);
+        ModVoice& v = voices_[voiceIndex];
+        v.set(s);
+        running_[voiceIndex] = v.active() || v.held();
+        const float level = dbToGain(l(lead::Level));
+        const float a = (std::clamp(l(lead::Pan), -1.0f, 1.0f) + 1.0f) * 0.25f * kPi;
+        gainL_[voiceIndex] = level * std::cos(a);
+        gainR_[voiceIndex] = level * std::sin(a);
+        send_[voiceIndex] = l(lead::EchoSend);
+        rsend_[voiceIndex] = l(lead::ReverbSend);
+    }
 }
 
 void Engine::renderSpan(float* L, float* R, int n)
@@ -210,6 +244,19 @@ void Engine::renderSpan(float* L, float* R, int n)
             revR[i] += buf[i] * gr * h;
         }
     }
+    if (atmosRunning_) {
+        float aL[kCell] = {}, aR[kCell] = {}, bL[kCell] = {}, bR[kCell] = {};
+        atmos_.process(aL, aR, bL, bR, n);
+        for (int i = 0; i < n; ++i) {
+            L[i] += aL[i] * atmosLevel_;
+            R[i] += aR[i] * atmosLevel_;
+            // The bleeps go to the echo; the whole atmosphere to the hall.
+            sendL[i] += bL[i] * atmosLevel_ * (0.5f + atmosEcho_);
+            sendR[i] += bR[i] * atmosLevel_ * (0.5f + atmosEcho_);
+            revL[i] += aL[i] * atmosLevel_ * atmosReverb_;
+            revR[i] += aR[i] * atmosLevel_ * atmosReverb_;
+        }
+    }
     if (tapeRunning_) {
         tape_.process(buf, n);
         for (int i = 0; i < n; ++i) {
@@ -234,6 +281,8 @@ void Engine::renderSpan(float* L, float* R, int n)
         L[i] = (L[i] + wetL[i] * echoReturn_ + hallL[i] * reverbReturn_) * master_;
         R[i] = (R[i] + wetR[i] * echoReturn_ + hallR[i] * reverbReturn_) * master_;
     }
+    comp_.process(L, R, n);
+    limiter_.process(L, R, n);
 }
 
 bool Engine::process(float* L, float* R, int n)

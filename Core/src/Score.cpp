@@ -49,6 +49,7 @@ void Score::clear(double bpm)
     gestures.clear();
     rack.clear();
     markers.clear();
+    rootShifts.clear();
 }
 
 float Score::gestureOffset(int param, double beat) const

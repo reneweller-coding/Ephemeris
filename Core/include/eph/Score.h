@@ -20,6 +20,7 @@
 #include "eph/Clock.h"
 #include <cstdint>
 #include <string>
+#include <utility>
 #include <vector>
 
 namespace eph {
@@ -101,6 +102,9 @@ struct Score {
     std::vector<Gesture> gestures;     ///< gestures, sorted by beat after sort()
     std::vector<RackEvent> rack;       ///< rack events, sorted by beat after sort()
     std::vector<Marker> markers;       ///< markers, sorted by beat after sort()
+    /** The transposer's roots over time as (beat, semitones), written by whoever ran the rack; the
+     *  atmosphere's bleeps and anything else that must be in the rows' root read it. */
+    std::vector<std::pair<double, int>> rootShifts;
 
     /** @brief Sorts every list by beat (stable, so equal beats keep the order they were written in). */
     void sort();

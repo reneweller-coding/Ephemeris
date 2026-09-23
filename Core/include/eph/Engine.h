@@ -17,6 +17,8 @@
  * score is handed over whole with load(), not from the audio thread.
  */
 #pragma once
+#include "eph/Atmos.h"
+#include "eph/Dynamics.h"
 #include "eph/ModVoice.h"
 #include "eph/Params.h"
 #include "eph/Reverb.h"
@@ -84,6 +86,7 @@ private:
     };
     void updateCell();
     void renderSpan(float* L, float* R, int n);
+    void setLeadLike(Module m, int voiceIndex);
 
     ParamStore params_;
     Score score_;
@@ -95,15 +98,21 @@ private:
     std::vector<Track> tracks_;
     std::vector<int> trackOf_;   ///< parameter id -> index into tracks_, or -1
 
-    static constexpr int kVoices = kRows + 1;   ///< the rows' voices, then the lead
+    static constexpr int kVoices = kRows + 2;   ///< the rows' voices, then the lead and the drone
     static constexpr int kLeadVoice = kRows;
-    static constexpr int kTapeVoice = kRows + 1;   ///< not a ModVoice: the tape keyboard's events
+    static constexpr int kDroneVoice = kRows + 1;
+    static constexpr int kTapeVoice = kRows + 2;   ///< not a ModVoice: the tape keyboard's events
     ModVoice voices_[kVoices];
     /** Whether a voice runs in the current cell: decided at the cell's start and on a note-on, never
      *  when it falls silent mid-span -- that would tie its oscillator phase to the host's block size. */
     bool running_[kVoices] = {};
     TapeEcho echo_;
     TapeKeys tape_;
+    BusCompressor comp_;
+    TruePeakLimiter limiter_;
+    Atmos atmos_;
+    bool atmosRunning_ = false;
+    float atmosLevel_ = 0.0f, atmosEcho_ = 0.0f, atmosReverb_ = 0.0f;
     bool tapeRunning_ = false;
     float tapeL_ = 0.0f, tapeR_ = 0.0f, tapeEcho_ = 0.0f, tapeReverb_ = 0.0f;
     Reverb reverb_;

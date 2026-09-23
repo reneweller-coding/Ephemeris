@@ -138,6 +138,42 @@ const ParamDesc kTapeParams[tape::Count] = {
     { "reverb",  "Reverb Send",  "",      0.0f,     1.0f,    0.5f, Curve::Linear },
 };
 
+/** The drone: the lead's table, set dark and slow, with a two-second release and much hall. */
+const ParamDesc kDroneParams[lead::Count] = {
+    { "wave",         "Wave",          "",       0.0f,     1.0f,    0.0f, Curve::Linear },
+    { "detune",       "Detune",        "ct",     0.0f,    30.0f,    9.0f, Curve::Linear },
+    { "pw",           "Pulse Width",   "",       0.05f,    0.5f,    0.5f, Curve::Linear },
+    { "drift",        "Drift",         "ct",     0.0f,    15.0f,    4.0f, Curve::Linear },
+    { "drive",        "Drive",         "dB",     0.0f,    24.0f,    4.0f, Curve::Linear },
+    { "cutoff",       "Cutoff",        "Hz",    30.0f, 16000.0f, 320.0f, Curve::Log },
+    { "resonance",    "Resonance",     "",       0.0f,     1.0f,    0.3f, Curve::Linear },
+    { "env_amount",   "Env Amount",    "oct",    0.0f,     6.0f,    0.5f, Curve::Linear },
+    { "decay",        "Filter Decay",  "ms",    15.0f,  2000.0f,  900.0f, Curve::Log },
+    { "keytrack",     "Key Track",     "",       0.0f,     1.0f,    0.3f, Curve::Linear },
+    { "accent",       "Accent",        "",       0.0f,     1.0f,    0.0f, Curve::Linear },
+    { "amp_decay",    "Amp Release",   "ms",     5.0f,  2000.0f,  2000.0f, Curve::Log },
+    { "glide",        "Glide",         "ms",     1.0f,   500.0f,   300.0f, Curve::Log },
+    { "level",        "Level",         "dB",   -60.0f,     6.0f,   -10.0f, Curve::Linear },
+    { "pan",          "Pan",           "",      -1.0f,     1.0f,    0.0f, Curve::Linear },
+    { "echo",         "Echo Send",     "",       0.0f,     1.0f,    0.1f, Curve::Linear },
+    { "vibrato",      "Vibrato",       "ct",     0.0f,   100.0f,   0.0f, Curve::Linear },
+    { "vibrato_rate", "Vibrato Rate",  "Hz",     1.0f,    10.0f,    5.0f, Curve::Linear },
+    { "reverb",       "Reverb Send",   "",       0.0f,     1.0f,    0.55f, Curve::Linear },
+};
+
+/** The atmosphere: all layers off until a piece or a hand brings them in. */
+const ParamDesc kAtmosParams[atmos::Count] = {
+    { "wind",        "Wind",         "dB",  -60.0f,     0.0f,  -60.0f, Curve::Linear },
+    { "wind_tone",   "Wind Tone",    "Hz",  150.0f,  4000.0f,  700.0f, Curve::Log },
+    { "sweeps",      "Sweeps",       "/min",  0.0f,     6.0f,    0.0f, Curve::Linear },
+    { "sweep_level", "Sweep Level",  "dB",  -60.0f,     0.0f,  -18.0f, Curve::Linear },
+    { "bleeps",      "Bleeps",       "/min",  0.0f,    12.0f,    0.0f, Curve::Linear },
+    { "bleep_level", "Bleep Level",  "dB",  -60.0f,     0.0f,  -22.0f, Curve::Linear },
+    { "level",       "Level",        "dB",  -60.0f,     6.0f,   -4.0f, Curve::Linear },
+    { "echo",        "Echo Send",    "",      0.0f,     1.0f,    0.2f, Curve::Linear },
+    { "reverb",      "Reverb Send",  "",      0.0f,     1.0f,    0.6f, Curve::Linear },
+};
+
 /** The hall: long and dark, as the style's spaces are (a first setting, to be judged by ear). */
 const ParamDesc kReverbParams[reverb::Count] = {
     { "size",     "Size",       "",     0.3f,     3.0f,    1.8f, Curve::Linear },
@@ -176,7 +212,10 @@ const char* const kDefaultRows =
     "row8.length=32 row8.division=1/4 row8.octave=0 row8.pan=0\n";
 
 const ParamDesc kMasterParams[master::Count] = {
-    { "level", "Level", "dB", -60.0f, 6.0f, 0.0f, Curve::Linear },
+    { "level",    "Level",    "dB",  -60.0f, 6.0f,  0.0f, Curve::Linear },
+    // How much the bus compressor works: 0 off, 1 a ratio of 1.5 from -16 dB. The music keeps its dynamics.
+    { "compress", "Compress", "",      0.0f, 1.0f,  0.5f, Curve::Linear },
+    { "ceiling",  "Ceiling",  "dBTP", -6.0f, 0.0f, -1.0f, Curve::Linear },
 };
 
 /** @brief One module: its prefix, table, how many instances exist, and optionally their names. */
@@ -197,6 +236,8 @@ const ModuleSpec kModules[static_cast<int>(Module::Count)] = {
     { "lead",    kLeadParams,    lead::Count,    1 },
     { "reverb",  kReverbParams,  reverb::Count,  1 },
     { "tape",    kTapeParams,    tape::Count,    1 },
+    { "drone",   kDroneParams,   lead::Count,    1 },
+    { "atmos",   kAtmosParams,   atmos::Count,   1 },
 };
 
 bool isDiscrete(Curve c) { return c == Curve::Int || c == Curve::Choice || c == Curve::Toggle; }

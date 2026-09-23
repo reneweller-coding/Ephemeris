@@ -61,6 +61,8 @@ enum class Module : int { Compose = 0, Row, Master,
                           Reverb,
                           /** Phase 3: the tape keyboard. */
                           Tape,
+                          /** Phase 3: the drone (the lead's table) and the atmosphere. */
+                          Drone, Atmos,
                           Count };
 
 constexpr int kRows = 8;   ///< instances of the row module (the rows of the rack) and of the voice module
@@ -81,7 +83,9 @@ enum : int { Active, Length, Division, Direction, Octave, Transpose, Mutation, G
 }
 /** @brief Parameters of the master section. */
 namespace master {
-enum : int { Level, Count };
+enum : int { Level,
+             // Phase 3: a gentle bus compressor and a true-peak limiter as protection (PLAN 5.8).
+             Compress, Ceiling, Count };
 }
 /**
  * @brief Parameters of one modular voice (module Voice, "voice1" .. "voice8", one per row; PLAN 5.2).
@@ -108,6 +112,12 @@ namespace tape {
 enum : int { Set, Vowel, Wow, Flutter, Sag, Tone, Age, Level, Pan, EchoSend, ReverbSend, Count };
 }
 extern const char* const kTapeSetNames[];       ///< names of tape.set
+/** @brief The drone's parameters are the lead's table with other defaults (module Drone). */
+namespace drone = lead;
+/** @brief Parameters of the atmosphere (module Atmos; Atmos.h). */
+namespace atmos {
+enum : int { Wind, WindTone, Sweeps, SweepLevel, Bleeps, BleepLevel, Level, EchoSend, ReverbSend, Count };
+}
 /** @brief Parameters of the hall (module Reverb; PLAN 5.8): Phosphene's eight-line FDN. */
 namespace reverb {
 enum : int { Size, Decay, Damping, PreDelay, LowCut, HighCut, Return, Count };

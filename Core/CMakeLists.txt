@@ -13,6 +13,8 @@ add_library(EphemerisCore STATIC
     src/Reverb.cpp
     src/TapeKeys.cpp
     src/Pads.cpp
+    src/Atmos.cpp
+    src/Dynamics.cpp
     src/Study.cpp
     src/Lead.cpp
     src/Sketch.cpp
