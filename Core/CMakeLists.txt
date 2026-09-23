@@ -5,10 +5,14 @@ add_library(EphemerisCore STATIC
     src/Midi.cpp
     src/WavWriter.cpp
     src/Halfband.cpp
+    src/Harmony.cpp
+    src/GestureEngine.cpp
     src/Rack.cpp
     src/ModVoice.cpp
     src/TapeEcho.cpp
     src/Study.cpp
+    src/Lead.cpp
+    src/Sketch.cpp
     src/Engine.cpp
 )
 target_include_directories(EphemerisCore PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)

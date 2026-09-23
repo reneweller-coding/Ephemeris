@@ -49,6 +49,7 @@ void ModVoice::set(const VoiceSettings& s)
     filt_.setTimes(0.0015f, s.decayMs * 0.001f, 0.0f, s.decayMs * 0.001f);
     amp_.setTimes(0.002f, 0.05f, 1.0f, s.releaseMs * 0.001f);
     glideCoef_ = 1.0 - std::exp(-1.0 / (std::max(1.0, static_cast<double>(s.glideMs)) * 0.001 * sr_ / 3.0));
+    vibCoef_ = 1.0 - std::exp(-1.0 / (0.4 * sr_ / 3.0));
     driveGain_ = dbToGain(s.driveDb);
     // Level the drive: loud enough to bend, without the voice getting louder by the same amount.
     driveNorm_ = 1.0f / std::sqrt(driveGain_);
@@ -64,6 +65,7 @@ void ModVoice::noteOn(int pitch, float velocity, bool accent, bool legato, int i
         velocity_ = velocity;
         accentAmt_ = accent ? s_.accent : 0.0f;
         noteCents_ = 0.15 * static_cast<double>(s_.driftCents) * static_cast<double>(rng_.bipolar());
+        vibLevel_ = 0.0;
     }
     held_ = id;
 }
@@ -89,8 +91,15 @@ void ModVoice::process(float* out, int n)
         ++sampleCount_;
         // Pitch, envelopes and cutoff once per output sample; oscillators, mixer and ladder at 2x.
         pitch_ += (target_ - pitch_) * glideCoef_;
-        const double f1 = midiToHz(pitch_ + (drift1_.x + noteCents_) * 0.01);
-        const double f2 = midiToHz(pitch_ + (drift2_.x + noteCents_ + s_.detuneCents) * 0.01);
+        double vib = 0.0;
+        if (s_.vibratoCents > 0.0f) {
+            vibLevel_ += ((held_ >= 0 ? 1.0 : 0.0) - vibLevel_) * vibCoef_;
+            vibPhase_ += static_cast<double>(s_.vibratoHz) / sr_;
+            if (vibPhase_ >= 1.0) vibPhase_ -= 1.0;
+            vib = static_cast<double>(s_.vibratoCents) * vibLevel_ * static_cast<double>(sin01(vibPhase_));
+        }
+        const double f1 = midiToHz(pitch_ + (drift1_.x + noteCents_ + vib) * 0.01);
+        const double f2 = midiToHz(pitch_ + (drift2_.x + noteCents_ + vib + s_.detuneCents) * 0.01);
         osc1_.set(f1, sr2_, s_.wave, s_.pulseWidth);
         osc2_.set(f2, sr2_, s_.wave, s_.pulseWidth);
         const float fe = filt_.process();

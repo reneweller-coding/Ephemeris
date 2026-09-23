@@ -31,10 +31,11 @@ void Engine::load(const Score& score)
     // is legato: the voice glides instead of retriggering.
     events_.clear();
     int id = 0;
-    bool slideInto[kRows] = {};
+    bool slideInto[kVoices] = {};
     for (const NoteEvent& n : score_.notes) {
-        const int row = static_cast<int>(n.part) - static_cast<int>(Part::Row1);
-        if (row < 0 || row >= kRows) continue;
+        int row = static_cast<int>(n.part) - static_cast<int>(Part::Row1);
+        if (n.part == Part::Lead) row = kLeadVoice;
+        else if (row < 0 || row >= kRows) continue;
         const int64_t on = std::llround(score_.tempo.secondsAt(n.beat) * sampleRate_);
         const int64_t off = std::max(on + 1, static_cast<int64_t>(std::llround(score_.tempo.secondsAt(n.beat + n.length) * sampleRate_)));
         ++id;
@@ -57,7 +58,7 @@ void Engine::load(const Score& score)
     }
     for (Track& t : tracks_) t.cursor = t.gestures.size();
 
-    for (int r = 0; r < kRows; ++r) voices_[r].prepare(sampleRate_, mixSeed(score_.seed, 100 + static_cast<uint64_t>(r)));
+    for (int r = 0; r < kVoices; ++r) voices_[r].prepare(sampleRate_, mixSeed(score_.seed, 100 + static_cast<uint64_t>(r)));
     echo_.prepare(sampleRate_, 2.5, mixSeed(score_.seed, 200));
     updateCell();
 }
@@ -114,6 +115,33 @@ void Engine::updateCell()
         gainR_[r] = level * std::sin(a);
         send_[r] = rp(row::EchoSend);
     }
+    {
+        auto l = [&](int index) { return played(params_.id(Module::Lead, 0, index)); };
+        VoiceSettings s;
+        s.wave = l(lead::Wave);
+        s.detuneCents = l(lead::Detune);
+        s.pulseWidth = l(lead::PulseWidth);
+        s.driftCents = l(lead::Drift);
+        s.driveDb = l(lead::Drive);
+        s.cutoffHz = l(lead::Cutoff);
+        s.resonance = l(lead::Resonance);
+        s.envOctaves = l(lead::EnvAmount);
+        s.decayMs = l(lead::Decay);
+        s.keyTrack = l(lead::KeyTrack);
+        s.accent = l(lead::Accent);
+        s.releaseMs = l(lead::AmpDecay);
+        s.glideMs = l(lead::Glide);
+        s.vibratoCents = l(lead::Vibrato);
+        s.vibratoHz = l(lead::VibratoRate);
+        ModVoice& v = voices_[kLeadVoice];
+        v.set(s);
+        running_[kLeadVoice] = v.active() || v.held();
+        const float level = dbToGain(l(lead::Level));
+        const float a = (std::clamp(l(lead::Pan), -1.0f, 1.0f) + 1.0f) * 0.25f * kPi;
+        gainL_[kLeadVoice] = level * std::cos(a);
+        gainR_[kLeadVoice] = level * std::sin(a);
+        send_[kLeadVoice] = l(lead::EchoSend);
+    }
     auto e = [&](int index) { return played(params_.id(Module::Echo, 0, index)); };
     EchoSettings es;
     const double bpm = score_.tempo.bpmAt(beat);
@@ -136,7 +164,7 @@ void Engine::renderSpan(float* L, float* R, int n)
     std::fill(R, R + n, 0.0f);
     std::fill(sendL, sendL + n, 0.0f);
     std::fill(sendR, sendR + n, 0.0f);
-    for (int r = 0; r < kRows; ++r) {
+    for (int r = 0; r < kVoices; ++r) {
         ModVoice& v = voices_[r];
         if (!running_[r]) continue;
         v.process(buf, n);

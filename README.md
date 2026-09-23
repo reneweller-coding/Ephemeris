@@ -8,7 +8,9 @@ Windows, native on Meta Quest 2. Everything is synthesised; there are no samples
 The plan, the musical specification and the literature behind each building block are in
 [docs/PLAN.md](docs/PLAN.md) (German).
 
-**Status:** Phase 0 -- the frame: parameter system, tempo map, score with gesture curves, MIDI export,
+**Status:** Phases 0 to 2 -- the frame, the rack with a transposer row, the modular voice and the lead,
+the tape echo, the two hands that play the knobs, and a ten-minute sketch that uses all of it. The
+following lines describe Phase 0: parameter system, tempo map, score with gesture curves, MIDI export,
 `eph_render`, self test and vector tests. It renders silence on the right clock; the first sound comes
 with Phase 1.
 

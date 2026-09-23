@@ -14,8 +14,9 @@ namespace eph {
 const char* const kKeyNames[12] = { "C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B" };
 const char* const kScaleNames[] = { "Aeolian", "Dorian", "Phrygian", "Harmonic Minor", "Minor Pentatonic" };
 const char* const kStyleNames[] = { "Cosmic", "Doom", "Melodic", "Modern", "Drift" };
-const char* const kRowDivisionNames[] = { "1/4", "1/8", "1/8 T", "1/16", "1/16 T", "1/32" };
+const char* const kRowDivisionNames[] = { "1/4", "1/8", "1/8 T", "1/16", "1/16 T", "1/32", "1 Bar", "2 Bars", "4 Bars" };
 const char* const kRowDirectionNames[] = { "Forward", "Backward", "Pendulum", "Random Walk" };
+const char* const kRowModeNames[] = { "Notes", "Transposer" };
 const char* const kEchoTimeNames[] = { "1/16", "1/8", "3/16", "1/4", "3/8", "1/2" };
 
 double echoTimeBeats(EchoTime t)
@@ -34,6 +35,9 @@ double rowDivisionBeats(RowDivision d)
     case RowDivision::Sixteenth:    return 0.25;
     case RowDivision::SixteenthT:   return 1.0 / 6.0;
     case RowDivision::ThirtySecond: return 0.125;
+    case RowDivision::Bar1:         return 4.0;
+    case RowDivision::Bars2:        return 8.0;
+    case RowDivision::Bars4:        return 16.0;
     default:                        return 0.25;
     }
 }
@@ -51,7 +55,7 @@ const ParamDesc kComposeParams[compose::Count] = {
 const ParamDesc kRowParams[row::Count] = {
     { "active",    "Active",     "",      0.0f,  1.0f,  0.0f, Curve::Toggle },
     { "length",    "Length",     "steps", 1.0f, 32.0f, 16.0f, Curve::Int },
-    { "division",  "Division",   "",      0.0f,  5.0f,  3.0f, Curve::Choice, kRowDivisionNames },
+    { "division",  "Division",   "",      0.0f,  8.0f,  3.0f, Curve::Choice, kRowDivisionNames },
     { "direction", "Direction",  "",      0.0f,  3.0f,  0.0f, Curve::Choice, kRowDirectionNames },
     { "octave",    "Octave",     "",     -3.0f,  3.0f,  0.0f, Curve::Int },
     { "transpose", "Transpose",  "st",  -12.0f, 12.0f,  0.0f, Curve::Int },
@@ -61,6 +65,7 @@ const ParamDesc kRowParams[row::Count] = {
     { "level",     "Level",      "dB",  -60.0f,  6.0f, -6.0f, Curve::Linear },
     { "pan",       "Pan",        "",     -1.0f,  1.0f,  0.0f, Curve::Linear },
     { "echo",      "Echo Send",  "",      0.0f,  1.0f,  0.3f, Curve::Linear },
+    { "mode",      "Mode",       "",      0.0f,  1.0f,  0.0f, Curve::Choice, kRowModeNames },
 };
 
 /**
@@ -84,10 +89,36 @@ const ParamDesc kVoiceParams[voice::Count] = {
     { "glide",      "Glide",        "ms",     1.0f,   500.0f,   60.0f, Curve::Log },
 };
 
+/**
+ * 24.09.2026: the user heard the first study as dull; the cutoffs and envelope depths of the three
+ * voices that play first are raised by about two thirds of an octave.
+ */
 const char* const kVoiceDefaults =
-    "voice1.cutoff=420 voice1.resonance=0.4 voice1.env_amount=3 voice1.decay=160\n"
-    "voice2.wave=0.6 voice2.pw=0.3 voice2.cutoff=900 voice2.resonance=0.3 voice2.decay=120 voice2.env_amount=2\n"
-    "voice3.cutoff=1400 voice3.decay=240 voice3.env_amount=1.5\n";
+    "voice1.cutoff=650 voice1.resonance=0.4 voice1.env_amount=3.5 voice1.decay=190\n"
+    "voice2.wave=0.6 voice2.pw=0.3 voice2.cutoff=1300 voice2.resonance=0.3 voice2.decay=140 voice2.env_amount=2.5\n"
+    "voice3.cutoff=1800 voice3.decay=240 voice3.env_amount=2\n";
+
+/** The lead: a brighter, longer, sung version of the voice, with glide and a vibrato that comes in late. */
+const ParamDesc kLeadParams[lead::Count] = {
+    { "wave",         "Wave",          "",       0.0f,     1.0f,    0.25f, Curve::Linear },
+    { "detune",       "Detune",        "ct",     0.0f,    30.0f,    4.0f, Curve::Linear },
+    { "pw",           "Pulse Width",   "",       0.05f,    0.5f,    0.45f, Curve::Linear },
+    { "drift",        "Drift",         "ct",     0.0f,    15.0f,    2.0f, Curve::Linear },
+    { "drive",        "Drive",         "dB",     0.0f,    24.0f,    8.0f, Curve::Linear },
+    { "cutoff",       "Cutoff",        "Hz",    30.0f, 16000.0f, 1500.0f, Curve::Log },
+    { "resonance",    "Resonance",     "",       0.0f,     1.0f,    0.25f, Curve::Linear },
+    { "env_amount",   "Env Amount",    "oct",    0.0f,     6.0f,    2.0f, Curve::Linear },
+    { "decay",        "Filter Decay",  "ms",    15.0f,  2000.0f,  450.0f, Curve::Log },
+    { "keytrack",     "Key Track",     "",       0.0f,     1.0f,    0.6f, Curve::Linear },
+    { "accent",       "Accent",        "",       0.0f,     1.0f,    0.3f, Curve::Linear },
+    { "amp_decay",    "Amp Release",   "ms",     5.0f,  2000.0f,  300.0f, Curve::Log },
+    { "glide",        "Glide",         "ms",     1.0f,   500.0f,   80.0f, Curve::Log },
+    { "level",        "Level",         "dB",   -60.0f,     6.0f,   -9.0f, Curve::Linear },
+    { "pan",          "Pan",           "",      -1.0f,     1.0f,    0.15f, Curve::Linear },
+    { "echo",         "Echo Send",     "",       0.0f,     1.0f,    0.45f, Curve::Linear },
+    { "vibrato",      "Vibrato",       "ct",     0.0f,   100.0f,   18.0f, Curve::Linear },
+    { "vibrato_rate", "Vibrato Rate",  "Hz",     1.0f,    10.0f,    5.2f, Curve::Linear },
+};
 
 const ParamDesc kEchoParams[echo::Count] = {
     { "time",      "Time",        "",       0.0f,    5.0f,    2.0f, Curve::Choice, kEchoTimeNames },
@@ -134,6 +165,7 @@ const ModuleSpec kModules[static_cast<int>(Module::Count)] = {
     { "master",  kMasterParams,  master::Count,  1 },
     { "voice",   kVoiceParams,   voice::Count,   kRows },
     { "echo",    kEchoParams,    echo::Count,    1 },
+    { "lead",    kLeadParams,    lead::Count,    1 },
 };
 
 bool isDiscrete(Curve c) { return c == Curve::Int || c == Curve::Choice || c == Curve::Toggle; }

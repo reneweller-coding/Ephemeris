@@ -2,7 +2,7 @@
  * @file Engine.h
  * @brief The engine: plays a score through the voices, the space and the master.
  *
- * Phase 1 (PLAN 12): the rows of the rack on their modular voices, the gestures of the score on the
+ * Phases 1 and 2 (PLAN 12): the rows of the rack and the lead on their modular voices, the gestures of the score on the
  * voices' and the echo's knobs, a mixer with pan and echo send, the tape echo, the master level.
  *
  * **Time** is the sample counter; beats are derived from it through the tempo map (Clock.h), never
@@ -93,12 +93,14 @@ private:
     std::vector<Track> tracks_;
     std::vector<int> trackOf_;   ///< parameter id -> index into tracks_, or -1
 
-    ModVoice voices_[kRows];
+    static constexpr int kVoices = kRows + 1;   ///< the rows' voices, then the lead
+    static constexpr int kLeadVoice = kRows;
+    ModVoice voices_[kVoices];
     /** Whether a voice runs in the current cell: decided at the cell's start and on a note-on, never
      *  when it falls silent mid-span -- that would tie its oscillator phase to the host's block size. */
-    bool running_[kRows] = {};
+    bool running_[kVoices] = {};
     TapeEcho echo_;
-    float gainL_[kRows] = {}, gainR_[kRows] = {}, send_[kRows] = {};
+    float gainL_[kVoices] = {}, gainR_[kVoices] = {}, send_[kVoices] = {};
     float echoReturn_ = 0.0f, master_ = 1.0f;
 };
 

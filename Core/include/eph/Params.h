@@ -55,6 +55,8 @@ struct ParamDesc {
 enum class Module : int { Compose = 0, Row, Master,
                           /** Phase 1: the modular voice of each row, and the tape echo. */
                           Voice, Echo,
+                          /** Phase 2: the lead voice. */
+                          Lead,
                           Count };
 
 constexpr int kRows = 8;   ///< instances of the row module (the rows of the rack) and of the voice module
@@ -67,7 +69,9 @@ enum : int { Bpm, Key, Scale, Style, PieceMinutes, Count };
 namespace row {
 enum : int { Active, Length, Division, Direction, Octave, Transpose, Mutation, Gate, Level, Pan,
              // Phase 1: the send into the tape echo.
-             EchoSend, Count };
+             EchoSend,
+             // Phase 2: what the row does -- plays notes, or transposes the rows that play (PLAN 5.1).
+             Mode, Count };
 }
 /** @brief Parameters of the master section. */
 namespace master {
@@ -83,6 +87,15 @@ namespace voice {
 enum : int { Wave, Detune, PulseWidth, Drift, Drive, Cutoff, Resonance, EnvAmount, Decay, KeyTrack,
              Accent, AmpDecay, Glide, Count };
 }
+/**
+ * @brief Parameters of the lead (module Lead, PLAN 5.3): the voice's table, then its place in the mix
+ *        and the vibrato a player brings in with the wheel.
+ */
+namespace lead {
+enum : int { Wave, Detune, PulseWidth, Drift, Drive, Cutoff, Resonance, EnvAmount, Decay, KeyTrack,
+             Accent, AmpDecay, Glide, Level, Pan, EchoSend, Vibrato, VibratoRate, Count };
+}
+static_assert(static_cast<int>(lead::Glide) == static_cast<int>(voice::Glide), "the first parameters of the lead are those of the voice, in the same order");
 /** @brief Parameters of the tape echo (module Echo; PLAN 5.8). */
 namespace echo {
 enum : int { Time, Feedback, Tone, Wow, Flutter, Drive, PingPong, Return, Count };
@@ -96,9 +109,13 @@ extern const char* const kEchoTimeNames[];      ///< names of echo.time
 /** @brief The five style profiles of PLAN 2.8, in the order of compose.style. */
 enum class Style : int { Cosmic = 0, Doom, Melodic, Modern, Drift, Count };
 /** @brief The step divisions a row can run on, in the order of row.division. */
-enum class RowDivision : int { Quarter = 0, Eighth, EighthT, Sixteenth, SixteenthT, ThirtySecond, Count };
+enum class RowDivision : int { Quarter = 0, Eighth, EighthT, Sixteenth, SixteenthT, ThirtySecond,
+                               /** Phase 2: the slow divisions of a transposer row. */
+                               Bar1, Bars2, Bars4, Count };
 /** @brief Length of a row division in quarter-note beats. */
 double rowDivisionBeats(RowDivision d);
+/** @brief What a row does, in the order of row.mode. */
+enum class RowMode : int { Notes = 0, Transposer, Count };
 /** @brief How a row walks its steps, in the order of row.direction. */
 enum class RowDirection : int { Forward = 0, Backward, Pendulum, RandomWalk, Count };
 
@@ -107,6 +124,7 @@ extern const char* const kScaleNames[];         ///< names of compose.scale
 extern const char* const kStyleNames[];         ///< names of compose.style
 extern const char* const kRowDivisionNames[];   ///< names of row.division
 extern const char* const kRowDirectionNames[];  ///< names of row.direction
+extern const char* const kRowModeNames[];       ///< names of row.mode
 
 /**
  * @brief All parameter values of one engine, lock-free readable from the audio thread.

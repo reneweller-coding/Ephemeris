@@ -49,6 +49,8 @@ struct VoiceSettings {
     float accent = 0.5f;       ///< how much an accent adds
     float releaseMs = 60.0f;   ///< amplitude release
     float glideMs = 60.0f;     ///< portamento time on a slide
+    float vibratoCents = 0.0f; ///< vibrato depth; it comes in over 0.4 s of a held note, as a hand reaches the wheel
+    float vibratoHz = 5.2f;    ///< vibrato rate
 };
 
 /**
@@ -122,6 +124,9 @@ private:
     float velocity_ = 0.8f;
     float accentAmt_ = 0.0f;
     float driveGain_ = 2.0f, driveNorm_ = 0.5f;
+    double vibPhase_ = 0.0;     ///< vibrato phase in cycles
+    double vibLevel_ = 0.0;     ///< 0..1, rises while a note is held
+    double vibCoef_ = 0.0;
 };
 
 } // namespace eph

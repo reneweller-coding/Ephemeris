@@ -8,6 +8,8 @@
  */
 #include "eph/Clock.h"
 #include "eph/Engine.h"
+#include "eph/GestureEngine.h"
+#include "eph/Lead.h"
 #include "eph/Midi.h"
 #include "eph/ModVoice.h"
 #include "eph/Params.h"
@@ -218,6 +220,136 @@ void testRack()
 }
 
 /**
+ * The transposer row (PLAN 5.1): every note of a note row is shifted by the root of the transposer step
+ * that sounds at its beat -- from the downbeat of the bar on, never a step late -- and the progression
+ * starts and ends on the tonic.
+ */
+void testTransposer()
+{
+    section("transposer row");
+    auto play = [](bool transposer, std::vector<int>* roots) {
+        ParamStore p;
+        p.parseText("compose.style=Melodic row1.active=1 row1.length=16 row1.division=1/16 "
+                    "row3.length=8 row3.division=1 Bar row3.mode=Transposer");
+        p.set(p.find("row3.active"), transposer ? 1.0f : 0.0f);
+        Score s;
+        s.clear(120.0);
+        Rack r;
+        r.setup(p, 11);
+        r.generate(0, RowRole::Bass);
+        r.generate(2, RowRole::Transposer);
+        if (roots != nullptr) for (int i = 0; i < 8; ++i) roots->push_back(r.steps(2)[i].degree);
+        r.run(s, 64.0);
+        s.sort();
+        return s;
+    };
+    std::vector<int> roots;
+    const Score plain = play(false, nullptr), moved = play(true, &roots);
+    int wrong = 0, moves = 0;
+    for (size_t i = 0; i < plain.notes.size() && i < moved.notes.size(); ++i) {
+        const int bar = static_cast<int>(plain.notes[i].beat / 4.0);
+        if (moved.notes[i].pitch - plain.notes[i].pitch != roots[static_cast<size_t>(bar % 8)]) ++wrong;
+        moves += roots[static_cast<size_t>(bar % 8)] != 0 ? 1 : 0;
+    }
+    check(plain.notes.size() == moved.notes.size() && wrong == 0, "each note in the root of its bar",
+          fmt("%d of %zu wrong", wrong, plain.notes.size()));
+    check(moves > 0 && roots.front() == 0 && roots.back() == 0, "the progression moves and comes home",
+          fmt("roots %d %d %d %d %d %d %d %d", roots[0], roots[1], roots[2], roots[3], roots[4], roots[5], roots[6], roots[7]));
+}
+
+/**
+ * The hands (PLAN 6.4): never more than two movements at once, never a jump (every movement starts where
+ * the knob was left), every target inside the knob's range, and the rate the defaults are calibrated to
+ * (GestureEngine.h: the references move about five times a minute).
+ */
+void testHands()
+{
+    section("the player's hands");
+    Score s;
+    s.clear(118.0);
+    std::vector<HandKnob> knobs;
+    for (int k = 0; k < 5; ++k) {
+        HandKnob h;
+        h.param = 100 + k;
+        h.low = -0.3f; h.high = 0.35f; h.atRest = -0.2f; h.atPeak = 0.25f;
+        h.throws = k == 4;
+        knobs.push_back(h);
+    }
+    Rng rng;
+    rng.seed(21);
+    const double end = 118.0 * 10.0;   // ten minutes
+    playHands(s, knobs, HandStyle{}, [&](double b) { return static_cast<float>(b / end); }, 0.0, end, rng);
+    s.sort();
+    // Concurrency: sweep over starts and ends of the movements (steps of zero length excluded).
+    std::vector<std::pair<double, int>> edges;
+    int moves = 0;
+    for (const Gesture& g : s.gestures) {
+        if (g.length <= 0.0) continue;
+        edges.push_back({ g.beat, 1 });
+        edges.push_back({ g.beat + g.length, -1 });
+        ++moves;
+    }
+    std::sort(edges.begin(), edges.end());   // ends (-1) before starts (+1) at equal beats
+    int live = 0, most = 0;
+    for (const auto& e : edges) { live += e.second; most = std::max(most, live); }
+    check(most <= 2, "never more than two hands", fmt("%d at once", most));
+    int jumps = 0, outside = 0;
+    for (const HandKnob& k : knobs) {
+        float last = 0.0f;
+        bool first = true;
+        for (const Gesture& g : s.gestures) {
+            if (g.param != k.param) continue;
+            if (!first && std::fabs(g.from - last) > 1e-6f) ++jumps;
+            if (g.to < k.low - 1e-6f || g.to > k.high + 1e-6f) ++outside;
+            last = g.to;
+            first = false;
+        }
+    }
+    check(jumps == 0, "every movement starts where the knob was left", fmt("%d jumps", jumps));
+    check(outside == 0, "every target inside the knob's range", fmt("%d outside", outside));
+    const double perMinute = moves / 10.0;
+    check(perMinute > 3.5 && perMinute < 6.5, "4 to 6 movements a minute (references: about 5)", fmt("%.1f per minute", perMinute));
+}
+
+/**
+ * The lead (Lead.h): every note in the scale of the root sounding at its beat, inside the register,
+ * one note at a time except the glides from below, and phrases with rests between them.
+ */
+void testLead()
+{
+    section("lead phrases");
+    LeadPlan lp;
+    lp.keyRoot = 9;
+    lp.scale = 3;   // harmonic minor: the glide from a whole tone below is not always in the scale
+    lp.low = 64;
+    lp.high = 86;
+    lp.intensity = 0.6f;
+    lp.shifts = { { 0.0, 0 }, { 64.0, -4 }, { 128.0, -2 }, { 192.0, 0 } };
+    Score s;
+    s.clear(118.0);
+    Rng rng;
+    rng.seed(5);
+    writeLead(s, lp, 0.0, 256.0, rng);
+    s.sort();
+    int outOfScale = 0, outOfRange = 0, overlaps = 0, phrases = 0;
+    double lastEnd = -100.0;
+    for (size_t i = 0; i < s.notes.size(); ++i) {
+        const NoteEvent& n = s.notes[i];
+        int shift = 0;
+        for (const auto& e : lp.shifts) if (e.first <= n.beat) shift = e.second;
+        if (!inScale(n.pitch, ((lp.keyRoot + shift) % 12 + 12) % 12, lp.scale)) ++outOfScale;
+        if (n.pitch < lp.low || n.pitch > lp.high) ++outOfRange;
+        if (i > 0 && n.beat < lastEnd - 1e-9 && !s.notes[i - 1].slide) ++overlaps;
+        if (n.beat - lastEnd >= kBeatsPerBar - 1e-9) ++phrases;
+        lastEnd = n.beat + n.length;
+    }
+    check(!s.notes.empty() && outOfScale == 0, "every note in the scale of its root", fmt("%d of %zu out", outOfScale, s.notes.size()));
+    check(outOfRange == 0, "every note inside the register", fmt("%d outside", outOfRange));
+    check(overlaps == 0, "one note at a time, except a glide", fmt("%d overlaps", overlaps));
+    check(phrases >= 4, "phrases with rests of a bar or more between them", fmt("%d phrases in 64 bars", phrases));
+}
+
+/**
  * The offline render is the oracle only if a host's block size cannot change a sample: the study
  * rendered with blocks of 1, 37 and 512 must agree bit for bit (Engine.h).
  */
@@ -349,6 +481,9 @@ const Section kSections[] = {
     { "testParams", testParams },
     { "testMidiTempo", testMidiTempo },
     { "testRack", testRack },
+    { "testTransposer", testTransposer },
+    { "testHands", testHands },
+    { "testLead", testLead },
     { "testBlockSizes", testBlockSizes },
     { "testEcho", testEcho },
     { "testDrift", testDrift },

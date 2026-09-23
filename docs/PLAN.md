@@ -10,6 +10,37 @@ verschiedener Länge um einen gemeinsamen Grundton, die nur selten wieder zusamm
 
 ## Stand der Umsetzung
 
+**24.09.2026: Phase 2 fertig.** `eph_render --minutes 10 --seed 3` spielt die Skizze (`Sketch.h`):
+Bassreihe, Gegenreihe (13), Laufreihe (12 Achtel, eine Oktave höher), eine Transpositionsreihe von acht
+Schritten zu vier Takten, ein Lead in zwei Passagen und zwei Hände auf sieben Knöpfen entlang eines
+Spannungsbogens, der bei zwei Dritteln gipfelt. Die Form ist noch fest (der Komponist kommt in Phase 4),
+ihr Inhalt wird gezogen.
+
+| Prüfstein | Ergebnis |
+|---|---|
+| Zehn Minuten, drei Notenreihen, Transposer, Lead, Hände | 57-fache Echtzeit, 1,8 % eines Kerns; Spitze −3,0 dBFS, RMS −20,5 dBFS |
+| Messung wie die Referenzen (`analyze_ref.py`) | 4,3 Helligkeitsbewegungen/min, Median 8,0 s, 0,52 Okt., Bereich 1,36 Okt. (Referenzen: 4,8–5,8/min, 8,5–9,8 s, 0,51–0,73 Okt., 1,13–2,15 Okt.; die Studie aus Phase 1: 2,2/min, 18,5 s, 0,44 Okt.) |
+| Transposer | jede Note einer Notenreihe im Grundton ihres Takts (0 von 240 falsch); Progression beginnt und endet auf der Tonika |
+| Hände | nie mehr als zwei zugleich, kein Sprung, jedes Ziel im Bereich des Knopfs; 5,7 Bewegungen/min im Test (Würfe und ihr Auffangen gezählt) |
+| Lead | jede Note in der Skala ihres Grundtons, im Register, einstimmig außer den Glides von unten; Phrasen mit Pausen |
+| Selbsttest | 38 von 38 |
+
+Gebaut: Reihenmodus `Transposer` mit Taktteilern 1, 2 und 4 Takte; `Harmony` (Progressionen je Stil als
+Markov-Kette über i, bVI, bVII, bIII, iv, v, ii, bII, Tritonus, mit Gewichten und Verweilchance);
+`GestureEngine` (zwei Hände als Prozesse, Log-Normal-Dauern um 8 s, lange Fahrten, schnelle Würfe mit
+Auffangen, Ziele aus dem Spannungsbogen, Pausen um 14 s); `Lead` (Pentatonik plus Skalentöne als
+Durchgänge, Bogenkontur, Akkordtöne auf schweren Zählzeiten, Glide aus dem Skalenton darunter,
+Motivwiederholung) und die Lead-Stimme (neunte `ModVoice` mit spät einsetzendem Vibrato).
+
+Befunde und Korrekturen:
+- **Höreindruck des Nutzers zur Studie**: "relativ dumpf und sehr langsam, aber das kommt auf den Kontext
+  an". Die Voreinstellungen der ersten drei Stimmen sind um etwa zwei Drittel Oktave heller; die Hände
+  bewegen sich nach der Referenzmessung statt nach der Hand der Studie.
+- **Die Hände bewegten sich zuerst 8,9-mal pro Minute**: Bei der Wahl der Ruhezeit (4 s) war die zweite
+  Hand in der Summe vergessen. Mit 14 s liegen beide zusammen bei etwa fünf.
+- **Eine Transpositionsreihe, die aufhört, lässt die Reihen jetzt auf der Tonika** statt auf ihrem
+  letzten Grundton.
+
 **24.09.2026: Phase 1 hörbar, zum Hören beim Nutzer.** `eph_render --minutes 5 --seed 7` spielt die
 Studie (`Study.h`): eine Berlin-Bassreihe (16 Sechzehntel), ab einem Zehntel eine Gegenreihe von 13
 Schritten, Transposition i–i–bVI–bVII alle acht Takte nach dem Orgelpunkt, und die Hände: Filter öffnet

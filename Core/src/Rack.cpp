@@ -3,6 +3,7 @@
  * @brief The sequencer rack.
  */
 #include "eph/Rack.h"
+#include "eph/Harmony.h"
 #include <algorithm>
 #include <numeric>
 
@@ -43,6 +44,9 @@ void Rack::setup(const ParamStore& p, uint64_t seed)
 {
     keyRoot_ = p.getInt(p.id(Module::Compose, 0, compose::Key));
     scale_ = p.getInt(p.id(Module::Compose, 0, compose::Scale));
+    style_ = static_cast<Style>(p.getInt(p.id(Module::Compose, 0, compose::Style)));
+    shift_ = 0;
+    shiftLog_.assign(1, { 0.0, 0 });
     for (int i = 0; i < kRows; ++i) {
         Row& r = rows_[i];
         auto get = [&](int index) { return p.get(p.id(Module::Row, i, index)); };
@@ -54,6 +58,7 @@ void Rack::setup(const ParamStore& p, uint64_t seed)
         r.mutation = get(row::Mutation);
         r.gate = get(row::Gate) * 0.01f;
         r.running = get(row::Active) >= 0.5f;
+        r.transposer = static_cast<int>(get(row::Mode)) == static_cast<int>(RowMode::Transposer);
         r.startBeat = 0.0;
         r.step = 0;
         r.pos = 0;
@@ -71,6 +76,8 @@ void Rack::generate(int row, RowRole role)
     Rng& g = r.rng;
     const int n = scaleSize(scale_);
     int walk = 0;   // the Walk role's current degree
+    std::vector<int> roots;
+    if (role == RowRole::Transposer) roots = drawProgression(style_, r.length, g);
     for (int i = 0; i < kMaxSteps; ++i) {
         Step s;
         s.velocity = 0.72f + 0.12f * g.uniform();
@@ -105,6 +112,9 @@ void Rack::generate(int row, RowRole role)
             s.accent = i == 0;
             break;
         }
+        case RowRole::Transposer:
+            s.degree = i < static_cast<int>(roots.size()) ? roots[static_cast<size_t>(i)] : 0;
+            break;
         }
         r.steps[i] = s;
     }
@@ -121,7 +131,11 @@ void Rack::mutate(Row& r, int index, double beat, std::vector<RackEvent>& log)
     const int i = r.rng.below(r.length);
     Step& s = r.steps[i];
     const float what = r.rng.uniform();
-    if (what < 0.45f) {
+    if (r.transposer) {
+        // A transposer mutates its roots only, and never its first step: the piece keeps its tonic.
+        const std::vector<int>& roots = progressionRoots(style_);
+        if (i != 0) s.degree = r.rng.uniform() < 0.4f ? 0 : roots[static_cast<size_t>(r.rng.below(static_cast<int>(roots.size())))];
+    } else if (what < 0.45f) {
         const int n = scaleSize(scale_);
         const int choices[5] = { 0, 2, 4, 6 % n, n - 1 };
         s.degree = choices[r.rng.below(5)];
@@ -159,11 +173,16 @@ void Rack::playStep(int index, Row& r, Score& score, std::vector<RackEvent>& log
 {
     const double beat = nextStepBeat(r);
     const Step& s = r.steps[r.pos];
-    if (s.gate) {
+    if (r.transposer) {
+        if (s.gate) {
+            shift_ = s.degree + 12 * s.octave;
+            if (shiftLog_.empty() || shiftLog_.back().second != shift_) shiftLog_.push_back({ beat, shift_ });
+        }
+    } else if (s.gate) {
         NoteEvent e;
         e.beat = beat;
         e.part = rowPart(index);
-        e.pitch = std::clamp(rootNote(r) + r.transpose + scaleSemitones(scale_, s.degree) + 12 * s.octave, 0, 127);
+        e.pitch = std::clamp(rootNote(r) + r.transpose + shift_ + scaleSemitones(scale_, s.degree) + 12 * s.octave, 0, 127);
         e.accent = s.accent;
         e.velocity = std::min(1.0f, s.velocity + (s.accent ? 0.15f : 0.0f));
         e.slide = s.slide;
@@ -192,7 +211,8 @@ void Rack::run(Score& score, double endBeat)
         for (int i = 0; i < kRows; ++i) {
             if (!rows_[i].running) continue;
             const double b = nextStepBeat(rows_[i]);
-            if (b < best) { best = b; bestRow = i; }
+            // A transposer steps first at equal beats, so the downbeat already sounds in the new root.
+            if (b < best || (b == best && bestRow >= 0 && rows_[i].transposer && !rows_[bestRow].transposer)) { best = b; bestRow = i; }
         }
         if (cursor < ev.size() && ev[cursor].beat <= best) {
             // Rack events first at equal beats: a transposition applies to the step on its beat.
@@ -204,7 +224,11 @@ void Rack::run(Score& score, double endBeat)
                 case RackOp::Start:
                     r.running = true; r.startBeat = e.beat; r.step = 0; r.pos = 0; r.dir = 1;
                     break;
-                case RackOp::Stop: r.running = false; break;
+                case RackOp::Stop:
+                    r.running = false;
+                    // A transposer that stops takes the rows home to the tonic.
+                    if (r.transposer && shift_ != 0) { shift_ = 0; shiftLog_.push_back({ e.beat, 0 }); }
+                    break;
                 case RackOp::Transpose: r.transpose = e.value; break;
                 case RackOp::SetLength:
                     r.length = std::clamp(e.value, 1, kMaxSteps);

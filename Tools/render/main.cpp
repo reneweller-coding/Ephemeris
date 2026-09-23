@@ -3,16 +3,18 @@
  * @brief eph_render: offline render of a score to WAV, with MIDI export.
  *
  * The offline render is the determinism oracle (PLAN 1): same arguments, same samples. Until the
- * composer exists (Phase 4) it plays the study of Phase 1 (Study.h); `--frame` renders the bare frame
- * of Phase 0 instead -- silence on the tempo map.
+ * composer exists (Phase 4) it plays the sketch of Phase 2 (Sketch.h); `--study` plays the study of
+ * Phase 1 (Study.h) and `--frame` renders the bare frame of Phase 0 -- silence on the tempo map.
  *
  * Usage:
  *   eph_render [--minutes M | --bars N] [--bpm B] [--seed S] [--set "k=v ..."] [--tail S]
- *              [--rate 48000] [--block 512] [--out file.wav] [--midi file.mid] [--frame [--ramp-to B]]
+ *              [--rate 48000] [--block 512] [--out file.wav] [--midi file.mid] [--study]
+ *              [--frame [--ramp-to B]]
  *              [--list] [--version]
  */
 #include "eph/Engine.h"
 #include "eph/Midi.h"
+#include "eph/Sketch.h"
 #include "eph/Study.h"
 #include "eph/WavWriter.h"
 #include <algorithm>
@@ -34,7 +36,11 @@ void usage()
                 "  --bars N         length in bars (default: compose.piece_minutes)\n"
                 "  --minutes M      length in minutes\n"
                 "  --bpm B          tempo (sets compose.bpm)\n"
-                "  --ramp-to B      ramp the tempo linearly over the whole length to B\n"
+                "  --seed S         seed of everything drawn (default 1)\n"
+                "  --tail S         seconds rendered after the end, for the echo (default 6)\n"
+                "  --study          the study of Phase 1 instead of the sketch of Phase 2\n"
+                "  --frame          the bare frame of Phase 0: silence on the tempo map\n"
+                "  --ramp-to B      with --frame: ramp the tempo linearly over the whole length to B\n"
                 "  --set \"k=v ...\"  parameter assignments\n"
                 "  --rate R         sample rate (default 48000)\n"
                 "  --block N        block size (default 512)\n"
@@ -51,7 +57,7 @@ int main(int argc, char** argv)
     double bars = 0.0, minutes = 0.0, rampTo = 0.0, rate = 48000.0;
     int block = 512;
     std::string out, midi, set;
-    bool list = false, frame = false;
+    bool list = false, frame = false, study = false;
     double bpmArg = 0.0, tail = 6.0;
     uint64_t seed = 1;
     for (int i = 1; i < argc; ++i) {
@@ -71,6 +77,7 @@ int main(int argc, char** argv)
         else if (a == "--midi") midi = next("--midi");
         else if (a == "--list") list = true;
         else if (a == "--frame") frame = true;
+        else if (a == "--study") study = true;
         else if (a == "--seed") seed = std::strtoull(next("--seed"), nullptr, 10);
         else if (a == "--tail") tail = std::atof(next("--tail"));
         else if (a == "--version") { std::printf("%s\n", EPH_VERSION); return 0; }
@@ -96,7 +103,7 @@ int main(int argc, char** argv)
     if (!frame) {
         const double mins = minutes > 0.0 ? minutes : (bars > 0.0 ? bars * kBeatsPerBar / bpm
                                                                   : p.get(p.id(Module::Compose, 0, compose::PieceMinutes)));
-        score = buildStudy(p, seed, mins);
+        score = study ? buildStudy(p, seed, mins) : buildSketch(p, seed, mins);
         bars = score.lengthBeats / kBeatsPerBar;
     } else {
         // The frame of Phase 0: a tempo map, a length and two markers.

@@ -21,6 +21,12 @@
  *
  * **Transposition** from the score's rack events takes effect on the first step at or after the
  * event's beat, as a sequencer's transposer does: never in the middle of a note.
+ *
+ * **The transposer row** (row.mode = Transposer, Phase 2) plays no notes. Its steps are semitone offsets
+ * from the tonic, drawn from the style's progression (Harmony.h), usually on a slow division of one,
+ * two or four bars; at each of its steps every note row is shifted by that offset from its next step
+ * on. A fast row riding on a slow one is the epicycle of PLAN 5.1. At equal beats the transposer steps
+ * first, so the downbeat of a bar already sounds in the new root.
  */
 #pragma once
 #include "eph/Dsp.h"
@@ -48,6 +54,7 @@ enum class RowRole : int {
     Bass,      ///< the Berlin bass: root-heavy, octave jumps, the odd fifth or seventh, accents on the downbeats
     Counter,   ///< an arpeggio of chord tones an octave up, for odd lengths against the bass
     Walk,      ///< stepwise through the scale with the occasional leap
+    Transposer,///< the roots of the style's progression (Harmony.h); `degree` holds semitones
 };
 
 /** @brief Semitones of scale degree @p degree in scale @p scale (compose.scale order); any integer degree. */
@@ -74,6 +81,13 @@ public:
     int length(int row) const { return rows_[row].length; }
     /** @brief Mutations a row has made since setup(). */
     int mutations(int row) const { return rows_[row].mutations; }
+    /** @brief The transposer's current offset in semitones. */
+    int shift() const { return shift_; }
+    /** @brief Every change of the transposer's offset so far, as (beat, semitones), for the lead to follow. */
+    const std::vector<std::pair<double, int>>& shifts() const { return shiftLog_; }
+    /** @brief The key's pitch class and the scale (compose.scale order) the rack plays in. */
+    int keyRoot() const { return keyRoot_; }
+    int scale() const { return scale_; }
     /** @brief Division of a row in beats. */
     double divisionBeats(int row) const { return rows_[row].divBeats; }
 
@@ -102,6 +116,7 @@ private:
         int pos = 0;              ///< index of the next step to play
         int dir = 1;              ///< pendulum direction
         int mutations = 0;
+        bool transposer = false;  ///< row.mode = Transposer
         Rng rng;
     };
     double nextStepBeat(const Row& r) const { return r.startBeat + static_cast<double>(r.step) * r.divBeats; }
@@ -113,6 +128,9 @@ private:
     Row rows_[kRows];
     int keyRoot_ = 9;
     int scale_ = 0;
+    Style style_ = Style::Cosmic;
+    int shift_ = 0;           ///< the transposer's offset, applied to every note row
+    std::vector<std::pair<double, int>> shiftLog_;
     double position_ = 0.0;   ///< beat up to which the rack has run
 };
 
