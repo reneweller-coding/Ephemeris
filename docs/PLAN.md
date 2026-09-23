@@ -1,0 +1,788 @@
+# Ephemeris: Plan für den Berlin-School-Generator
+
+Stand 23.09.2026, Entwurf nach den Entscheidungen des Nutzers (Abschnitt 14). Name **Ephemeris**, Repo
+`G:\Tools\VRAudio\BerlinSchoolGenerator`, Namensraum `eph::`, Präfix `EPH_`, Werkzeuge `eph_render`,
+`eph_selftest`, Set-Datei `.ephset`. Code-Kommentare im Doxygen-Format, wie Phosphene.
+
+Der Name: Eine Ephemeride ist die Tafel, die für jeden Zeitpunkt die Stellung der Himmelskörper angibt.
+Ein Sequenzer ist eine solche Tafel, und die Musik, die hier entstehen soll, besteht aus Umläufen
+verschiedener Länge um einen gemeinsamen Grundton, die nur selten wieder zusammenfallen.
+
+## Stand der Umsetzung
+
+**24.09.2026: Phase 1 hörbar, zum Hören beim Nutzer.** `eph_render --minutes 5 --seed 7` spielt die
+Studie (`Study.h`): eine Berlin-Bassreihe (16 Sechzehntel), ab einem Zehntel eine Gegenreihe von 13
+Schritten, Transposition i–i–bVI–bVII alle acht Takte nach dem Orgelpunkt, und die Hände: Filter öffnet
+über eine Minute, Decay wird lang und wieder kurz, ein Echo-Wurf, eine Senke, ein Höhepunkt mit
+Resonanz, das Schließen. Nie mehr als zwei Hände zugleich.
+
+| Prüfstein | Ergebnis |
+|---|---|
+| Rechenzeit, zwei Reihen mit 2× Leiter, Echo | 75-fache Echtzeit, 1,3 % eines Kerns |
+| Pegel | Spitze −3,3 dBFS, RMS −21,5 dBFS, kein DC |
+| Spektralschwerpunkt über die Studie (10-s-Fenster) | folgt den Gesten: 68 Hz geschlossen → 185 Hz offen (80 s) → Senke 130 Hz (170 s) → Höhepunkt 211 Hz (210 s) → 49 Hz am Ende |
+| Blockgrößen 1 / 37 / 512 | bitgleich über 20 s |
+| Rack | Transposition nur an Schrittgrenzen; gleicher Seed, gleiche Noten; bei Mutationschance 1 genau eine Mutation je Zyklus (16 in 64 Beats); Schritt 0 klingt immer |
+| Bandecho | Wiederholungen im Takt (plus 3,7 Samples Gruppenlaufzeit der Schleife je Durchgang), jede leiser (−15, −22, −28 dB) und dunkler |
+| Drift (Ornstein-Uhlenbeck) | Streuung 2,75 Cent bei eingestellten 3 über eine Stunde |
+
+Gebaut: `Rack` (acht Reihen, Längen 1 bis 32, Teiler, vier Richtungen, Transposition an Schrittgrenzen,
+Schieberegister-Mutation, drei Rollen Bass/Counter/Walk), `ModVoice` (zwei frei laufende PolyBLEP-VCOs
+mit OU-Drift, ADAA-übersteuerter Mixer, ZDF-Leiter bei 2×, Filter- und Amp-Hüllkurve, Glide, DC-Blocker),
+`TapeEcho` (Hermite-Lesekopf mit Wow und Flutter, Tiefpass, Hochpass und tanh in der Schleife,
+Ping-Pong, Bandgeschwindigkeit gleitet), die Engine mit Noten auf dem Sample-Raster, Gesten auf einem
+absoluten 32-Sample-Raster, Mixer mit Pan und Echo-Send.
+
+Befunde unterwegs, alle von Tests oder Messungen gefunden:
+- **DC 0,029** am Ausgang: Ein Puls mit 30 % Tastverhältnis hat den Mittelwert 0,4, und die Leiter lässt
+  ihn als Tiefpass durch. Behoben mit einem DC-Blocker bei 8 Hz, der AC-Kopplung eines Modularausgangs.
+- **Blockgrößen nicht bitgleich** (erste Abweichung nach 8,3 s): Eine Stimme, die mitten in einer Spanne
+  verstummte, lief je nach Spannenlänge noch weiter oder nicht, und damit Oszillatorphase und
+  Drift-Raster. Jetzt entscheidet die Engine nur an Rasterpunkten und bei Noteneinsätzen, ob eine Stimme
+  rechnet.
+- **Bandecho startete mit der Standardzeit** und glitt erst auf die eingestellte: Die erste Einstellung
+  nach `prepare` gilt jetzt sofort.
+
+**Erste Referenzmessung** (`Tools/analyze_ref.py`, Ordner in `Tools/ref_sets.txt`, Ergebnis nur als
+Statistik in `Tools/ref_stats.json`; je Profil acht Stücke, über die Alben verteilt). Das Werkzeug wurde
+zuerst an der Studie geprüft, deren Inhalt bekannt ist: Tempo 117,8 statt 118 BPM getroffen; die
+Wendepunkt-Erkennung der Filterfahrten fand in der ersten Fassung gar nichts und wurde korrigiert.
+"Helligkeitsbewegung" ist ein Wendepunkt-zu-Wendepunkt-Lauf des Spektralschwerpunkts (150 Hz bis 8 kHz,
+0,5-s-Rahmen, 4 s geglättet, Hysterese 0,25 Oktaven).
+
+| Profil | Länge (Median) | Helligkeitsbewegungen | Dauer (Median) | Umfang (Median) | Helligkeitsbereich | RMS | Dynamik (3-s-RMS, 10–95 %) |
+|---|---|---|---|---|---|---|---|
+| Cosmic | 12,7 min | 5,8/min | 8,5 s | 0,65 Okt. | 1,41 Okt. | −13,7 dBFS | 7,7 dB |
+| Doom | 8,3 min | 5,1/min | 9,0 s | 0,51 Okt. | 1,38 Okt. | −20,8 dBFS | 17,1 dB |
+| Melodic | 6,6 min | 4,8/min | 9,8 s | 0,52 Okt. | 1,13 Okt. | −15,9 dBFS | 5,4 dB |
+| Modern | 5,5 min | 4,9/min | 9,0 s | 0,73 Okt. | 1,77 Okt. | −14,1 dBFS | 14,2 dB |
+| Drift | 6,5 min | 5,7/min | 9,0 s | 0,68 Okt. | 2,15 Okt. | −20,1 dBFS | 10,1 dB |
+| *Studie (zum Vergleich)* | 5,1 min | 2,2/min | 18,5 s | 0,44 Okt. | 0,99 Okt. | −18,7 dBFS | 5,3 dB |
+
+Lesart, mit Vorbehalt:
+- **Die Referenzen bewegen ihre Helligkeit etwa doppelt so oft und um die Hälfte weiter als die Studie**,
+  in allen Profilen ähnlich (4,8 bis 5,8 Bewegungen pro Minute, Median 9 s, 0,5 bis 0,7 Oktaven). Das
+  Maß trennt aber Handgesten nicht von Einsätzen, Akkordwechseln und Soli, die der Studie fehlen. Es ist
+  ein Ziel für das fertige Arrangement (Phase 4), keine Vorgabe für eine einzelne Filterfahrt.
+- **Pegel und Dynamik** trennen die Profile deutlich: Cosmic, Melodic und Modern um −14 bis −16 dBFS RMS,
+  Doom und Drift um −20 dBFS mit viel größerer Dynamik (10 bis 17 dB). Das geht in die Lautheitsziele
+  der Profile (5.8).
+- **Tempo und Reihenlänge** sind mit diesem Verfahren noch nicht belastbar: Die stärkste Periodizität
+  liegt oft auf Achteln oder Vierteln statt auf den Sechzehnteln, und jedes Vielfache der wahren
+  Reihenlänge korreliert. Die Tempowerte (Median 86 bis 108 BPM) sind deshalb nur ein Hinweis, dass die
+  Tempobereiche aus 2.8 eher zu hoch angesetzt sind. Für Phase 4 braucht es eine Schätzung über das
+  Onset-Muster innerhalb eines Taktes (Tempogramm) statt einer einzelnen Autokorrelationsspitze.
+
+Noch offen in Phase 1: das Urteil des Nutzers nach dem Hören der Studie.
+
+**24.09.2026: Phase 0 fertig.** Gebaut mit Visual Studio 2026, Release, AVX2:
+
+| Prüfstein | Ergebnis |
+|---|---|
+| Build | ohne Warnungen (/W4) |
+| `ctest` | 4 von 4: Selbsttest (17 Prüfungen), Vektortest AVX2, NEON-Shim, skalar |
+| Tempo-Karte gegen numerisches Integral über 1053 s mit Rampe | Fehler 1,8 ns; `beatAt` invertiert `secondsAt` auf 5·10⁻¹³ Beats |
+| Gesten-Kurve Minimum Jerk | monoton, symmetrisch, Ruhe an beiden Enden, Spitzengeschwindigkeit 15/8 der mittleren |
+| MIDI-Tempo-Karte einer Rampe | ein Tempo-Ereignis je Beat; jeder Beat höchstens 1,9 µs neben dem Render |
+| `eph_render --minutes 20 --bpm 96 --ramp-to 124` | 550 Takte, 1206,5 s Stille auf der Rampe, WAV und MIDI, 1,0 s Rechenzeit |
+
+Gebaut: aus Phosphene (Stand 9a2f615, Herkunft im Dateikopf) `Vec.h`, `Dsp.h`, `Adaa.h`, `Halfband`,
+`Clock`, `WavWriter`, `Oscillator.h`, `Ladder.h`, das Test-Gerüst und der NEON-Shim; neu das
+Parametersystem mit den Modulen `compose`, `row` (acht Instanzen) und `master`, die Partitur mit Noten,
+Gesten als Kurven (Offsets im normierten Knopfbereich; der Knopf bleibt, wo die Hand ihn loslässt),
+Rack-Ereignissen und Markern, ein MIDI-Schreiber, das Engine-Gerüst und `eph_render`.
+
+Abweichungen vom Plan, bewusst:
+- **Kein Composer-Thread und kein Ereignisring** in Phase 0: Die Engine bekommt die Partitur als Ganzes.
+  Ring und Thread kommen mit dem Komponisten (Phase 4), wie in Phosphene.
+- **Kein MIDI-Leser**: Der Tempo-Test liest die Tempo-Ereignisse selbst. Den Leser aus Phosphene
+  übernehmen, sobald ein Rundlauf von Noten etwas absichert (Phase 4).
+- **Ein ctest-Eintrag für den ganzen Selbsttest** statt einem je Abschnitt; `eph_selftest --only`
+  wählt Abschnitte aus. Die Aufteilung lohnt erst, wenn der Selbsttest lange läuft.
+
+**23.09.2026: Planentwurf.** Grundlage: die Pläne und der Code von Noctuary
+(`G:\Tools\VRAudio\AmbientSynth`) und Phosphene (`G:\Tools\VRAudio\PsytranceGenerator`), acht gezielte
+Websuchen zu den Referenzkünstlern und zum Mellotron (Quellen am Ende), sonst eigenes Wissen. Was nicht
+belegt ist, ist als solches markiert.
+
+## 0. Kurzfassung
+
+Ein Instrument, das aus einem Seed, einem Stilprofil und einem Spannungsbogen lange Berlin-School-Stücke
+(8 bis 40 Minuten) und ganze Konzerte oder Alben (45 bis 120 Minuten) komponiert und in Echtzeit
+synthetisiert: mehrere Sequenzer-Reihen auf analog modellierten Modularstimmen, die Gesten eines
+Spielers an Filter, Echo und Transposition, ein synthetisches Mellotron, String-Machine, Flächen und
+Drones, Lead-Soli mit Glide, je nach Stil ein Schlagzeug, Bandecho, Federhall und großer Raum.
+Standalone und VST3 für Windows (JUCE 9), nativ auf der Quest 2, MIDI-Export aller Linien und Gesten,
+Offline-Render als Determinismus-Orakel.
+
+Die drei Entscheidungen, die alles andere bestimmen:
+
+1. **Der Sequenzer ist ein Prozess, kein Pattern.** In Psytrance schreibt der Komponist Patterns. In
+   der Berlin School ändern sich die Töne einer Sequenz kaum; was sich ändert, ist der Prozess:
+   Transposition, Mutation, das Gegeneinanderlaufen von Reihen verschiedener Länge, Ein- und Ausstiege,
+   und vor allem die Klangfarbe. Der Kern ist deshalb ein **Sequenzer-Rack mit Zustand** (Reihen,
+   Längen, Taktteiler, Transpositionseingang, Mutation), und der Komponist spielt dieses Rack wie ein
+   Musiker, statt jede Note zu schreiben. Die Partitur enthält trotzdem jede Note (Determinismus,
+   MIDI-Export): Der Komponist-Thread lässt das Rack-Modell vorauslaufen und schreibt mit.
+2. **Gesten sind musikalisches Material erster Klasse.** Filterfahrten über Minuten, Resonanz,
+   Hüllkurven-Decay, Echo-Rückkopplung und der Griff zur Transpositionstaste sind in dieser Musik die
+   eigentliche Melodie. Eine Gesten-Engine erzeugt sie als Automationskurven mit menschlichen
+   Eigenschaften (Minimum-Jerk-Profil, Pausen, gelegentlich ein schneller Griff, höchstens zwei Hände
+   gleichzeitig). Was bei Phosphene der rollende Bass war, ist hier der erste Prüfstein: **eine
+   Sequenz, die atmet** (Abschnitt 12).
+3. **Analoger Charakter als Modell, nicht als Rauschen.** Oszillator-Drift, Bandmaschinen (Echo,
+   Mellotron), Eimerkettenspeicher und Federn sind physikalisch motivierte Modelle mit gemessenen
+   Parametern, deterministisch aus dem Seed. Keine Samples, auch nicht für das Mellotron
+   (Entscheidung des Nutzers, 23.09.2026).
+
+Reihenfolge der Arbeit: zuerst eine Reihe auf einer Modularstimme mit Leiterfilter, Bandecho und einer
+Filtergeste; dann die Polymetrie mehrerer Reihen; dann Mellotron und Raum; dann die Form.
+
+## 1. Ziel, Rahmen, Nicht-Ziele
+
+**Ziel.** Auf Knopfdruck ein Stück oder Konzert, das ein Kenner der Referenzkünstler als stilistisch
+glaubwürdig hört: kosmisches Intro, Einsatz der Sequenz, Schichtung, Solo, Höhepunkt, Abbau, zweite
+Sequenzphase, Ausklang; lange Entwicklung ohne Langeweile und ohne Beliebigkeit. Jede Einheit einzeln
+sperrbar und neu würfelbar. Alles reproduzierbar aus Seed + Stil + Sperren.
+
+**Rahmen** (wie Phosphene).
+- Plattformen: Windows x64 (AVX2), Quest 2 (arm64, NEON). Linux als Nebenprodukt des frameworkfreien
+  Kerns, nicht als Release-Ziel.
+- Sample-Rate 44,1/48/96 kHz, Blöcke 16 bis 2048; Quest 48 kHz, 256er Blöcke (Oboe).
+- Kern ohne Framework, C++20, keine Allokation im Audio-Thread.
+- Kein Fast-Math; der Offline-Render ist das Orakel.
+
+**Nicht-Ziele.**
+- Kein Klon einzelner Künstler oder Stücke. Stilprofile tragen beschreibende Namen; Künstlernamen
+  stehen nur in der Dokumentation als Hörreferenz.
+- **Keine Samples**, auch nicht für Mellotron-Chöre und -Streicher (Entscheidung 23.09.2026).
+- Keine neuronale Audio-Erzeugung im Kern (MusicGen, Stable Audio und Verwandte): über 30 Minuten
+  weder steuerbar noch deterministisch, auf der Quest zu teuer. Höchstens später offline für
+  Texturen.
+- Kein Lautheitskrieg: Berlin School lebt von Dynamik. Der Limiter ist Schutz, nicht Klangmittel.
+- Kein Cloud-Modell in der Echtzeitschleife.
+
+## 2. Was Berlin School ausmacht (die musikalische Spezifikation)
+
+Die Zahlen in diesem Abschnitt sind Hypothesen, bis sie in Phase 1 an Referenzmaterial gemessen sind
+(`Tools/analyze_ref.py`, Abschnitt 11.4). Gespeichert werden nur Statistiken, nie Audio.
+
+### 2.1 Die Referenzkünstler
+
+| Künstler | Herkunft, Label | Kennzeichen | Beleg |
+|---|---|---|---|
+| **Martin Stürtzer** | Wuppertal; eigenes Label Phelios (Bandcamp), Synphaera | Ambient, atmosphärische Flächen und Drones, "neo-Berlin-School"-Sequenzen analoger Synthesizer, improvisatorisch; Dub-Elektronik-Einschlag; Livestreams mit großem Publikum. *Theta Serpentis* (2022), *Epsilon Eridani* (2022, Vinyl: Seite A Sequenzen, Seite B ein langes Ambient-Stück), *Illumination Cycle*, *Circular Oscillations* | Web |
+| **Thalaron** | **Alias von Martin Stürtzer** | dunklere Spielart: Space-Ambient mit Berlin-School-Elektronik, als Berlin School und Dark Ambient geführt. *Microgravity* (2017, 8 Stücke, 58 min) | Web |
+| **Syndromeda** (Danny Budts) | Belgien, seit 1997 (*Mind TRIPS*); SynGate, Cue Records | warme Flächen, melodische Sequenzen, teils psychedelische Synthesizerklänge, Gitarren-Tupfer, tiefe Atmosphären, "esoterische Meditation"; stark von der Berliner Schule geprägt. *Eternal Destination* (2018), *Serendipity* (2025) | Web |
+| **Ian Boddy** | Großbritannien; Gründer des Labels DiN | modular, experimentellere Klanggestaltung, sehr viele Kollaborationen: Erik Wøllo, Markus Reuter, Robert Rich (dessen Schlafkonzerte die Vorlage von Noctuary waren), Chris Carter, Bernhard Wöstheinrich, David Wright, Andy Pickford; Arc mit Mark Shreeve | Kollaborationen aus der lokalen Sammlung; Label und Arc eigenes Wissen |
+| **Dark Side of the Moog** | Klaus Schulze und Pete Namlook, Label FAX, elf Teile ab 1994, VI und VII mit Bill Laswell | lange improvisierte Sitzungen, Ambient-Drift im Wechsel mit Moog-Sequenzen | Teile und Besetzung aus der lokalen Sammlung; Stil eigenes Wissen |
+| **Redshift** | Großbritannien, seit 1996; Mark Shreeve, Julian Shreeve, James Goddard (Rob Jenkins bis 2002) | "klassische 70er-Berlin-School", dunkel; drei Musiker bauen Atmosphären, Mark Shreeve sequenziert auf einem großen Moog-Modular; Mellotron (teils als digitale Samples); Moog, Oberheim, PPG, Solina, Doepfer, Analogue Systems, Modcan; Sequenzierung von Kritikern als außergewöhnlich komplex und dynamisch gelobt | Web |
+| **Thorsten Quaeschning** | Solo und in Kollaborationen; daneben Leiter von Tangerine Dream seit 2015 | **Referenz sind seine Soloarbeiten und Kollaborationen, nicht Tangerine Dream** (Entscheidung 24.09.2026); lokal bisher *Synthwaves* mit Ulrich Schnauss, weitere Solo-Titel ergänzt der Nutzer. Hintergrund: Sein Live-Rig bei Tangerine Dream besteht aus Modularsystem, Rack-Synthesizern, Keyboards, iPad-Instrumenten und eigenen Sequenzer-Werkzeugen; *Raum* (2022) verbindet Echtzeit-Kompositionen mit Studioproduktion | Web (Rig, *Raum*); lokale Sammlung |
+| **Runes Order** | Italien (Claudio Dondo) | Dark Ambient / Industrial mit **Anleihen der Berlin School** in einzelnen Stücken (laut Nutzer z. B. *Secret Place (The Final Chapter)*); Referenz für dunkle Intros, Flächen und den Übergang von Ambient zu Sequenz | eigenes Wissen + Hinweis des Nutzers; zwölf Alben lokal |
+| **Ron Boots** | Niederlande; Gründer von Groove Unlimited (Label, Festival E-Day) | Berlin-School-Sequenzen mit dichten Atmosphären; *Detachment of Worldly Affairs* (1994, von Hörern zum Album des Jahres gewählt), *Hydrythmix* (mit dem Schlagzeuger Bas Broekhuis, "kraftvolle klassische Sequenzierung"), *Current* ("schwere rhythmische Strukturen") | Web; E-Day eigenes Wissen |
+| **['ramp]** (Stephen Parsick) | Deutschland; gegründet 1996, seit 2009 Parsick allein; Name vom niederländischen "de ramp" (Katastrophe); Label doombient.music | "Doombient": dunkler, finsterer, sequenzerbasierter Stil. *Synchronize or Die* (2017, Rückkehr), Kollaborationen mit Bernhard Wöstheinrich (*Ultima Ratio*) | Web |
+
+### 2.2 Was sie verbindet
+
+1. **Das Sequenzer-Ostinato ist das Fundament**, nicht das Schlagzeug. Die Sequenz ist die Uhr.
+2. **Mehrere Reihen gleichzeitig**, oft von verschiedener Länge, die gegeneinander laufen und erst nach
+   dem kleinsten gemeinsamen Vielfachen ihrer Längen wieder zusammenfallen.
+3. **Die Harmonie steckt in der Transposition**: Die ganze Sequenz wird per Tastatur oder durch eine
+   langsamere Reihe verschoben. Moll und Modi (äolisch, dorisch, phrygisch), Orgelpunkt, wenige
+   Wechsel.
+4. **Die Klangfarbe ist die Melodie**: Filter-Cutoff, Resonanz und Decay werden über Minuten von Hand
+   gefahren. Die Töne bleiben, der Klang wandert.
+5. **Lange, additive Form**: Schicht um Schicht, mit einem kosmischen Intro aus Drones, Rauschen und
+   Flächen, und einem Ausklang, in dem die Sequenz sich in Echos auflöst.
+6. **Die Palette**: Moog-Modular und Minimoog-artige Stimmen, Mellotron-Chor und -Streicher,
+   String-Machine (Solina), Wavetable (PPG), Drones.
+7. **Raum**: Bandecho, großer Hall, im Stereobild verteilte Reihen.
+8. **Die menschliche Hand**: Improvisation in Echtzeit (Stürtzer, Tangerine Dreams nächtliche
+   Echtzeit-Kompositionen, Dark Side of the Moog), analoge Drift, kleine Unregelmäßigkeiten.
+
+### 2.3 Tempo und Raster
+- Sequenzen in Achteln oder Sechzehnteln bei etwa 100 bis 135 BPM; die langsameren, dunklen Stile
+  darunter, die rhythmischen darüber (Hypothese).
+- 4/4 als Rahmen, aber polymetrische Reihen (Längen wie 5, 6, 7, 9, 12, 13 gegen 16).
+- Tempowechsel zwischen Sequenzphasen: Die alte Sequenz hört auf, eine neue beginnt in anderem Tempo.
+  Kein Beatmatching nötig.
+- Swing selten; Triolen als Ausnahme.
+
+### 2.4 Die Sequenz
+- **Die Bass-Sequenz**: Grundton-lastig mit Oktavsprüngen, 8 oder 16 Schritte (der Moog 960 hatte drei
+  Reihen zu acht Schritten, verkettbar), Akzent über die Filterhüllkurve, kurzes Gate.
+- **Doppelsequenzen**: zwei Reihen, um einen Schritt versetzt oder eine Oktave höher, die sich zu
+  einem dichteren Muster verzahnen.
+- **Echo-Sequenz**: Eine Achtelsequenz in ein Echo mit punktierter Achtel ergibt ein verzahntes
+  Sechzehntelmuster. Das Echo ist Teil der Komposition, nicht nur Raum.
+- **Transposition** alle 4 bis 32 Takte; moderne Varianten mit Ratchets und Wahrscheinlichkeiten.
+- **Mutation**: einzelne Schritte, die sich im Lauf der Zeit ändern (Noctuarys Nah-Ebene macht das
+  bereits nach dem Schieberegister der Turing Machine).
+
+### 2.5 Harmonik
+- Orgelpunkt auf dem Grundton über lange Strecken; Flächen und Mellotron halten Akkorde darüber.
+- Transpositionsfolgen wie i–bVI–bVII–i, i–iv, i–bIII; in den dunklen Stilen Halbtonrückungen und
+  Tritonus.
+- Lead-Skalen: Moll-Pentatonik, äolisch, dorisch, phrygisch.
+
+### 2.6 Klangfarbe und Geste
+- Filterfahrten über 30 Sekunden bis mehrere Minuten, oft mit Halt und Umkehr.
+- Resonanz steigt zum Höhepunkt; Decay-Änderungen verwandeln eine Sequenz vom Tupfen ins Legato.
+- Echo-Rückkopplung als Geste: ein "Wurf" am Phrasenende, Selbstoszillation als Übergang.
+- Phaser über String-Machine und Flächen.
+
+### 2.7 Form eines Stücks
+
+| Abschnitt | Inhalt | Länge (Hypothese) |
+|---|---|---|
+| Atmosphäre | Drones, Wind aus gefiltertem Rauschen, kosmische Sweeps, Mellotron-Chor | 1 bis 5 min |
+| Einsatz | die erste Reihe, Filter geschlossen, taucht aus dem Echo auf | 0,5 bis 2 min |
+| Aufbau | Filter öffnet; zweite Reihe, Bass-Sequenz, Flächen; im Stil "Melodic" das Schlagzeug | 2 bis 8 min |
+| Lead | Solo über den Reihen, Glide, Bends | 2 bis 6 min |
+| Höhepunkt | alle Schichten, Filter offen, viel Echo | 1 bis 4 min |
+| Abbau / Wechsel | Sequenz hört auf oder transponiert, Flächen allein | 1 bis 3 min |
+| zweite Sequenzphase | neue Reihe, neues Tempo oder neue Tonart | wie oben |
+| Ausklang | die Sequenz löst sich in Echos und Atmosphäre auf | 1 bis 4 min |
+
+Stücke 8 bis 30 Minuten, in den Stilen "Cosmic" und "Drift" bis 40. Ein Konzert oder Album sind drei
+bis acht Stücke mit Überleitungen.
+
+### 2.8 Worin sie sich unterscheiden: fünf Stilprofile
+
+Ein Stilprofil ist, wie in Phosphene, ein Vektor von etwa 60 Gewichten und Bereichen (Tempo, Reihenzahl,
+Längenverteilung, Transpositionsrate, Skalen, Gestentempo, Echo-Anteil, Mellotron-Anteil,
+Schlagzeug, Formgewichte, Lautheitsziel). Zwischen Profilen wird interpoliert.
+
+| Profil | Tempo | Schlagzeug | Palette und Form | Hörreferenz |
+|---|---|---|---|---|
+| **Cosmic** | 105 bis 125 | keins | Moog-Reihen, Mellotron-Chor und -Streicher, String-Machine, lange Intros, langsamer Aufbau | Redshift, Syndromeda, Stürtzer |
+| **Doom** | 90 bis 120 | keins, selten Einzelschläge | tiefes Register, Dissonanz, Halbtonrückungen, Rauschen, schwere Flächen | ['ramp], Redshift, Thalaron, Runes Order |
+| **Melodic** | 115 bis 135 | elektronisches Kit, spät im Stück | melodischere Leads, mehr Akkordwechsel, kürzere Stücke (8 bis 15 min) | Ron Boots, Syndromeda |
+| **Modern** | 100 bis 130 | spärlich, modern | hybride, polierte Klanggestaltung, Wavetable und Granular, filmische Flächen | Quaeschning solo und mit Schnauss, Ian Boddy |
+| **Drift** | frei, wechselnd | keins | lange Ambient-Phasen zwischen Sequenz-Episoden, Tempo- und Tonartdrift | Dark Side of the Moog, Stürtzers lange Ambient-Seiten |
+
+Tempobereiche sind Hypothesen. Für alle fünf Profile liegen inzwischen Referenzen vor (Abschnitt 14);
+es fehlt nur Redshift. Tangerine Dream bleibt bewusst draußen, auch bei Quaeschning zählen die
+Soloarbeiten (Entscheidung 24.09.2026).
+
+### 2.9 Stand der Technik (SOTA)
+
+**Die Szene heute.** Die zeitgenössische Berlin School verbindet die Sequenzer-Tradition mit
+Ambient-Flächen und moderner Produktion: Stürtzer spielt improvisierte Livestreams und veröffentlicht
+auf Synphaera; Tangerine Dream kombiniert auf *Raum* Echtzeit-Kompositionen mit Studioproduktion und
+arbeitet live mit Modularsystem, Rack-Synthesizern und iPad-Instrumenten. Hybride Arbeitsweisen
+(Eurorack plus DAW) sind der Normalfall, nicht die Ausnahme.
+
+**Generierung.** Berlin School ist Prozessmusik im Sinne von Steve Reichs "Music as a Gradual
+Process": Die Töne sind einfach, der Prozess trägt. Dafür reichen regelbasierte Verfahren mit Zustand:
+Schieberegister-Mutation (Turing Machine), Polymetrie, Euklidische Gate-Muster, Constraint-Markov-Ketten
+(Pachet und Roy 2011, in Phosphene umgesetzt). Große symbolische Modelle bringen hier wenig, weil es
+kaum Material gibt (kein Berlin-School-MIDI-Korpus bekannt) und weil die Sequenzen selbst kurz sind.
+Neuronale Audio-Generatoren (MusicGen, Stable Audio) sind für 30 steuerbare, deterministische Minuten
+in Echtzeit ungeeignet (Abschnitt 1).
+
+**Klangsynthese.** Moog-Leiter als nichtlineares ZDF-Modell (Huovilainen 2004, Zavalishin, D'Angelo
+und Välimäki 2014; in Phosphene umgesetzt), PolyBLEP-Oszillatoren, Bandmaschinen (Chowdhury 2019;
+Echoplex nach Arnardottir, Abel, Smith 2008), Eimerkettenspeicher (Raffel und Smith 2010; Holters und
+Parker 2018), Federhall (Välimäki, Parker, Abel 2010; Parker 2011), Plattenhall (Dattorro 1997).
+
+**Mellotron.** Ein akademisches Modell der ganzen Maschine habe ich nicht gefunden. Kommerzielle
+Emulationen spielen Samples mit modelliertem Bandlauf (Arturia Mellotron V) oder erzeugen den Klang per
+FM (Tapeworm). Ephemeris geht einen dritten Weg: die Quellen synthetisch, die Bandmaschine als Modell
+(5.4). Das ist das neueste und riskanteste Stück des Plans (Abschnitt 13).
+
+## 3. Architektur
+
+```
+ Stilprofil + Seed + Spannungsbogen + Sperren
+            │
+            ▼
+   ┌──────────────────────┐  Partitur (Noten, Gesten als Kurven,     ┌──────────────────────┐
+   │  Composer-Thread     │  Rack-Ereignisse, Marken; 16+ Takte voraus)│  Audio-Thread        │
+   │  Konzert → Stück →   │ ───────── lock-free Queue ───────────────▶│  Sequencer (sample-  │
+   │  Phase → Rack-Modell │                                            │  genau) → Stimmen →  │
+   │  + Gesten-Engine     │◀── Positionsrückmeldung, Live-Eingriffe ──│  Mixer → Raum →      │
+   └──────────────────────┘                                            │  Master              │
+            │                                                          └──────────────────────┘
+            ▼                                                                     │
+   MIDI-Export (SMF 1), .ephset, OSC-Cues                           Offline-Render (Orakel, Stems),
+                                                                    Lautheitsmessung, Recorder
+```
+
+**Der Unterschied zu Phosphene.** Der Komponist lässt ein **Modell des Sequenzer-Racks** voraus
+laufen: Reihen mit Zustand, Transposition, Mutation. Er schreibt dabei zweierlei in die Partitur:
+Noten (für Audio und MIDI) und Rack-Ereignisse (Transposition, Längenwechsel, Mutation), damit Sperren
+und Neuwürfeln auf der Ebene der Reihe arbeiten können. **Gesten** sind parametrische Kurven (Ziel,
+Start, Ende, Dauer, Form) und dürfen über das Vorausfenster hinausreichen; der Audio-Thread wertet sie
+aus, statt Stützpunkte zu lesen.
+
+**Schichten im Kern (`Core/`):**
+- `eph/Vec.h`: SIMD-Lanes (aus Phosphene).
+- `eph/Clock.h`, `eph/Sequencer.h`: Tempo-Karte mit Tempowechseln zwischen Phasen, sample-genaue
+  Ereignisse, Host-Sync.
+- `eph/Score.h`: Partitur mit Noten, Gesten-Kurven, Rack-Ereignissen, Marken.
+- `eph/Rack.h`: das Sequenzer-Modell (5.1), im Komponisten und in der Live-Bedienung dasselbe.
+- `eph/Gesture.h`: die Gesten-Engine (6.4).
+- `eph/compose/*`: Form, Harmonie, Reihen-Bau, Lead, Konzert.
+- `eph/synth/*`: Modularstimme, Lead, Mellotron, String-Machine, Flächen, Atmosphäre, Schlagzeug.
+- `eph/fx/*`: Bandecho, BBD, Feder, Platte/FDN, Phaser, Ensemble.
+- `eph/mix/*`, `eph/Params.h`, `eph/Midi.h`.
+
+**Threads und Determinismus** wie Phosphene: Audio allokiert nie; der Composer arbeitet in Häppchen
+mit der Frist "Queue nie unter 8 Takten"; ein RNG pro Modul mit `fork()` aus dem Seed. Die analoge
+Drift hängt am Seed und an der Beat-Position, nie an der Wanduhr.
+
+## 4. Wiederverwendung
+
+Vorschlag wie bei Phosphene: **Modulkopie, kein Link.** Jede kopierte Datei nennt im Kopf Herkunft und
+Stand. Hauptquelle ist Phosphene, weil es die neuere Architektur mit Komponist, Partitur, Plugin und
+Quest hat; Noctuary liefert Raum, Modulation und das Vorbild der Mutation.
+
+| Modul | Herkunft | Einsatz hier | Anpassung |
+|---|---|---|---|
+| `Vec.h`, `Halfband.h`, `Adaa.h`, `Dsp.h` | Phosphene | überall | Namensraum |
+| `Params.h` (Blöcke pro Modulinstanz) | Phosphene | alle Parameter | neue Blöcke `row1..8`, `voice`, `tape`, `strings` ... |
+| `Clock.h`, `Score.h`, `Midi.h`, `MidiMap.h`, `SetFile.h` | Phosphene | Takt, Partitur, Export | Gesten als parametrische Kurven; Tempowechsel; `.ephset` |
+| `Composer.*`, `Form.*` | Phosphene | Gerüst des Composer-Threads, Sperren, Vorauslauf | Formgrammatik für lange Stücke neu (6.2) |
+| `Harmony.h` | Phosphene | Skalen, Tonartenreise, Stimmführung der Flächen | Transpositionsfolgen ergänzen |
+| `Melody.*` (Constraint-Markov, Motiv-Variation) | Phosphene | Lead-Soli, melodische Reihen | neu gewichten, ohne Psytrance-Korpus |
+| `Oscillator.h` (PolyBLEP) | Phosphene | VCOs | Dreieck, PWM, Hard-Sync, Drift ergänzen |
+| `Ladder.h` (ZDF-Moog-Leiter, Lane-Template) | Phosphene | Hauptfilter jeder Modularstimme | 2× Oversampling über alle Reihen in Lanes |
+| `Poly.h`, `WaveTable*`, `library.phoswt` | Phosphene | Flächen, Stil "Modern", PPG-artige Tabellen | Supersaw nicht als Standard |
+| `Vocal.h` (Formant-Chorstimme) | Phosphene | Ausgangspunkt der Mellotron-Chorquelle | zum Ensemble erweitern, Glottis-Modell (5.4); prüfen, ob tragfähig |
+| `Disperser.h` (Allpass-Dispersion) | Phosphene | Chirps des Federhalls | als Kaskade nach Parker 2011 |
+| `Perc.h`, `PercKernel.h`, `Rhythm.h` | Phosphene | Schlagzeug je Stilprofil | einfachere Muster, späte Einsätze |
+| `TempoDelay.h` | Phosphene | Basis des Bandechos | Bandmodell im Rückkopplungspfad (5.8) |
+| `Reverb.h` (FDN, 8 Linien) | Phosphene | Hall | Modi aus Noctuary ergänzen |
+| `Dynamics.*`, `Loudness.*` | Phosphene | Master, Meter | sanfter, Limiter nur als Schutz |
+| `Cue.h` | Phosphene | OSC-Cues für Kaleidoscope | Adressen `/eph/...` |
+| `Quality.h` | Phosphene | Qualitätsstufen Desktop/Quest | neue Stufen (9) |
+| `Probe`, `Audibility`, `Rating`, `Gallery` | Phosphene | Mess- und Bewertungsgerüst | vor dem Kopieren prüfen, was davon passt |
+| `Plugin/`, `Quest/`, `Deploy/`, `Tests/`, `Tools/manual`, `Tools/release` | Phosphene | Gerüste | Projektname, Pfade |
+| `Near.h` Sequence (Schieberegister, Transposition mit dem Grundton, atmender Filter) | Noctuary | Vorbild der Reihen-Mutation | im `Rack` neu, die Regeln übernehmen |
+| `Modulation.h` (LFOs, Lorenz, Rössler, Kuramoto) | Noctuary | langsame Drift der Gesten, gekoppelte Drift der Oszillatoren | auf das Block-Parametersystem umschreiben |
+| `Effects.h` (StereoDelay, Ensemble, Reverb mit vier Modi) | Noctuary | Echo, Ensemble der String-Machine, Hall | keine |
+| `Convolution.h` | Noctuary | Platten- und Hallräume mit Morph | optional |
+| `Cloud.h`, `GrainRing.h` | Noctuary | kosmische Texturen im Intro, aus dem eigenen Bus | keine |
+| `Voice.h` (gestrichene Saite) | Noctuary | Kandidat für die Streicherquelle des Mellotrons | prüfen |
+| `Filter.h` (Formant), `ZPlane.h` | Noctuary | Vokalfilter für Chöre, kosmische Sweeps | keine |
+
+Nicht übernommen: aus Phosphene `Acid`, `Kick`, `Bass`, `Texture`, die SFX-Bank, `TranceGate`, der
+Psytrance-Korpus und die Transformer-Gewichte; aus Noctuary `ClusterBrain`, `Cosmos`, die
+Preset-Bibliothek, `Memory`, `Tuning` (Berlin School ist gleichstufig; der Charakter kommt aus der
+Drift).
+
+## 5. Die Klangerzeuger
+
+Jeder Erzeuger hat einen skalaren Referenzpfad und einen Lane-Pfad, wie in Phosphene.
+
+### 5.1 Das Sequenzer-Rack (der Kern)
+
+- **Reihen:** bis zu acht (Quest: vier bis sechs, gemessen zu entscheiden). Jede Reihe: Länge 1 bis
+  32, Taktteiler (Viertel bis Zweiunddreißigstel, triolisch, punktiert), Richtung (vorwärts,
+  rückwärts, Pendel, Zufallsschritt).
+- **Pro Schritt:** Tonstufe und Oktave, Gate (an, aus, gebunden), Gate-Länge, Akzent, Slide, Ratchet
+  (1 bis 4), Wahrscheinlichkeit, Skip, und eine zweite Wertreihe für Filter oder Hüllkurve (wie die
+  zweite und dritte Reihe des Moog 960).
+- **Transposition:** Eingang von der Transpositionsspur des Komponisten oder von einer langsamen Reihe
+  (eine Reihe transponiert die andere: der Epizykel).
+- **Mutation:** Schieberegister nach der Turing Machine (Whitwell 2012), wie in Noctuarys Nah-Ebene;
+  dazu musikalische Operatoren: zwei Schritte tauschen, Oktave kippen, rotieren, Ton hinzufügen oder
+  wegnehmen. Mutationsbudget pro Phase.
+- **Synchronisation:** Reihen laufen frei gegeneinander oder starten an Phrasengrenzen neu. Der
+  Komponist kennt die **Konjunktionen**, die Momente, in denen alle Reihen wieder auf dem ersten
+  Schritt stehen (kgV der Längen), und legt Formwechsel bevorzugt dorthin.
+- Timing sample-genau; eine winzige Takt-Unruhe als Option ("analoger Takt"), standardmäßig aus.
+
+### 5.2 Die Modularstimme
+
+- **Drei VCOs:** Sägezahn, Puls mit PWM, Dreieck, Sinus; Hard-Sync; VCO 3 wahlweise als langsamer
+  Modulator. Dazu Rauschen.
+- **Mixer mit Übersteuerung** vor dem Filter (der Mixer des Minimoog wurde bewusst übersteuert).
+- **Filter:** die ZDF-Leiter aus Phosphene (24 dB, 2× Oversampling), wahlweise ein 12-dB-SVF.
+- **VCA und Hüllkurven** mit RC-Kurven (exponentiell), Hüllkurve auf Cutoff, Key-Tracking.
+- **Drift:** jeder VCO mit langsamer Tonhöhendrift als Ornstein-Uhlenbeck-Prozess (einige Cent), eine
+  kleine Abweichung pro Note, eine "Aufwärm"-Phase am Anfang; über Noctuarys Kuramoto-Kopplung
+  optional gemeinsam driftend. Die Größenordnungen sind zu messen; eine Standardliteratur dazu kenne
+  ich nicht.
+- **Lanes:** eine Stimme pro Reihe; acht Reihen sind ein AVX-Register für Leiter, Hüllkurven und VCA.
+
+### 5.3 Lead
+
+- Monophone Modularstimme mit Glide (konstante Zeit oder konstante Rate), Legato, Vibrato als Geste des
+  Modulationsrads, Bends (ein Ganzton hinauf in den Ton), eigenes Echo.
+- Stil "Modern": zusätzlich Wavetable-Leads aus `Poly`.
+- Die Noten kommen aus dem Lead-Generator des Komponisten (6.7).
+
+### 5.4 Das Mellotron, synthetisch
+
+Ein Mellotron ist eine Bandmaschine pro Taste: 35 Tasten (G2 bis F5), jede mit einem eigenen Band von
+etwa acht Sekunden. Der Klang ist die Aufnahme **plus** die Maschine. Beides wird modelliert:
+
+**Die Quellen.**
+- **Chor:** ein Ensemble von 8 bis 16 virtuellen Sängern pro Taste. Glottis-Anregung nach dem LF-Modell
+  (Fant, Liljencrants, Lin 1985), Formantfilter (Klatt 1980) auf Vokalen wie "a" und "o", je Sänger
+  eigenes Vibrato (5 bis 6 Hz), eigene Mikro-Schwankungen in Tonhöhe und Lautstärke, kleine
+  Verstimmung; die Ensemble-Streuung nach Ternströms Arbeiten zum Chorklang. Phosphenes `Vocal`
+  (Formant-Chorstimme) ist der Ausgangspunkt.
+- **Streicher:** Ensemble aus bandbegrenzten Sägezähnen oder dem Streichermodell aus Noctuary, mit
+  Korpusresonanzen.
+- **Flöte:** additiv mit Atemrauschen und Anblasgeräusch.
+
+**Die Maschine.**
+- **Jede Taste hat ihr Band:** eigene Verstimmung (einige Cent), eigener Pegel, eigene Klangfarbe,
+  eigene Einsatzverzögerung.
+- **Bandlauf:** Wow (langsam) und Flutter (schneller) plus Zufallsanteil; Messung nach der Bewertung
+  für Gleichlaufschwankungen (IEC 60386).
+- **Das Bandende:** Nach etwa acht Sekunden ist der Ton vorbei, egal wie lange die Taste gehalten wird.
+  Der Komponist weiß das und greift neu, wie ein Spieler.
+- **Motorlast:** Sind viele Tasten gedrückt, sinkt die Tonhöhe leicht. Die Größe ist an Aufnahmen zu
+  messen.
+- **Kopf und Elektronik:** Höhenabfall, Head Bump, leichte Sättigung (Bandmodell nach Chowdhury 2019),
+  Bandrauschen, der kurze "Ruck" der Andruckrolle beim Einsatz, ein schnelles Ende beim Loslassen.
+
+**Kalibrierung:** Spektren, Laufschwankungen und Einsätze werden an Mellotron-Aufnahmen gemessen; nur
+die Zahlen kommen ins Projekt. **Benennung:** "Mellotron" ist ein Markenname; Oberfläche und Handbuch
+nennen das Instrument neutral (Vorschlag: "Tape Keys"), die Dokumentation erklärt das Vorbild.
+
+### 5.5 String-Machine
+
+- Ein Mastertakt teilt sich auf alle Tasten herab (die Töne sind phasenstarr, das gehört zum Klang),
+  Sägezahn in 8'- und 4'-Lage, Formantfilter.
+- Das Wesentliche ist das **Ensemble**: drei Eimerkettenspeicher-Chorusse, moduliert von einem langsamen
+  und einem schnellen LFO mit versetzter Phase (so die verbreitete Beschreibung der Solina; im Detail zu
+  prüfen). BBD-Modell nach Holters und Parker 2018; Noctuarys `Ensemble` als Ausgangspunkt.
+- Phaser danach als Geste.
+
+### 5.6 Flächen, Drones, Atmosphäre
+
+- Flächen als `Poly`-Instanz (VA und Wavetable), Stimmführung mit minimaler Bewegung (Phosphene
+  `Harmony`).
+- Drones: gehaltene Modularstimmen mit langsamen Filtergesten auf dem Grundton.
+- Atmosphäre: Wind aus gefiltertem Rauschen mit Gesten, kosmische Sweeps (resonanter Filter über
+  Rauschen, Phaser), Weltraumklänge (FM-Blips, Ringmodulation, Sample-and-Hold auf dem Filter),
+  Granular-Wolken aus dem eigenen Bus (`Cloud`).
+- **Tiefenregel:** Im Band unter etwa 150 Hz spielt zu jeder Zeit nur ein Besitzer, Bass-Sequenz oder
+  Drone; der Komponist vergibt ihn (angelehnt an Phosphenes Tiefenregel).
+
+### 5.7 Schlagzeug (je Stilprofil)
+
+- Phosphenes Kit (fünf Engines) mit einfacheren Mustern.
+- "Melodic": elektronisches Kit, Einsatz erst nach dem Aufbau der Reihen.
+- "Modern": spärlich, Ticks, Rimshots, gefilterte Schläge.
+- "Cosmic", "Doom", "Drift": aus, höchstens einzelne gestimmte Schläge.
+
+### 5.8 Raum und Effekte
+
+| Effekt | Verfahren | Literatur |
+|---|---|---|
+| Bandecho | Verzögerung mit moduliertem Lesekopf (Wow, Flutter), Sättigung und Höhenverlust in der Rückkopplung, Head Bump, optional mehrere Köpfe; tempo-synchron (punktierte Achtel als Standard) oder frei; Rückkopplung bis zur Selbstoszillation als Geste | Arnardottir, Abel, Smith 2008 (Echoplex); Chowdhury 2019 |
+| BBD-Delay und Chorus | Eimerkette mit Ein- und Ausgangsfiltern, Taktmodulation | Raffel, Smith 2010; Holters, Parker 2018 |
+| Federhall | Allpass-Dispersionskaskaden für die Chirps, Phosphenes `Disperser` | Välimäki, Parker, Abel 2010; Parker 2011 |
+| Plattenhall | Dattorro-Struktur | Dattorro 1997 |
+| Hall | FDN aus Phosphene, Modi aus Noctuary, optional Faltung | Schlecht, Habets (in Noctuary umgesetzt) |
+| Phaser | ZDF-Phaser | Zavalishin; Kiiski, Esqueda, Välimäki 2016 |
+
+**Mixer:** Kanalzug je Reihe und Erzeuger, Stereo-Verteilung der Reihen, langsames Auto-Pan, drei Sends
+(Echo, Feder/Platte, Hall). **Master:** sanfter Bus-Kompressor (Giannoulis et al. 2012), Mono unter
+etwa 100 Hz, True-Peak-Limiter nur als Schutz, Lautheitsziel je Profil (Hypothese −16 bis −11 LUFS,
+an Referenzen zu messen), Meter nach BS.1770.
+
+## 6. Der Komponist
+
+### 6.1 Ebenen
+1. **Konzert/Album** (45 bis 120 min): Zahl der Stücke, Dramaturgie (Nachtkonzert, Studioalbum,
+   Livestream), Profil oder Profilreise, Tonartenreise, Überleitungen.
+2. **Stück** (8 bis 40 min): Form aus der Grammatik (6.2), Tonart, Tempo je Sequenzphase,
+   Instrumentierung, der **Rack-Patch** (welche Reihen, welche Längen, welche Stimmen).
+3. **Phase** (1 bis 8 min): Aufbau, Höhepunkt, Abbau; Dichte, Filteröffnung, Echo-Anteil aus dem
+   Spannungsbogen.
+4. **Geste** (Sekunden bis Minuten) und **Schritt**.
+
+### 6.2 Form-Grammatik für lange Stücke
+```
+Stück       → Atmo Körper Ausklang
+Körper      → Sequenzphase (Wechsel Sequenzphase)*          (Cosmic, Doom: 1 bis 3 Phasen)
+            | (Ambient Sequenzepisode)+ Ambient              (Drift)
+Sequenzphase→ Einsatz Aufbau+ Lead? Höhepunkt Abbau?
+Wechsel     → Brücke          (Flächen und Mellotron allein, Drone)
+            | Überblendung    (neue Reihe über der alten, dann die alte hinaus)
+            | Transposition   (dieselbe Reihe, neue Tonart)
+```
+Längen in Takten aus Verteilungen je Profil (16 bis 128 Takte pro Abschnitt), nicht streng in
+Zweierpotenzen. Formwechsel bevorzugt an Konjunktionen der Reihen (5.1).
+
+### 6.3 Schichtung und Instrumentierungs-Matrix
+- Typische Einsatzfolge: Drone → Atmosphäre → Reihe 1 (Filter zu) → Filter öffnet über ein bis zwei
+  Minuten → Reihe 2 (verzahnt oder oktaviert) → Flächen, Mellotron → Schlagzeug (nur "Melodic",
+  "Modern") → Lead → Höhepunkt.
+- Constraint: höchstens ein neues Element in N Takten; jedes Element kommt mit einer Geste (Filter
+  auf, Echo-Einspeisung, Einblendung), nie hart.
+
+### 6.4 Die Gesten-Engine
+- Eine Geste: Zielparameter, Start, Ende, Dauer, Form.
+- **Formen:** menschliche Bewegungen folgen dem Minimum-Jerk-Profil (Flash und Hogan 1985): glatte
+  S-Kurven; dazu leichtes Zittern, Halte-Plateaus, Überschwingen mit Korrektur, gelegentlich ein
+  schneller Griff.
+- **Zwei-Hände-Regel:** höchstens zwei Handgesten gleichzeitig (LFOs zählen nicht). Das macht die
+  Bewegung glaubwürdig und verhindert, dass sich alles zugleich ändert.
+- **Gesten-Grammatik:** Filter öffnet im Aufbau, taucht am Wechsel ab; Echo-Wurf am Phrasenende;
+  Resonanz steigt zum Höhepunkt; Decay wandelt Staccato in Legato.
+- Der Spannungsbogen setzt die Ziele; Noctuarys Lorenz- und Kuramoto-Quellen liefern die langsame
+  Drift darunter.
+
+### 6.5 Harmonie und Transposition
+- Tonart pro Stück oder Sequenzphase; Transpositionsfolgen aus einer Übergangsmatrix je Profil
+  (i–bVI–bVII–i, i–iv, i–bIII; Halbton und Tritonus in "Doom"), Rate 4 bis 32 Takte.
+- Flächen- und Mellotron-Akkorde aus Reihentönen und Transposition, mit minimaler Stimmbewegung.
+- Orgelpunkt auf dem Grundton, solange die Drone liegt.
+
+### 6.6 Reihen-Bau
+- **Bass-Reihe:** grundtonlastig, Oktavsprünge, 16 Schritte, Akzente.
+- **Gegenreihe:** ungerade Länge, Akkordtöne, höhere Lage.
+- **Verzahnung:** zwei Reihen um einen Schritt versetzt; **Echo-Reihe:** Achtel plus punktiertes Echo.
+- Melodischer Inhalt aus Phosphenes Constraint-Markov (Skala, Ambitus, Registertrennung zwischen den
+  Reihen, Konsonanz zur Transposition), Gates aus Euklidischen Mustern (Toussaint 2005).
+- Längenwahl nach dem gewünschten kgV: 16 gegen 13 fällt nach 208 Schritten wieder zusammen, 16 gegen
+  12 schon nach 48.
+
+### 6.7 Lead-Soli
+- Phrasen aus Constraint-Markov mit Zielkontur, Moll-Pentatonik und Modi, lange Töne mit Vibrato,
+  Glide und Bends als Gesten, Motive, die wiederkehren, Frage und Antwort mit den Reihen.
+- Register über den Reihen; Dichte folgt dem Spannungsbogen.
+
+### 6.8 Spannungsbogen
+Wie Phosphene nach Farbood (2012): Der Bogen steuert Filteröffnung, Zahl der Reihen, Dichte, Register,
+Echo-Anteil und Lautheit.
+
+### 6.9 Überleitungen zwischen Stücken
+Über Atmosphäre: eine Mellotron- oder Drone-Brücke, die Sequenz des alten Stücks löst sich im Echo auf,
+die neue beginnt in eigenem Tempo. Kein Beatmatching.
+
+### 6.10 Sperren und Neuwürfeln
+Wie Phosphene: Konzert, Stück, Phase, Reihe und Gestenspur sind einzeln sperrbar und haben je einen
+eigenen Seed-Zweig. Neu würfeln ersetzt nur Ungesperrtes.
+
+### 6.11 Lernende Anteile
+Zunächst keine. Ein Berlin-School-MIDI-Korpus ist nicht bekannt (`M:\Midi` wird noch geprüft), und die
+Sequenzen sind einfach genug für Regeln. Später ein Ranker über Nutzerbewertungen (Phosphenes
+`Rating`), der aus mehreren Kandidaten wählt.
+
+## 7. MIDI-Export und Dateiformate
+- **SMF Format 1**, PPQ 960, Tempo-Karte mit den Tempowechseln, Marker für Phasen und Stücke.
+- Ein Track je Reihe, Lead, Flächen, Mellotron, String-Machine, Schlagzeug; Transposition als eigener
+  Track.
+- Gesten als CC-Verläufe (74 Cutoff, 71 Resonanz, weitere frei) mit 1/32-Auflösung.
+- WAV/FLAC-Stems je Erzeuger aus dem Offline-Render.
+- **`.ephset`** (Text wie `.phosset`): Seed, Profil(e), Bogen, Sperren, auf Wunsch die ausgerollte
+  Partitur.
+- **Presets:** Klang-Presets je Stimme, Rack-Patches (Reihen, Längen, Stimmen), Stilprofile,
+  Konzert-Dramaturgien.
+
+## 8. GUI
+
+### 8.1 Desktop (JUCE 9, Layout aus Parametern, `EPH_SHOT`-Screenshot-Modus, Sprache Englisch)
+
+| Tab | Inhalt |
+|---|---|
+| **Concert** | Länge, Zahl der Stücke, Profil(e) mit Morph, Spannungsbogen, Seed, Generieren/Play/Stop, Meter |
+| **Arrange** | Zeitleiste Stücke → Phasen, Instrumentierungs-Matrix, Sperren, Neuwürfeln, Sprung |
+| **Rack** | die Reihen als Schrittraster mit Länge, Teiler, Mutation; dazu die **Orrery-Ansicht**: jede Reihe als Umlaufbahn, die Konjunktionen sichtbar |
+| **Voices** | Modularstimme je Reihe: VCOs, Mixer, Leiter, Hüllkurven, Drift |
+| **Lead** | Stimme, Glide, Vibrato, Solo-Regeln |
+| **Tape Keys** | Chor/Streicher/Flöte, Bandlauf, Alter der Bänder, Motorlast |
+| **Strings / Pads** | String-Machine mit Ensemble, Flächen |
+| **Atmos** | Drones, Wind, Sweeps, Weltraumklänge, Granular |
+| **Drums** | Kit und Muster je Profil |
+| **Gestures** | Gestenspuren als Kurven, Zwei-Hände-Regel, Gestentempo |
+| **Space** | Bandecho, BBD, Feder, Platte, Hall |
+| **Mixer / Master** | Kanalzüge, Sends, Master, Meter |
+| **Perform** | live: Filter greifen, Transpositionstaste, Reihe einfrieren, mutieren, Echo-Wurf; MIDI-Learn |
+| **Export** | MIDI, Stems, `.ephset` |
+| **Style** | Stilprofile ansehen, editieren, aus Referenzen kalibrieren |
+
+### 8.2 Quest 2
+Der komplette Generator läuft auf dem Gerät (Entscheidung 23.09.2026). Die Hände sind die Hände des
+Spielers: linke Hand Cutoff der Reihe im Fokus, rechte Hand Transposition und Echo-Wurf, Pinch zum
+Einfrieren. Die Orrery-Ansicht wird im Raum zum Planetensystem: jede Reihe eine Bahn, Konjunktionen als
+Lichtlinie. Handmenü wie in Noctuary Quest.
+
+### 8.3 Kaleidoscope-Kopplung
+OSC `/eph/beat`, `/eph/phase`, `/eph/conjunction`, `/eph/key` aus `Cue.h`.
+
+## 9. Vektorisierung
+- Prinzip wie Phosphene: Structure-of-Arrays über Stimmen und Lanes, skalarer Referenzpfad als
+  Orakel, bitgleiche Tests.
+- **Natürliche Lane-Gruppen:** acht Reihen-Stimmen (Leiter, Hüllkurven, VCA in einem AVX-Register),
+  Sänger eines Mellotron-Chors, Stimmen der String-Machine, FDN.
+- **Grober CPU-Rahmen** (Desktop, ein Kern, 48 kHz, in Phase 1 bis 3 zu prüfen):
+
+| Modul | Ziel |
+|---|---|
+| Acht Reihen-Stimmen (2× Oversampling) | < 3 % |
+| Lead | < 0,5 % |
+| Mellotron (Chor, 8 Tasten × 12 Sänger) | < 4 % |
+| String-Machine + Ensemble | < 1,5 % |
+| Flächen, Drones, Atmosphäre | < 3 % |
+| Schlagzeug | < 1 % |
+| Echo, BBD, Feder, Platte, Hall, Master | < 4 % |
+| Summe Höhepunkt | < 17 % |
+
+- **Quest-Stufe:** Reihen 8 → 4 bis 6, Sänger 12 → 4 bis 6, Oversampling nur an der Leiter,
+  Faltung aus. Werte auf dem Gerät messen.
+
+## 10. Plattformen und Build
+- Aufbau wie Phosphene: `Core/`, `Plugin/` (JUCE 9, VST3 + Standalone), `Quest/`, `Tools/render`
+  (`eph_render`: Offline-Render, `--bench`, `--midi`, `--stems`, `--set-file`, `--seed`, `--style`),
+  `Tools/*.py`, `Tests/`, `Deploy/`, `docs/`.
+- CMake-Optionen `EPH_BUILD_PLUGIN`, `EPH_BUILD_TOOLS`, `EPH_AVX2`, `EPH_STATIC_RUNTIME`; kein
+  Fast-Math.
+- **VST3:** Host-Playhead als Takt. Die eigenen Tempowechsel eines Stücks gehen im Host nicht auf;
+  Vorschlag: dort gilt das Host-Tempo, und die Tempo-Karte kommt über den MIDI-Export in die DAW
+  (Entscheidung offen, Abschnitt 14).
+- **Standalone:** eigene Uhr, ASIO/WASAPI, Recorder, Exporte.
+- **Quest:** `EPH_MUTE=1` für Tests.
+
+## 11. Tests und Messungen
+
+### 11.1 Selbsttest (`eph_selftest`, Muster Phosphene)
+- Oszillatoren: Aliasing; Drift beschränkt und bei gleichem Seed bitgleich.
+- Leiter: Cutoff, Selbstoszillation, Lane-Pfad gegen skalar.
+- Rack: Konjunktionen nach kgV, Transposition, Mutation deterministisch, Sperren bitgleich.
+- Gesten: Minimum-Jerk-Profil, Zwei-Hände-Regel nie verletzt.
+- Mellotron: Bandende nach der eingestellten Zeit, Spektrum der Laufschwankungen im Ziel, Motorlast
+  monoton in der Tastenzahl.
+- Bandecho: Abfall und Höhenverlust je Wiederholung; Feder: Gruppenlaufzeit der Dispersion.
+- Form-Constraints, MIDI-Rundlauf, Lautheit und True Peak.
+
+### 11.2 Vektor-, Host- und Build-Tests
+Aus Phosphene übernommen: `vectest` in drei Builds, `hosttest`, `vst3test`, `questguard`, pluginval
+auf Strenge 10.
+
+### 11.3 Hörprüfung
+Solo-Renders je Erzeuger und Phase; A/B-Blindvergleich zweier Seeds.
+
+### 11.4 Referenzanalyse (`Tools/analyze_ref.py`)
+Tempo aus der Periodizität der Onsets; **Reihenlängen** aus der Autokorrelation der Onset-Muster;
+Filterfahrten als Verlauf des Spektralschwerpunkts (über Leistung, nicht Betrag: Messfalle aus
+Noctuary) mit Zeitkonstanten; Abschnittsgrenzen nach Foote (2000); Transpositionsrate aus dem
+Chroma-Grundton; Zahl der Schichten über die Zeit; Lautheit und LRA. Nur Statistiken werden
+gespeichert.
+
+## 12. Phasen und Meilensteine
+
+Aufwand in Arbeitstagen nach der Erfahrung mit Phosphene; die Reihenfolge ist verbindlicher als die
+Zahlen.
+
+| Phase | Inhalt | Prüfstein | Tage |
+|---|---|---|---|
+| **0 Gerüst** | Repo, CMake, Modulkopie aus Phosphene, Parametersystem, Clock, Partitur mit Gesten-Kurven, `eph_render`, Selbsttest-Skelett | `eph_render` gibt Stille mit Tempo-Karte aus; Vec-Tests grün | 2 |
+| **1 Eine Sequenz, die atmet** | Rack mit ein bis zwei Reihen, Modularstimme mit Drift, Leiter mit 2× OS, Bandecho, eine Filtergeste, erste Referenzmessung | fünf Minuten einer Sequenz, deren Filter sich glaubwürdig bewegt; erste CPU-Zahlen | 4 |
+| **2 Polymetrie und Gesten** | acht Reihen, Transpositionsreihe, Mutation, Konjunktionen, Gesten-Engine mit Zwei-Hände-Regel, Harmonie, Lead mit Glide | zehn Minuten mit drei Reihen und Transposition; Rack-Tests grün | 5 |
+| **3 Mellotron und Raum** | synthetisches Mellotron (Chor, Streicher, Flöte, Bandmaschine), String-Machine mit BBD-Ensemble, Flächen, Drones, Atmosphäre, Feder, Platte, Hall, Schlagzeug | Hörvergleich gegen Mellotron-Aufnahmen; Maschinen-Tests grün | 6 |
+| **4 Komponist** | Formgrammatik, Instrumentierungs-Matrix, Spannungsbogen, Lead-Soli, Konzert mit Überleitungen, Sperren, fünf Stilprofile, Kalibrierung, `.ephset`, MIDI | 60-Minuten-Konzert aus einem Seed; Determinismus; MIDI in einer DAW geöffnet | 6 |
+| **5 GUI** | Tabs, Orrery-Ansicht, Arrange, Perform, Handbuch-Generator | Standalone und VST3 bedienbar; pluginval grün | 6 |
+| **6 Quest** | NDK-Build, Qualitätsstufen, Performer-Oberfläche, Bahnen im Raum | Konzert läuft auf der Quest 2 unter 30 % eines Kerns | 4 |
+| **7 Qualität und Release** | Hörrunden, Nachkalibrierung, Cues, Installer, Handbuch | v1.0 | 5 |
+
+Nach Phase 1 gibt es den ersten hörbaren Prüfstein, nach Phase 4 ist das Produkt inhaltlich komplett.
+Die GUI kommt spät, weil das Layout aus den Parametern entsteht.
+
+## 13. Risiken
+1. **Musikalische Qualität über lange Dauer** (größtes Risiko): Langeweile oder Beliebigkeit.
+   Gegenmittel: früher Prüfstein, gemessene Entwicklungsraten der Referenzen, Sperren und Neuwürfeln,
+   später der Ranker.
+2. **Glaubwürdigkeit des synthetischen Mellotrons**, besonders des Chors: Es gibt kein Vorbild. Gegenmittel:
+   Messung gegen Aufnahmen, früher Hörvergleich in Phase 3, notfalls ein ehrlich "Mellotron-artiges"
+   Instrument statt einer Kopie.
+3. **Referenzmaterial ungleich verteilt**: "Modern" und "Drift" sind reich belegt, "Doom" hat nur
+   zwei ['ramp]-Alben mit Sequenzen (14). Redshift fehlt. Gegenmittel:
+   je Profil gleich viele Stücke in die Kalibrierung nehmen, damit Boddy nicht alles dominiert.
+4. **Tempowechsel im Host**: Hosts geben das Tempo vor (10).
+5. **Quest-Budget**: Chor-Ensembles und acht Reihen mit Oversampling. Gegenmittel: Qualitätsstufen ab
+   Phase 1, Messung auf dem Gerät.
+6. **Rechtliches**: Künstlernamen nur in der Dokumentation, keine Fremd-Samples, "Mellotron" nicht als
+   Produktbezeichnung in der Oberfläche.
+7. **Name**: vor dem Release prüfen, ob "Ephemeris" als Audio-Software schon vergeben ist.
+
+## 14. Entscheidungen des Nutzers (23.09.2026)
+1. **Name:** Ephemeris.
+2. **Mellotron:** synthetisch nach dem Stand der Technik, keine Samples.
+3. **Quest:** ja, der komplette Generator auf dem Gerät.
+4. **Schlagzeug:** je nach Stilprofil.
+5. **Plattformen:** VST3 und Standalone wie die anderen Generatoren.
+6. **Referenzmaterial** (Bestand 24.09.2026, alles FLAC oder MP3; gespeichert werden nur Messwerte):
+
+   | Profil | Aufnahmen | Ort |
+   |---|---|---|
+   | Cosmic | Martin Stürtzer: *Celestial Tides*, *Protostar*, *Timelapse*; Syndromeda: *Connected!*, *In Touch With The Stars*, *The Alien Abduction Phenomenon*, *XXX* | `G:\Downloads\JDownloader\Israbox`; NAS |
+   | Doom | ['ramp]: *Frozen Radios*, *Nodular*; Runes Order: zwölf Alben, dazu *Secret Place (The Final Chapter)* mit Berlin-School-Anleihen | NAS; `C:\Users\Rene\Desktop\Kandidaten\Pop - Kopie` |
+   | Melodic | Ron Boots: *Area Movement*, *Backgrounds*, *Close, But Not Touching*, *Different Stories And Twisted Tales*, *Standing In The Rain*; mit Frank Klare *Monumental Dreams*; mit Harold van der Heijden *Of Desolate Places And Urban Jungles* | NAS |
+   | Modern | Ian Boddy: 19 Soloalben und 17 Kollaborationen (u. a. mit Erik Wøllo, Markus Reuter, Robert Rich); dazu *Transmissions* (Boddy/Wøllo); Thorsten Quaeschning und Ulrich Schnauss: *Synthwaves* | NAS; `G:\Downloads\JDownloader\Israbox` |
+   | Drift | The Dark Side of the Moog I bis XI, *The Evolution of The Dark Side of the Moog*; Pete Namlooks weitere Reihen als Umfeld | NAS |
+
+   NAS-Pfad: `\\192.168.178.75\SambaFestplatte\Musik\Alben\`. Es fehlt Redshift. Die Zuordnung
+   Profil → Ordner steht in einer Textdatei (`Tools/ref_sets.txt`), die `analyze_ref.py` liest.
+7. **Kein Tangerine Dream als Referenz** (24.09.2026): Der Nutzer mag die klassischen Alben nicht, und
+   auch bei Quaeschning zählen die Soloarbeiten und Kollaborationen (*Synthwaves* mit Ulrich Schnauss),
+   nicht seine Tangerine-Dream-Alben. Tangerine Dream geht weder in die Kalibrierung noch in die
+   Hörreferenzen.
+
+Die vier zunächst offenen Punkte hat der Nutzer am 24.09.2026 so bestätigt:
+- Modulkopie statt Link, wie bei Phosphene.
+- GUI und Handbuch auf Englisch.
+- Keine lernenden Anteile zu Beginn; später ein Ranker.
+- Im Host gilt das Host-Tempo; Tempowechsel kommen über den MIDI-Export.
+
+
+## 15. Literatur (Auswahl, je Baustein)
+
+- Reich, S. (1968). Music as a Gradual Process. In: Writings on Music 1965–2000. (Prozessmusik)
+- Whitwell, T. (2012). Turing Machine. Music Thing Modular, offene Hardware. (Schieberegister-Sequenzer)
+- Toussaint, G. (2005). The Euclidean Algorithm Generates Traditional Musical Rhythms. BRIDGES.
+- Pachet, F.; Roy, P. (2011). Markov Constraints: Steerable Generation of Markov Sequences. Constraints.
+- Farbood, M. (2012). A Parametric, Temporal Model of Musical Tension. Music Perception.
+- Flash, T.; Hogan, N. (1985). The Coordination of Arm Movements: An Experimentally Confirmed Mathematical Model. Journal of Neuroscience 5(7). (Minimum Jerk, Gesten)
+- Uhlenbeck, G. E.; Ornstein, L. S. (1930). On the Theory of the Brownian Motion. Physical Review 36. (Drift)
+- Välimäki, V.; Huovilainen, A. (2007). Antialiasing Oscillators in Subtractive Synthesis. IEEE Signal Processing Magazine 24(2).
+- Stilson, T.; Smith, J. O. (1996). Analyzing the Moog VCF with Considerations for Digital Implementation. ICMC.
+- Huovilainen, A. (2004). Non-Linear Digital Implementation of the Moog Ladder Filter. DAFx.
+- D'Angelo, S.; Välimäki, V. (2014). Generalized Moog Ladder Filter, Part II. IEEE/ACM TASLP.
+- Zavalishin, V. The Art of VA Filter Design. Native Instruments.
+- Fant, G.; Liljencrants, J.; Lin, Q. (1985). A Four-Parameter Model of Glottal Flow. STL-QPSR 4/1985.
+- Klatt, D. H. (1980). Software for a Cascade/Parallel Formant Synthesizer. JASA 67(3).
+- Ternström, S. (2003). Choir Acoustics: An Overview of Scientific Research Published to Date. International Journal of Research in Choral Singing 1(1).
+- Chowdhury, J. (2019). Real-Time Physical Modelling for Analog Tape Machines. DAFx.
+- Arnardottir, S.; Abel, J. S.; Smith, J. O. (2008). A Digital Model of the Echoplex Tape Delay. AES 125th Convention.
+- Raffel, C.; Smith, J. O. (2010). Practical Modeling of Bucket-Brigade Device Circuits. DAFx.
+- Holters, M.; Parker, J. (2018). A Combined Model for a Bucket Brigade Device and Its Input and Output Filters. DAFx.
+- Välimäki, V.; Parker, J.; Abel, J. S. (2010). Parametric Spring Reverberation Effect. JAES 58(7/8).
+- Parker, J. (2011). Efficient Dispersion Generation Structures for Spring Reverb Emulation. EURASIP Journal on Advances in Signal Processing.
+- Dattorro, J. (1997). Effect Design, Part 1: Reverberator and Other Filters. JAES 45(9).
+- Kiiski, R.; Esqueda, F.; Välimäki, V. (2016). Time-Variant Gray-Box Modeling of a Phaser Pedal. DAFx.
+- Giannoulis, D.; Massberg, M.; Reiss, J. D. (2012). Digital Dynamic Range Compressor Design. JAES.
+- Foote, J. (2000). Automatic Audio Segmentation Using a Measure of Novelty. ICME.
+- IEC 60386 (Messung von Gleichlaufschwankungen); ITU-R BS.1770-4, EBU R 128 (Lautheit).
+
+## Quellen der Recherche (23.09.2026)
+
+- Thalaron, *Microgravity*: https://phelios.bandcamp.com/album/microgravity
+- Martin Stürtzer, *Theta Serpentis*: https://phelios.bandcamp.com/album/theta-serpentis
+- Martin Stürtzer, *Epsilon Eridani*: https://phelios.bandcamp.com/album/epsilon-eridani
+- Martin Stürtzer, *Illumination Cycle*: https://synphaera.bandcamp.com/album/illumination-cycle
+- Martin Stürtzer, Veröffentlichungen 2023: https://martinstuertzer.de/releases2023/
+- Syndromeda, *Mind TRIPS*: https://syndromeda-syngate.bandcamp.com/album/mind-trips
+- Syndromeda bei Cue Records: https://www.cue-records.com/A-Z-Artists/S/Syndromeda/?language=en
+- Syndromeda, *Eternal Destination* (Rezension): https://www.synthsequences.com/post/syndromeda-eternal-destination-2018
+- ['ramp], *Synchronize or Die*: https://doombientmusic.bandcamp.com/album/synchronize-or-die
+- ['ramp], *Synchronize or Die* (Rezension): https://www.synthsequences.com/post/ramp-synchronize-or-die-2017
+- ['ramp] und Bernhard Wöstheinrich, *Ultima Ratio*: https://ramp1.bandcamp.com/album/ultima-ratio
+- Tangerine Dream, *Raum* (Kscope): https://kscopemusic.com/tangerine-dream-raum/
+- Tangerine Dream, Live-Rig mit Thorsten Quaeschning: https://www.synthtopia.com/content/2022/03/24/tangerine-dream-live-rig-tour-with-thorsten-quaeschning/
+- Ron Boots, *Detachment of Worldly Affairs*: https://ronboots.bandcamp.com/album/detachment-of-worldly-affairs
+- Ron Boots und Bas Broekhuis, *Hydrythmix*: https://ronboots.bandcamp.com/album/ron-boots-bas-broekhuis-hydrythmix
+- Ron Boots (Rezensionen): https://eer-music.com/EER_music_reviews/Ron_Boots.html
+- Redshift (Wikipedia): https://en.wikipedia.org/wiki/Redshift_(group)
+- Redshift (ProgArchives): https://www.progarchives.com/artist.asp?id=3142
+- Arturia Mellotron V: https://www.arturia.com/products/software-instruments/mellotron-v/overview
+- Mellotron-Plugins im Überblick (Tapeworm u. a.): https://hiphopmakers.com/best-free-mellotron-vst-plugins

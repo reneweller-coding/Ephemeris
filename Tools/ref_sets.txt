@@ -1,0 +1,14 @@
+# Reference folders per style profile (PLAN 14, item 6). Profile | folder or file.
+# Only statistics of these recordings are kept (Tools/ref_stats.json); the audio never enters the project.
+Cosmic  | G:\Downloads\JDownloader\Israbox\Martin Stürtzer - Celestial Tides
+Cosmic  | G:\Downloads\JDownloader\Israbox\Martin Stürtzer - Protostar
+Cosmic  | G:\Downloads\JDownloader\Israbox\Martin Stürtzer - Timelapse
+Cosmic  | \\192.168.178.75\SambaFestplatte\Musik\Alben\Syndromeda
+Doom    | \\192.168.178.75\SambaFestplatte\Musik\Alben\['ramp]
+Doom    | C:\Users\Rene\Desktop\Kandidaten\Pop - Kopie\Runes Order - Secret Place (The Final Chapter).mp3
+Melodic | \\192.168.178.75\SambaFestplatte\Musik\Alben\Ron Boots
+Melodic | \\192.168.178.75\SambaFestplatte\Musik\Alben\Frank Klare With Ron Boots
+Modern  | \\192.168.178.75\SambaFestplatte\Musik\Alben\Ian Boddy
+Modern  | G:\Downloads\JDownloader\Israbox\Ian Boddy, Erik Wøllo - Transmissions FLAC
+Modern  | \\192.168.178.75\SambaFestplatte\Musik\Alben\Thorsten Quaeschning & Ulrich Schnauss
+Drift   | \\192.168.178.75\SambaFestplatte\Musik\Alben\The Dark Side Of The Moog

@@ -1,0 +1,13 @@
+build*/
+out/
+# The JUCE checkout for the plugin: fetched, or copied from a sibling build.
+ThirdParty/
+*.wav
+*.mid
+!Tests/data/*.mid
+__pycache__/
+.vs/
+*.user
+# Reference-audio measurements are statistics and are committed; the audio never is.
+Deploy/stage/
+build-release*.log
