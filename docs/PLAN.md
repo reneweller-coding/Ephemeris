@@ -10,6 +10,28 @@ verschiedener Länge um einen gemeinsamen Grundton, die nur selten wieder zusamm
 
 ## Stand der Umsetzung
 
+**24.09.2026: Phase 5, erster Teil fertig: das Plugin.** VST3 und Standalone
+(`build/Plugin/Ephemeris_artefacts/Release/`), Bild des Panels in `docs/screenshot.png`.
+
+| Prüfstein | Ergebnis |
+|---|---|
+| Build VST3 + Standalone | ohne Fehler; JUCE aus Phosphenes Checkout (`ThirdParty/JUCE`, sonst Fetch) |
+| Panel (`EPH_SHOT`) | Stil, Tonart, Skala, Längen, Compose, neuer Seed, Play; Neuwürfeln je Einheit; `.ephset` speichern und laden; Export WAV + MIDI; Arrange-Zeitleiste der Abschnitte mit Abspielmarke (Klick springt); Tabs aus den Parametertabellen |
+| Live-Pfad gegen Offline-Render | Standalone mit `EPH_SEED=4242 EPH_PLAY=6 EPH_RECORD=...` gegen `eph_render --seed 4242`: höchstens 1,8·10⁻⁷ Abweichung über 288 000 Frames, das ist die Quantisierung des 24-Bit-WAV. Das Plugin spielt, was der Offline-Render spielt. |
+
+Gebaut: `StoreParameter` (nach Phosphene: jeder Eintrag des `ParamStore` ist ein Host-Parameter, ohne
+zweite Kopie); der Komponist auf eigenem Thread, die fertige Partitur wird auf dem Message-Thread mit
+angehaltener Verarbeitung geladen (die Engine allokiert beim Laden, der Audio-Thread nie); ein zweiter
+Compose-Auftrag während des Komponierens wird vorgemerkt; im Host ist die Abspielposition die Uhr
+(`Engine::seek` bei Sprüngen), der Standalone hat Play/Stop; Export rendert offline auf einem Thread.
+
+Befund: Die Wertefelder zeigten zuerst nur die Einheit. JUCE fragt den Text mit Länge 0 an, und das
+heißt "ohne Grenze"; `getText` schnitt auf null Zeichen ab.
+
+Noch offen aus Phase 5: Host-Test und pluginval, Tempokarte des Hosts (im Host gilt das Host-Tempo, die
+Tempowechsel eines Stücks kommen nur über Export und MIDI), Perform-Makros, Handbuch-Generator, eine
+eigene Oberfläche statt der generischen Knopfraster.
+
 **24.09.2026: Phase 4 im Wesentlichen fertig.** `eph_render` komponiert jetzt standardmäßig ein
 ganzes Stück (`--set "compose.style=Cosmic|Doom|Melodic|Modern|Drift"`, `--minutes`) oder ein Konzert
 (`--concert 60`); `--reroll lead` würfelt eine Einheit neu, `--save-set`/`--set-file` speichern und laden

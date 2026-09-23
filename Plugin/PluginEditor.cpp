@@ -275,6 +275,12 @@ void EphemerisEditor::timerCallback()
     play_.setButtonText(proc_.isPlaying() ? "Stop" : "Play");
     compose_.setEnabled(!proc_.isComposing());
     arrange_.repaint();
+    // The test mode: the recording, when full, is written and the standalone quits.
+    if (proc_.recordingDone()) {
+        proc_.writeRecording();
+        if (juce::JUCEApplicationBase::isStandaloneApp()) juce::JUCEApplicationBase::quit();
+        return;
+    }
     // The screenshot mode: wait for the first piece, then draw the panel into a file and quit.
     if (shotPath_.isNotEmpty() && !proc_.isComposing() && ++shotTicks_ > 20) {
         const juce::Image img = createComponentSnapshot(getLocalBounds());

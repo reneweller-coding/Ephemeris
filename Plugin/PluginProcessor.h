@@ -77,6 +77,12 @@ public:
     /** @brief Renders the current score offline to WAV and MIDI beside each other, on a thread; returns at once. */
     void exportTo(const juce::File& wav);
     juce::String status() const;                     ///< one line for the panel
+    /**
+     * @brief The test mode (EPH_SEED, EPH_PLAY=<seconds>, EPH_RECORD=<file.wav>): a fixed seed, play at once,
+     *        record what the audio thread renders; recordingDone() when the seconds are full.
+     */
+    bool recordingDone() const { return recordTarget_ > 0 && recordPos_.load() >= recordTarget_; }
+    void writeRecording();                            ///< writes the recording (message thread)
 
     eph::ParamStore& store() { return engine_.params(); }
     StoreParameter* parameter(int id) { return id >= 0 && id < static_cast<int>(params_.size()) ? params_[static_cast<size_t>(id)] : nullptr; }
@@ -119,4 +125,8 @@ private:
     int blockSize_ = 512;
     juce::String lastExport_;
     std::unique_ptr<std::thread> exporter_;
+    std::vector<float> record_;          ///< interleaved, allocated in prepareToPlay in the test mode only
+    size_t recordTarget_ = 0;
+    std::atomic<size_t> recordPos_{ 0 };
+    bool autoPlay_ = false;
 };

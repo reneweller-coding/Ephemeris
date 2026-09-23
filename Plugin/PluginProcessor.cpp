@@ -8,6 +8,7 @@
 #include "eph/Midi.h"
 #include "eph/WavWriter.h"
 #include <cmath>
+#include <cstdlib>
 
 using namespace eph;
 
@@ -91,6 +92,8 @@ EphemerisProcessor::EphemerisProcessor()
         addParameter(p);
     }
     seed_ = static_cast<uint64_t>(juce::Time::currentTimeMillis() % 100000);
+    if (const char* env = std::getenv("EPH_SEED")) seed_ = std::strtoull(env, nullptr, 10);
+    autoPlay_ = std::getenv("EPH_PLAY") != nullptr;
     startTimerHz(10);
     compose();
 }
@@ -189,6 +192,7 @@ void EphemerisProcessor::timerCallback()
         current_ = std::move(*next);
     }
     position_ = 0.0;
+    if (autoPlay_) { autoPlay_ = false; playing_ = true; }
     suspendProcessing(false);
 }
 
@@ -205,6 +209,11 @@ void EphemerisProcessor::prepareToPlay(double sampleRate, int samplesPerBlock)
     sampleRate_ = sampleRate;
     blockSize_ = samplesPerBlock;
     engine_.prepare(sampleRate, samplesPerBlock);
+    if (const char* secs = std::getenv("EPH_PLAY"); secs != nullptr && std::getenv("EPH_RECORD") != nullptr) {
+        recordTarget_ = static_cast<size_t>(std::atof(secs) * sampleRate) * 2;
+        record_.assign(recordTarget_, 0.0f);
+        recordPos_ = 0;
+    }
     std::lock_guard<std::mutex> g(lock_);
     engine_.load(current_);
 }
@@ -242,6 +251,13 @@ void EphemerisProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::Mi
     }
     engine_.process(buffer.getWritePointer(0), buffer.getWritePointer(1), n);
     position_ = engine_.beat();
+    if (recordTarget_ > 0) {
+        const float* l = buffer.getReadPointer(0);
+        const float* r = buffer.getReadPointer(1);
+        size_t pos = recordPos_.load();
+        for (int i = 0; i < n && pos + 1 < recordTarget_; ++i) { record_[pos++] = l[i]; record_[pos++] = r[i]; }
+        recordPos_ = pos + 1 >= recordTarget_ ? recordTarget_ : pos;
+    }
     // The standalone stops at the end of the piece, with the rooms rung out.
     if (wrapperType == wrapperType_Standalone && engine_.seconds() > engine_.lengthSeconds() + 8.0) playing_ = false;
 }
@@ -309,6 +325,19 @@ void EphemerisProcessor::exportTo(const juce::File& wav)
         }
         exporting_ = false;
     });
+}
+
+void EphemerisProcessor::writeRecording()
+{
+    const char* path = std::getenv("EPH_RECORD");
+    if (path == nullptr || record_.empty()) return;
+    WavWriter w;
+    if (!w.open(path, static_cast<int>(sampleRate_), 2, WavFormat::Float32)) return;
+    std::vector<float> L(record_.size() / 2), R(record_.size() / 2);
+    for (size_t i = 0; i < L.size(); ++i) { L[i] = record_[2 * i]; R[i] = record_[2 * i + 1]; }
+    w.write(L.data(), R.data(), static_cast<int>(L.size()));
+    w.close();
+    recordTarget_ = 0;
 }
 
 juce::String EphemerisProcessor::status() const
