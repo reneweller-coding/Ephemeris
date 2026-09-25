@@ -79,6 +79,8 @@ enum class Module : int { Compose = 0, Row, Master,
                           Cue,
                           /** Phase 5: a style profile of the user's own (the Style tab; Style.h, customProfile). */
                           Custom,
+                          /** 25.09.2026: a second echo, its own time for the counter rows (the style guide's 4.4, 4.5). */
+                          Echo2,
                           Count };
 
 constexpr int kRows = 8;   ///< instances of the row module (the rows of the rack) and of the voice module
@@ -102,7 +104,9 @@ enum : int { Active, Length, Division, Direction, Octave, Transpose, Mutation, G
              // Phase 2: what the row does -- plays notes, or transposes the rows that play (PLAN 5.1).
              Mode,
              // Phase 3: the send into the hall.
-             ReverbSend, Count };
+             ReverbSend,
+             // 25.09.2026: the send into the second echo.
+             Echo2Send, Count };
 }
 /** @brief Parameters of the master section. */
 namespace master {
@@ -193,13 +197,19 @@ enum : int { Size, Decay, Damping, PreDelay, LowCut, HighCut, Return,
 }
 static_assert(static_cast<int>(lead::Glide) == static_cast<int>(voice::Glide), "the first parameters of the lead are those of the voice, in the same order");
 /** @brief Parameters of the tape echo (module Echo; PLAN 5.8). */
+/** @brief Parameters of the second echo (module Echo2): a clean tape echo with its own time and return. */
+namespace echo2 {
+enum : int { Time, Feedback, Tone, PingPong, Return, Count };
+}
 namespace echo {
 enum : int { Time, Feedback, Tone, Wow, Flutter, Drive, PingPong, Return,
              // Phase 5: the tape echo (TapeEcho.h) or the bucket-brigade delay (Bbd.h), on the same send.
              Type, Count };
 }
 /** @brief The echo times, in the order of echo.time. */
-enum class EchoTime : int { Sixteenth = 0, Eighth, EighthD, Quarter, QuarterD, Half, Count };
+enum class EchoTime : int { Sixteenth = 0, Eighth, EighthD, Quarter, QuarterD, Half,
+                             /** 25.09.2026: the quarter triplet of the style guide's 4.4. */
+                             QuarterT, Count };
 /** @brief Length of an echo time in beats. */
 double echoTimeBeats(EchoTime t);
 extern const char* const kEchoTimeNames[];      ///< names of echo.time

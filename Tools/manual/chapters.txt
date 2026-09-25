@@ -48,7 +48,8 @@ the strings build their chords on the same degree: the choirs mostly plain triad
 fifths, triads, sus chords, add9, stacked fourths and m9 as well. The transposer moves the whole sequence
 a fifth up, a fourth up or a minor third down and back, only on the plateau and at the peak, while the
 drone stays on the centre. At some peaks Aeolian brightens to Dorian, in some breakdowns it darkens to
-Phrygian, and every piece ends on the open fifth.
+Phrygian, and every piece ends on the open fifth. A later phase may move its key by a fourth, a tone or a
+third, and take a minor mode of its own, as the parts of a suite do.
 
 The reroll buttons draw one part of the piece again and leave everything else as it was, to the note:
 the form, the tempo, the rows' shapes, the rack's patterns, the layers, the lead, the chords and pads,
@@ -64,8 +65,13 @@ rows, the builds, the lead, the peak, the bridges, the fade -- with the playhead
 
 A channel strip per source, in the order the engine mixes them: the eight rows, the lead, the drone,
 the tape keys, the string machine, the drums and the atmosphere. Each strip has its pan (where the
-source has one), its sends to the tape echo and to the hall, its fader and its meter. The controls are
-the same parameters the sources' own pages show.
+source has one), its sends to the tape echo and to the hall -- the rows also to the second echo -- its
+fader and its meter. The controls are the same parameters the sources' own pages show.
+
+The composer sets the stereo field for each piece: the bass in the middle, the main sequence near it, the
+other counter rows 30 to 50 % out to alternating sides, the lead a little off the middle. It keeps the bass
+dry and the tape keys and strings out of the echo, and sends the counter rows after the first into the
+second echo, so each layer of the sequence has a delay time of its own.
 
 The meter reads what the source puts into the mix after its fader and pan: a green bar for the RMS
 level with a release of 300 ms, turning amber above -6 dBFS and red above 0, and a peak line that holds
@@ -114,7 +120,9 @@ row before -- three steps later or a fifth up -- besides the older free rules. T
 or sixteen steps and a long gate; every eight steps have one to three rests (the bass none to two), the
 first always sounds on the root or the fifth, accents fall on the first and fifth step or 3+3+2. Some
 steps are probability gates that sound on some rounds only -- Modern has the most, Cosmic and Doom the
-fewest. On the plateau and at the peak a few steps are ratcheted into quick triggers, at some peaks the
+fewest; a few steps, the most in Drift and Modern, play a new note each time round, drawn through a
+quantiser from the root, fifth, octave, seventh, fourth and third of the mode. On the plateau and at the
+peak a few steps are ratcheted into quick triggers, at some peaks the
 eighths row doubles its pulse, and in the breakdown and the coda the bass loses its steps one by one.
 
 == Gestures | | 3 ==
@@ -154,6 +162,8 @@ beat, as a player over a machine does.
 
 The drone is the ground under the whole piece: the root, low, held from the start to the fading coda,
 following the key when a phase changes it. It is a modular voice as well and has the lead's table.
+Auto Pan lets it wander slowly across the stereo field, on a sine of 0.05 Hz (twenty seconds from one
+side to the other and back); the lead has the knob as well, at zero.
 
 == Tape Keys | tape | 7 ==
 
@@ -190,7 +200,7 @@ many per second as Grain Density says. A piece has the cloud with the style's ch
 the hands then raise it in the atmosphere, the bridges and the coda, and take it away when the rows come
 in.
 
-== Echo + Spring | echo spring | 10 ==
+== Echo + Spring | echo spring echo2 | 10 ==
 
 A tape echo with a moving read head -- wow, flutter, saturation and loss of highs in the feedback --
 synchronised to the tempo, with a ping-pong option; its feedback can run into self-oscillation, which
@@ -204,6 +214,12 @@ as in the pedals of the late seventies. Its clock runs slower the longer the del
 have to follow the clock, so the longer the echo, the darker its repeats; the clock wanders slowly (Wow
 sets how far), and the compander saturates and hisses faintly in the loop. Time, feedback, tone, drive and
 ping-pong work as on the tape.
+
+Echo 2 is a second, cleaner tape echo on a send of its own (the rows' Echo 2 Send), with its own time,
+feedback, tone, ping-pong and return; its repeats go into the hall as the first echo's do. It lets each
+layer of the sequence have its own delay: the main sequence on the first echo's dotted eighths, the other
+counter rows on the second in eighths or quarter triplets (1/4T, which both echoes offer), as the composer
+draws it for each piece.
 
 == Hall | reverb | 11 ==
 
@@ -229,6 +245,12 @@ after them.
 The master: its level, a gentle bus compressor that keeps the music's dynamics, and a true-peak limiter
 as protection. Below, the composer's settings -- the style, key, scale, tempo, lengths and whether the
 style chooses the tempo -- which the top bar also shows.
+
+Album Form makes a concert an album: an interlude of three to five minutes between the long pieces -- no
+rows, only the drone, a slow chord every 16 to 32 bars on the strings or the tape keys, the atmosphere with
+its grains, a longer hall and the open fifth at the end -- the piece where the concert's middle falls the
+darkest (Phrygian, darker voices, a row more at the peak), and the last one ethereal (Dorian, a longer hall,
+a row fewer, no drums, a quieter lead). Without it a concert is what it was.
 
 OSC Cues sends what the score knows to a visualiser such as Kaleidoscope, over UDP at the OSC Port, to the
 machine named by the environment variable EPH_CUE_HOST (this machine without it): every beat with the

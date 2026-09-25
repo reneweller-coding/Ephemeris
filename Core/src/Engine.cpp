@@ -88,6 +88,7 @@ void Engine::load(const Score& score)
     voices_.prepare(sampleRate_, voiceSeeds);
     echo_.prepare(sampleRate_, 2.5, mixSeed(score_.seed, 200));
     bbd_.prepare(sampleRate_, 2.5, mixSeed(score_.seed, 210));
+    echo2_.prepare(sampleRate_, 2.5, mixSeed(score_.seed, 220));
     reverb_.prepare(sampleRate_);
     plate_.prepare(sampleRate_);
     tape_.prepare(sampleRate_, mixSeed(score_.seed, 500));
@@ -148,9 +149,9 @@ VoiceSettings Engine::voiceSettings(Module m, int instance, bool vibrato) const
     return s;
 }
 
-void Engine::setStrip(int s, float levelDb, float pan, float echo, float reverb, float width)
+void Engine::setStrip(int s, float levelDb, float pan, float echo, float reverb, float width, float echo2)
 {
-    const float in[5] = { levelDb, pan, echo, reverb, width };
+    const float in[6] = { levelDb, pan, echo, reverb, width, echo2 };
     if (!changed(cache_.strip[s], in, cache_.valid)) return;
     Strip& st = strips_[s];
     const float level = dbToGain(levelDb);
@@ -159,6 +160,7 @@ void Engine::setStrip(int s, float levelDb, float pan, float echo, float reverb,
     st.gainR = level * std::sin(a) * width;
     st.echo = echo;
     st.reverb = reverb;
+    st.echo2 = echo2;
 }
 
 void Engine::updateCell()
@@ -199,7 +201,8 @@ void Engine::updateCell()
             const float depth = played(params_.id(m, 0, lead::AutoPan));
             if (depth > 0.0f) pan += depth * static_cast<float>(std::sin(2.0 * 3.14159265358979 * 0.05 * seconds()));
         }
-        setStrip(r, s(row::Level, lead::Level), pan, s(row::EchoSend, lead::EchoSend), s(row::ReverbSend, lead::ReverbSend));
+        setStrip(r, s(row::Level, lead::Level), pan, s(row::EchoSend, lead::EchoSend), s(row::ReverbSend, lead::ReverbSend), 1.0f,
+                 row ? played(params_.id(Module::Row, r, row::Echo2Send)) : 0.0f);
     }
 
     // The tape keys, the string machine, the drums, the atmosphere.
@@ -293,6 +296,22 @@ void Engine::updateCell()
         if (bbdOn_) bbd_.set(es); else echo_.set(es);
     }
     echoReturn_ = dbToGain(knob(Module::Echo, echo::Return));
+    // The second echo: clean, a little wow, its own time and return.
+    EchoSettings e2;
+    e2.delaySeconds = echoTimeBeats(static_cast<EchoTime>(static_cast<int>(knob(Module::Echo2, echo2::Time)))) * 60.0 / bpm;
+    e2.feedback = knob(Module::Echo2, echo2::Feedback);
+    e2.toneHz = knob(Module::Echo2, echo2::Tone);
+    e2.wowMs = 0.3f;
+    e2.flutterMs = 0.03f;
+    e2.driveDb = 2.0f;
+    e2.pingPong = knob(Module::Echo2, echo2::PingPong) >= 0.5f;
+    const EchoSettings& l2 = cache_.echo2;
+    if (!cache_.valid || l2.delaySeconds != e2.delaySeconds || l2.feedback != e2.feedback || l2.toneHz != e2.toneHz
+        || l2.pingPong != e2.pingPong) {
+        cache_.echo2 = e2;
+        echo2_.set(e2);
+    }
+    echo2Return_ = dbToGain(knob(Module::Echo2, echo2::Return));
     plateOn_ = knob(Module::Reverb, reverb::Type) >= 0.5f;
     const float hall[7] = { knob(Module::Reverb, reverb::Size), knob(Module::Reverb, reverb::Decay), knob(Module::Reverb, reverb::Damping),
                             knob(Module::Reverb, reverb::PreDelay) * 0.001f * static_cast<float>(sampleRate_),
@@ -344,6 +363,8 @@ void Engine::mix(int source, const float* xl, const float* xr, int n, const Buse
         if (echoSend) { b.echoL[i] += l * echo; b.echoR[i] += r * echo; }
         b.hallL[i] += l * strip.reverb;
         b.hallR[i] += r * strip.reverb;
+        b.echo2L[i] += l * strip.echo2;
+        b.echo2R[i] += r * strip.echo2;
     }
     if (metering_) {
         // What the strip put into the mix, read again: the sums above are not touched.
@@ -366,14 +387,16 @@ void Engine::mix(int source, const float* xl, const float* xr, int n, const Buse
 
 void Engine::renderSpan(float* L, float* R, int n)
 {
-    float bufL[kCell], bufR[kCell], echoL[kCell], echoR[kCell], hallInL[kCell], hallInR[kCell];
+    float bufL[kCell], bufR[kCell], echoL[kCell], echoR[kCell], hallInL[kCell], hallInR[kCell], echo2L[kCell], echo2R[kCell];
     std::fill(L, L + n, 0.0f);
     std::fill(R, R + n, 0.0f);
     std::fill(echoL, echoL + n, 0.0f);
     std::fill(echoR, echoR + n, 0.0f);
     std::fill(hallInL, hallInL + n, 0.0f);
     std::fill(hallInR, hallInR + n, 0.0f);
-    const Buses b{ L, R, echoL, echoR, hallInL, hallInR };
+    std::fill(echo2L, echo2L + n, 0.0f);
+    std::fill(echo2R, echo2R + n, 0.0f);
+    const Buses b{ L, R, echoL, echoR, hallInL, hallInR, echo2L, echo2R };
     if (metering_) meterCount_ += n;
 
     // The sources, each through its strip, in a fixed order (the order of the sums is part of the result).
@@ -418,10 +441,13 @@ void Engine::renderSpan(float* L, float* R, int n)
         wetL[i] += sprL[i] * springReturn_ / std::max(echoReturn_, 1e-6f);
         wetR[i] += sprR[i] * springReturn_ / std::max(echoReturn_, 1e-6f);
     }
-    // The echo's repeats go into the hall too, as they do on a desk where the echo returns to a channel.
+    // The second echo, beside the first.
+    float wet2L[kCell] = {}, wet2R[kCell] = {};
+    echo2_.process(echo2L, echo2R, wet2L, wet2R, n);
+    // The echoes' repeats go into the hall too, as they do on a desk where the echo returns to a channel.
     for (int i = 0; i < n; ++i) {
-        hallInL[i] += wetL[i] * echoReturn_ * 0.5f;
-        hallInR[i] += wetR[i] * echoReturn_ * 0.5f;
+        hallInL[i] += wetL[i] * echoReturn_ * 0.5f + wet2L[i] * echo2Return_ * 0.5f;
+        hallInR[i] += wetR[i] * echoReturn_ * 0.5f + wet2R[i] * echo2Return_ * 0.5f;
     }
     if (plateOn_) {
         std::fill(hallL, hallL + n, 0.0f);
@@ -432,11 +458,11 @@ void Engine::renderSpan(float* L, float* R, int n)
     }
     for (int i = 0; i < n; ++i) {
         if (stemL_ != nullptr) {
-            stemL_[kChannels][spanAt_ + i] = wetL[i] * echoReturn_ + hallL[i] * reverbReturn_;
-            stemR_[kChannels][spanAt_ + i] = wetR[i] * echoReturn_ + hallR[i] * reverbReturn_;
+            stemL_[kChannels][spanAt_ + i] = wetL[i] * echoReturn_ + wet2L[i] * echo2Return_ + hallL[i] * reverbReturn_;
+            stemR_[kChannels][spanAt_ + i] = wetR[i] * echoReturn_ + wet2R[i] * echo2Return_ + hallR[i] * reverbReturn_;
         }
-        L[i] = (L[i] + wetL[i] * echoReturn_ + hallL[i] * reverbReturn_) * master_;
-        R[i] = (R[i] + wetR[i] * echoReturn_ + hallR[i] * reverbReturn_) * master_;
+        L[i] = (L[i] + wetL[i] * echoReturn_ + wet2L[i] * echo2Return_ + hallL[i] * reverbReturn_) * master_;
+        R[i] = (R[i] + wetR[i] * echoReturn_ + wet2R[i] * echo2Return_ + hallR[i] * reverbReturn_) * master_;
     }
     comp_.process(L, R, n);
     limiter_.process(L, R, n);

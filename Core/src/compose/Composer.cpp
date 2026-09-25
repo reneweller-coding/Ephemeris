@@ -476,15 +476,24 @@ void writeSettings(Piece& c)
     // to alternating sides, the lead a little off the middle, the drone wandering slowly across. Drawn on the rows' unit.
     Rng pans;
     pans.seed(mixSeed(c.seedOf(sRows), 0x70u));
-    auto panTo = [&](int id, float v) { c.s.gestures.push_back({ id, 0.0, 0.0, 0.0f, offsetTo(p, id, v), G::Step, 1 }); };
-    panTo(p.id(Module::Row, 0, row::Pan), 0.0f);
+    auto setTo = [&](int id, float v) { c.s.gestures.push_back({ id, 0.0, 0.0, 0.0f, offsetTo(p, id, v), G::Step, 1 }); };
+    setTo(p.id(Module::Row, 0, row::Pan), 0.0f);
     const float side = pans.uniform() < 0.5f ? -1.0f : 1.0f;
     for (int k = 0; k < c.counters; ++k) {
         const float amount = k == 0 ? 0.1f * pans.uniform() : 0.3f + 0.2f * pans.uniform();
-        panTo(p.id(Module::Row, k + 1, row::Pan), (k % 2 == 0 ? side : -side) * amount);
+        setTo(p.id(Module::Row, k + 1, row::Pan), (k % 2 == 0 ? side : -side) * amount);
     }
-    panTo(p.id(Module::Lead, 0, lead::Pan), -side * (0.1f + 0.1f * pans.uniform()));
-    panTo(p.id(Module::Drone, 0, lead::Pan), 0.0f);   // (its auto pan, drone.auto_pan, lets it wander)
+    setTo(p.id(Module::Lead, 0, lead::Pan), -side * (0.1f + 0.1f * pans.uniform()));
+    setTo(p.id(Module::Drone, 0, lead::Pan), 0.0f);   // (its auto pan, drone.auto_pan, lets it wander)
+    // Each layer its own delay (4.4, 4.5): the main sequence on the tape echo's dotted eighths, the other counter
+    // rows on the second echo in eighths or quarter triplets, with less of the first.
+    const int e2time = p.id(Module::Echo2, 0, echo2::Time);
+    const float e2 = static_cast<float>(pans.uniform() < 0.6f ? EchoTime::Eighth : EchoTime::QuarterT);
+    c.s.gestures.push_back({ e2time, 0.0, 0.0, 0.0f, offsetTo(p, e2time, e2), G::Step, 1 });
+    for (int k = 1; k < c.counters; ++k) {
+        setTo(p.id(Module::Row, k + 1, row::Echo2Send), 0.35f);
+        setTo(p.id(Module::Row, k + 1, row::EchoSend), 0.1f);
+    }
     // The hall grows in the spaces and shrinks at the peak (7.3): a slow glide at the start of each section,
     // written by the composer's own hand (3), apart from the player's two.
     float hallAt = offsetTo(p, hall, c.prof.hallSeconds);

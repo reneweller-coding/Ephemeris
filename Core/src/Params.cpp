@@ -24,12 +24,12 @@ const char* const kRegistrationNames[] = { "Violins", "Violas", "Cellos", "Basse
 const char* const kRowDivisionNames[] = { "1/4", "1/8", "1/8 T", "1/16", "1/16 T", "1/32", "1 Bar", "2 Bars", "4 Bars" };
 const char* const kRowDirectionNames[] = { "Forward", "Backward", "Pendulum", "Random Walk" };
 const char* const kRowModeNames[] = { "Notes", "Transposer" };
-const char* const kEchoTimeNames[] = { "1/16", "1/8", "3/16", "1/4", "3/8", "1/2" };
+const char* const kEchoTimeNames[] = { "1/16", "1/8", "3/16", "1/4", "3/8", "1/2", "1/4T" };
 const char* const kTapeSetNames[] = { "Choir", "Strings", "Flute" };
 
 double echoTimeBeats(EchoTime t)
 {
-    static const double kBeats[] = { 0.25, 0.5, 0.75, 1.0, 1.5, 2.0 };
+    static const double kBeats[] = { 0.25, 0.5, 0.75, 1.0, 1.5, 2.0, 2.0 / 3.0 };
     const int i = static_cast<int>(t);
     return i >= 0 && i < static_cast<int>(EchoTime::Count) ? kBeats[i] : 0.75;
 }
@@ -80,6 +80,7 @@ const ParamDesc kRowParams[row::Count] = {
     { "echo",      "Echo Send",  "",      0.0f,  1.0f,  0.3f, Curve::Linear },
     { "mode",      "Mode",       "",      0.0f,  1.0f,  0.0f, Curve::Choice, kRowModeNames },
     { "reverb",    "Reverb Send", "",     0.0f,  1.0f,  0.3f, Curve::Linear },
+    { "echo2",     "Echo 2 Send", "",     0.0f,  1.0f,  0.0f, Curve::Linear },
 };
 
 /**
@@ -279,7 +280,7 @@ const ParamDesc kReverbParams[reverb::Count] = {
 };
 
 const ParamDesc kEchoParams[echo::Count] = {
-    { "time",      "Time",        "",       0.0f,    5.0f,    2.0f, Curve::Choice, kEchoTimeNames },
+    { "time",      "Time",        "",       0.0f,    6.0f,    2.0f, Curve::Choice, kEchoTimeNames },
     { "feedback",  "Feedback",    "",       0.0f,    1.1f,    0.45f, Curve::Linear },   // above 1: runaway, held by the tape
     { "tone",      "Tone",        "Hz",   800.0f, 12000.0f, 3500.0f, Curve::Log },      // loop low pass
     { "wow",       "Wow",         "ms",     0.0f,    4.0f,    0.6f, Curve::Linear },
@@ -321,6 +322,15 @@ struct ModuleSpec {
     const char* const* instanceNames = nullptr;   ///< prefixes of the instances instead of prefix + number
 };
 
+/** The second echo (Engine: its own tape echo, a little wow, no springs). */
+const ParamDesc kEcho2Params[echo2::Count] = {
+    { "time",      "Echo 2 Time",     "",       0.0f,    6.0f,    1.0f, Curve::Choice, kEchoTimeNames },
+    { "feedback",  "Echo 2 Feedback", "",       0.0f,    1.0f,    0.3f, Curve::Linear },
+    { "tone",      "Echo 2 Tone",     "Hz",   800.0f, 12000.0f, 5000.0f, Curve::Log },
+    { "pingpong",  "Echo 2 Ping-Pong", "",      0.0f,    1.0f,    1.0f, Curve::Toggle },
+    { "return",    "Echo 2 Return",   "dB",   -60.0f,    6.0f,   -6.0f, Curve::Linear },
+};
+
 const ModuleSpec kModules[static_cast<int>(Module::Count)] = {
     { "compose", kComposeParams, compose::Count, 1 },
     { "row",     kRowParams,     row::Count,     kRows },
@@ -338,6 +348,7 @@ const ModuleSpec kModules[static_cast<int>(Module::Count)] = {
     { "perform", kPerformParams, perform::Count, 1 },
     { "cue",     kCueParams,     cue::Count,     1 },
     { "custom",  kCustomParams,  custom::Count,  1 },
+    { "echo2",   kEcho2Params,   echo2::Count,   1 },
 };
 
 bool isDiscrete(Curve c) { return c == Curve::Int || c == Curve::Choice || c == Curve::Toggle; }

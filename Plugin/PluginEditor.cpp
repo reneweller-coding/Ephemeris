@@ -304,7 +304,7 @@ EphemerisEditor::EphemerisEditor(EphemerisProcessor& p) : juce::AudioProcessorEd
     page("Tape Keys", { { M::Tape, 0 } }, 1);
     page("Strings", { { M::Strings, 0 } }, 1);
     page("Atmosphere", { { M::Atmos, 0 } }, 1);
-    page("Echo + Spring", { { M::Echo, 0 }, { M::Spring, 0 } }, 1);
+    page("Echo + Spring", { { M::Echo, 0 }, { M::Spring, 0 }, { M::Echo2, 0 } }, 1);
     page("Hall", { { M::Reverb, 0 } }, 1);
     page("Drums", { { M::Drums, 0 } }, 1);
     page("Master", { { M::Master, 0 }, { M::Compose, 0 }, { M::Cue, 0 } }, 1);

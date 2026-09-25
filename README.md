@@ -23,7 +23,9 @@ The plan, the musical specification and the literature behind each building bloc
 - Harmony, sequencing and form after a style guide of the modern Berlin School: a chord track the bass
   follows under the unchanged sequence, sequencer transpositions, parallel changes of mode, eight modes;
   sequence archetypes, ratchets, probability gates, a doubled pulse, a sequence that loses its steps;
-  the open fifth at the end, the rooms and the lead's phrasing after the guide.
+  the open fifth at the end, the rooms and the lead's phrasing after the guide; a mode of its own for a
+  later phase, quantised random steps, the stereo field with a wandering drone, a second echo for the
+  counter rows, and concerts as albums with interludes.
 - Score cues over OSC for a visualiser (Kaleidoscope); stems; a gestures page and a style page.
 - The Quest app (built, not yet run on a headset), the release build with installer and pluginval, and the
   manual generator.

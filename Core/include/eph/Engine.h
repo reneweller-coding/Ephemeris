@@ -147,19 +147,21 @@ private:
         float gainR = 0.0f;     ///< level into the right channel
         float echo = 0.0f;      ///< send into the tape echo (and its springs)
         float reverb = 0.0f;    ///< send into the hall
+        float echo2 = 0.0f;     ///< send into the second echo (the rows)
     };
     /** @brief The buses of one span: the mix, the echo send, the hall send. */
     struct Buses {
         float* L; float* R;             ///< the dry mix (the output buffers)
         float* echoL; float* echoR;     ///< into the tape echo
         float* hallL; float* hallR;     ///< into the hall
+        float* echo2L; float* echo2R;   ///< into the second echo
     };
     void updateCell();
     void renderSpan(float* L, float* R, int n);
     /** @brief A voice's settings from a module laid out like the voice table (voice, lead, drone). */
     VoiceSettings voiceSettings(Module m, int instance, bool vibrato) const;
     /** @brief Level, equal-power pan (times @p width) and sends of strip @p s. */
-    void setStrip(int s, float levelDb, float pan, float echo, float reverb, float width = 1.0f);
+    void setStrip(int s, float levelDb, float pan, float echo, float reverb, float width = 1.0f, float echo2 = 0.0f);
     /** @brief Adds source @p source's output through its strip to the buses (and the meter); @p echoSend false
      *         leaves the echo send alone. */
     void mix(int source, const float* xl, const float* xr, int n, const Buses& b, bool echoSend = true);
@@ -187,13 +189,14 @@ private:
     Atmos atmos_;
     TapeEcho echo_;
     BbdEcho bbd_;          ///< echo.type BBD instead of the tape echo, on the same send
+    TapeEcho echo2_;       ///< the second echo (module echo2): its own time for the counter rows
     Plate plate_;          ///< reverb.type Plate instead of the hall, on the same send
     bool bbdOn_ = false, plateOn_ = false;   ///< echo.type and reverb.type at the current cell
     Spring spring_;
     Reverb reverb_;
     BusCompressor comp_;
     TruePeakLimiter limiter_;
-    float echoReturn_ = 0.0f, springReturn_ = 0.0f, reverbReturn_ = 0.0f, master_ = 1.0f;
+    float echoReturn_ = 0.0f, springReturn_ = 0.0f, reverbReturn_ = 0.0f, master_ = 1.0f, echo2Return_ = 0.0f;
     int transpose_ = 0;   ///< perform.transpose at the current cell, for the notes that start
     int tapeSingers_ = kSingers;   ///< setTapeSingers()
     float* const* stemL_ = nullptr;   ///< setStems(), left
@@ -210,13 +213,14 @@ private:
     struct SetCache {
         bool valid = false;                   ///< false: every setter runs at the next cell
         VoiceSettings voice[kModVoices];      ///< ModVoiceBank::set
-        float strip[kSources][5] = {};        ///< setStrip: level, pan, echo, reverb, width
+        float strip[kSources][6] = {};        ///< setStrip: level, pan, echo, reverb, width, echo 2
         TapeSettings tape;                    ///< TapeKeys::set
         StringSettings strings;               ///< StringMachine::set
         DrumSettings drums;                   ///< DrumKit::set
         AtmosSettings atmos;                  ///< Atmos::set
         EchoSettings echo;                    ///< TapeEcho::set, BbdEcho::set
         int echoType = -1;                    ///< which of the two took it
+        EchoSettings echo2;                   ///< the second echo's TapeEcho::set
         float reverb[7] = {};                 ///< Reverb::set or Plate::set, and which
         float spring[2] = {};                 ///< Spring::set
         float compress = 0.0f, ceiling = 0.0f;   ///< BusCompressor::set, TruePeakLimiter::set

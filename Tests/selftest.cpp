@@ -1354,6 +1354,36 @@ void testGuideExtras()
               fmt("%zu interludes, %d row notes in them, %zu pieces, Phrygian %d, Dorian at the end %d",
                   inter.size(), rowNotes, pieceStarts.size(), phrygian ? 1 : 0, dorianEnd ? 1 : 0));
     }
+    // The second echo: a row sent only into it comes back after its own time (an eighth: 0.5 beats), not before.
+    {
+        Score one;
+        one.clear(120.0);
+        one.notes.push_back({ 0.0, 0.1, Part::Row2, 57, 0.9f, false, false });
+        one.lengthBeats = 8.0;
+        auto render = [&](const char* setting) {
+            Engine e;
+            e.params().parseText("row2.echo=0 row2.reverb=0 echo2.time=1/8 echo2.feedback=0.3 echo2.return=0 master.level=0");
+            e.params().parseText(setting);
+            e.prepare(48000.0, 256);
+            e.load(one);
+            std::vector<float> out, L(256), R(256);
+            for (int done = 0; done < 48000 * 2; done += 256) {
+                e.process(L.data(), R.data(), 256);
+                for (int i = 0; i < 256; ++i) out.push_back(L[i] + R[i]);
+            }
+            return out;
+        };
+        const std::vector<float> dry = render("row2.echo2=0"), wet = render("row2.echo2=1");
+        auto energy = [&](double b0, double b1) {   // of the difference, between two beats at 120 BPM
+            double e = 0.0;
+            for (size_t i = static_cast<size_t>(b0 * 24000.0); i < static_cast<size_t>(b1 * 24000.0) && i < wet.size(); ++i)
+                e += double(wet[i] - dry[i]) * (wet[i] - dry[i]);
+            return e;
+        };
+        const double before = energy(0.1, 0.45), repeat = energy(0.5, 0.8);
+        check(repeat > 1e-3 && repeat > 100.0 * before, "the second echo returns a row after its own time",
+              fmt("difference %.2g before the eighth, %.2g after it", before, repeat));
+    }
 }
 
 /**
