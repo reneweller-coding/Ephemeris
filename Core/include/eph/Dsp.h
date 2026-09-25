@@ -112,7 +112,8 @@ inline float sin01(double phase01)
  */
 class Envelope {
 public:
-    enum class Stage { Idle, Attack, Decay, Sustain, Release };   ///< envelope stage
+    /** @brief Envelope stage. */
+    enum class Stage { Idle, Attack, Decay, Sustain, Release };
 
     /** @brief Sets the sample rate the times refer to. */
     void setSampleRate(double sr) { sr_ = sr; }
@@ -199,8 +200,12 @@ private:
  * Zero-delay feedback, stable under per-sample coefficient changes, all three outputs at once.
  */
 struct Svf {
-    float ic1 = 0, ic2 = 0;                   ///< integrator states
-    float a1 = 0, a2 = 0, a3 = 0, k = 1.0f;   ///< coefficients; k is the damping (2 = no resonance)
+    float ic1 = 0;     ///< first integrator state
+    float ic2 = 0;     ///< second integrator state
+    float a1 = 0;      ///< coefficient 1 / (1 + g (g + k))
+    float a2 = 0;      ///< coefficient g a1
+    float a3 = 0;      ///< coefficient g a2
+    float k = 1.0f;    ///< damping (2 = no resonance)
 
     /** @brief Cutoff and a 0..1 resonance (maps to damping 2 .. 0.1). */
     void set(float cutoffHz, float resonance, float sr) { setK(cutoffHz, 2.0f - 1.9f * clampv(resonance, 0.0f, 1.0f), sr); }
@@ -262,7 +267,9 @@ struct Smoother {
  * @brief One-pole DC blocker, y[n] = x[n] - x[n-1] + R y[n-1].
  */
 struct DcBlocker {
-    float x1 = 0.0f, y1 = 0.0f, r = 0.9995f;   ///< states and pole radius
+    float x1 = 0.0f;     ///< previous input
+    float y1 = 0.0f;     ///< previous output
+    float r = 0.9995f;   ///< pole radius
     /** @brief Sets the corner frequency. */
     void prepare(double sr, float hz = 5.0f) { r = 1.0f - static_cast<float>(kTwoPi * hz / sr); reset(); }
     /** @brief One sample. */
@@ -300,7 +307,8 @@ struct DcBlocker {
  * times as much in the passband.
  */
 struct BandLimit {
-    Svf a, b;   ///< the two Butterworth sections, in cascade
+    Svf a;   ///< first Butterworth section (damping 2 cos(pi/8))
+    Svf b;   ///< second Butterworth section (damping 2 cos(3 pi/8))
 
     /** @brief Sets the corner; it never goes above 0.4 fs, so a low sample rate degrades gracefully. */
     void prepare(double sr, float cornerHz = 18000.0f)

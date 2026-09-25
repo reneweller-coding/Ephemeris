@@ -31,20 +31,21 @@ const char* sectionName(SectionType t);
 
 /** @brief One section. */
 struct Section {
-    SectionType type = SectionType::Atmo;
+    SectionType type = SectionType::Atmo;   ///< what the section is
     int phase = 0;            ///< the sequence phase it belongs to (the Atmo to the first, a Bridge to the next)
     int index = 0;            ///< the n-th of its type in the phase (Build 0, 1, 2)
     double beat = 0.0;        ///< start
     double length = 16.0;     ///< beats
-    float e0 = 0.0f, e1 = 0.0f;   ///< energy at start and end
+    float e0 = 0.0f;          ///< energy at the start, 0..1
+    float e1 = 0.0f;          ///< energy at the end
 };
 
 /** @brief The form of one piece. */
 struct PieceForm {
-    std::vector<Section> sections;
+    std::vector<Section> sections;   ///< the sections, in order, without gaps
     std::vector<double> phaseBpm;   ///< tempo of each phase
     std::vector<int> phaseKey;      ///< semitones of each phase's key from the piece's
-    double lengthBeats = 0.0;
+    double lengthBeats = 0.0;       ///< the piece's length
     /** @brief The energy at @p beat, interpolated inside its section. */
     float energy(double beat) const;
     /** @brief The first section of @p type in @p phase, or null. */

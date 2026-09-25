@@ -32,6 +32,8 @@
 #include <cmath>
 #include <cstddef>
 
+/** @def EPH_VEC_PATH
+ *  @brief The vector path this translation unit is built for: 0 scalar, 1 AVX2, 2 NEON. */
 #if defined(EPH_FORCE_SCALAR)
   #define EPH_VEC_PATH 0
 #elif defined(EPH_NEON_SHIM) || defined(__aarch64__) || defined(_M_ARM64) || defined(__ARM_NEON) || defined(__ARM_NEON__)
@@ -166,8 +168,8 @@ inline float sumOrdered(VecF a)
 // ------------------------------------------------------------------------------------------------
 // Scalar: the lane type is float itself.
 // ------------------------------------------------------------------------------------------------
-constexpr int kVecWidth = 1;
-constexpr const char* kVecPathName = "scalar";
+constexpr int kVecWidth = 1;                         ///< lanes per vector
+constexpr const char* kVecPathName = "scalar";      ///< the path this translation unit was built for
 using VecF = float;   ///< one lane
 using MaskF = bool;   ///< one lane mask
 #endif

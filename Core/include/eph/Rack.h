@@ -89,8 +89,8 @@ public:
     /** @brief Every change of the transposer's offset so far, as (beat, semitones), for the lead to follow. */
     const std::vector<std::pair<double, int>>& shifts() const { return shiftLog_; }
     /** @brief The key's pitch class and the scale (compose.scale order) the rack plays in. */
-    int keyRoot() const { return keyRoot_; }
-    int scale() const { return scale_; }
+    int keyRoot() const { return keyRoot_; }   ///< the key's pitch class
+    int scale() const { return scale_; }       ///< the scale, compose.scale order
     /** @brief Division of a row in beats. */
     double divisionBeats(int row) const { return rows_[row].divBeats; }
 

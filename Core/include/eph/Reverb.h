@@ -68,6 +68,7 @@ public:
      * @brief Processes a stereo send.
      * @param inL,inR   send input
      * @param outL,outR receives the wet return (replaced)
+     * @param n         samples
      */
     void process(const float* inL, const float* inR, float* outL, float* outR, int n);
 
@@ -86,6 +87,7 @@ public:
      *        envelope (setDuck()). Does not apply the bar-line cut; see barGate().
      * @param inL,inR   send input (also the duck's own sidechain)
      * @param outL,outR receives the ducked wet return (replaced)
+     * @param n         samples
      */
     void processDucked(const float* inL, const float* inR, float* outL, float* outR, int n);
 

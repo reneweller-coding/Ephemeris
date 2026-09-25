@@ -32,6 +32,7 @@
 
 namespace eph {
 
+/** @brief The ladder, one filter per lane of @p V (see the file comment). */
 template <class V>
 struct LadderT {
     V s[4];     ///< trapezoidal integrator states

@@ -61,6 +61,7 @@ void usage()
 
 } // namespace
 
+/** @brief Parses the arguments (see usage()), composes or loads, renders, writes the files, reports. */
 int main(int argc, char** argv)
 {
     double bars = 0.0, minutes = 0.0, rampTo = 0.0, rate = 48000.0;

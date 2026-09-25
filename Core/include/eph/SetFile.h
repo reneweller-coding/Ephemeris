@@ -32,7 +32,7 @@ class ParamStore;
 
 /** @brief The rerolls of a piece or concert: unit name -> how often it was drawn again. */
 struct Curation {
-    std::map<std::string, int> rerolls;
+    std::map<std::string, int> rerolls;   ///< unit name -> reroll count
     /** @brief The counter of @p unit (0 if never rerolled). */
     int count(const std::string& unit) const { const auto it = rerolls.find(unit); return it == rerolls.end() ? 0 : it->second; }
     /** @brief Draws @p unit once more. */
@@ -41,10 +41,10 @@ struct Curation {
 
 /** @brief Everything a set file holds. */
 struct SetFile {
-    uint64_t seed = 1;
+    uint64_t seed = 1;       ///< the seed of the piece or concert
     double minutes = 0.0;    ///< piece length (0: compose.piece_minutes)
     double concert = 0.0;    ///< concert length (0: one piece)
-    Curation curation;
+    Curation curation;       ///< the rerolls
     std::string params;      ///< the parameters that differ from their defaults, as ParamStore text
 };
 

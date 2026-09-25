@@ -23,7 +23,7 @@
  *
  * **Curation** (SetFile.h): every stream can be drawn again on its own; the rest stays bit for bit.
  *
- * Not yet: the drums (the profile's chance is drawn but nothing plays), the composer thread and ring.
+ * The drums come in from the second build to the end of the peak in the styles that have them (Drums.h).
  */
 #pragma once
 #include "eph/Params.h"

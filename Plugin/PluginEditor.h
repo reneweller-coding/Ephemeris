@@ -8,7 +8,7 @@
  * rows and the voices with a selector for the instance), as in Noctuary and Phosphene, so a parameter
  * that exists is on the panel without anyone writing it there.
  *
- * `EPH_SHOT=<file.png>` (and `EPH_TAB=<index>`) render the panel into a picture after the first piece is
+ * `EPH_SHOT` (a PNG file) and `EPH_TAB` (a tab index) render the panel into a picture after the first piece is
  * composed and quit the standalone -- how the layout is checked without a person looking.
  */
 #pragma once
@@ -20,8 +20,14 @@
 /** @brief The parameters of one module instance as knobs, menus and switches. */
 class ParamPage final : public juce::Component {
 public:
+    /**
+     * @brief A page for the modules in @p groups.
+     * @param p         the processor
+     * @param groups    module and instance pairs, shown one after the other
+     * @param instances how many instances the modules have; above one, a selector picks the instance
+     */
     ParamPage(EphemerisProcessor& p, std::vector<std::pair<eph::Module, int>> groups, int instances);
-    void resized() override;
+    void resized() override;   ///< lays the controls out in a grid
 
 private:
     void build();
@@ -39,9 +45,9 @@ private:
 /** @brief The sections of the piece as blocks, with the playhead. */
 class ArrangeView final : public juce::Component {
 public:
-    explicit ArrangeView(EphemerisProcessor& p) : proc_(p) {}
-    void paint(juce::Graphics& g) override;
-    void mouseDown(const juce::MouseEvent& e) override;
+    explicit ArrangeView(EphemerisProcessor& p) : proc_(p) {}   ///< shows @p p's score
+    void paint(juce::Graphics& g) override;                     ///< the sections and the playhead
+    void mouseDown(const juce::MouseEvent& e) override;         ///< jumps to the clicked position
 
 private:
     EphemerisProcessor& proc_;
@@ -50,10 +56,10 @@ private:
 /** @brief The editor. */
 class EphemerisEditor final : public juce::AudioProcessorEditor, private juce::Timer {
 public:
-    explicit EphemerisEditor(EphemerisProcessor& p);
-    ~EphemerisEditor() override;
-    void paint(juce::Graphics& g) override;
-    void resized() override;
+    explicit EphemerisEditor(EphemerisProcessor& p);   ///< builds the panel for @p p
+    ~EphemerisEditor() override;                       ///< stops the refresh timer
+    void paint(juce::Graphics& g) override;            ///< the background
+    void resized() override;                           ///< the top bar, the arrange view, the tabs
 
 private:
     void timerCallback() override;

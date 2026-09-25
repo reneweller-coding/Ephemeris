@@ -1,0 +1,21 @@
+# Doxygen configuration for Ephemeris (after Phosphene's). Run from the repository root:  doxygen docs/Doxyfile
+PROJECT_NAME           = Ephemeris
+PROJECT_BRIEF          = "Generator for long Berlin-school pieces and concerts"
+OUTPUT_DIRECTORY       = build/doxygen
+INPUT                  = Core/include Core/src Plugin Tools/render Tests README.md
+FILE_PATTERNS          = *.h *.cpp *.md
+RECURSIVE              = YES
+EXCLUDE                = Tests/neonshim
+USE_MDFILE_AS_MAINPAGE = README.md
+EXTRACT_ALL            = YES
+EXTRACT_PRIVATE        = NO
+EXTRACT_STATIC         = YES
+JAVADOC_AUTOBRIEF      = NO
+DISTRIBUTE_GROUP_DOC   = YES
+MARKDOWN_SUPPORT       = YES
+GENERATE_HTML          = YES
+GENERATE_LATEX         = NO
+HAVE_DOT               = NO
+QUIET                  = YES
+WARN_IF_UNDOCUMENTED   = NO
+INPUT_ENCODING         = UTF-8

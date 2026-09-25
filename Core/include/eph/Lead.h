@@ -31,7 +31,8 @@ namespace eph {
 struct LeadPlan {
     int keyRoot = 9;                ///< pitch class of the key
     int scale = 0;                  ///< compose.scale order
-    int low = 64, high = 86;        ///< register (MIDI notes)
+    int low = 64;                   ///< lowest note of the register (MIDI)
+    int high = 86;                  ///< highest note
     float intensity = 0.5f;         ///< 0..1: density of the phrases, fewer rests
     std::vector<std::pair<double, int>> shifts;   ///< the transposer's roots over time (Rack::shifts)
 };

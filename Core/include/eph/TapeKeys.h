@@ -50,7 +50,7 @@ enum class TapeSet : int { Choir = 0, Strings, Flute, Count };
 
 /** @brief Settings for the following samples. */
 struct TapeSettings {
-    TapeSet set = TapeSet::Choir;
+    TapeSet set = TapeSet::Choir;   ///< the tapes of the next keys pressed
     float vowel = 0.0f;         ///< 0 "aah" .. 1 "ooh" (choir)
     float wowCents = 6.0f;      ///< capstan wow depth
     float flutterCents = 2.0f;  ///< capstan flutter depth

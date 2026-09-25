@@ -27,18 +27,19 @@
 /** @brief One entry of the ParamStore as a host parameter. */
 class StoreParameter final : public juce::RangedAudioParameter {
 public:
+    /** @brief Binds parameter @p id of @p store (which outlives this object) under the display name @p name. */
     StoreParameter(eph::ParamStore& store, int id, const juce::String& name);
-    float getValue() const override;
-    void setValue(float newValue) override;
-    float getDefaultValue() const override;
-    juce::String getName(int maximumStringLength) const override;
-    juce::String getLabel() const override;
-    int getNumSteps() const override;
-    bool isDiscrete() const override;
-    bool isBoolean() const override;
-    juce::String getText(float normalisedValue, int maximumStringLength) const override;
-    float getValueForText(const juce::String& text) const override;
-    const juce::NormalisableRange<float>& getNormalisableRange() const override { return range_; }
+    float getValue() const override;   ///< the store's value, normalised
+    void setValue(float newValue) override;   ///< writes the store (relaxed atomic)
+    float getDefaultValue() const override;   ///< the descriptor's default, normalised
+    juce::String getName(int maximumStringLength) const override;   ///< the display name (0: no limit)
+    juce::String getLabel() const override;   ///< the unit
+    int getNumSteps() const override;   ///< steps of a discrete parameter
+    bool isDiscrete() const override;   ///< Int, Choice and Toggle are discrete
+    bool isBoolean() const override;   ///< a Toggle is boolean
+    juce::String getText(float normalisedValue, int maximumStringLength) const override;   ///< the value as the panel shows it
+    float getValueForText(const juce::String& text) const override;   ///< parses a choice name, On/Off or a number
+    const juce::NormalisableRange<float>& getNormalisableRange() const override { return range_; }   ///< the store's own mapping
     int paramId() const { return id_; }   ///< the id in the store
 
 private:
@@ -51,60 +52,61 @@ private:
 /** @brief The Ephemeris processor. */
 class EphemerisProcessor final : public juce::AudioProcessor, private juce::Thread, private juce::Timer {
 public:
-    EphemerisProcessor();
-    ~EphemerisProcessor() override;
+    EphemerisProcessor();                            ///< registers every parameter and composes a first piece
+    ~EphemerisProcessor() override;                  ///< stops the composer and the exporter
 
     // Composing and curating.
     void compose();                                  ///< compose with the current settings, seed and rerolls
     void newSeed();                                  ///< a fresh seed, no rerolls, then compose
     void reroll(const juce::String& unit);           ///< draw one unit again, then compose
-    bool isComposing() const { return composing_.load(); }
-    uint64_t seed() const { return seed_; }
+    bool isComposing() const { return composing_.load(); }   ///< whether the composer thread is at work
+    uint64_t seed() const { std::lock_guard<std::mutex> g(lock_); return seed_; }   ///< the seed of what plays
     double concertMinutes() const;                   ///< compose.concert_minutes
     juce::String curationText() const;               ///< the rerolls, for the panel
 
     // Transport (the standalone's; a host drives its own).
-    void setPlaying(bool on) { playing_ = on; }
-    bool isPlaying() const { return playing_.load(); }
-    void seekTo(double beat) { seekRequest_ = beat; }
-    double positionBeats() const { return position_.load(); }
+    void setPlaying(bool on) { playing_ = on; }      ///< play or stop (the standalone's transport)
+    bool isPlaying() const { return playing_.load(); }   ///< whether the standalone plays
+    void seekTo(double beat) { seekRequest_ = beat; }    ///< jump to @p beat at the next block
+    double positionBeats() const { return position_.load(); }   ///< where the audio thread is, in beats
     /** @brief A copy of the markers and the length, for the arrange view. */
     void arrangement(std::vector<eph::Marker>& markers, double& lengthBeats, double& seconds) const;
 
     // Files.
-    bool saveSet(const juce::File& file);
-    bool loadSet(const juce::File& file);
+    bool saveSet(const juce::File& file);            ///< writes seed, lengths, rerolls and parameters as an .ephset
+    bool loadSet(const juce::File& file);            ///< reads an .ephset and composes it
     /** @brief Renders the current score offline to WAV and MIDI beside each other, on a thread; returns at once. */
     void exportTo(const juce::File& wav);
     juce::String status() const;                     ///< one line for the panel
     /**
-     * @brief The test mode (EPH_SEED, EPH_PLAY=<seconds>, EPH_RECORD=<file.wav>): a fixed seed, play at once,
+     * @brief The test mode (EPH_SEED, EPH_PLAY = seconds, EPH_RECORD = a WAV file): a fixed seed, play at once,
      *        record what the audio thread renders; recordingDone() when the seconds are full.
      */
     bool recordingDone() const { return recordTarget_ > 0 && recordPos_.load() >= recordTarget_; }
     void writeRecording();                            ///< writes the recording (message thread)
 
-    eph::ParamStore& store() { return engine_.params(); }
+    eph::ParamStore& store() { return engine_.params(); }   ///< the engine's parameters
+    /** @brief The host parameter of store id @p id, or null. */
     StoreParameter* parameter(int id) { return id >= 0 && id < static_cast<int>(params_.size()) ? params_[static_cast<size_t>(id)] : nullptr; }
 
-    // juce::AudioProcessor
-    void prepareToPlay(double sampleRate, int samplesPerBlock) override;
-    void releaseResources() override {}
-    bool isBusesLayoutSupported(const BusesLayout& layouts) const override;
-    void processBlock(juce::AudioBuffer<float>&, juce::MidiBuffer&) override;
-    juce::AudioProcessorEditor* createEditor() override;
-    bool hasEditor() const override { return true; }
-    const juce::String getName() const override { return JucePlugin_Name; }
-    bool acceptsMidi() const override { return false; }
-    bool producesMidi() const override { return false; }
-    double getTailLengthSeconds() const override { return 8.0; }
-    int getNumPrograms() override { return 1; }
-    int getCurrentProgram() override { return 0; }
-    void setCurrentProgram(int) override {}
-    const juce::String getProgramName(int) override { return "Set"; }
-    void changeProgramName(int, const juce::String&) override {}
-    void getStateInformation(juce::MemoryBlock& destData) override;
-    void setStateInformation(const void* data, int sizeInBytes) override;
+    // juce::AudioProcessor: a stereo instrument without MIDI, one program, the state as XML.
+    void prepareToPlay(double sampleRate, int samplesPerBlock) override;   ///< prepares the engine and reloads the score
+    void releaseResources() override {}   ///< nothing to release
+    bool isBusesLayoutSupported(const BusesLayout& layouts) const override;   ///< stereo out only
+    void processBlock(juce::AudioBuffer<float>&, juce::MidiBuffer&) override;   ///< plays, following the host's playhead
+    juce::AudioProcessorEditor* createEditor() override;   ///< the panel
+    bool hasEditor() const override { return true; }   ///< it has one
+    const juce::String getName() const override { return JucePlugin_Name; }   ///< "Ephemeris"
+    bool acceptsMidi() const override { return false; }   ///< no MIDI in
+    bool producesMidi() const override { return false; }   ///< no MIDI out (the export writes files)
+    double getTailLengthSeconds() const override { return 8.0; }   ///< the rooms ring on
+    int getNumPrograms() override { return 1; }   ///< one program
+    int getCurrentProgram() override { return 0; }   ///< always the one
+    void setCurrentProgram(int) override {}   ///< nothing to switch
+    const juce::String getProgramName(int) override { return "Set"; }   ///< "Set"
+    void changeProgramName(int, const juce::String&) override {}   ///< not renameable
+    void getStateInformation(juce::MemoryBlock& destData) override;   ///< seed, rerolls and parameters as XML
+    void setStateInformation(const void* data, int sizeInBytes) override;   ///< restores them and composes
 
 private:
     void run() override;          // the composer thread

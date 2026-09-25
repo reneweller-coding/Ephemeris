@@ -24,7 +24,8 @@ struct PadPlan {
     Part part = Part::TapeKeys;     ///< which part plays them
     int keyRoot = 9;                ///< pitch class of the key
     int scale = 0;                  ///< compose.scale order
-    int low = 50, high = 74;        ///< register
+    int low = 50;                   ///< lowest note of the register (MIDI)
+    int high = 74;                  ///< highest note
     double restrikeSeconds = 7.0;   ///< longest a chord is held before it is struck again
     float colour = 0.3f;            ///< chance of a seventh or a ninth
     std::vector<std::pair<double, int>> shifts;   ///< the transposer's roots over time

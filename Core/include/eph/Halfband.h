@@ -76,11 +76,13 @@ struct HalfbandDown {
  */
 template <class V>
 struct HalfbandUp {
-    HalfbandDesign d;
-    V x[kHalfbandMaxCoefs];
-    V y[kHalfbandMaxCoefs];
+    HalfbandDesign d;                ///< the coefficients
+    V x[kHalfbandMaxCoefs];          ///< all-pass input states
+    V y[kHalfbandMaxCoefs];          ///< all-pass output states
 
+    /** @brief Takes a design and clears the states. */
     void setup(const HalfbandDesign& design) { d = design; reset(); }
+    /** @brief Clears the states. */
     void reset() { for (int i = 0; i < kHalfbandMaxCoefs; ++i) { x[i] = lanes<V>(0.0f); y[i] = lanes<V>(0.0f); } }
 
     /** @brief One interpolation step; @p o0 is the earlier output sample, @p o1 the later. */

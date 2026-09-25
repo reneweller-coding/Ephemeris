@@ -386,4 +386,5 @@ void EphemerisProcessor::setStateInformation(const void* data, int sizeInBytes)
 
 juce::AudioProcessorEditor* EphemerisProcessor::createEditor() { return new EphemerisEditor(*this); }
 
+/** @brief The plugin's factory, called by the JUCE wrappers. */
 juce::AudioProcessor* JUCE_CALLTYPE createPluginFilter() { return new EphemerisProcessor(); }

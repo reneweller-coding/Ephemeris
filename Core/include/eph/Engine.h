@@ -2,8 +2,10 @@
  * @file Engine.h
  * @brief The engine: plays a score through the voices, the space and the master.
  *
- * Phases 1 and 2 (PLAN 12): the rows of the rack and the lead on their modular voices, the gestures of the score on the
- * voices' and the echo's knobs, a mixer with pan and echo send, the tape echo, the master level.
+ * Everything that sounds: the rows of the rack, the lead and the drone on modular voices, the tape keys,
+ * the string machine, the drums and the atmosphere; the gestures of the score on every knob; a channel
+ * strip per source with level, pan and sends; the tape echo with its springs, the hall; the master with
+ * a gentle bus compressor and a true-peak limiter.
  *
  * **Time** is the sample counter; beats are derived from it through the tempo map (Clock.h), never
  * accumulated, so a three-hour concert does not drift.
@@ -13,8 +15,10 @@
  * sample (the self test renders with blocks of 1, 37 and 512 and compares bits). The rule and the
  * raster are Phosphene's.
  *
- * The composer thread and its lock-free event ring come with the composer (Phase 4); until then the
- * score is handed over whole with load(), not from the audio thread.
+ * **Loading.** The score is handed over whole with load(), which allocates and so must not run on the
+ * audio thread; the plugin loads on the message thread with processing suspended (Plugin/). A composer
+ * thread feeding a lock-free event ring, as in Phosphene, is not needed while a piece is composed in
+ * seconds; seek() lets a host move the playhead.
  */
 #pragma once
 #include "eph/Atmos.h"

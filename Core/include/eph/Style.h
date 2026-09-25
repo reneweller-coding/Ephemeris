@@ -23,11 +23,15 @@ namespace eph {
 
 /** @brief One style profile. */
 struct StyleProfile {
-    const char* name;
-    float bpmLow, bpmHigh;               ///< tempo range
-    float minutesLow, minutesHigh;       ///< piece length when the user has not set one
-    int phasesLow, phasesHigh;           ///< sequence phases per piece
-    float introShare, codaShare;         ///< the atmosphere before the first and after the last phase
+    const char* name;                    ///< the profile's name, as in compose.style
+    float bpmLow;                        ///< lowest tempo
+    float bpmHigh;                       ///< highest tempo
+    float minutesLow;                    ///< shortest piece in a concert
+    float minutesHigh;                   ///< longest piece in a concert
+    int phasesLow;                       ///< fewest sequence phases per piece
+    int phasesHigh;                      ///< most sequence phases per piece
+    float introShare;                    ///< share of the piece in the atmosphere before the first phase
+    float codaShare;                     ///< share of the piece in the coda after the last phase
     float newTempoChance;                ///< a later phase in a tempo of its own
     float newKeyChance;                  ///< a later phase in a key of its own
     int peakRows;                        ///< note rows sounding at the peak (bass included)
@@ -35,7 +39,11 @@ struct StyleProfile {
     float mutation;                      ///< mutation chance per cycle of the note rows
     RowDivision transposerDivision;      ///< how slowly the roots move
     int transposerLength;                ///< steps of the transposer row
-    float tapeChance, stringsChance, leadChance, bleepChance, drumsChance;   ///< layers
+    float tapeChance;                    ///< chance that a piece has the tape keys
+    float stringsChance;                 ///< chance of the string machine
+    float leadChance;                    ///< chance of a lead section in a phase
+    float bleepChance;                   ///< chance of the atmosphere's bleeps
+    float drumsChance;                   ///< chance of drums
     TapeSet tape;                        ///< the tape set of the tape keys
     float leadIntensity;                 ///< density of the lead's phrases
     HandStyle hands;                     ///< timing of the hands
