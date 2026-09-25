@@ -3,6 +3,7 @@
  * @brief The gestures page (EditorGestures.h).
  */
 #include "EditorGestures.h"
+#include "EditorTheme.h"
 #include <algorithm>
 #include <cmath>
 #include <map>
@@ -10,8 +11,8 @@
 using namespace eph;
 
 namespace {
-const juce::Colour kBack(0xff15171c), kInk(0xffd8d4c8), kDim(0xff8a8f99), kFaint(0xff2b2f38), kPlayhead(0xffe8b25c);
-const juce::Colour kHand[2] = { juce::Colour(0xffe0a458), juce::Colour(0xff6fb8ae) };   ///< left hand warm, right hand cool
+const juce::Colour kBack = ephui::colour::bg, kInk = ephui::colour::ink, kDim = ephui::colour::dim, kFaint = ephui::colour::edge, kPlayhead = ephui::colour::amber;
+const juce::Colour kHand[2] = { ephui::familyColour(ephui::Family::Source), ephui::familyColour(ephui::Family::Motion) };   ///< left hand warm, right hand cool
 constexpr float kNameWidth = 150.0f;
 constexpr float kHandsHeight = 22.0f;
 }

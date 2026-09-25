@@ -28,6 +28,7 @@ private:
     void timerCallback() override;            ///< the bindings and the learn state as they are
     EphemerisProcessor& proc_;                ///< the processor
     std::unique_ptr<ParamPage> params_;       ///< the perform module's controls
+    int controlsHeight_ = 150;                ///< the height the controls took at the last layout
     juce::OwnedArray<juce::Label> bindings_;  ///< "Filter: CC 1", one per control
     juce::OwnedArray<juce::TextButton> learn_;   ///< one per control
     std::vector<int> ids_;                    ///< the store ids of the controls

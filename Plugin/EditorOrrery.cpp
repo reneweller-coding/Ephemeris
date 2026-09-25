@@ -3,6 +3,7 @@
  * @brief The rack page and its orrery (EditorOrrery.h).
  */
 #include "EditorOrrery.h"
+#include "EditorTheme.h"
 #include "PluginEditor.h"
 #include "eph/Dsp.h"
 #include <cmath>
@@ -11,7 +12,7 @@ using namespace eph;
 
 namespace {
 
-const juce::Colour kBack(0xff15171c), kInk(0xffd8d4c8), kDim(0xff8a8f99), kFaint(0xff3a3f4a), kSun(0xffe8b25c);
+const juce::Colour kBack = ephui::colour::bg, kInk = ephui::colour::ink, kDim = ephui::colour::dim, kFaint = ephui::colour::faint, kSun = ephui::colour::amber;
 
 /** @brief A colour per row, warm inside, cool outside. */
 juce::Colour rowColour(int r)
@@ -205,7 +206,9 @@ void OrreryView::paint(juce::Graphics& g)
 RackPage::RackPage(EphemerisProcessor& p, std::unique_ptr<ParamPage> params) : orrery_(p), params_(std::move(params))
 {
     addAndMakeVisible(orrery_);
-    addAndMakeVisible(*params_);
+    view_.setViewedComponent(params_.get(), false);
+    view_.setScrollBarsShown(true, false);
+    addAndMakeVisible(view_);
 }
 
 RackPage::~RackPage() = default;
@@ -215,5 +218,5 @@ void RackPage::resized()
     auto r = getLocalBounds();
     const int side = juce::jmin(r.getHeight(), r.getWidth() / 2);
     orrery_.setBounds(r.removeFromLeft(side));
-    params_->setBounds(r);
+    ScrollingPage::fit(*params_, view_, r);
 }

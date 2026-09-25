@@ -10,7 +10,17 @@ verschiedener Länge um einen gemeinsamen Grundton, die nur selten wieder zusamm
 
 ## Stand der Umsetzung
 
-**In Arbeit (25.09.2026, nachts): Gegen die Langeweile, Teil 2 -- Variationsplaner, Presets, Flächen-Synth, Wavetables.**
+**Erledigt (26.09.2026): Die Oberfläche als Instrumenten-Panel.** Auftrag: GUI und Synth-Tabs gefielen nicht, Funktionsgruppen
+wie in Phosphene, wichtige Encoder größer (Cutoff, Streichfett), ein stimmiges Farbschema für moderne Berlin School,
+Maximieren-Knopf. Umgesetzt: `Plugin/EditorTheme.*` -- Palette aus dem Logo (Mitternachtsgrund, Pergament-Text, die fünf
+Planeten als Funktionsfamilien: Bernstein Quellen, Kupfer Filter, Salbei Hüllkurven, Petrol Bewegung, Stahlblau Raum/Mix;
+Sonnen-Bernstein als Akzent), ein eigenes LookAndFeel (Knopf mit Wertebogen in Familienfarbe, Schalter mit Lampe, flache
+Tabs), `layoutOf()` mit den Gruppen aller Module (große Encoder mit `*`), ParamPage als Panel aus Gruppenkästen (scrollt
+bei Bedarf), Editor-Körper skaliert mit dem Fenster (Phosphene-Art), Maximieren-Knopf und F11/Vollbild im Standalone.
+Beobachtet: `vst3test` fiel im Release-Lauf einmal durch (unter Volllast klang das Plugin nicht rechtzeitig), allein und im
+zweiten Lauf grün -- bei Wiederholung die Wartezeit des Tests erhöhen.
+
+**Erledigt (25./26.09.2026): Gegen die Langeweile, Teil 2 -- Variationsplaner, Presets, Flächen-Synth, Wavetables.**
 Auftrag des Nutzers nach der Literaturfrage ("Ja, bitte mache das so"; Wavetables aus dem AmbientSynth weiterverwenden,
 "gerne auch Samples"). Befund gegen Stilguide 4.3/5.2/6.4/7.1, Garcia (MTO 11.4, 2005), 0zk und Stürtzers Waldorf-Seite:
 Bass und Hauptsequenz laufen minutenlang identisch (Mutation nur mit 10-30 % je 16-Takt-Block), acht der 14

@@ -74,6 +74,16 @@ piece offline as a 24-bit WAV and a MIDI file beside it, with the gestures as co
 choose so, the stems: a WAV per channel strip and one for the rooms in a folder beside the mix, whose sum
 is the mix before the master.
 
+The panel. Every synth's page is laid out as an instrument's panel: its controls in titled groups --
+Oscillators, Wavetable, Filter, Envelopes, Mix, Sends, and on the string machine Registers, Tone, Crescendo and
+Ensemble as on a Streichfett -- and the controls a hand goes to first as large encoders: the cutoff and the
+resonance, the registration and the ensemble, the pad synth's place in its table, the level. The colours say what a
+control does, the same on every page -- they are the logo's five planets: amber for the sources (oscillators,
+tapes, registers), copper for the filters, sage for the envelopes, teal for everything that moves by itself (LFOs,
+scans, ensembles, the echoes' time), steel blue for the room and the mix; the sun's amber marks the page in front
+and the transport. A page taller than the window scrolls. The standalone's window can be maximised, and Full
+screen (or F11; Esc leaves it) fills the screen; the whole panel grows with the window.
+
 Below, the arrange view shows the sections of the piece -- the atmosphere at the start, the entry of the
 rows, the builds, the lead, the peak, the bridges, the fade -- with the playhead. Click to jump.
 

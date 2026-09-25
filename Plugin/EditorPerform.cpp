@@ -3,13 +3,13 @@
  * @brief The perform page (EditorPerform.h).
  */
 #include "EditorPerform.h"
+#include "EditorTheme.h"
 #include "PluginEditor.h"
 
 using namespace eph;
 
 namespace {
-const juce::Colour kInk(0xffd8d4c8), kDim(0xff8a8f99), kAccent(0xffc9a45c);
-constexpr int kControlsHeight = 150;
+const juce::Colour kInk = ephui::colour::ink, kDim = ephui::colour::dim, kAccent = ephui::colour::amber;
 }
 
 PerformPage::PerformPage(EphemerisProcessor& p, std::unique_ptr<ParamPage> params) : proc_(p), params_(std::move(params))
@@ -54,7 +54,8 @@ void PerformPage::timerCallback()
 void PerformPage::resized()
 {
     auto r = getLocalBounds();
-    params_->setBounds(r.removeFromTop(kControlsHeight));
+    controlsHeight_ = params_->heightFor(r.getWidth());   // the controls' group as tall as it draws itself
+    params_->setBounds(r.removeFromTop(controlsHeight_));
     r.removeFromTop(10);
     r = r.reduced(16, 0);
     for (int i = 0; i < bindings_.size(); ++i) {
@@ -68,7 +69,7 @@ void PerformPage::resized()
 void PerformPage::paint(juce::Graphics& g)
 {
     auto r = getLocalBounds().reduced(16, 0);
-    r.removeFromTop(kControlsHeight + 10 + 30 * bindings_.size() + 12);
+    r.removeFromTop(controlsHeight_ + 10 + 30 * bindings_.size() + 12);
     g.setColour(kDim);
     g.setFont(juce::Font(juce::FontOptions(13.0f)));
     g.drawFittedText("A MIDI keyboard's keys transpose the rows by their distance from middle C (C3 plays as composed); "

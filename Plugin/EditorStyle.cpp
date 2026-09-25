@@ -3,6 +3,7 @@
  * @brief The style page (EditorStyle.h).
  */
 #include "EditorStyle.h"
+#include "EditorTheme.h"
 #include "PluginEditor.h"
 #include "eph/compose/Style.h"
 #include <functional>
@@ -10,7 +11,7 @@
 using namespace eph;
 
 namespace {
-const juce::Colour kBack(0xff1e2129), kInk(0xffd8d4c8), kDim(0xff8a8f99), kFaint(0xff2b2f38), kAccent(0xffc9a45c);
+const juce::Colour kBack = ephui::colour::panel, kInk = ephui::colour::ink, kDim = ephui::colour::dim, kFaint = ephui::colour::edge, kAccent = ephui::colour::amber;
 
 juce::String percent(float x) { return juce::String(juce::roundToInt(100.0f * x)) + " %"; }
 juce::String range(double a, double b, int decimals = 0)

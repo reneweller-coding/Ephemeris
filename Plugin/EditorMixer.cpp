@@ -3,6 +3,7 @@
  * @brief The mixer page (EditorMixer.h).
  */
 #include "EditorMixer.h"
+#include "EditorTheme.h"
 #include "eph/Presets.h"
 #include <cmath>
 
@@ -17,9 +18,9 @@ constexpr double kFallDbPerSecond = 20.0;
 constexpr double kRmsRelease = 0.3;  ///< seconds for the RMS bar to fall by 1/e of its distance
 
 // The panel's colours (PluginEditor.cpp) and the meter's (Phosphene's).
-const juce::Colour kGroup(0xff252932), kMeterBack(0xff111318), kEdge(0xff343945);
-const juce::Colour kInk(0xffd8d4c8), kDim(0xff8a8f99), kFaint(0xff5d6273);
-const juce::Colour kGreen(0xff67e8a0), kWarm(0xffff9a4d), kRed(0xffff6b6b);
+const juce::Colour kGroup = ephui::colour::group, kMeterBack = ephui::colour::bg, kEdge = ephui::colour::edge;
+const juce::Colour kInk = ephui::colour::ink, kDim = ephui::colour::dim, kFaint = ephui::colour::faint;
+const juce::Colour kGreen = ephui::colour::green, kWarm = ephui::colour::amber, kRed = ephui::colour::red;
 
 float toDb(float linear) { return linear > 1.0e-5f ? 20.0f * std::log10(linear) : -100.0f; }
 
@@ -221,6 +222,7 @@ MixerConsole::MixerConsole(EphemerisProcessor& proc) : proc_(proc)
         knobs.emplace_back(p.id(m, inst, reverbSend), "Hall");
         if (shimmerSend >= 0) knobs.emplace_back(p.id(m, inst, shimmerSend), "Shimmer");
         synths_.push_back({ c < kRows ? M::Voice : m, c < kRows ? c : 0 });
+        colour = ephui::channelColour(c);   // (26.09.2026: the families' palette, EditorTheme.h)
         auto strip = std::make_unique<MixerStrip>(proc, Engine::channelName(c), colour, p.id(m, inst, level), knobs);
         addAndMakeVisible(*strip);
         strips_.push_back(std::move(strip));

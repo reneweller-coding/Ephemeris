@@ -59,4 +59,5 @@ public:
 private:
     OrreryView orrery_;                    ///< the orbits
     std::unique_ptr<ParamPage> params_;    ///< the rows' parameters
+    juce::Viewport view_;                  ///< ... scrolling where they need more height
 };

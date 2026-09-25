@@ -8,6 +8,7 @@
 #include "EditorPerform.h"
 #include "EditorGestures.h"
 #include "EditorStyle.h"
+#include "EditorTheme.h"
 #include "eph/compose/Composer.h"
 #include "eph/Presets.h"
 #include <map>
@@ -17,20 +18,27 @@ using namespace eph;
 
 namespace {
 
-const juce::Colour kBack(0xff15171c), kPanel(0xff1e2129), kInk(0xffd8d4c8), kDim(0xff8a8f99), kAccent(0xffc9a45c);
+const juce::Colour kBack = ephui::colour::bg, kPanel = ephui::colour::panel, kInk = ephui::colour::ink, kDim = ephui::colour::dim,
+                   kAccent = ephui::colour::amber;
 
-/** @brief Colour of a section by the first word of its marker. */
+/**
+ * @brief Colour of a section by the first word of its marker: the families' colours, darkened -- the spaces (the
+ *        atmosphere, the bridges, the fade) in the room's blue, the machine's stages from the sources' amber through the
+ *        filter's copper at the peak, the breakdown in the teal of what moves by itself.
+ */
 juce::Colour sectionColour(const juce::String& name)
 {
+    using ephui::Family;
     const juce::String n = name.fromLastOccurrenceOf(": ", false, false);
-    if (n.startsWith("Atmo") || n.startsWith("Ausklang")) return juce::Colour(0xff2d3a4f);
-    if (n.startsWith("Einsatz")) return juce::Colour(0xff3b4a3a);
-    if (n.startsWith("Aufbau")) return juce::Colour(0xff4d5a33);
-    if (n.startsWith("Lead")) return juce::Colour(0xff6a5a2e);
-    if (n.startsWith("Hoehepunkt")) return juce::Colour(0xff7a4a2a);
-    if (n.startsWith("Abbau")) return juce::Colour(0xff4a3a4f);
-    if (n.startsWith("Bruecke")) return juce::Colour(0xff34405a);
-    return juce::Colour(0xff333844);
+    auto tone = [](Family f, float k) { return ephui::familyColour(f).interpolatedWith(ephui::colour::bg, k); };
+    if (n.startsWith("Atmo") || n.startsWith("Ausklang") || n.startsWith("Zwischenspiel")) return tone(Family::Space, 0.72f);
+    if (n.startsWith("Bruecke")) return tone(Family::Space, 0.64f);
+    if (n.startsWith("Einsatz")) return tone(Family::Source, 0.78f);
+    if (n.startsWith("Aufbau")) return tone(Family::Source, 0.68f);
+    if (n.startsWith("Lead")) return tone(Family::Source, 0.56f);
+    if (n.startsWith("Hoehepunkt")) return tone(Family::Filter, 0.52f);
+    if (n.startsWith("Abbau")) return tone(Family::Motion, 0.66f);
+    return tone(Family::Space, 0.8f);
 }
 
 } // namespace
@@ -200,48 +208,181 @@ void ParamPage::build()
     buttons_.clear();
     controls_.clear();
     labels_.clear();
+    boxes_.clear();
     const int inst = instances_ > 1 ? instance_.getSelectedId() - 1 : 0;
     ParamStore& s = proc_.store();
+    // A control for parameter id, in a box of the given colour: a knob, a menu or a switch by its descriptor.
+    auto make = [&](int id, juce::Colour colour, bool big) {
+        StoreParameter* param = proc_.parameter(id);
+        if (param == nullptr) return Cell{};
+        const ParamDesc& d = s.desc(id);
+        auto* label = labels_.add(new juce::Label({}, d.name));
+        label->setJustificationType(juce::Justification::centred);
+        label->setColour(juce::Label::textColourId, big ? ephui::colour::ink : ephui::colour::dim);
+        label->setFont(juce::FontOptions(big ? 13.0f : 12.0f));
+        label->setMinimumHorizontalScale(0.75f);
+        addAndMakeVisible(label);
+        Cell cell;
+        cell.big = big;
+        if (d.curve == Curve::Choice && d.choices != nullptr) {
+            auto* box = new juce::ComboBox();
+            for (int c = 0; c <= static_cast<int>(d.maxValue); ++c) box->addItem(d.choices[c], c + 1);
+            box->setColour(juce::ComboBox::arrowColourId, colour);
+            controls_.add(box);
+            combos_.push_back(std::make_unique<juce::ComboBoxParameterAttachment>(*param, *box));
+            cell.kind = 1;
+        } else if (d.curve == Curve::Toggle) {
+            auto* b = new juce::ToggleButton();
+            b->setColour(juce::ToggleButton::tickColourId, colour);
+            controls_.add(b);
+            buttons_.push_back(std::make_unique<juce::ButtonParameterAttachment>(*param, *b));
+            cell.kind = 2;
+        } else {
+            auto* sl = new juce::Slider(juce::Slider::RotaryHorizontalVerticalDrag, juce::Slider::TextBoxBelow);
+            sl->setTextBoxStyle(juce::Slider::TextBoxBelow, false, big ? 96 : 70, 16);
+            sl->setColour(juce::Slider::rotarySliderFillColourId, colour);
+            sl->setTextValueSuffix(d.unit[0] != 0 ? juce::String(" ") + d.unit : juce::String());
+            sl->setTooltip(juce::String(d.name) + (d.unit[0] != 0 ? juce::String(" (") + d.unit + ")" : juce::String()));
+            controls_.add(sl);
+            sliders_.push_back(std::make_unique<juce::SliderParameterAttachment>(*param, *sl));
+        }
+        addAndMakeVisible(controls_.getLast());
+        cell.control = controls_.size() - 1;
+        return cell;
+    };
     for (const auto& g : groups_) {
         const int count = ParamStore::moduleCount(g.first);
         const int instance = instances_ > 1 ? inst : g.second;
+        // The module's keys (the part after the dot: "cutoff" of "voice3.cutoff").
+        std::vector<std::string> keys(static_cast<size_t>(count));
         for (int i = 0; i < count; ++i) {
-            const int id = s.id(g.first, instance, i);
-            StoreParameter* param = proc_.parameter(id);
-            if (param == nullptr) continue;
-            const ParamDesc& d = s.desc(id);
-            auto* label = labels_.add(new juce::Label({}, d.name));
-            label->setJustificationType(juce::Justification::centred);
-            label->setColour(juce::Label::textColourId, kDim);
-            label->setFont(juce::FontOptions(12.0f));
-            addAndMakeVisible(label);
-            if (d.curve == Curve::Choice && d.choices != nullptr) {
-                auto* box = new juce::ComboBox();
-                for (int c = 0; c <= static_cast<int>(d.maxValue); ++c) box->addItem(d.choices[c], c + 1);
-                controls_.add(box);
-                combos_.push_back(std::make_unique<juce::ComboBoxParameterAttachment>(*param, *box));
-            } else if (d.curve == Curve::Toggle) {
-                auto* b = new juce::ToggleButton();
-                controls_.add(b);
-                buttons_.push_back(std::make_unique<juce::ButtonParameterAttachment>(*param, *b));
-            } else {
-                auto* sl = new juce::Slider(juce::Slider::RotaryHorizontalVerticalDrag, juce::Slider::TextBoxBelow);
-                sl->setTextBoxStyle(juce::Slider::TextBoxBelow, false, 84, 18);
-                sl->setColour(juce::Slider::rotarySliderFillColourId, kAccent);
-                sl->setTextValueSuffix(d.unit[0] != 0 ? juce::String(" ") + d.unit : juce::String());
-                controls_.add(sl);
-                sliders_.push_back(std::make_unique<juce::SliderParameterAttachment>(*param, *sl));
-            }
-            addAndMakeVisible(controls_.getLast());
+            const std::string& k = s.key(s.id(g.first, instance, i));
+            keys[static_cast<size_t>(i)] = k.substr(k.find('.') + 1);
         }
+        std::vector<bool> placed(static_cast<size_t>(count), false);
+        for (const ephui::GroupSpec& spec : ephui::layoutOf(g.first)) {
+            Box box;
+            box.title = spec.title;
+            box.colour = ephui::familyColour(spec.family);
+            for (const char* key : spec.keys) {
+                const bool big = key[0] == '*';
+                const std::string name = big ? key + 1 : key;
+                for (int i = 0; i < count; ++i) {
+                    if (placed[static_cast<size_t>(i)] || keys[static_cast<size_t>(i)] != name) continue;
+                    const Cell c = make(s.id(g.first, instance, i), box.colour, big);
+                    if (c.control >= 0) box.cells.push_back(c);
+                    placed[static_cast<size_t>(i)] = true;
+                }
+            }
+            if (!box.cells.empty()) boxes_.push_back(std::move(box));
+        }
+        // Whatever the panel does not name, so nothing added to a table is lost from the editor.
+        Box more;
+        more.title = ephui::layoutOf(g.first).empty() ? juce::String("Settings") : juce::String("More");
+        more.colour = ephui::familyColour(ephui::Family::Space);
+        for (int i = 0; i < count; ++i) {
+            if (placed[static_cast<size_t>(i)]) continue;
+            const Cell c = make(s.id(g.first, instance, i), more.colour, false);
+            if (c.control >= 0) more.cells.push_back(c);
+        }
+        if (!more.cells.empty()) boxes_.push_back(std::move(more));
     }
+}
+
+int ParamPage::top() const
+{
+    return instances_ > 1 || presetCount_ > 0 || pagePresets_ ? 32 : 0;
+}
+
+int ParamPage::layoutBoxes(juce::Rectangle<int> area, bool apply)
+{
+    // The panel of an instrument: titled boxes side by side, flowing into rows across the page, every box of a row
+    // as tall as the tallest; inside a box its controls in a line (wrapping where the page is narrow), the large
+    // encoders among the small ones, all centred on the line.
+    constexpr int kTitle = 22, kPad = 8, kGap = 10;
+    auto cellSize = [](const Cell& c) {
+        switch (c.kind) {
+        case 1: return juce::Point<int>(140, 100);
+        case 2: return juce::Point<int>(92, 100);
+        default: return c.big ? juce::Point<int>(108, 136) : juce::Point<int>(82, 100);
+        }
+    };
+    const int width = std::max(200, area.getWidth());
+    int x = 0, y = 0, lineH = 0;
+    std::vector<size_t> line;
+    auto closeLine = [&]() {
+        for (size_t b : line) boxes_[b].bounds.setHeight(lineH);
+        line.clear();
+    };
+    for (size_t b = 0; b < boxes_.size(); ++b) {
+        Box& box = boxes_[b];
+        // Lines of cells inside the box, no wider than the page.
+        const int inner = width - 2 * kPad;
+        std::vector<std::pair<int, int>> rows;   // (width, height) of each line of cells
+        int rw = 0, rh = 0;
+        for (const Cell& c : box.cells) {
+            const auto sz = cellSize(c);
+            if (rw > 0 && rw + sz.x > inner) { rows.push_back({ rw, rh }); rw = 0; rh = 0; }
+            rw += sz.x;
+            rh = std::max(rh, sz.y);
+        }
+        if (rw > 0) rows.push_back({ rw, rh });
+        int bw = 0, bh = kTitle + kPad;
+        for (const auto& r : rows) { bw = std::max(bw, r.first); bh += r.second; }
+        bw = std::max(bw + 2 * kPad, 120);
+        bh += kPad / 2;
+        if (x > 0 && x + bw > width) { closeLine(); x = 0; y += lineH + kGap; lineH = 0; }
+        box.bounds = { area.getX() + x, area.getY() + y, bw, bh };
+        line.push_back(b);
+        lineH = std::max(lineH, bh);
+        if (apply) {
+            int cx = 0, cy = kTitle, row = 0;
+            int rowW = rows.empty() ? 0 : rows[0].first, rowH = rows.empty() ? 0 : rows[0].second;
+            for (Cell& c : box.cells) {
+                const auto sz = cellSize(c);
+                if (cx > 0 && cx + sz.x > rowW) { cy += rowH; cx = 0; ++row; rowW = rows[static_cast<size_t>(row)].first; rowH = rows[static_cast<size_t>(row)].second; }
+                const int left = box.bounds.getX() + kPad + (bw - 2 * kPad - rowW) / 2;
+                c.bounds = { left + cx, box.bounds.getY() + cy + (rowH - sz.y) / 2, sz.x, sz.y };
+                cx += sz.x;
+                juce::Component* comp = controls_[c.control];
+                juce::Label* label = labels_[c.control];
+                const auto r = c.bounds.reduced(3, 2);
+                label->setBounds(r.getX(), r.getY(), r.getWidth(), 16);
+                if (c.kind == 0) comp->setBounds(r.withTrimmedTop(16));
+                else comp->setBounds(r.getX() + 2, r.getCentreY() - 12, r.getWidth() - 4, 24);
+            }
+        }
+        x += bw + kGap;
+    }
+    closeLine();
+    return y + lineH;
 }
 
 int ParamPage::heightFor(int width) const
 {
-    const int perRow = std::max(1, (width - 20) / 104);
-    const int rows = (controls_.size() + perRow - 1) / perRow;
-    return 20 + (instances_ > 1 || presetCount_ > 0 || pagePresets_ ? 32 : 6) + rows * 96;
+    // Measured on a copy: the boxes as they are laid out and drawn stay where resized() put them.
+    auto* self = const_cast<ParamPage*>(this);
+    const std::vector<Box> kept = boxes_;
+    const int h = self->layoutBoxes({ 10, 10, width - 20, 100 }, false);
+    self->boxes_ = kept;
+    return 20 + top() + h + 10;
+}
+
+void ParamPage::paint(juce::Graphics& g)
+{
+    for (const Box& box : boxes_) {
+        const auto r = box.bounds.toFloat();
+        g.setColour(ephui::colour::group);
+        g.fillRoundedRectangle(r, 6.0f);
+        g.setColour(ephui::colour::edge);
+        g.drawRoundedRectangle(r.reduced(0.5f), 6.0f, 1.0f);
+        g.setColour(box.colour);
+        g.setFont(juce::FontOptions(11.5f, juce::Font::bold));
+        g.drawText(box.title.toUpperCase(), box.bounds.getX() + 10, box.bounds.getY() + 4, box.bounds.getWidth() - 20, 14,
+                   juce::Justification::centredLeft);
+        g.setColour(box.colour.withAlpha(0.45f));
+        g.fillRect(r.getX() + 10.0f, r.getY() + 19.0f, r.getWidth() - 20.0f, 1.0f);
+    }
 }
 
 void ParamPage::resized()
@@ -268,15 +409,7 @@ void ParamPage::resized()
         }
     }
     area.removeFromTop(6);
-    const int w = 104, h = 96;
-    const int perRow = std::max(1, area.getWidth() / w);
-    for (int i = 0; i < controls_.size(); ++i) {
-        const int x = area.getX() + (i % perRow) * w, y = area.getY() + (i / perRow) * h;
-        labels_[i]->setBounds(x, y, w - 4, 16);
-        auto* c = controls_[i];
-        if (dynamic_cast<juce::Slider*>(c) != nullptr) c->setBounds(x + 4, y + 16, w - 12, h - 20);
-        else c->setBounds(x + 4, y + 36, w - 12, 24);
-    }
+    layoutBoxes(area, true);
 }
 
 // ---------------------------------------------------------------------------------------------------
@@ -371,129 +504,22 @@ void ArrangeView::mouseDown(const juce::MouseEvent& e)
 
 // ---------------------------------------------------------------------------------------------------
 
-EphemerisEditor::EphemerisEditor(EphemerisProcessor& p) : juce::AudioProcessorEditor(p), proc_(p), arrange_(p)
+ScrollingPage::ScrollingPage(std::unique_ptr<ParamPage> page) : page_(std::move(page))
 {
-    ParamStore& s = proc_.store();
-    title_.setText("EPHEMERIS", juce::dontSendNotification);
-    title_.setFont(juce::FontOptions(20.0f, juce::Font::bold));
-    title_.setColour(juce::Label::textColourId, kAccent);
-    addAndMakeVisible(title_);
-
-    auto combo = [&](juce::ComboBox& box, int id) {
-        const ParamDesc& d = s.desc(id);
-        for (int c = 0; c <= static_cast<int>(d.maxValue); ++c) box.addItem(d.choices[c], c + 1);
-        combos_.push_back(std::make_unique<juce::ComboBoxParameterAttachment>(*proc_.parameter(id), box));
-        addAndMakeVisible(box);
-    };
-    combo(style_, s.id(Module::Compose, 0, compose::Style));
-    combo(key_, s.id(Module::Compose, 0, compose::Key));
-    combo(scale_, s.id(Module::Compose, 0, compose::Scale));
-    auto slider = [&](juce::Slider& sl, juce::Label& label, const char* text, int id) {
-        sl.setSliderStyle(juce::Slider::LinearHorizontal);
-        sl.setTextBoxStyle(juce::Slider::TextBoxRight, false, 60, 20);
-        sliders_.push_back(std::make_unique<juce::SliderParameterAttachment>(*proc_.parameter(id), sl));
-        label.setText(text, juce::dontSendNotification);
-        label.setColour(juce::Label::textColourId, kDim);
-        addAndMakeVisible(sl);
-        addAndMakeVisible(label);
-    };
-    slider(minutes_, minutesLabel_, "Piece min", s.id(Module::Compose, 0, compose::PieceMinutes));
-    slider(concert_, concertLabel_, "Concert min", s.id(Module::Compose, 0, compose::ConcertMinutes));
-    nightAttach_ = std::make_unique<juce::ButtonParameterAttachment>(*proc_.parameter(s.id(Module::Compose, 0, compose::NightSet)), night_);
-    night_.setColour(juce::ToggleButton::textColourId, kDim);
-    night_.setTooltip("Night set: the concert's pieces in mixed styles along waves of energy, each mixed into the next "
-                      "as a DJ does it (up to 12 hours)");
-    addAndMakeVisible(night_);
-
-    compose_.onClick = [this] { proc_.compose(); };
-    seed_.onClick = [this] { proc_.newSeed(); };
-    play_.onClick = [this] { proc_.setPlaying(!proc_.isPlaying()); };
-    for (auto* b : { &compose_, &seed_, &play_, &save_, &load_, &export_ }) addAndMakeVisible(b);
-    // Mute, as in Phosphene: silence at the output; EPH_MUTE (or the screenshot mode) holds it on.
-    mute_.setClickingTogglesState(true);
-    mute_.setToggleState(proc_.muted(), juce::dontSendNotification);
-    mute_.setEnabled(!proc_.muteForced());
-    mute_.setColour(juce::TextButton::buttonOnColourId, juce::Colour(0xffb04a4a));
-    mute_.setTooltip(proc_.muteForced() ? "Muted by EPH_MUTE: an automated run makes no sound" : "Silence the output");
-    mute_.onClick = [this] { proc_.setMuted(mute_.getToggleState()); };
-    addAndMakeVisible(mute_);
-    play_.setColour(juce::TextButton::buttonColourId, juce::Colour(0xff3a4a36));
-
-    for (const char* unit : kUnitNames) {
-        auto* b = rerollButtons_.add(new juce::TextButton(juce::String("reroll ") + unit));
-        const juce::String u(unit);
-        b->onClick = [this, u] { proc_.reroll(u); };
-        addAndMakeVisible(b);
-    }
-    rerolls_.setColour(juce::Label::textColourId, kDim);
-    status_.setColour(juce::Label::textColourId, kInk);
-    addAndMakeVisible(rerolls_);
-    addAndMakeVisible(status_);
-
-    auto documents = juce::File::getSpecialLocation(juce::File::userDocumentsDirectory).getChildFile("Ephemeris");
-    save_.onClick = [this, documents] {
-        documents.createDirectory();
-        chooser_ = std::make_unique<juce::FileChooser>("Save set", documents.getChildFile("set.ephset"), "*.ephset");
-        chooser_->launchAsync(juce::FileBrowserComponent::saveMode | juce::FileBrowserComponent::canSelectFiles,
-                              [this](const juce::FileChooser& fc) { if (fc.getResult() != juce::File()) proc_.saveSet(fc.getResult()); });
-    };
-    load_.onClick = [this, documents] {
-        chooser_ = std::make_unique<juce::FileChooser>("Load set", documents, "*.ephset");
-        chooser_->launchAsync(juce::FileBrowserComponent::openMode | juce::FileBrowserComponent::canSelectFiles,
-                              [this](const juce::FileChooser& fc) { if (fc.getResult().existsAsFile()) proc_.loadSet(fc.getResult()); });
-    };
-    export_.onClick = [this, documents] {
-        // The mix and its MIDI, or with the stems as well (a WAV per channel strip and the rooms: large files).
-        juce::PopupMenu menu;
-        menu.addItem(1, "WAV + MIDI");
-        menu.addItem(2, "WAV + MIDI + stems (a WAV per channel strip)");
-        menu.showMenuAsync(juce::PopupMenu::Options().withTargetComponent(&export_), [this, documents](int choice) {
-            if (choice == 0) return;
-            const bool stems = choice == 2;
-            documents.createDirectory();
-            chooser_ = std::make_unique<juce::FileChooser>("Export", documents.getChildFile("ephemeris.wav"), "*.wav");
-            chooser_->launchAsync(juce::FileBrowserComponent::saveMode | juce::FileBrowserComponent::canSelectFiles,
-                                  [this, stems](const juce::FileChooser& fc) {
-                                      if (fc.getResult() != juce::File()) proc_.exportTo(fc.getResult().withFileExtension(".wav"), stems);
-                                  });
-        });
-    };
-
-    addAndMakeVisible(arrange_);
-    using M = Module;
-    auto page = [&](const char* name, std::vector<std::pair<M, int>> groups, int instances) {
-        tabs_.addTab(name, kPanel, new ParamPage(proc_, std::move(groups), instances), true);
-    };
-    tabs_.addTab("Mixer", kPanel, new MixerConsole(proc_), true);
-    tabs_.addTab("Perform", kPanel, new PerformPage(proc_, std::make_unique<ParamPage>(proc_, std::vector<std::pair<M, int>>{ { M::Perform, 0 } }, 1)), true);
-    tabs_.addTab("Rack", kPanel, new RackPage(proc_, std::make_unique<ParamPage>(proc_, std::vector<std::pair<M, int>>{ { M::Row, 0 } }, kRows)), true);
-    tabs_.addTab("Gestures", kPanel, new GestureView(proc_), true);
-    page("Voices", { { M::Voice, 0 } }, kRows);
-    page("Lead", { { M::Lead, 0 } }, 1);
-    page("Drone", { { M::Drone, 0 } }, 1);
-    page("Tape Keys", { { M::Tape, 0 } }, 1);
-    page("Strings", { { M::Strings, 0 } }, 1);
-    page("Poly", { { M::Poly, 0 } }, 1);
-    page("Atmosphere", { { M::Atmos, 0 } }, 1);
-    page("Echo + Spring", { { M::Echo, 0 }, { M::Spring, 0 }, { M::Echo2, 0 } }, 1);
-    page("Hall", { { M::Reverb, 0 }, { M::Blend, 0 }, { M::Early, 0 }, { M::Shimmer, 0 } }, 1);
-    page("Drums", { { M::Drums, 0 } }, 1);
-    page("Master", { { M::Master, 0 }, { M::Compose, 0 }, { M::Cue, 0 } }, 1);
-    tabs_.addTab("Style", kPanel, new StylePage(proc_, std::make_unique<ParamPage>(proc_, std::vector<std::pair<M, int>>{ { M::Custom, 0 } }, 1)), true);
-    addAndMakeVisible(tabs_);
-
-    setResizable(true, true);
-    setResizeLimits(960, 640, 2400, 1600);
-    setSize(1180, 760);
-
-    if (const char* shot = std::getenv("EPH_SHOT")) {
-        shotPath_ = shot;
-        if (const char* tab = std::getenv("EPH_TAB")) tabs_.setCurrentTabIndex(juce::String(tab).getIntValue());
-    }
-    startTimerHz(15);
+    view_.setViewedComponent(page_.get(), false);
+    view_.setScrollBarsShown(true, false);
+    addAndMakeVisible(view_);
 }
 
-EphemerisEditor::~EphemerisEditor() { stopTimer(); }
+void ScrollingPage::resized() { fit(*page_, view_, getLocalBounds()); }
+
+void ScrollingPage::fit(ParamPage& page, juce::Viewport& view, juce::Rectangle<int> area)
+{
+    view.setBounds(area);
+    int w = area.getWidth(), h = page.heightFor(w);
+    if (h > area.getHeight()) { w -= view.getScrollBarThickness(); h = page.heightFor(w); }
+    page.setSize(w, std::max(h, area.getHeight()));
+}
 
 namespace {
 
@@ -526,15 +552,195 @@ void drawLogo(juce::Graphics& g, juce::Rectangle<float> r)
 
 } // namespace
 
-void EphemerisEditor::paint(juce::Graphics& g)
+EphemerisEditor::EphemerisEditor(EphemerisProcessor& p) : juce::AudioProcessorEditor(p), proc_(p), arrange_(p)
 {
-    g.fillAll(kBack);
-    drawLogo(g, logo_);
+    setLookAndFeel(&lnf_);
+    addAndMakeVisible(body_);
+    body_.painter = [this](juce::Graphics& g) { g.fillAll(kBack); drawLogo(g, logo_); };
+    body_.onResize = [this] { layoutBody(); };
+    ParamStore& s = proc_.store();
+    title_.setText("EPHEMERIS", juce::dontSendNotification);
+    title_.setFont(juce::FontOptions(20.0f, juce::Font::bold));
+    title_.setColour(juce::Label::textColourId, kAccent);
+    body_.addAndMakeVisible(title_);
+
+    auto combo = [&](juce::ComboBox& box, int id) {
+        const ParamDesc& d = s.desc(id);
+        for (int c = 0; c <= static_cast<int>(d.maxValue); ++c) box.addItem(d.choices[c], c + 1);
+        combos_.push_back(std::make_unique<juce::ComboBoxParameterAttachment>(*proc_.parameter(id), box));
+        body_.addAndMakeVisible(box);
+    };
+    combo(style_, s.id(Module::Compose, 0, compose::Style));
+    combo(key_, s.id(Module::Compose, 0, compose::Key));
+    combo(scale_, s.id(Module::Compose, 0, compose::Scale));
+    auto slider = [&](juce::Slider& sl, juce::Label& label, const char* text, int id) {
+        sl.setSliderStyle(juce::Slider::LinearHorizontal);
+        sl.setTextBoxStyle(juce::Slider::TextBoxRight, false, 60, 20);
+        sliders_.push_back(std::make_unique<juce::SliderParameterAttachment>(*proc_.parameter(id), sl));
+        label.setText(text, juce::dontSendNotification);
+        label.setColour(juce::Label::textColourId, kDim);
+        body_.addAndMakeVisible(sl);
+        body_.addAndMakeVisible(label);
+    };
+    slider(minutes_, minutesLabel_, "Piece min", s.id(Module::Compose, 0, compose::PieceMinutes));
+    slider(concert_, concertLabel_, "Concert min", s.id(Module::Compose, 0, compose::ConcertMinutes));
+    nightAttach_ = std::make_unique<juce::ButtonParameterAttachment>(*proc_.parameter(s.id(Module::Compose, 0, compose::NightSet)), night_);
+    night_.setColour(juce::ToggleButton::textColourId, kDim);
+    night_.setTooltip("Night set: the concert's pieces in mixed styles along waves of energy, each mixed into the next "
+                      "as a DJ does it (up to 12 hours)");
+    body_.addAndMakeVisible(night_);
+
+    compose_.onClick = [this] { proc_.compose(); };
+    seed_.onClick = [this] { proc_.newSeed(); };
+    play_.onClick = [this] { proc_.setPlaying(!proc_.isPlaying()); };
+    for (auto* b : { &compose_, &seed_, &play_, &save_, &load_, &export_ }) body_.addAndMakeVisible(b);
+    // Mute, as in Phosphene: silence at the output; EPH_MUTE (or the screenshot mode) holds it on.
+    mute_.setClickingTogglesState(true);
+    mute_.setToggleState(proc_.muted(), juce::dontSendNotification);
+    mute_.setEnabled(!proc_.muteForced());
+    mute_.setColour(juce::TextButton::buttonOnColourId, ephui::colour::red.withAlpha(0.55f));
+    mute_.setTooltip(proc_.muteForced() ? "Muted by EPH_MUTE: an automated run makes no sound" : "Silence the output");
+    mute_.onClick = [this] { proc_.setMuted(mute_.getToggleState()); };
+    body_.addAndMakeVisible(mute_);
+    play_.setColour(juce::TextButton::buttonColourId, kAccent.withAlpha(0.22f));
+    compose_.setColour(juce::TextButton::buttonColourId, kAccent.withAlpha(0.14f));
+    // The standalone's full screen (F11), as Phosphene's; hidden in a host, which owns its window.
+    full_.setTooltip("Full screen (F11; Esc leaves it)");
+    full_.onClick = [this] { toggleFullScreen(); };
+    body_.addChildComponent(full_);
+    setWantsKeyboardFocus(true);
+
+    for (const char* unit : kUnitNames) {
+        auto* b = rerollButtons_.add(new juce::TextButton(juce::String("reroll ") + unit));
+        const juce::String u(unit);
+        b->onClick = [this, u] { proc_.reroll(u); };
+        body_.addAndMakeVisible(b);
+    }
+    rerolls_.setColour(juce::Label::textColourId, kDim);
+    status_.setColour(juce::Label::textColourId, kInk);
+    body_.addAndMakeVisible(rerolls_);
+    body_.addAndMakeVisible(status_);
+
+    auto documents = juce::File::getSpecialLocation(juce::File::userDocumentsDirectory).getChildFile("Ephemeris");
+    save_.onClick = [this, documents] {
+        documents.createDirectory();
+        chooser_ = std::make_unique<juce::FileChooser>("Save set", documents.getChildFile("set.ephset"), "*.ephset");
+        chooser_->launchAsync(juce::FileBrowserComponent::saveMode | juce::FileBrowserComponent::canSelectFiles,
+                              [this](const juce::FileChooser& fc) { if (fc.getResult() != juce::File()) proc_.saveSet(fc.getResult()); });
+    };
+    load_.onClick = [this, documents] {
+        chooser_ = std::make_unique<juce::FileChooser>("Load set", documents, "*.ephset");
+        chooser_->launchAsync(juce::FileBrowserComponent::openMode | juce::FileBrowserComponent::canSelectFiles,
+                              [this](const juce::FileChooser& fc) { if (fc.getResult().existsAsFile()) proc_.loadSet(fc.getResult()); });
+    };
+    export_.onClick = [this, documents] {
+        // The mix and its MIDI, or with the stems as well (a WAV per channel strip and the rooms: large files).
+        juce::PopupMenu menu;
+        menu.addItem(1, "WAV + MIDI");
+        menu.addItem(2, "WAV + MIDI + stems (a WAV per channel strip)");
+        menu.showMenuAsync(juce::PopupMenu::Options().withTargetComponent(&export_), [this, documents](int choice) {
+            if (choice == 0) return;
+            const bool stems = choice == 2;
+            documents.createDirectory();
+            chooser_ = std::make_unique<juce::FileChooser>("Export", documents.getChildFile("ephemeris.wav"), "*.wav");
+            chooser_->launchAsync(juce::FileBrowserComponent::saveMode | juce::FileBrowserComponent::canSelectFiles,
+                                  [this, stems](const juce::FileChooser& fc) {
+                                      if (fc.getResult() != juce::File()) proc_.exportTo(fc.getResult().withFileExtension(".wav"), stems);
+                                  });
+        });
+    };
+
+    body_.addAndMakeVisible(arrange_);
+    using M = Module;
+    auto page = [&](const char* name, std::vector<std::pair<M, int>> groups, int instances) {
+        tabs_.addTab(name, kPanel, new ScrollingPage(std::make_unique<ParamPage>(proc_, std::move(groups), instances)), true);
+    };
+    tabs_.addTab("Mixer", kPanel, new MixerConsole(proc_), true);
+    tabs_.addTab("Perform", kPanel, new PerformPage(proc_, std::make_unique<ParamPage>(proc_, std::vector<std::pair<M, int>>{ { M::Perform, 0 } }, 1)), true);
+    tabs_.addTab("Rack", kPanel, new RackPage(proc_, std::make_unique<ParamPage>(proc_, std::vector<std::pair<M, int>>{ { M::Row, 0 } }, kRows)), true);
+    tabs_.addTab("Gestures", kPanel, new GestureView(proc_), true);
+    page("Voices", { { M::Voice, 0 } }, kRows);
+    page("Lead", { { M::Lead, 0 } }, 1);
+    page("Drone", { { M::Drone, 0 } }, 1);
+    page("Tape Keys", { { M::Tape, 0 } }, 1);
+    page("Strings", { { M::Strings, 0 } }, 1);
+    page("Poly", { { M::Poly, 0 } }, 1);
+    page("Atmosphere", { { M::Atmos, 0 } }, 1);
+    page("Echo + Spring", { { M::Echo, 0 }, { M::Spring, 0 }, { M::Echo2, 0 } }, 1);
+    page("Hall", { { M::Reverb, 0 }, { M::Blend, 0 }, { M::Early, 0 }, { M::Shimmer, 0 } }, 1);
+    page("Drums", { { M::Drums, 0 } }, 1);
+    page("Master", { { M::Master, 0 }, { M::Compose, 0 }, { M::Cue, 0 } }, 1);
+    tabs_.addTab("Style", kPanel, new StylePage(proc_, std::make_unique<ParamPage>(proc_, std::vector<std::pair<M, int>>{ { M::Custom, 0 } }, 1)), true);
+    body_.addAndMakeVisible(tabs_);
+
+    setResizable(true, true);
+    setResizeLimits(800, 520, 4800, 3100);
+    setSize(1180, 760);
+
+    if (const char* shot = std::getenv("EPH_SHOT")) {
+        shotPath_ = shot;
+        if (const char* tab = std::getenv("EPH_TAB")) tabs_.setCurrentTabIndex(juce::String(tab).getIntValue());
+    }
+    startTimerHz(15);
 }
+
+EphemerisEditor::~EphemerisEditor()
+{
+    stopTimer();
+    setLookAndFeel(nullptr);
+}
+
+
+void EphemerisEditor::paint(juce::Graphics& g) { g.fillAll(kBack); }
 
 void EphemerisEditor::resized()
 {
-    auto area = getLocalBounds().reduced(10);
+    // The body at the design size (1180 x 760), scaled to the window by its height, and as wide as the window then
+    // allows: a larger window shows the panel larger, a wider one gives the pages more room.
+    const float scale = juce::jlimit(0.5f, 4.0f, std::min(static_cast<float>(getWidth()) / 1180.0f, static_cast<float>(getHeight()) / 760.0f));
+    body_.setTransform(juce::AffineTransform::scale(scale));
+    body_.setBounds(0, 0, juce::roundToInt(static_cast<float>(getWidth()) / scale), juce::roundToInt(static_cast<float>(getHeight()) / scale));
+}
+
+void EphemerisEditor::parentHierarchyChanged()
+{
+    // As Phosphene and Noctuary: a maximise button beside the other two, on the next turn of the message loop (the
+    // standalone's window is still putting its content in when this is called). A host's window finds nothing here.
+    juce::MessageManager::callAsync([safe = juce::Component::SafePointer<EphemerisEditor>(this)] {
+        if (safe == nullptr) return;
+        auto* window = safe->findParentComponentOfClass<juce::DocumentWindow>();
+        if (window != nullptr)
+            window->setTitleBarButtonsRequired(juce::DocumentWindow::minimiseButton | juce::DocumentWindow::maximiseButton
+                                                   | juce::DocumentWindow::closeButton, false);
+        safe->full_.setVisible(window != nullptr);
+        safe->layoutBody();
+    });
+}
+
+void EphemerisEditor::toggleFullScreen()
+{
+    auto* window = findParentComponentOfClass<juce::DocumentWindow>();
+    if (window == nullptr) return;
+    auto& desktop = juce::Desktop::getInstance();
+    const bool on = desktop.getKioskModeComponent() != window;
+    desktop.setKioskModeComponent(on ? window : nullptr, false);
+    full_.setToggleState(on, juce::dontSendNotification);
+    grabKeyboardFocus();
+}
+
+bool EphemerisEditor::keyPressed(const juce::KeyPress& key)
+{
+    if (key.getKeyCode() == juce::KeyPress::F11Key) { toggleFullScreen(); return true; }
+    if (key.getKeyCode() == juce::KeyPress::escapeKey && juce::Desktop::getInstance().getKioskModeComponent() != nullptr) {
+        toggleFullScreen();
+        return true;
+    }
+    return false;
+}
+
+void EphemerisEditor::layoutBody()
+{
+    auto area = body_.getLocalBounds().reduced(10);
     auto top = area.removeFromTop(34);
     logo_ = top.removeFromLeft(34).toFloat().reduced(2.0f);
     title_.setBounds(top.removeFromLeft(112));
@@ -544,8 +750,8 @@ void EphemerisEditor::resized()
     minutesLabel_.setBounds(top.removeFromLeft(66));
     minutes_.setBounds(top.removeFromLeft(120).reduced(2));
     concertLabel_.setBounds(top.removeFromLeft(84));
-    concert_.setBounds(top.removeFromLeft(120).reduced(2));
-    night_.setBounds(top.removeFromLeft(58).reduced(2));
+    concert_.setBounds(top.removeFromLeft(106).reduced(2));
+    night_.setBounds(top.removeFromLeft(72).reduced(2));
     play_.setBounds(top.removeFromRight(80).reduced(3));
     seed_.setBounds(top.removeFromRight(90).reduced(3));
     compose_.setBounds(top.removeFromRight(100).reduced(3));
@@ -559,6 +765,7 @@ void EphemerisEditor::resized()
     mute_.setBounds(second.removeFromRight(proc_.muteForced() ? 100 : 70).reduced(2));
     area.removeFromTop(4);
     auto third = area.removeFromTop(20);
+    if (full_.isVisible()) full_.setBounds(third.removeFromRight(100));
     status_.setBounds(third.removeFromLeft(third.getWidth() / 2));
     rerolls_.setBounds(third);
     area.removeFromTop(4);

@@ -16,6 +16,8 @@
 #pragma once
 #include "PluginProcessor.h"
 #include <juce_gui_basics/juce_gui_basics.h>
+#include "EditorTheme.h"
+#include <functional>
 #include <memory>
 #include <vector>
 
@@ -29,8 +31,9 @@ public:
      * @param instances how many instances the modules have; above one, a selector picks the instance
      */
     ParamPage(EphemerisProcessor& p, std::vector<std::pair<eph::Module, int>> groups, int instances);
-    void resized() override;   ///< lays the controls out in a grid
-    /** @brief The height the grid needs at @p width (for a page in a viewport). */
+    void resized() override;   ///< lays the groups out, flowing across the page
+    void paint(juce::Graphics& g) override;   ///< the group boxes and their titles
+    /** @brief The height the page needs at @p width (for a page in a viewport). */
     int heightFor(int width) const;
 
 private:
@@ -61,6 +64,24 @@ private:
     void fillPagePresets();
     juce::OwnedArray<juce::Component> controls_;
     juce::OwnedArray<juce::Label> labels_;
+    /** @brief A control of the page: its name above it, large or not (EditorTheme.h, layoutOf). */
+    struct Cell {
+        int control = -1;          ///< index into controls_ and labels_
+        bool big = false;          ///< a large encoder
+        int kind = 0;              ///< 0 a knob, 1 a menu, 2 a switch
+        juce::Rectangle<int> bounds;
+    };
+    /** @brief A titled group of cells, drawn as a box. */
+    struct Box {
+        juce::String title;
+        juce::Colour colour;
+        std::vector<Cell> cells;
+        juce::Rectangle<int> bounds;
+    };
+    std::vector<Box> boxes_;
+    int top() const;   ///< height of the instance and preset bar
+    /** @brief Places the boxes and their cells in @p area (@p apply: move the components too); returns the height used. */
+    int layoutBoxes(juce::Rectangle<int> area, bool apply);
     std::vector<std::unique_ptr<juce::SliderParameterAttachment>> sliders_;
     std::vector<std::unique_ptr<juce::ComboBoxParameterAttachment>> combos_;
     std::vector<std::unique_ptr<juce::ButtonParameterAttachment>> buttons_;
@@ -86,17 +107,49 @@ private:
     std::vector<float> lanes_;            ///< kLanes x kBins activity, 0..1
 };
 
+/** @brief A parameter page in a viewport: it scrolls when its groups need more height than the tab gives. */
+class ScrollingPage final : public juce::Component {
+public:
+    explicit ScrollingPage(std::unique_ptr<ParamPage> page);   ///< takes the page over
+    void resized() override;                                   ///< the page as wide as the view, as tall as it needs
+    /** @brief Sizes @p page for a view of @p area (the scroll bar taken off where it will show). */
+    static void fit(ParamPage& page, juce::Viewport& view, juce::Rectangle<int> area);
+private:
+    juce::Viewport view_;
+    std::unique_ptr<ParamPage> page_;
+};
+
+/**
+ * @brief The editor's body: everything, drawn at the design size and scaled to the window (26.09.2026, as Phosphene's),
+ *        so a maximised or full-screen window shows the panel larger rather than emptier.
+ */
+class EditorBody final : public juce::Component {
+public:
+    std::function<void(juce::Graphics&)> painter;   ///< draws the background and the logo
+    std::function<void()> onResize;                 ///< lays the controls out
+    void paint(juce::Graphics& g) override { if (painter) painter(g); }
+    void resized() override { if (onResize) onResize(); }
+};
+
 /** @brief The editor. */
 class EphemerisEditor final : public juce::AudioProcessorEditor, private juce::Timer {
 public:
     explicit EphemerisEditor(EphemerisProcessor& p);   ///< builds the panel for @p p
     ~EphemerisEditor() override;                       ///< stops the refresh timer
     void paint(juce::Graphics& g) override;            ///< the background
-    void resized() override;                           ///< the top bar, the arrange view, the tabs
+    void resized() override;                           ///< scales the body to the window
+    void parentHierarchyChanged() override;            ///< the standalone's title bar gets a maximise button
+    bool keyPressed(const juce::KeyPress& key) override;   ///< F11: full screen (the standalone), Esc leaves it
 
 private:
     void timerCallback() override;
+    void layoutBody();                                 ///< the top bar, the arrange view, the tabs, at the design scale
+    void toggleFullScreen();                           ///< the standalone's window full screen and back
     EphemerisProcessor& proc_;
+    ephui::LookAndFeel lnf_;                           ///< first, so it outlives every component that uses it
+    juce::TooltipWindow tooltips_{ nullptr, 700 };
+    EditorBody body_;
+    juce::TextButton full_{ "Full screen" };
     juce::Label title_, status_, rerolls_;
     juce::Rectangle<float> logo_;   ///< where the logo is drawn, left of the title
     juce::ComboBox style_, key_, scale_;
