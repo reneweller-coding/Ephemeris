@@ -33,6 +33,8 @@
 
 namespace eph {
 
+struct StyleProfile;
+
 /**
  * @brief Writes one piece.
  * @param p        parameters (compose.style, key, scale, bpm or the profile's tempo, the voices)
@@ -41,11 +43,17 @@ namespace eph {
  * @param keyShift semitones from compose.key (a concert moves from piece to piece)
  * @param curation rerolls, or null
  * @param unit     prefix of this piece's units in @p curation ("" alone, "piece2." in a concert)
+ * @param profile  a profile instead of compose.style's (a concert's morph, morphProfile), or null
  */
 Score composePiece(const ParamStore& p, uint64_t seed, double minutes, int keyShift = 0,
-                   const Curation* curation = nullptr, const std::string& unit = std::string());
+                   const Curation* curation = nullptr, const std::string& unit = std::string(),
+                   const StyleProfile* profile = nullptr);
 
-/** @brief Writes a concert of pieces, @p minutes long in all. */
+/**
+ * @brief Writes a concert of pieces, @p minutes long in all. With compose.morph_to it wanders from compose.style
+ *        to that style: each piece is composed with the profile at the share of the concert already played
+ *        (morphProfile), and takes the nearer style's drum patterns.
+ */
 Score composeConcert(const ParamStore& p, uint64_t seed, double minutes, const Curation* curation = nullptr);
 
 /** @brief The names of a piece's units, in stream order: form, tempo, rows, rack, layers, lead, pads, hands. */

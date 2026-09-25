@@ -374,12 +374,12 @@ void writeHands(Piece& c)
 } // namespace
 
 Score composePiece(const ParamStore& params, uint64_t seed, double minutes, int keyShift,
-                   const Curation* curation, const std::string& unit)
+                   const Curation* curation, const std::string& unit, const StyleProfile* profile)
 {
     ParamStore p;
     p.copyValuesFrom(params);
     const Style style = static_cast<Style>(p.getInt(p.id(Module::Compose, 0, compose::Style)));
-    const StyleProfile& prof = styleProfile(style);
+    const StyleProfile& prof = profile != nullptr ? *profile : styleProfile(style);
     // A unit's stream moves by its reroll counter; every other stream stays where it was.
     auto seedOf = [seed, curation, unit](Stream k) {
         const int n = curation != nullptr ? curation->count(unit + kUnitNames[k - 1]) : 0;
@@ -439,19 +439,31 @@ void appendScore(Score& dst, const Score& src, int rootOffset)
 
 Score composeConcert(const ParamStore& p, uint64_t seed, double minutes, const Curation* curation)
 {
-    const StyleProfile& prof = styleProfile(static_cast<Style>(p.getInt(p.id(Module::Compose, 0, compose::Style))));
+    const int styleId = p.id(Module::Compose, 0, compose::Style);
+    const Style from = static_cast<Style>(p.getInt(styleId));
+    const int morph = p.getInt(p.id(Module::Compose, 0, compose::MorphTo)) - 1;
+    const bool morphing = morph >= 0 && morph < static_cast<int>(Style::Count) && morph != static_cast<int>(from);
+    ParamStore q;   // the concert's own copy: a morphing concert changes compose.style from piece to piece
+    q.copyValuesFrom(p);
+    StyleProfile prof = styleProfile(from);
     Rng r;
     r.seed(mixSeed(seed, 99u + 131u * static_cast<uint64_t>(curation != nullptr ? curation->count("concert") : 0)));
     Score out;
     double elapsed = 0.0;
     int shift = 0;
     for (int i = 0; elapsed < minutes * 60.0 - 90.0 && i < 64; ++i) {
+        if (morphing) {
+            // The profile at the share of the concert already played; the nearer style for the drums.
+            const float t = static_cast<float>(elapsed / (minutes * 60.0));
+            prof = morphProfile(styleProfile(from), styleProfile(static_cast<Style>(morph)), t);
+            q.set(styleId, static_cast<float>(t < 0.5f ? static_cast<int>(from) : morph));
+        }
         const double left = minutes - elapsed / 60.0;
         double m = prof.minutesLow + (prof.minutesHigh - prof.minutesLow) * r.uniform();
         if (left - m < prof.minutesLow * 0.6) m = left;   // no short piece at the end: the last takes the rest
         m = std::max(4.0, m);
-        Score piece = composePiece(p, mixSeed(seed, 1000 + static_cast<uint64_t>(i)), m, shift, curation,
-                                   "piece" + std::to_string(i + 1) + ".");
+        Score piece = composePiece(q, mixSeed(seed, 1000 + static_cast<uint64_t>(i)), m, shift, curation,
+                                   "piece" + std::to_string(i + 1) + ".", morphing ? &prof : nullptr);
         for (Marker& mk : piece.markers) mk.text = "Stueck " + std::to_string(i + 1) + ": " + mk.text;
         if (i == 0) { out = piece; out.rootShifts.clear(); out.lengthBeats = 0.0; out.notes.clear(); out.gestures.clear();
                       out.rack.clear(); out.markers.clear(); out.rowShapes.clear(); }

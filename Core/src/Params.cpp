@@ -14,6 +14,7 @@ namespace eph {
 const char* const kKeyNames[12] = { "C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B" };
 const char* const kScaleNames[] = { "Aeolian", "Dorian", "Phrygian", "Harmonic Minor", "Minor Pentatonic" };
 const char* const kStyleNames[] = { "Cosmic", "Doom", "Melodic", "Modern", "Drift" };
+const char* const kMorphNames[] = { "None", "Cosmic", "Doom", "Melodic", "Modern", "Drift" };
 const char* const kRowDivisionNames[] = { "1/4", "1/8", "1/8 T", "1/16", "1/16 T", "1/32", "1 Bar", "2 Bars", "4 Bars" };
 const char* const kRowDirectionNames[] = { "Forward", "Backward", "Pendulum", "Random Walk" };
 const char* const kRowModeNames[] = { "Notes", "Transposer" };
@@ -53,6 +54,7 @@ const ParamDesc kComposeParams[compose::Count] = {
     { "piece_minutes", "Piece Length",  "min",   4.0f,  40.0f,  16.0f, Curve::Linear },
     { "style_tempo",   "Style Tempo",   "",      0.0f,   1.0f,   1.0f, Curve::Toggle },
     { "concert_minutes", "Concert Length", "min", 0.0f, 240.0f,  0.0f, Curve::Linear },
+    { "morph_to",      "Morph To",      "",      0.0f,   5.0f,   0.0f, Curve::Choice, kMorphNames },
 };
 
 const ParamDesc kRowParams[row::Count] = {

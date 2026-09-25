@@ -55,4 +55,12 @@ struct StyleProfile {
 /** @brief The profile of a style. */
 const StyleProfile& styleProfile(Style style);
 
+/**
+ * @brief A profile between @p a and @p b (compose.morph_to, a concert that wanders from one style to another):
+ *        at @p t = 0 exactly @p a, at 1 exactly @p b. The numbers in between are interpolated (counts rounded);
+ *        what cannot be halfway -- the counter rows' lengths, the transposer, the tape set, the name -- is the
+ *        nearer profile's.
+ */
+StyleProfile morphProfile(const StyleProfile& a, const StyleProfile& b, float t);
+
 } // namespace eph

@@ -513,6 +513,23 @@ void testConjunctions()
           fmt("%d of %d (%d moved)", onConjunction, builds, moved));
 }
 
+/** The style morph of a concert (Style.h, morphProfile): the ends exact, the middle between them. */
+void testMorph()
+{
+    section("style morph");
+    const StyleProfile& a = styleProfile(Style::Cosmic);
+    const StyleProfile& b = styleProfile(Style::Modern);
+    const StyleProfile m0 = morphProfile(a, b, 0.0f), m1 = morphProfile(a, b, 1.0f), mh = morphProfile(a, b, 0.5f);
+    const bool ends = m0.bpmLow == a.bpmLow && m0.hallSeconds == a.hallSeconds && m0.peakRows == a.peakRows
+                   && m1.bpmHigh == b.bpmHigh && m1.drumsChance == b.drumsChance && m1.tape == b.tape;
+    auto between = [](float x, float lo, float hi) { return x >= std::min(lo, hi) && x <= std::max(lo, hi); };
+    const bool middle = between(mh.bpmLow, a.bpmLow, b.bpmLow) && between(mh.hallSeconds, a.hallSeconds, b.hallSeconds)
+                     && between(mh.drumsChance, a.drumsChance, b.drumsChance) && mh.phasesHigh >= mh.phasesLow;
+    check(ends && middle, "the ends are the two profiles, the middle lies between them",
+          fmt("bpm %.0f-%.0f / %.0f-%.0f / %.0f-%.0f", static_cast<double>(m0.bpmLow), static_cast<double>(m0.bpmHigh),
+              static_cast<double>(mh.bpmLow), static_cast<double>(mh.bpmHigh), static_cast<double>(m1.bpmLow), static_cast<double>(m1.bpmHigh)));
+}
+
 /**
  * The composer (Composer.h): the same seed writes the same piece; a piece is as long as asked (to the
  * bar rounding); every note of the rows, the lead, the chords and the drone is in the scale of the root
@@ -873,6 +890,7 @@ const TestSection kSections[] = {
     { "testChords", testChords },
     { "testForm", testForm },
     { "testConjunctions", testConjunctions },
+    { "testMorph", testMorph },
     { "testComposer", testComposer },
     { "testCuration", testCuration },
     { "testPerform", testPerform },

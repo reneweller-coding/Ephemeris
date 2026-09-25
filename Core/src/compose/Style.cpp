@@ -4,6 +4,7 @@
  */
 #include "eph/compose/Style.h"
 #include <algorithm>
+#include <cmath>
 
 namespace eph {
 
@@ -177,6 +178,44 @@ const StyleProfile& styleProfile(Style style)
 {
     const int i = std::clamp(static_cast<int>(style), 0, static_cast<int>(Style::Count) - 1);
     return kProfiles[i];
+}
+
+StyleProfile morphProfile(const StyleProfile& a, const StyleProfile& b, float t)
+{
+    t = std::clamp(t, 0.0f, 1.0f);
+    if (t <= 0.0f) return a;
+    if (t >= 1.0f) return b;
+    auto mix = [t](float x, float y) { return x + t * (y - x); };
+    auto mixi = [t](int x, int y) { return static_cast<int>(std::lround(static_cast<float>(x) + t * static_cast<float>(y - x))); };
+    auto mixd = [t](double x, double y) { return x + static_cast<double>(t) * (y - x); };
+    StyleProfile m = t < 0.5f ? a : b;   // the nearer one for what cannot be halfway
+    m.bpmLow = mix(a.bpmLow, b.bpmLow);
+    m.bpmHigh = mix(a.bpmHigh, b.bpmHigh);
+    m.minutesLow = mix(a.minutesLow, b.minutesLow);
+    m.minutesHigh = mix(a.minutesHigh, b.minutesHigh);
+    m.phasesLow = mixi(a.phasesLow, b.phasesLow);
+    m.phasesHigh = std::max(m.phasesLow, mixi(a.phasesHigh, b.phasesHigh));
+    m.introShare = mix(a.introShare, b.introShare);
+    m.codaShare = mix(a.codaShare, b.codaShare);
+    m.newTempoChance = mix(a.newTempoChance, b.newTempoChance);
+    m.newKeyChance = mix(a.newKeyChance, b.newKeyChance);
+    m.peakRows = mixi(a.peakRows, b.peakRows);
+    m.mutation = mix(a.mutation, b.mutation);
+    m.tapeChance = mix(a.tapeChance, b.tapeChance);
+    m.stringsChance = mix(a.stringsChance, b.stringsChance);
+    m.leadChance = mix(a.leadChance, b.leadChance);
+    m.bleepChance = mix(a.bleepChance, b.bleepChance);
+    m.drumsChance = mix(a.drumsChance, b.drumsChance);
+    m.leadIntensity = mix(a.leadIntensity, b.leadIntensity);
+    m.hands.medianSeconds = mixd(a.hands.medianSeconds, b.hands.medianSeconds);
+    m.hands.spread = mixd(a.hands.spread, b.hands.spread);
+    m.hands.longChance = mixd(a.hands.longChance, b.hands.longChance);
+    m.hands.quickChance = mixd(a.hands.quickChance, b.hands.quickChance);
+    m.hands.restSeconds = mixd(a.hands.restSeconds, b.hands.restSeconds);
+    m.darkness = mix(a.darkness, b.darkness);
+    m.hallSeconds = mix(a.hallSeconds, b.hallSeconds);
+    m.levelDb = mix(a.levelDb, b.levelDb);
+    return m;
 }
 
 } // namespace eph

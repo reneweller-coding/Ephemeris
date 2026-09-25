@@ -81,7 +81,9 @@ constexpr int kRows = 8;   ///< instances of the row module (the rows of the rac
 namespace compose {
 enum : int { Bpm, Key, Scale, Style, PieceMinutes,
              // Phase 4: the profile draws the tempo (off: compose.bpm), and a concert's length (0: one piece).
-             StyleTempo, ConcertMinutes, Count };
+             StyleTempo, ConcertMinutes,
+             // Phase 5: a concert that wanders from its style to another (0: none, else the style + 1).
+             MorphTo, Count };
 }
 /** @brief Parameters of one row of the sequencer rack (module Row, "row1" .. "row8"). */
 namespace row {
@@ -188,6 +190,7 @@ enum class RowDirection : int { Forward = 0, Backward, Pendulum, RandomWalk, Cou
 extern const char* const kKeyNames[12];         ///< names of compose.key, C .. B
 extern const char* const kScaleNames[];         ///< names of compose.scale
 extern const char* const kStyleNames[];         ///< names of compose.style
+extern const char* const kMorphNames[];         ///< names of compose.morph_to: "None", then the styles
 extern const char* const kRowDivisionNames[];   ///< names of row.division
 extern const char* const kRowDirectionNames[];  ///< names of row.direction
 extern const char* const kRowModeNames[];       ///< names of row.mode

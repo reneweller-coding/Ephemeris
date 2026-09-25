@@ -29,7 +29,9 @@ again only now and then. The Rack page draws them that way.
 
 Style, key and scale choose the piece's character: Cosmic, Doom, Melodic, Modern and Drift are five
 style profiles with their own tempi, forms, layers and spaces. Piece min is the length of one piece;
-Concert min above zero strings pieces together into a concert that travels through related keys.
+Concert min above zero strings pieces together into a concert that travels through related keys. With
+Morph To (on the Master page) a concert also wanders from its style to another: each piece is composed
+between the two, the further into the concert the nearer the second.
 Compose writes a piece with the current seed, New seed draws another one, Play starts and stops the
 standalone (in a host the host's transport plays).
 

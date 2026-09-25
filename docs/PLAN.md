@@ -74,6 +74,15 @@ Render 9,3 s. Die übrigen Posten dort: Hall 1,6 s, Federn 1,5 s, `updateCell` 1
 Limiter 0,9 s, Echo 0,7 s, die anderen Klangerzeuger 1,7 s. Hörprüfung offen: Die Sigmoide biegt etwas
 früher als tanh, die Stimmen sind dadurch rund 0,5 dB leiser (RMS des Mixes −19,5 statt −19,0 dBFS).
 
+**25.09.2026: Stil-Morph, Style-Tab, Instrumentierungs-Matrix, Stems im Plugin.** `compose.morph_to`: Ein
+Konzert wandert vom eigenen Stil zu einem anderen, jedes Stück mit dem Profil beim bereits gespielten Anteil
+(`morphProfile`: Zahlen interpoliert, Listen und Aufzählungen vom näheren Profil; Schlagzeugmuster vom näheren
+Stil); Selbsttest "style morph"; Beispiel 40 min Cosmic → Modern: drei Stücke, 116, 106, 115 BPM. Style-Tab:
+die fünf Profile nebeneinander, der gewählte hervorgehoben (nur ansehen; Editieren der Profile bleibt offen,
+das ist eine Entscheidung des Nutzers). Arrange: unter den Abschnitten die Instrumentierungs-Matrix (Reihen,
+Lead, Tape Keys, Strings, Drone, Drums). Export im Plugin wahlweise mit Stems. Host-Test prüft den MIDI-Weg
+(eine Taste transponiert, das Modulationsrad greift die Filter).
+
 **25.09.2026: Kaleidoscope-Kopplung (8.3), Stems, Gesten-Tab, Qualitätsstufe.**
 - **Cues** (`Core/include/eph/Cue.h`): Die Engine macht beim Laden aus der Partitur Marken (Abschnitte
   englisch benannt, jeder neue Grundton, jede Konjunktion von mindestens zwei laufenden Reihen, die nicht
