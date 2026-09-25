@@ -653,7 +653,8 @@ void testPerform()
 {
     section("perform controls");
     ParamStore base;
-    base.parseText("compose.style=Melodic");
+    // The voices as the settings make them (not a drawn preset), and only the rows: the brightness is theirs.
+    base.parseText("compose.style=Melodic compose.pick_sounds=0 drone.level=-60 tape.level=-60 strings.level=-60 lead.level=-60 atmos.level=-60 drums.level=-60");
     const Score score = composePiece(base, 5, 4.0);
     auto render = [&](const char* setting) {
         Engine e;
@@ -1977,6 +1978,65 @@ void testVariations()
 }
 
 /**
+ * The composer's sounds (compose.pick_sounds): a preset for every synth from the groups of its part, the bass not
+ * too bright and the main sequence resonant; other seeds other sounds; a reroll of the sounds leaves the notes; the
+ * hands move around the preset's cutoff; off, the knobs alone; in a night set the second bank's rows get theirs.
+ */
+void testSounds()
+{
+    section("the composer's sounds");
+    ParamStore p;
+    p.parseText("compose.style=Melodic");
+    const Score a = composePiece(p, 7, 8.0);
+    auto pickOf = [](const Score& s, Module m, int inst) {
+        for (const SoundPick& k : s.sounds) if (k.module == static_cast<int>(m) && k.instance == inst) return k.preset;
+        return -1;
+    };
+    int synths = 0;
+    for (Module m : { Module::Lead, Module::Drone, Module::Tape, Module::Strings, Module::Drums, Module::Atmos }) synths += pickOf(a, m, 0) >= 0;
+    const int bass = pickOf(a, Module::Voice, 0), main = pickOf(a, Module::Voice, 1);
+    const std::vector<SoundPreset>& voices = factoryPresets(Module::Voice);
+    const std::string bassGroup = bass >= 0 ? voices[static_cast<size_t>(bass)].group : "", mainGroup = main >= 0 ? voices[static_cast<size_t>(main)].group : "";
+    const bool bassFits = bassGroup == "Ladder Bass" || bassGroup == "Deep Ostinato" || bassGroup == "Dark Throb" || bassGroup == "Warm Unison";
+    check(synths == 6 && bassFits && main >= 0, "a preset for every synth, the bass from a bass group",
+          fmt("%d synths; bass \"%s\" (%s), main sequence \"%s\" (%s)", synths, bass >= 0 ? voices[static_cast<size_t>(bass)].name.c_str() : "-",
+              bassGroup.c_str(), main >= 0 ? voices[static_cast<size_t>(main)].name.c_str() : "-", mainGroup.c_str()));
+    // Where the knobs stand at the start: the bass's cutoff at most 420 Hz, the main sequence's resonance at least 0.45.
+    // The settings' offset of a knob at the start (hand 1's steps; the hands' own start after them).
+    auto setting = [](const Score& s, int id) { float v = 0.0f; for (const Gesture& g : s.gestures) if (g.param == id && g.hand == 1 && g.beat <= 0.0) v = g.to; return v; };
+    auto at0 = [&](const Score& s, int id) { return p.fromNormalised(id, std::clamp(p.toNormalised(id, p.get(id)) + setting(s, id), 0.0f, 1.0f)); };
+    const float cut = at0(a, p.id(Module::Voice, 0, voice::Cutoff)), res = at0(a, p.id(Module::Voice, 1, voice::Resonance));
+    check(cut <= 421.0f && res >= 0.449f, "nudged to the part: a dark enough bass, a resonant main sequence", fmt("%.0f Hz, resonance %.2f", cut, res));
+    std::vector<int> basses;
+    for (uint64_t seed : { 1u, 2u, 3u, 4u, 5u }) {
+        const int b = pickOf(composePiece(p, seed, 6.0), Module::Voice, 0);
+        if (std::find(basses.begin(), basses.end(), b) == basses.end()) basses.push_back(b);
+    }
+    check(basses.size() >= 3, "other pieces, other sounds", fmt("%zu basses in five pieces", basses.size()));
+    Curation cur;
+    cur.reroll("sounds");
+    const Score b = composePiece(p, 7, 8.0, 0, &cur);
+    bool sameNotes = a.notes.size() == b.notes.size();
+    for (size_t i = 0; sameNotes && i < a.notes.size(); ++i) sameNotes = a.notes[i].beat == b.notes[i].beat && a.notes[i].pitch == b.notes[i].pitch;
+    check(sameNotes && pickOf(b, Module::Voice, 0) != bass, "a reroll of the sounds draws new sounds and leaves the notes", "");
+    // The hands' first movement of the bass's cutoff begins where the preset put it (within their reach of it).
+    const int cid = p.id(Module::Voice, 0, voice::Cutoff);
+    const float base = setting(a, cid);
+    float first = 99.0f;
+    for (const Gesture& g : a.gestures) if (g.param == cid && g.hand <= 1 && g.length > 0.0) { first = g.from; break; }
+    check(std::fabs(first - base) <= 0.5f, "the hands move the cutoff around the preset's", fmt("preset %.2f, first move from %.2f", base, first));
+    ParamStore off;
+    off.parseText("compose.style=Melodic compose.pick_sounds=0");
+    check(composePiece(off, 7, 8.0).sounds.empty(), "off: no presets, the knobs as they are", "");
+    ParamStore night;
+    night.parseText("compose.style=Cosmic compose.night_set=1");
+    const Score n = composeConcert(night, 5, 40.0);
+    bool high = false;
+    for (const SoundPick& k : n.sounds) high = high || (k.module == static_cast<int>(Module::Voice) && k.instance >= 4);
+    check(high, "a night set: the second bank's rows get their own sounds", fmt("%zu picks", n.sounds.size()));
+}
+
+/**
  * The offline render is the oracle only if a host's block size cannot change a sample: the study
  * rendered with blocks of 1, 37 and 512 must agree bit for bit (Engine.h).
  */
@@ -2135,6 +2195,7 @@ const TestSection kSections[] = {
     { "testModLane", testModLane },
     { "testNightSet", testNightSet },
     { "testVariations", testVariations },
+    { "testSounds", testSounds },
     { "testBlockSizes", testBlockSizes },
     { "testEcho", testEcho },
     { "testDrift", testDrift },

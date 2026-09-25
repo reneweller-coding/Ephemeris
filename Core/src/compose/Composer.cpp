@@ -10,6 +10,7 @@
 #include "eph/compose/Pads.h"
 #include "eph/Rack.h"
 #include "eph/compose/Style.h"
+#include "eph/Presets.h"
 #include <algorithm>
 #include <cmath>
 #include <functional>
@@ -20,7 +21,7 @@ namespace eph {
 namespace {
 
 /** @brief The streams of a piece: one per step of PLAN 6, so changing one leaves the others. */
-enum Stream : uint64_t { sForm = 1, sTempo, sRows, sRack, sLayers, sLead, sPads, sHands };
+enum Stream : uint64_t { sForm = 1, sTempo, sRows, sRack, sLayers, sLead, sPads, sHands, sSounds };
 
 /** @brief The offset in a knob's normalised range that takes it from its default to @p value. */
 float offsetTo(const ParamStore& p, int id, float value)
@@ -101,7 +102,7 @@ void writePulse(Score& s, Style style, double from, double to, Rng& rng)
 
 } // namespace
 
-const char* const kUnitNames[8] = { "form", "tempo", "rows", "rack", "layers", "lead", "pads", "hands" };
+const char* const kUnitNames[9] = { "form", "tempo", "rows", "rack", "layers", "lead", "pads", "hands", "sounds" };
 
 namespace {
 
@@ -586,6 +587,91 @@ void writeAtmosphere(Piece& c)
     }
 }
 
+/**
+ * @brief The piece's sounds (compose.pick_sounds, 25.09.2026): a factory preset for every synth, from the groups that
+ *        fit its part -- the bass row a bass, the main sequence a squelchy, resonant or plucked one, the other counter
+ *        rows glass, hollow or plucked, the lead and the kit the style's, the tape keys a group of the style's tape
+ *        set -- on a row of the dark-to-bright grid near the style's darkness. Set as steps at the start (the knobs
+ *        stay the user's), nudged where the part needs it (a bass not too bright, a main sequence with resonance and
+ *        a deep envelope), and noted in the score for the pages. Its own stream: "reroll sounds" draws them again.
+ */
+void writeSounds(Piece& c, const std::function<void(int, float)>& setTo)
+{
+    ParamStore& p = c.p;
+    Rng r = c.stream(sSounds);
+    const float centre = std::clamp(3.5f + 12.0f * c.prof.darkness, 1.0f, 6.0f);
+    using Values = std::vector<std::pair<int, float>>;
+    auto change = [](Values& v, int k, const std::function<float(float)>& f) { for (auto& e : v) if (e.first == k) e.second = f(e.second); };
+    auto pick = [&](Module m, int inst, std::initializer_list<const char*> groups, const std::function<bool(const SoundPreset&)>& fits,
+                    const std::function<void(Values&)>& nudge) {
+        const std::vector<SoundPreset>& list = factoryPresets(m);
+        std::vector<int> starts;
+        for (size_t g = 0; g * 64 < list.size(); ++g) {
+            const SoundPreset& first = list[g * 64];
+            bool named = groups.size() == 0;
+            for (const char* n : groups) named = named || first.group == n;
+            if (named && (!fits || fits(first))) starts.push_back(static_cast<int>(g * 64));
+        }
+        if (starts.empty()) return;
+        const int bright = std::clamp(static_cast<int>(std::lround(centre + 3.0f * (r.uniform() - 0.5f))), 0, 7);
+        const int index = starts[static_cast<size_t>(r.below(static_cast<int>(starts.size())))] + 8 * bright + r.below(8);
+        const SoundPreset& preset = list[static_cast<size_t>(index)];
+        Values values;
+        for (int k = 0; k < ParamStore::moduleCount(m); ++k) {
+            if (presetLeaves(m, k)) continue;
+            float v = p.desc(p.id(m, inst, k)).defValue;
+            for (const auto& e : preset.values) if (e.first == k) v = e.second;
+            values.push_back({ k, v });
+        }
+        if (nudge) nudge(values);
+        for (const auto& [k, v] : values) setTo(p.id(m, inst, k), v);
+        c.s.sounds.push_back({ 0.0, static_cast<int>(m), inst, index });
+    };
+    // The rows: the bass round and not too bright, the main sequence squelchy (resonance, a deep envelope, accents,
+    // a short decay), the other counter rows with an envelope that speaks.
+    pick(Module::Voice, 0, { "Ladder Bass", "Deep Ostinato", "Dark Throb", "Warm Unison" }, nullptr, [&](Values& v) {
+        change(v, voice::Cutoff, [](float x) { return std::min(x, 420.0f); });
+        change(v, voice::Resonance, [](float x) { return std::min(x, 0.45f); });
+    });
+    for (int k = 0; k < c.counters; ++k) {
+        if (k == 0) {
+            pick(Module::Voice, 1, { "Squelch Arp", "Resonant Sweep", "Pluck Sequence", "Tape Sequence", "Staccato Pulse", "Accent Ratchet" },
+                 nullptr, [&](Values& v) {
+                change(v, voice::Resonance, [](float x) { return std::max(x, 0.45f); });
+                change(v, voice::EnvAmount, [](float x) { return std::max(x, 3.0f); });
+                change(v, voice::Accent, [](float x) { return std::max(x, 0.6f); });
+                change(v, voice::Decay, [](float x) { return std::clamp(x, 120.0f, 320.0f); });
+            });
+        } else {
+            pick(Module::Voice, k + 1, { "Glass Arp", "Hollow Pulse", "Pluck Sequence", "Cosmic Drip", "Bright Stab", "Legato Glide", "Tape Sequence" },
+                 nullptr, [&](Values& v) { change(v, voice::EnvAmount, [](float x) { return std::max(x, 2.0f); }); });
+        }
+    }
+    // The lead and the kit by style (Cosmic, Doom, Melodic, Modern, Drift).
+    switch (c.style) {
+    case Style::Cosmic: pick(Module::Lead, 0, { "Solo Saw", "Cosmic Siren", "Theremin", "Portamento", "Glass Whistle", "Twin Oscillator" }, nullptr, nullptr); break;
+    case Style::Doom: pick(Module::Lead, 0, { "Dusty Solo", "Warm Mono", "Hollow Oboe", "Theremin", "Soft Horn" }, nullptr, nullptr); break;
+    case Style::Melodic: pick(Module::Lead, 0, { "Singing Pulse", "Solo Saw", "Flute Lead", "Brass Lead", "Bell Lead", "Portamento" }, nullptr, nullptr); break;
+    case Style::Modern: pick(Module::Lead, 0, { "Screaming Filter", "Twin Oscillator", "Glass Whistle", "Singing Pulse", "Bell Lead" }, nullptr, nullptr); break;
+    default: pick(Module::Lead, 0, { "Ethereal Sine", "Soft Horn", "Flute Lead", "Bell Lead", "Hollow Oboe" }, nullptr, nullptr); break;
+    }
+    pick(Module::Drone, 0, {}, nullptr, nullptr);
+    // The tape keys: a group of the style's tape set (the choir, the strings, the flute), as the settings choose it.
+    const int set = static_cast<int>(c.prof.tape);
+    pick(Module::Tape, 0, {}, [set](const SoundPreset& s) {
+        for (const auto& e : s.values) if (e.first == tape::Set) return static_cast<int>(std::lround(e.second)) == set;
+        return false;
+    }, nullptr);
+    pick(Module::Strings, 0, {}, nullptr, nullptr);
+    switch (c.style) {
+    case Style::Melodic: case Style::Modern:
+        pick(Module::Drums, 0, { "Tight Kit", "Punchy Kit", "Dry Machine", "Bright Machine", "Click Kit", "Snappy Kit" }, nullptr, nullptr); break;
+    case Style::Doom: pick(Module::Drums, 0, { "Boom Kit", "Dark Machine", "Tribal Kit", "Metal Kit" }, nullptr, nullptr); break;
+    default: pick(Module::Drums, 0, { "Deep Kit", "Warm Analog", "Round Kit", "Soft Kit", "Sub Kit" }, nullptr, nullptr); break;
+    }
+    pick(Module::Atmos, 0, {}, nullptr, nullptr);
+}
+
 /** @brief Step 5, the settings of the piece as steps at its start: tape set, hall, loudness. */
 void writeSettings(Piece& c)
 {
@@ -763,7 +849,11 @@ void writeSettings(Piece& c)
     // The sound of the sequences (25.09.2026, hypnosis): the main sequence squelchy -- more resonance, a deep and short
     // filter envelope, strong accents -- the bass round, the counter rows between; and their filter sweeps, slow sines
     // of their own period (the main sequence the widest), the Berlin School's long openings and closings.
-    auto voiceTo = [&](int r, int index, float v) { setTo(p.id(Module::Voice, r, index), v); };
+    // With the composer's sounds on (compose.pick_sounds) every synth gets a factory preset of its part instead,
+    // nudged to the same ends (writeSounds).
+    const bool pick = p.getBool(p.id(Module::Compose, 0, compose::PickSounds));
+    auto voiceTo = [&](int r, int index, float v) { if (!pick) setTo(p.id(Module::Voice, r, index), v); };
+    if (pick) writeSounds(c, setTo);
     voiceTo(0, voice::Resonance, 0.3f); voiceTo(0, voice::EnvAmount, 2.5f); voiceTo(0, voice::Decay, 260.0f); voiceTo(0, voice::Cutoff, 320.0f);
     voiceTo(0, voice::Accent, 0.6f);
     setTo(p.id(Module::Row, 0, row::Sweep), 0.3f);
@@ -836,11 +926,14 @@ void writeHands(Piece& c)
     ParamStore& p = c.p;
     const StyleProfile& prof = c.prof;
     const std::vector<double>& rowFrom = c.rowFrom;
+    // A hand moves a knob around where the settings left it (a preset's cutoff, the main sequence's), not around the
+    // bare knob: its range and centres are offsets from there.
     auto knob = [&](Module m, int inst, int index, float low, float high, float rest, float peak, float weight, double from) {
         HandKnob k;
         k.param = p.id(m, inst, index);
-        k.low = low; k.high = high;
-        k.atRest = rest + prof.darkness; k.atPeak = peak + prof.darkness;
+        const float base = c.s.gestureOffset(k.param, 0.0);
+        k.low = base + low; k.high = base + high;
+        k.atRest = base + rest + prof.darkness; k.atPeak = base + peak + prof.darkness;
         k.weight = weight; k.from = std::max(0.0, from);
         return k;
     };
@@ -1067,6 +1160,7 @@ void toOtherBank(Score& s)
         if (g.param >= 0 && g.param < static_cast<int>(rp.other.size())) g.param = rp.other[static_cast<size_t>(g.param)];
     for (RackEvent& e : s.rack) if (e.row >= 0) e.row = (e.row + kRows / 2) % kRows;
     for (RowShape& r : s.rowShapes) r.row = (r.row + kRows / 2) % kRows;
+    for (SoundPick& k : s.sounds) if (k.module == static_cast<int>(Module::Voice)) k.instance = (k.instance + kRows / 2) % kRows;
 }
 
 /**
@@ -1222,6 +1316,7 @@ void mixInto(Score& dst, const Score& src, double overlap, int rootOffset, int s
         dst.rowShapes.push_back(r);
     }
     std::stable_sort(dst.rowShapes.begin(), dst.rowShapes.end(), [](const RowShape& a, const RowShape& b) { return a.from < b.from; });
+    for (SoundPick k : src.sounds) { k.beat += at; dst.sounds.push_back(k); }
     dst.lengthBeats = at + src.lengthBeats;
     dst.sort();
 }
@@ -1295,7 +1390,7 @@ Score composeConcert(const ParamStore& p, uint64_t seed, double minutes, const C
                                    "piece" + std::to_string(i + 1) + ".", album ? &own : (shaped ? &prof : nullptr));
         for (Marker& mk : piece.markers) mk.text = "Stueck " + std::to_string(i + 1) + ": " + mk.text;
         if (i == 0) { out = piece; out.rootShifts.clear(); out.scaleShifts.clear(); out.lengthBeats = 0.0; out.notes.clear(); out.gestures.clear();
-                      out.rack.clear(); out.markers.clear(); out.rowShapes.clear(); }
+                      out.rack.clear(); out.markers.clear(); out.rowShapes.clear(); out.sounds.clear(); }
         const double before = out.tempo.secondsAt(out.lengthBeats);
         appendScore(out, piece, shift);
         elapsed += out.tempo.secondsAt(out.lengthBeats) - before;
@@ -1391,7 +1486,7 @@ Score composeNightSet(const ParamStore& p, uint64_t seed, double minutes, const 
         if (bank == 1) toOtherBank(piece);
         for (Marker& mk : piece.markers) mk.text = "Stueck " + std::to_string(i + 1) + " (" + prof.name + "): " + mk.text;
         if (i == 0) { out = piece; out.rootShifts.clear(); out.scaleShifts.clear(); out.lengthBeats = 0.0; out.notes.clear(); out.gestures.clear();
-                      out.rack.clear(); out.markers.clear(); out.rowShapes.clear(); }
+                      out.rack.clear(); out.markers.clear(); out.rowShapes.clear(); out.sounds.clear(); }
         mixInto(out, piece, overlapIn * kBeatsPerBar, shift, bank);
         elapsed = out.tempo.secondsAt(out.lengthBeats);
         endBpm = out.tempo.bpmAt(out.lengthBeats);

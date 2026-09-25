@@ -20,7 +20,7 @@
 #include <vector>
 
 /** @brief The parameters of one module instance as knobs, menus and switches. */
-class ParamPage final : public juce::Component {
+class ParamPage final : public juce::Component, private juce::Timer {
 public:
     /**
      * @brief A page for the modules in @p groups.
@@ -51,6 +51,9 @@ private:
     std::vector<eph::SoundPreset> user_;   ///< the user's presets of the synth (ids from 5001 in the list)
     std::unique_ptr<juce::AlertWindow> nameDialog_;
     juce::ToggleButton allRows_ { "All rows" };   ///< on a page with instances: a preset goes to every one
+    juce::Label composed_;   ///< the preset the composer chose for this piece (compose.pick_sounds), where the piece now is
+    int shown_ = -2;         ///< the preset composed_ shows (-1 none)
+    void timerCallback() override;   ///< follows the piece: the composer's preset of the moment
     // An effect page (no factory presets): the user's presets of the whole page, every module of it, by full key.
     bool pagePresets_ = false;
     std::vector<std::pair<juce::String, juce::String>> pageUser_;   ///< name and text

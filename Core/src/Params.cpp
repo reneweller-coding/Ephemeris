@@ -64,6 +64,7 @@ const ParamDesc kComposeParams[compose::Count] = {
     { "concert_arc",   "Concert Arc",   "",      0.0f,   1.0f,   0.0f, Curve::Linear },
     { "album",         "Album Form",    "",      0.0f,   1.0f,   0.0f, Curve::Toggle },
     { "night_set",     "Night Set",     "",      0.0f,   1.0f,   0.0f, Curve::Toggle },
+    { "pick_sounds",   "Composer's Sounds", "",  0.0f,   1.0f,   1.0f, Curve::Toggle },   // a preset per synth and piece
 };
 
 const ParamDesc kRowParams[row::Count] = {

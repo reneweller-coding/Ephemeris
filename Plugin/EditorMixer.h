@@ -20,7 +20,7 @@
 #include <vector>
 
 /** @brief One strip: name, knobs, fader and meter of one source. */
-class MixerStrip final : public juce::Component {
+class MixerStrip final : public juce::Component, public juce::SettableTooltipClient {
 public:
     /**
      * @param proc   the processor whose parameters the strip edits
@@ -42,11 +42,14 @@ public:
     void resized() override;                ///< knobs one under the other, then fader and meter side by side
     /** @brief Shows the sends (@p on) or folds them away, leaving the pan, the fader and the meter. */
     void showSends(bool on) { sends_ = on; resized(); }
+    /** @brief The composer's preset for the strip's synth in this piece, under the name (empty: none). */
+    void setSound(const juce::String& s) { if (s != sound_) { sound_ = s; setTooltip(s); repaint(); } }
 
 private:
     bool sends_ = false;                                                       ///< the sends unfolded
     std::vector<bool> isSend_;                                                 ///< per knob: a send (not the pan)
     juce::String name_;                                                        ///< the source's name
+    juce::String sound_;                                                       ///< the composer's preset of the moment
     juce::Colour colour_;                                                      ///< its accent colour
     std::unique_ptr<juce::Slider> fader_;                                      ///< the level fader
     std::unique_ptr<juce::SliderParameterAttachment> faderLink_;               ///< its host link
@@ -78,5 +81,7 @@ private:
     bool sends_ = false;
     EphemerisProcessor& proc_;                          ///< the processor whose meters it reads
     std::vector<std::unique_ptr<MixerStrip>> strips_;   ///< one strip per channel
+    std::vector<std::pair<eph::Module, int>> synths_;   ///< per strip: the synth whose presets it plays (Count: none)
+    int tick_ = 0;                                      ///< timer ticks, to look at the presets now and then
     double lastPoll_ = 0.0;                             ///< when the meters were last read, seconds
 };

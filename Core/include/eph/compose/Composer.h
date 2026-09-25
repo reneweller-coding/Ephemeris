@@ -73,8 +73,8 @@ Score composeConcert(const ParamStore& p, uint64_t seed, double minutes, const C
  */
 Score composeInterlude(const ParamStore& p, uint64_t seed, double minutes, int keyShift, const StyleProfile& profile);
 
-/** @brief The names of a piece's units, in stream order: form, tempo, rows, rack, layers, lead, pads, hands. */
-extern const char* const kUnitNames[8];
+/** @brief The names of a piece's units, in stream order: form, tempo, rows, rack, layers, lead, pads, hands, sounds. */
+extern const char* const kUnitNames[9];
 
 /**
  * @brief Appends @p src to @p dst at @p dst's end; its roots are moved by @p rootOffset semitones. A knob dst moved

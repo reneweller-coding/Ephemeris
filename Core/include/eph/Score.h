@@ -109,6 +109,14 @@ struct RowShape {
     bool transposer = false;  ///< the transposer row
 };
 
+/** @brief A factory preset the composer chose for a synth, from a beat on (Presets.h; compose.pick_sounds): what a page shows. */
+struct SoundPick {
+    double beat = 0.0;   ///< from where it holds (each piece of a concert brings its own)
+    int module = 0;      ///< the synth's Module, as an int
+    int instance = 0;    ///< which instance (the row, for the voices)
+    int preset = -1;     ///< its index in factoryPresets(module)
+};
+
 /** @brief A named position: a phase of a piece, the start of a piece. */
 struct Marker {
     double beat = 0.0;   ///< position in beats
@@ -129,6 +137,7 @@ struct Score {
     std::vector<RackEvent> rack;       ///< rack events, sorted by beat after sort()
     std::vector<Marker> markers;       ///< markers, sorted by beat after sort()
     std::vector<RowShape> rowShapes;   ///< the rows as composed (Composer), in beat order; nothing plays from it
+    std::vector<SoundPick> sounds;     ///< the composer's presets, in beat order; nothing plays from it (the gestures do)
     /** The transposer's roots over time as (beat, semitones), written by whoever ran the rack; the
      *  atmosphere's bleeps and anything else that must be in the rows' root read it. */
     std::vector<std::pair<double, int>> rootShifts;

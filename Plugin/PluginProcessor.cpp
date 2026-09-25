@@ -244,6 +244,16 @@ void EphemerisProcessor::timerCallback()
     suspendProcessing(false);
 }
 
+int EphemerisProcessor::composedPreset(Module m, int instance) const
+{
+    const double beat = position_.load();
+    std::lock_guard<std::mutex> g(lock_);
+    int preset = -1;
+    for (const SoundPick& k : current_.sounds)   // in beat order: the last one begun is the one that holds
+        if (k.module == static_cast<int>(m) && k.instance == instance && k.beat <= beat + 1e-9) preset = k.preset;
+    return preset;
+}
+
 void EphemerisProcessor::arrangement(std::vector<Marker>& markers, double& lengthBeats, double& seconds) const
 {
     std::lock_guard<std::mutex> g(lock_);

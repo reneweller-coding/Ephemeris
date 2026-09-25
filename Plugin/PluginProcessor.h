@@ -91,6 +91,11 @@ public:
     int scoreVersion() const { return scoreVersion_.load(); }
     /** @brief A copy of the score the engine plays (message thread; for the orrery). */
     void copyScore(eph::Score& out) const { std::lock_guard<std::mutex> g(lock_); out = current_; }
+    /**
+     * @brief The factory preset the composer chose for instance @p instance of synth @p m where the piece now plays
+     *        (Score::sounds, compose.pick_sounds): its index in eph::factoryPresets(m), -1 if none.
+     */
+    int composedPreset(eph::Module m, int instance) const;
     /** @brief A copy of the markers and the length, for the arrange view. */
     void arrangement(std::vector<eph::Marker>& markers, double& lengthBeats, double& seconds) const;
 

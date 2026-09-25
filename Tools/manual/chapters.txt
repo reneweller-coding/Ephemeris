@@ -68,7 +68,7 @@ third, and take a minor mode of its own, as the parts of a suite do.
 
 The reroll buttons draw one part of the piece again and leave everything else as it was, to the note:
 the form, the tempo, the rows' shapes, the rack's patterns, the layers, the lead, the chords and pads,
-and the hands on the knobs. Save set and Load set keep a piece as a small text file; Export writes the
+the hands on the knobs, and the sounds. Save set and Load set keep a piece as a small text file; Export writes the
 piece offline as a 24-bit WAV and a MIDI file beside it, with the gestures as controllers -- and, if you
 choose so, the stems: a WAV per channel strip and one for the rooms in a folder beside the mix, whose sum
 is the mix before the master.
@@ -222,9 +222,20 @@ composer moves. Nor does it put a synth out of tune with the rest: the drone and
 oscillators within a cent or three of each other (the pure foundation), the others within twelve, the lead's
 vibrato and the tapes' wobble stay inside their usual bounds, and no preset transposes anything.
 
+Every piece has its own sounds. With Composer's Sounds on (the Master page; on by default) the composer
+chooses a factory preset for every synth in every piece, from the groups that fit the part: the bass row
+from Ladder Bass, Deep Ostinato, Dark Throb or Warm Unison, kept dark enough; the main sequence from Squelch
+Arp, Resonant Sweep, Pluck Sequence, Tape Sequence, Staccato Pulse or Accent Ratchet, with resonance and a
+deep envelope; the other counter rows from the glass, hollow and plucked groups; the lead and the kit by the
+style, the tape keys from the style's tape set -- darker in Doom, brighter in Melodic. The preset bar of
+each synth page shows "this piece: ..." with the name where the piece now plays, the mixer shows it under
+each strip's name, and reroll sounds draws others while every note stays. The presets act as the
+composer's settings do, as offsets at the start of the piece: your knobs stay yours, and the choice is not
+written into them. Off, every piece plays your knobs.
+
 The knobs the player's hands move during a piece -- cutoff, resonance, envelope amount, decay -- are
-moved by the composer's gestures as offsets from where you set them, so the ranges you choose keep
-their meaning.
+moved by the composer's gestures as offsets from where the piece's settings put them, so the ranges you
+choose keep their meaning.
 
 == Lead | lead | 5 ==
 

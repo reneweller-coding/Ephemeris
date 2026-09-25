@@ -80,6 +80,11 @@ ParamPage::ParamPage(EphemerisProcessor& p, std::vector<std::pair<Module, int>> 
             }), false);
         };
         addAndMakeVisible(save_);
+        composed_.setColour(juce::Label::textColourId, kDim);
+        composed_.setTooltip("The preset the composer chose for this synth in the piece that plays (Composer's Sounds on the "
+                             "Master page; reroll sounds draws others)");
+        addAndMakeVisible(composed_);
+        startTimerHz(2);
         prev_.onClick = [this] { choosePreset(((presetIndex_ < 0 ? 0 : presetIndex_) - 1 + presetCount_) % presetCount_); };
         next_.onClick = [this] { choosePreset((presetIndex_ + 1) % presetCount_); };
         prev_.setTooltip("the preset before");
@@ -166,6 +171,18 @@ void ParamPage::fillPresets()
     preset_.setTextWhenNothingSelected(juce::String(presetCount_) + " presets" + (user_.empty() ? "" : " + " + juce::String(user_.size()) + " of yours"));
 }
 
+void ParamPage::timerCallback()
+{
+    const int inst = instances_ > 1 ? instance_.getSelectedId() - 1 : 0;
+    const int index = proc_.composedPreset(presetModule_, inst);
+    if (index == shown_) return;
+    shown_ = index;
+    const std::vector<SoundPreset>& list = factoryPresets(presetModule_);
+    composed_.setText(index >= 0 && index < static_cast<int>(list.size())
+                          ? juce::String("this piece: ") + list[static_cast<size_t>(index)].name + " (" + list[static_cast<size_t>(index)].group + ")"
+                          : juce::String(), juce::dontSendNotification);
+}
+
 void ParamPage::choosePreset(int index)
 {
     if (presetCount_ == 0 || index < 0 || index >= presetCount_) return;
@@ -242,6 +259,8 @@ void ParamPage::resized()
             top.removeFromLeft(8);
             save_.setBounds(top.removeFromLeft(70));
             if (instances_ > 1) { top.removeFromLeft(8); allRows_.setBounds(top.removeFromLeft(90)); }
+            top.removeFromLeft(12);
+            composed_.setBounds(top);
         } else if (pagePresets_) {
             preset_.setBounds(top.removeFromLeft(300));
             top.removeFromLeft(8);
@@ -495,7 +514,7 @@ void EphemerisEditor::resized()
     compose_.setBounds(top.removeFromRight(100).reduced(3));
     area.removeFromTop(6);
     auto second = area.removeFromTop(28);
-    for (auto* b : rerollButtons_) b->setBounds(second.removeFromLeft(92).reduced(2));
+    for (auto* b : rerollButtons_) b->setBounds(second.removeFromLeft(82).reduced(2));
     export_.setBounds(second.removeFromRight(140).reduced(2));
     load_.setBounds(second.removeFromRight(80).reduced(2));
     save_.setBounds(second.removeFromRight(80).reduced(2));

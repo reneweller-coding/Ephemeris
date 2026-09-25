@@ -3,6 +3,7 @@
  * @brief The mixer page (EditorMixer.h).
  */
 #include "EditorMixer.h"
+#include "eph/Presets.h"
 #include <cmath>
 
 using namespace eph;
@@ -82,7 +83,7 @@ void MixerStrip::meter(float peak, float rms, double seconds)
 void MixerStrip::resized()
 {
     auto r = getLocalBounds().reduced(3);
-    r.removeFromTop(20);   // the name
+    r.removeFromTop(32);   // the name, and the composer's preset under it
     // The knobs one under the other: fourteen strips leave a strip too narrow for two knobs of a size a hand
     // can grab. The name sits under each knob.
     // Folded, only the pan above the fader; unfolded, up to six sends as well, shrinking where the console is short.
@@ -118,6 +119,11 @@ void MixerStrip::paint(juce::Graphics& g)
     g.setColour(kInk);
     g.setFont(font(12.5f, true));
     g.drawFittedText(name_, getLocalBounds().withHeight(22).reduced(2, 0), juce::Justification::centred, 1);
+    if (sound_.isNotEmpty()) {
+        g.setColour(kDim);
+        g.setFont(font(10.0f, false));
+        g.drawFittedText(sound_, getLocalBounds().withTrimmedTop(18).withHeight(14).reduced(3, 0), juce::Justification::centred, 1, 0.8f);
+    }
 
     // The meter: a dB scale from kFloorDb to kTopDb, the RMS bar, the held peak, 0 dBFS marked.
     const auto m = meterArea_.toFloat();
@@ -209,6 +215,7 @@ MixerConsole::MixerConsole(EphemerisProcessor& proc) : proc_(proc)
         if (blendSend >= 0) knobs.emplace_back(p.id(m, inst, blendSend), "Blend");
         knobs.emplace_back(p.id(m, inst, reverbSend), "Hall");
         if (shimmerSend >= 0) knobs.emplace_back(p.id(m, inst, shimmerSend), "Shimmer");
+        synths_.push_back({ c < kRows ? M::Voice : m, c < kRows ? c : 0 });
         auto strip = std::make_unique<MixerStrip>(proc, Engine::channelName(c), colour, p.id(m, inst, level), knobs);
         addAndMakeVisible(*strip);
         strips_.push_back(std::move(strip));
@@ -236,6 +243,13 @@ void MixerConsole::timerCallback()
     // The strips follow the readings whether the page is on screen or not, so a page that comes into view --
     // or into a screenshot -- shows the level of now.
     for (size_t i = 0; i < strips_.size(); ++i) strips_[i]->meter(peak[i], rms[i], dt);
+    // The composer's presets of the moment, about once a second.
+    if (++tick_ % 16 != 1) return;
+    for (size_t i = 0; i < strips_.size() && i < synths_.size(); ++i) {
+        const int index = proc_.composedPreset(synths_[i].first, synths_[i].second);
+        const std::vector<SoundPreset>& list = factoryPresets(synths_[i].first);
+        strips_[i]->setSound(index >= 0 && index < static_cast<int>(list.size()) ? juce::String(list[static_cast<size_t>(index)].name) : juce::String());
+    }
 }
 
 void MixerConsole::resized()

@@ -101,7 +101,9 @@ enum : int { Bpm, Key, Scale, Style, PieceMinutes,
              Album,
              // 25.09.2026: a concert as a night set (composeNightSet): the styles mixed along waves of energy, the
              // pieces overlapping as a DJ mixes them.
-             NightSet, Count };
+             NightSet,
+             // 25.09.2026: the composer chooses a factory preset for every synth in every piece (off: your knobs).
+             PickSounds, Count };
 }
 /** @brief Parameters of one row of the sequencer rack (module Row, "row1" .. "row8"). */
 namespace row {
