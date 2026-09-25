@@ -56,7 +56,6 @@ private:
     double metal_[6] = {};         ///< the hats' six square phases
     Svf hatBp_, hatHp_;
     Rng rng_;
-    float driveState_ = 0.0f;
 };
 
 } // namespace eph

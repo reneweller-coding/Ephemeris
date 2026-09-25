@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="com.reneweller.ephemeris.quest"
+    android:versionCode="1"
+    android:versionName="0.1"
+    android:installLocation="auto">
+
+    <uses-sdk android:minSdkVersion="29" android:targetSdkVersion="32" />
+
+    <uses-permission android:name="com.oculus.permission.HAND_TRACKING" />
+    <uses-feature android:name="android.hardware.vr.headtracking" android:version="1" android:required="true" />
+    <uses-feature android:name="oculus.software.handtracking" android:required="true" />
+    <uses-feature android:glEsVersion="0x00030000" android:required="true" />
+
+    <application
+        android:label="Ephemeris"
+        android:icon="@mipmap/ic_launcher"
+        android:hasCode="false"
+        android:allowBackup="false"
+        android:extractNativeLibs="true">
+
+        <meta-data android:name="com.oculus.supportedDevices" android:value="quest|quest2|quest3|questpro" />
+        <meta-data android:name="com.oculus.handtracking.version" android:value="V2.0" />
+
+        <activity
+            android:name="android.app.NativeActivity"
+            android:label="Ephemeris"
+            android:icon="@mipmap/ic_launcher"
+            android:launchMode="singleTask"
+            android:screenOrientation="landscape"
+            android:configChanges="screenSize|screenLayout|orientation|keyboardHidden|keyboard|navigation|uiMode|density"
+            android:excludeFromRecents="false"
+            android:exported="true">
+            <meta-data android:name="android.app.lib_name" android:value="ephquest" />
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="com.oculus.intent.category.VR" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+    </application>
+</manifest>

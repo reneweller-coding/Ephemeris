@@ -78,6 +78,9 @@ namespace {
 
 /** @brief What the steps of a piece share: the settings, the profile, the form, the score being written. */
 struct Piece {
+    /** @brief The piece's settings, profile, score and form; the rest is filled in by the steps. */
+    Piece(ParamStore& params, const StyleProfile& profile, Style st, Score& score, const PieceForm& f)
+        : p(params), prof(profile), style(st), s(score), form(f) {}
     ParamStore& p;                        ///< the piece's own copy of the parameters
     const StyleProfile& prof;             ///< the style profile
     Style style;                          ///< its style

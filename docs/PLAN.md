@@ -74,6 +74,28 @@ Render 9,3 s. Die übrigen Posten dort: Hall 1,6 s, Federn 1,5 s, `updateCell` 1
 Limiter 0,9 s, Echo 0,7 s, die anderen Klangerzeuger 1,7 s. Hörprüfung offen: Die Sigmoide biegt etwas
 früher als tanh, die Stimmen sind dadurch rund 0,5 dB leiser (RMS des Mixes −19,5 statt −19,0 dBFS).
 
+**25.09.2026: Phase 6, Quest-Port gebaut (ungetestet auf dem Gerät).** `Quest/` nach Phosphene: OpenXR,
+EGL, Oboe, Punkt-Renderer, Schrift und Hände übernommen; neu sind der Player (ein Stück wird ganz komponiert
+und vor dem Audiostart geladen, "nächstes Stück" komponiert auf dem Komponisten-Thread und tauscht hinter
+einer Blende, lock-frei wie Phosphenes Übergabe; der Render-Thread liest nur veröffentlichte Atomics und eine
+unveränderliche Kopie der Partitur), die Hände (links Pinch Play/Stop, rechts Pinch nächstes Stück, linke
+Höhe `perform.filter`, rechte Höhe `perform.throw`) und das Panel (Stück, Stil, Abschnitt, Grundton und
+Skala, Zeit, Tempo, Pegel, die beiden Handwerte, Taktlampen, daneben das Orrery aus Punkten). `eph.cfg`:
+mute, seed, minutes, style, set. `build_apk.ps1` baut ohne Gradle: `build-quest/EphemerisQuest.apk`,
+3,6 MB (keine Daten). Dabei zwei Clang-Warnungen im Kern behoben (bitgleich). Offen: auf dem Gerät
+starten, messen, die Qualitätsstufe festlegen.
+
+**25.09.2026: Phase 7, Release-Gerüst.** `Deploy/build_release.ps1` (Build mit statischer Laufzeit, ctest,
+Handbuch, Stage, Prüfung ohne dynamische MSVC-Laufzeit, SHA256SUMS, portables ZIP, Setup mit Inno Setup),
+`Deploy/Ephemeris.iss` (Standalone, VST3, eph_render, Handbuch; AVX2-Prüfung), Icon aus dem Orrery
+(`Deploy/make_icon.py`). Geprüft: 22 von 22 Tests, `Ephemeris-0.1.0-portable.zip` (9 MB). Inno Setup ist
+auf dieser Maschine nicht installiert, das Setup selbst ist deshalb noch nicht gebaut.
+
+**25.09.2026: Handbuch.** `Tools/manual/make_manual.py` nach Phosphene: Fließtext aus `chapters.txt`
+(Englisch), Parametertabellen aus `eph_render --dump-params`, ein Bild je Tab (`docs/screenshots`), HTML
+und PDF (`docs/manual/Ephemeris-Manual.pdf`, Edge headless); verweigert ein Handbuch mit einem Modul, das
+auf keiner Seite steht. Mute-Knopf wie in Phosphene: `EPH_MUTE` und der Screenshot-Modus erzwingen ihn.
+
 **25.09.2026: Leistung, zweite Runde.** Die Engine ruft einen Setter nur noch, wenn sich seine Eingabe
 geändert hat (Hall, Federn, Echo, Kompressor, Limiter, die zehn Stimmen, die Kanalzüge, Tape Keys, Strings,
 Drums, Atmosphäre; die Setter sind reine Funktionen ihrer Eingabe, also bitgleich), `played()` merkt sich
