@@ -24,15 +24,30 @@ umgesetzt (die Einträge darunter); offen ist, was einen Menschen, eine Installa
    Zustand, Automation, Thread-Sicherheit, Parameter-Fuzzing); als ctest `pluginval` und im Release-Skript.
    Inno Setup 7.1 baut `Deploy\out\Ephemeris-0.1.0-Setup.exe` (8,6 MB).
 4. **Kalibrierung der Tape Keys** an Mellotron-Aufnahmen (dafür fehlen Aufnahmen).
-5. Kleinere Ideen aus 8.1, die eine Entscheidung brauchen: Stilprofile im Style-Tab editierbar machen,
-   Platte und BBD als weitere Räume, Granular in der Atmosphäre, ein Spannungsbogen über ein ganzes Konzert.
+5. ~~Kleinere Ideen aus 8.1~~ erledigt am 25.09.2026 (siehe unten): eigener Stil, Platte und BBD, Granular,
+   Spannungsbogen über ein Konzert.
+
+**25.09.2026: Eigener Stil, Platte und BBD, Granular, Konzertbogen.**
+- **Eigener Stil** (Modul `custom`, Style-Tab): alle Zahlen eines Profils als Parameter, "Copy <Stil> into
+  Custom" als Ausgangspunkt, "Use Custom Style" schaltet ihn ein; Reihenlängen, Transposer, Tape-Satz und
+  Schlagzeugmuster bleiben die des gewählten Stils (Cosmic und Drift haben keine Schlagzeugmuster). Ein
+  Konzert beginnt mit ihm und morpht von ihm aus.
+- **Platte** (`reverb.type`, `Plate.h`): Dattorros Plattenhall (1997), Pegel auf den Hall abgeglichen
+  (−30,1 gegen −30,9 dBFS im Raum-Stem). **BBD** (`echo.type`, `Bbd.h`): 4096 Stufen, die Filter bei einem
+  Drittel des Takts (längere Delays dunkler), wandernder Takt, Kompander-Sättigung und -Rauschen.
+- **Granular** (`atmos.grains`, `atmos.grain_density`): eine Wolke kurzer Sinuskörner auf Skalentönen, eigener
+  Zufallsstrom; der Komponist zieht sie mit der Wahrscheinlichkeit des Stils (Cosmic 60 %, Doom 30 %, Melodic
+  20 %, Modern 40 %, Drift 70 %) als letzte Ziehung der Schichten und hebt sie in Atmosphäre, Brücken und
+  Ausklang. Neue Referenz-Hashes (geprüft: ohne Wolke ist Melodic Seed 5 bitgleich zur alten Referenz).
+- **Konzertbogen** (`compose.concert_arc`): ruhige Ränder, der Gipfel bei 60 % des Konzerts (Reihen am
+  Höhepunkt, Schichten, Lead, Hände, Helligkeit, etwas Tempo).
+- Selbsttests dazu; 26 ctest-Tests, dazu pluginval (Strenge 10); die APK baut mit allem (3,8 MB).
 
 **25.09.2026: Stil-Morph, Style-Tab, Instrumentierungs-Matrix, Stems im Plugin.** `compose.morph_to`: Ein
 Konzert wandert vom eigenen Stil zu einem anderen, jedes Stück mit dem Profil beim bereits gespielten Anteil
 (`morphProfile`: Zahlen interpoliert, Listen und Aufzählungen vom näheren Profil; Schlagzeugmuster vom näheren
 Stil); Selbsttest "style morph"; Beispiel 40 min Cosmic → Modern: drei Stücke, 116, 106, 115 BPM. Style-Tab:
-die fünf Profile nebeneinander, der gewählte hervorgehoben (nur ansehen; Editieren der Profile bleibt offen,
-das ist eine Entscheidung des Nutzers). Arrange: unter den Abschnitten die Instrumentierungs-Matrix (Reihen,
+die fünf Profile nebeneinander, der gewählte hervorgehoben (editierbar seit dem eigenen Stil, siehe oben). Arrange: unter den Abschnitten die Instrumentierungs-Matrix (Reihen,
 Lead, Tape Keys, Strings, Drone, Drums). Export im Plugin wahlweise mit Stems. Host-Test prüft den MIDI-Weg
 (eine Taste transponiert, das Modulationsrad greift die Filter).
 

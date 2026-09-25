@@ -16,7 +16,11 @@ The plan, the musical specification and the literature behind each building bloc
   writes whole pieces and concerts; rerolling any part on its own; `.ephset` files; WAV and MIDI export.
 - The plugin: a mixer with meters, a perform page (filter hand, transposition key, hold, echo throw; MIDI
   keys, controllers and learn), the rack with the orrery, a page per source; the host's tempo in a host.
-- The Quest app (built, not yet run on a headset), the release build and the manual generator.
+- Concerts that morph from one style to another and follow an arc of tension; a style of your own.
+- Rooms: the hall or a plate, the tape echo or a bucket-brigade delay; a granular cloud in the atmosphere.
+- Score cues over OSC for a visualiser (Kaleidoscope); stems; a gestures page and a style page.
+- The Quest app (built, not yet run on a headset), the release build with installer and pluginval, and the
+  manual generator.
 
 ![The panel](docs/screenshot.png)
 
