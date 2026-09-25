@@ -22,9 +22,7 @@ add_library(EphemerisCore STATIC
     src/Composer.cpp
     src/SetFile.cpp
     src/Drums.cpp
-    src/Study.cpp
     src/Lead.cpp
-    src/Sketch.cpp
     src/Engine.cpp
 )
 target_include_directories(EphemerisCore PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)

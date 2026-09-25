@@ -6,7 +6,7 @@ function(eph_add_test name)
 endfunction()
 
 add_executable(eph_selftest selftest.cpp)
-target_link_libraries(eph_selftest PRIVATE EphemerisCore)
+target_link_libraries(eph_selftest PRIVATE EphemerisCore EphemerisPieces)
 # One ctest test per self-test section, `selftest.<name>`, read from the registration table in selftest.cpp
 # ({ "testName", testName }) when CMake configures, so a new section needs no edit here (after Phosphene,
 # which asks the executable instead). CONFIGURE_DEPENDS-like: selftest.cpp is a configure dependency.
