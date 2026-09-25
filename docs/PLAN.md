@@ -74,6 +74,23 @@ Render 9,3 s. Die übrigen Posten dort: Hall 1,6 s, Federn 1,5 s, `updateCell` 1
 Limiter 0,9 s, Echo 0,7 s, die anderen Klangerzeuger 1,7 s. Hörprüfung offen: Die Sigmoide biegt etwas
 früher als tanh, die Stimmen sind dadurch rund 0,5 dB leiser (RMS des Mixes −19,5 statt −19,0 dBFS).
 
+**25.09.2026: Kaleidoscope-Kopplung (8.3), Stems, Gesten-Tab, Qualitätsstufe.**
+- **Cues** (`Core/include/eph/Cue.h`): Die Engine macht beim Laden aus der Partitur Marken (Abschnitte
+  englisch benannt, jeder neue Grundton, jede Konjunktion von mindestens zwei laufenden Reihen, die nicht
+  gerade erst einsetzen); der Audio-Thread stempelt die Marken seines Blocks mit dem Moment, in dem man sie
+  hört, und legt sie wartefrei in einen Ring; ein eigener Thread schickt sie zur rechten Zeit als OSC 1.0
+  über UDP: `/eph/beat i f`, `/eph/phase s i`, `/eph/key s`, `/eph/conjunction i f`. Plugin: Parameter
+  `cue.enabled` und `cue.port` (Master-Tab), Ziel `EPH_CUE_HOST` (sonst diese Maschine); Quest: `osc_host`,
+  `osc_port` in `eph.cfg`; `eph_render --cues DATEI` schreibt die Marken als Text. Selbsttest: Byte-Layout
+  nach der OSC-Spezifikation, Marken eines Stücks, der Tap sendet jede Marke einmal, ein echtes Datagramm
+  über die Loopback-Schnittstelle.
+- **Stems**: `eph_render --stems ORDNER`, eine 32-Bit-WAV je Kanalzug und eine für die Räume; ihre Summe
+  ist der Mix vor dem Master (geprüft: Korrelation 0,998 mit dem Ausgang, 83 Samples Limiter-Vorlauf).
+- **Gesten-Tab**: je Knopf eine Spur mit der Offset-Kurve über das Stück, nach Hand gefärbt, darüber die
+  Belegung der beiden Hände (die Zwei-Hände-Regel sichtbar); Handbuch-Kapitel dazu.
+- **Qualitätsstufe**: Sänger je Chortaste einstellbar (Desktop 6, Quest 3, `eph_render --quality quest`),
+  der Pegel bleibt (1/√(6n), bei sechs exakt 1/6: der Desktop bitgleich).
+
 **25.09.2026: Phase 6, Quest-Port gebaut (ungetestet auf dem Gerät).** `Quest/` nach Phosphene: OpenXR,
 EGL, Oboe, Punkt-Renderer, Schrift und Hände übernommen; neu sind der Player (ein Stück wird ganz komponiert
 und vor dem Audiostart geladen, "nächstes Stück" komponiert auf dem Komponisten-Thread und tauscht hinter

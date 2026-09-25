@@ -9,6 +9,24 @@
 #include "eph/Clock.h"
 #include "eph/compose/Composer.h"
 #include "eph/Engine.h"
+#include "eph/Cue.h"
+#if defined(_WIN32)
+  #ifndef NOMINMAX
+    #define NOMINMAX
+  #endif
+  #ifndef WIN32_LEAN_AND_MEAN
+    #define WIN32_LEAN_AND_MEAN
+  #endif
+  #include <winsock2.h>
+  #include <ws2tcpip.h>
+  using socklen_t = int;
+#else
+  #include <arpa/inet.h>
+  #include <netinet/in.h>
+  #include <sys/socket.h>
+  #include <sys/time.h>
+  #include <unistd.h>
+#endif
 #include "eph/compose/Form.h"
 #include "eph/compose/GestureEngine.h"
 #include "eph/compose/Lead.h"
@@ -631,6 +649,91 @@ void testPerform()
     check(diff(held, plain) > 0.0, "the hold keeps the gestures where they stood", fmt("difference %.4f", diff(held, plain)));
 }
 
+/** The score cues (Cue.h): the OSC bytes as the specification lays them out, the marks of a piece, the tap. */
+void testCues()
+{
+    section("score cues (OSC)");
+    const char* d = "D";
+    const std::vector<uint8_t> key = oscMessage("/eph/key", "s", nullptr, nullptr, &d);
+    const uint8_t keyWant[20] = { '/', 'e', 'p', 'h', '/', 'k', 'e', 'y', 0, 0, 0, 0, ',', 's', 0, 0, 'D', 0, 0, 0 };
+    const int32_t five = 5;
+    const float bpm = 132.0f;
+    const std::vector<uint8_t> beat = oscMessage("/eph/beat", "if", &five, &bpm, nullptr);
+    const uint8_t beatWant[24] = { '/', 'e', 'p', 'h', '/', 'b', 'e', 'a', 't', 0, 0, 0, ',', 'i', 'f', 0, 0, 0, 0, 5, 0x43, 0x04, 0, 0 };
+    check(key.size() == 20 && std::memcmp(key.data(), keyWant, 20) == 0 && beat.size() == 24 && std::memcmp(beat.data(), beatWant, 24) == 0,
+          "OSC 1.0 byte layout (padding to four bytes, big-endian numbers)", fmt("%zu and %zu bytes", key.size(), beat.size()));
+
+    ParamStore p;
+    p.parseText("compose.style=Melodic");
+    const Score score = composePiece(p, 5, 10.0);
+    const std::vector<CueMark> marks = cueMarksOf(score);
+    int phases = 0, keys = 0, conj = 0, named = 0;
+    bool ordered = true, twoOrMore = true;
+    for (size_t i = 0; i < marks.size(); ++i) {
+        if (i > 0 && marks[i].beat < marks[i - 1].beat) ordered = false;
+        if (marks[i].kind == CueKind::Phase) { ++phases; named += marks[i].text[0] != 0; }
+        if (marks[i].kind == CueKind::Key) ++keys;
+        if (marks[i].kind == CueKind::Conjunction) { ++conj; twoOrMore = twoOrMore && marks[i].a >= 2; }
+    }
+    check(ordered && phases == static_cast<int>(score.markers.size()) && named == phases && keys >= 1 && conj > 0 && twoOrMore,
+          "the marks of a piece: every section named, the keys, conjunctions of two rows or more",
+          fmt("%d sections of %zu markers, %d keys, %d conjunctions", phases, score.markers.size(), keys, conj));
+
+    // The tap over the whole piece in blocks: every mark once, in order, and a beat cue per beat.
+    CueTap tap;
+    CueRing ring;
+    int got = 0, beats = 0, lost = 0;
+    const double step = 0.37;
+    for (double b = 0.0; b < score.lengthBeats; b += step) {
+        lost += tap.scan(marks, b, b + step, 110.0f, 0, 0, 1000000, ring);
+        Cue c;
+        while (ring.pop(c)) { if (c.kind == CueKind::Beat) ++beats; else ++got; }
+    }
+    check(lost == 0 && got == static_cast<int>(marks.size()) && std::abs(beats - static_cast<int>(std::ceil(score.lengthBeats))) <= 1,
+          "the tap sends every mark once and a cue per beat", fmt("%d of %zu marks, %d beats, %d lost", got, marks.size(), beats, lost));
+
+    // The sender, for real: a datagram through the loopback to a socket of the test's own.
+    const std::vector<uint8_t> want = oscOf([] { Cue c; c.kind = CueKind::Key; std::strcpy(c.text, "F#"); return c; }());
+    std::vector<uint8_t> heard;
+#if defined(_WIN32)
+    WSADATA wsa;
+    WSAStartup(MAKEWORD(2, 2), &wsa);
+    const SOCKET rx = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
+    DWORD timeout = 2000;
+    setsockopt(rx, SOL_SOCKET, SO_RCVTIMEO, reinterpret_cast<const char*>(&timeout), sizeof(timeout));
+#else
+    const int rx = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
+    timeval timeout{ 2, 0 };
+    setsockopt(rx, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof(timeout));
+#endif
+    sockaddr_in addr{};
+    addr.sin_family = AF_INET;
+    addr.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
+    addr.sin_port = 0;
+    bind(rx, reinterpret_cast<sockaddr*>(&addr), sizeof(addr));
+    socklen_t len = sizeof(addr);
+    getsockname(rx, reinterpret_cast<sockaddr*>(&addr), &len);
+    CueSender sender;
+    if (sender.start("127.0.0.1", ntohs(addr.sin_port))) {
+        Cue c;
+        c.kind = CueKind::Key;
+        std::strcpy(c.text, "F#");
+        c.dueNanos = CueSender::nowNanos();
+        sender.ring().push(c);
+        char buf[256];
+        const auto n = recv(rx, buf, sizeof(buf), 0);
+        if (n > 0) heard.assign(buf, buf + n);
+        sender.stop();
+    }
+#if defined(_WIN32)
+    closesocket(rx);
+    WSACleanup();
+#else
+    close(rx);
+#endif
+    check(heard == want, "the sender's datagram arrives through the loopback, byte for byte", fmt("%zu bytes", heard.size()));
+}
+
 /**
  * The offline render is the oracle only if a host's block size cannot change a sample: the study
  * rendered with blocks of 1, 37 and 512 must agree bit for bit (Engine.h).
@@ -773,6 +876,7 @@ const TestSection kSections[] = {
     { "testComposer", testComposer },
     { "testCuration", testCuration },
     { "testPerform", testPerform },
+    { "testCues", testCues },
     { "testBlockSizes", testBlockSizes },
     { "testEcho", testEcho },
     { "testDrift", testDrift },

@@ -37,6 +37,8 @@
  *   minutes=12          length of a piece
  *   style=Cosmic        Cosmic, Doom, Melodic, Modern or Drift
  *   quality=quest       quest (default here: 3 singers per choir key) or desktop (6)
+ *   osc_host=192.168.1.20   the score cues (Cue.h) to a visualiser such as Kaleidoscope; empty = off
+ *   osc_port=9000
  *   set=compose.key=D;perform.throw=0     any knobs, repeatable
  * @endcode
  */
@@ -64,6 +66,7 @@
 #include <thread>
 #include <vector>
 
+#include "eph/Cue.h"
 #include "eph/Engine.h"
 #include "eph/compose/Composer.h"
 #include "eph/compose/Form.h"
@@ -193,6 +196,8 @@ struct Config {
     uint64_t seed = 1;              ///< the first piece's seed
     double minutes = 12.0;          ///< length of a piece
     int singers = 3;                ///< singers per choir key: 3 at the quality level `quest` (default here), 6 at `desktop`
+    std::string oscHost;            ///< cue target (Cue.h), empty = off
+    int oscPort = 9000;             ///< cue port
     std::string sets;               ///< knob assignments, "key=value" separated by ';' or newlines
 };
 
@@ -216,6 +221,8 @@ Config readConfig(const char* dir)
         else if (k == "seed") c.seed = std::strtoull(v.c_str(), nullptr, 10);
         else if (k == "minutes") c.minutes = std::max(4.0, std::atof(v.c_str()));
         else if (k == "quality") c.singers = v == "desktop" ? 6 : 3;
+        else if (k == "osc_host") c.oscHost = v;
+        else if (k == "osc_port") c.oscPort = std::atoi(v.c_str());
         else if (k == "style") { c.sets += "compose.style=" + v; c.sets += ";"; }
         else if (k == "set") { c.sets += v; c.sets += ";"; }
         else LOGE("eph.cfg: unknown key %s", k.c_str());
@@ -251,6 +258,7 @@ public:
             std::string err;
             if (!engine_.params().parseText(cfg.sets, &err)) LOGE("eph.cfg set: %s", err.c_str());
         }
+        sr_ = static_cast<double>(sampleRate);
         gainCoef_ = static_cast<float>(1.0 - std::exp(-1.0 / (0.015 * sampleRate)));   // 15 ms
         levelCoef_ = static_cast<float>(1.0 - std::exp(-1.0 / (0.3 * sampleRate)));    // 300 ms
         engine_.prepare(sampleRate, block);
@@ -278,7 +286,15 @@ public:
             std::fill(L, L + n, 0.0f);
             std::fill(R, R + n, 0.0f);
         } else {
+            const double from = engine_.beat();
             engine_.process(L, R, n);
+            if (cues_ != nullptr && cues_->running()) {
+                // The cues of this block (Cue.h), stamped with the moment the block is heard.
+                const double blockSeconds = static_cast<double>(n) / sr_, to = engine_.beat();
+                const float bpm = static_cast<float>((to - from) / blockSeconds * 60.0);
+                tap_.scan(engine_.cueMarks(), from, to, bpm, CueSender::nowNanos(), static_cast<int64_t>(2.0 * blockSeconds * 1.0e9),
+                          static_cast<int64_t>(blockSeconds * 1.0e9), cues_->ring());
+            }
             const float out = muted_ ? 0.0f : 1.0f;
             float level = level_.load(std::memory_order_relaxed);
             for (int i = 0; i < n; ++i) {
@@ -295,6 +311,8 @@ public:
         state_.store(kIdle, std::memory_order_release);
     }
 
+    /** @brief Binds the cue sender (Cue.h); null leaves the cues off. Call before the audio stream starts. */
+    void setCueSender(CueSender* sender) { cues_ = sender; }
     /** @brief Play or stop (any thread; takes effect over the fade). */
     void setPlaying(bool on) { playing_.store(on, std::memory_order_relaxed); }
     /** @brief Whether play is on. */
@@ -338,6 +356,7 @@ private:
             std::this_thread::sleep_for(std::chrono::milliseconds(1));
         }
         engine_.load(*score);      // allocates: here, while the audio thread writes silence
+        tap_.reset();
         gain_ = 0.0f;
         beat_.store(0.0, std::memory_order_relaxed);
         seconds_.store(0.0, std::memory_order_relaxed);
@@ -359,6 +378,9 @@ private:
     std::atomic<double> beat_{ 0.0 }, seconds_{ 0.0 };
     std::atomic<float> level_{ 0.0f };
     bool muted_ = false;
+    double sr_ = 48000.0;
+    CueSender* cues_ = nullptr;   ///< the cue bridge, owned by the app; null = off
+    CueTap tap_;                  ///< audio thread: beat range -> cues
     float gain_ = 0.0f, gainCoef_ = 0.002f, levelCoef_ = 0.0001f;
     mutable std::mutex scoreMutex_;
     std::shared_ptr<const Score> score_;
@@ -646,6 +668,13 @@ public:
     {
         dataDir_ = app_->activity->externalDataPath ? app_->activity->externalDataPath : "";
         config_ = readConfig(dataDir_.c_str());
+        // The cue bridge of PLAN 8.3, off unless eph.cfg names a host: a visualiser that is not there changes nothing.
+        if (!config_.oscHost.empty()) {
+            if (cues_.start(config_.oscHost, config_.oscPort)) {
+                LOGI("cues: OSC to %s:%d", config_.oscHost.c_str(), config_.oscPort);
+                player_.setCueSender(&cues_);
+            } else LOGE("cues: cannot reach %s:%d", config_.oscHost.c_str(), config_.oscPort);
+        }
         if (!initLoader()) return false;
         if (!initInstance()) return false;
         if (!initEgl()) return false;
@@ -679,6 +708,7 @@ public:
         stopComposer_.store(true);
         if (composerThread_.joinable()) composerThread_.join();
         audio_.stop();
+        cues_.stop();   // after the stream: the sender's thread reads the ring the audio thread fills
         for (SwapchainTarget& t : targets_) if (t.swapchain != XR_NULL_HANDLE) xrDestroySwapchain(t.swapchain);
         for (int h = 0; h < 2; ++h)
             if (handTracker_[h] != XR_NULL_HANDLE && pfnDestroyHandTracker_) pfnDestroyHandTracker_(handTracker_[h]);
@@ -1209,6 +1239,7 @@ private:
     Scene scene_;
     Hands hands_;
     int filterId_ = -1, throwId_ = -1;   ///< perform.filter and perform.throw, the hands' controls
+    CueSender cues_;                     ///< the cue bridge's socket and thread (Cue.h)
 
     EGLDisplay display_ = EGL_NO_DISPLAY;
     EGLConfig eglConfig_ = nullptr;

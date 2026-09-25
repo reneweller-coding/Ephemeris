@@ -183,6 +183,19 @@ void EphemerisProcessor::run()
 
 void EphemerisProcessor::timerCallback()
 {
+    // The cue sender follows its two parameters (message thread: the socket is opened and closed here).
+    {
+        const ParamStore& s = store();
+        const int port = s.getBool(s.id(Module::Cue, 0, cue::Enabled)) ? s.getInt(s.id(Module::Cue, 0, cue::Port)) : 0;
+        if (port != cuePort_) {
+            cues_.stop();
+            cuePort_ = port;
+            if (port > 0) {
+                const char* host = std::getenv("EPH_CUE_HOST");
+                if (!cues_.start(host != nullptr ? host : "127.0.0.1", port)) cuePort_ = 0;
+            }
+        }
+    }
     std::unique_ptr<Score> next;
     {
         std::lock_guard<std::mutex> g(lock_);
@@ -304,8 +317,17 @@ void EphemerisProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::Mi
         buffer.clear();
         return;
     }
+    const double before = engine_.beat();
     engine_.process(buffer.getWritePointer(0), buffer.getWritePointer(1), n);
     position_ = engine_.beat();
+    if (cues_.running()) {
+        // The cues of this block, stamped with the moment it is heard (Cue.h); a jump starts the marks again.
+        if (std::fabs(before - lastBeat_) > 1.0e-6) cueTap_.reset();
+        const double blockSeconds = static_cast<double>(n) / sampleRate_;
+        cueTap_.scan(engine_.cueMarks(), before, engine_.beat(), static_cast<float>(current_.tempo.bpmAt(before)),
+                     eph::CueSender::nowNanos(), static_cast<int64_t>(blockSeconds * 1.0e9), static_cast<int64_t>(blockSeconds * 1.0e9), cues_.ring());
+    }
+    lastBeat_ = engine_.beat();
     {
         // The channel meters: raised here, taken by the mixer page (takeChannelMeters). One writer, so a load and a
         // store will do; a block the editor takes in between is at worst counted in the next reading.

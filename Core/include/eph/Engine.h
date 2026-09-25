@@ -27,6 +27,7 @@
 #include "eph/fx/Dynamics.h"
 #include "eph/synth/ModVoice.h"
 #include "eph/Params.h"
+#include "eph/Cue.h"
 #include "eph/fx/Reverb.h"
 #include "eph/Score.h"
 #include "eph/fx/Spring.h"
@@ -108,6 +109,8 @@ public:
      *        reading only, the mix is the same to the bit.
      */
     void setStems(float* const* left, float* const* right) { stemL_ = left; stemR_ = right; }
+    /** @brief The score's cue marks (Cue.h), built by load(); the audio thread may read them between loads. */
+    const std::vector<CueMark>& cueMarks() const { return cueMarks_; }
 
 private:
     /**
@@ -191,6 +194,7 @@ private:
     float* const* stemL_ = nullptr;   ///< setStems(), left
     float* const* stemR_ = nullptr;   ///< setStems(), right
     int spanAt_ = 0;                  ///< where the span being rendered starts in the block of process()
+    std::vector<CueMark> cueMarks_;   ///< cueMarks()
     float echoThrow_ = 0.0f;   ///< perform.throw's addition to every echo send (mix())
     /**
      * @brief What each setter was last called with (updateCell): a setter runs only when its input has

@@ -234,7 +234,7 @@ EphemerisEditor::EphemerisEditor(EphemerisProcessor& p) : juce::AudioProcessorEd
     page("Echo + Spring", { { M::Echo, 0 }, { M::Spring, 0 } }, 1);
     page("Hall", { { M::Reverb, 0 } }, 1);
     page("Drums", { { M::Drums, 0 } }, 1);
-    page("Master", { { M::Master, 0 }, { M::Compose, 0 } }, 1);
+    page("Master", { { M::Master, 0 }, { M::Compose, 0 }, { M::Cue, 0 } }, 1);
     addAndMakeVisible(tabs_);
 
     setResizable(true, true);

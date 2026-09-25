@@ -24,8 +24,12 @@ add_library(EphemerisCore STATIC
     src/synth/Drums.cpp
     src/compose/Lead.cpp
     src/Engine.cpp
+    src/Cue.cpp
 )
 target_include_directories(EphemerisCore PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
+if(WIN32)
+    target_link_libraries(EphemerisCore PUBLIC ws2_32)   # the cue sender's UDP socket (Cue.h)
+endif()
 target_compile_features(EphemerisCore PUBLIC cxx_std_20)
 if(MSVC)
     target_compile_options(EphemerisCore PRIVATE /W4 /permissive- /utf-8)

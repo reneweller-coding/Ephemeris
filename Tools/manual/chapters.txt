@@ -161,8 +161,14 @@ A small analogue kit for the styles that have drums: kick, snare, hats, toms tun
 shaker, with patterns per style. The drums come late in a piece, from the second build to the end of
 the peak.
 
-== Master | master compose | 13 ==
+== Master | master compose cue | 13 ==
 
 The master: its level, a gentle bus compressor that keeps the music's dynamics, and a true-peak limiter
 as protection. Below, the composer's settings -- the style, key, scale, tempo, lengths and whether the
 style chooses the tempo -- which the top bar also shows.
+
+OSC Cues sends what the score knows to a visualiser such as Kaleidoscope, over UDP at the OSC Port, to the
+machine named by the environment variable EPH_CUE_HOST (this machine without it): every beat with the
+tempo (/eph/beat), every section with its phase (/eph/phase), every new root (/eph/key) and every
+conjunction of the rows with the share of the running rows that meet (/eph/conjunction). Each cue leaves
+when its sound is heard, not when it is composed.

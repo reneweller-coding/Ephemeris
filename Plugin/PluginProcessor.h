@@ -24,6 +24,9 @@
  * the hold -- and any controller can be learned for any of them (learn()). The bindings are part of the
  * state.
  *
+ * **Cues** (PLAN 8.3, Cue.h): with cue.enabled the score's beats, sections, keys and conjunctions go out as
+ * OSC over UDP to `EPH_CUE_HOST` (default this machine) at cue.port, each at the moment it is heard.
+ *
  * **Mute** (after Phosphene). The output can be muted: silence at the very end of processBlock, after the
  * meters and the test recording have read the block. `EPH_MUTE=1` -- and the screenshot mode `EPH_SHOT`
  * -- start the plugin muted, and then it never unmutes itself: an automated run makes no sound.
@@ -180,6 +183,10 @@ private:
     std::array<std::atomic<double>, eph::Engine::kChannels> meterSum_{};   ///< sums of squares since the editor last took them
     std::atomic<int> meterCount_{ 0 };                                      ///< samples in those sums
     std::atomic<int> scoreVersion_{ 0 };     ///< scoreVersion()
+    eph::CueSender cues_;                    ///< the OSC cues' socket and thread (message thread starts and stops it)
+    eph::CueTap cueTap_;                     ///< audio thread: beat range -> cues
+    int cuePort_ = 0;                        ///< the port the sender was started for, 0 = off (message thread)
+    double lastBeat_ = -1.0;                 ///< the beat after the last block (audio thread), to see a jump
     std::array<std::atomic<int>, 128> ccMap_{};   ///< controller number -> store id, -1 unbound
     std::atomic<int> learn_{ -1 };                ///< learn()
     std::atomic<bool> mute_{ false };             ///< muted()

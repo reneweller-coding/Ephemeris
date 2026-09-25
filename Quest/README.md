@@ -71,6 +71,8 @@ seed=2026                  the first piece's seed; the next piece takes the next
 minutes=12                 length of a piece
 style=Cosmic               Cosmic, Doom, Melodic, Modern or Drift
 quality=quest              quest (default: 3 singers per choir key) or desktop (6)
+osc_host=192.168.1.20      the score cues to a visualiser (Cue.h: /eph/beat, /eph/phase, /eph/key, /eph/conjunction)
+osc_port=9000
 set=compose.key=D;compose.scale=Dorian     any knobs, repeatable
 ```
 

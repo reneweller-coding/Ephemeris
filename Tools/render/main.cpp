@@ -11,7 +11,7 @@
  *   eph_render [--minutes M | --bars N] [--bpm B] [--seed S] [--set "k=v ..."] [--tail S]
  *              [--rate 48000] [--block 512] [--out file.wav] [--midi file.mid] [--study]
  *              [--frame [--ramp-to B]]
- *              [--stems DIR] [--list] [--dump-params FILE] [--version]
+ *              [--stems DIR] [--cues FILE] [--list] [--dump-params FILE] [--version]
  */
 #include "eph/Engine.h"
 #include "eph/compose/Composer.h"
@@ -55,6 +55,7 @@ void usage()
                 "  --block N        block size (default 512)\n"
                 "  --out FILE       write a 24-bit WAV\n"
                 "  --midi FILE      write a Standard MIDI File\n"
+                "  --cues FILE      write the score's cue marks (sections, keys, conjunctions; Cue.h) as text\n"
                 "  --stems DIR      write a 32-bit float WAV per channel strip and one for the rooms into DIR;\n"
                 "                   their sum is the mix before the master (level, compressor, limiter)\n"
                 "  --list           print every parameter and exit\n"
@@ -72,7 +73,7 @@ int main(int argc, char** argv)
     int block = 512;
     std::string out, midi, set;
     bool list = false, frame = false, study = false, sketch = false;
-    std::string dump, stemsDir;
+    std::string dump, stemsDir, cuesOut;
     int singers = 6;
     double concert = 0.0;
     std::string setIn, setOut;
@@ -97,6 +98,7 @@ int main(int argc, char** argv)
         else if (a == "--list") list = true;
         else if (a == "--dump-params") dump = next("--dump-params");
         else if (a == "--stems") stemsDir = next("--stems");
+        else if (a == "--cues") cuesOut = next("--cues");
         else if (a == "--quality") singers = std::string(next("--quality")) == "quest" ? 3 : 6;
         else if (a == "--frame") frame = true;
         else if (a == "--study") study = true;
@@ -204,6 +206,14 @@ int main(int argc, char** argv)
     }
     engine.prepare(rate, block);
     engine.load(score);
+    if (!cuesOut.empty()) {
+        FILE* f = std::fopen(cuesOut.c_str(), "w");
+        if (f == nullptr) { std::fprintf(stderr, "cannot write %s\n", cuesOut.c_str()); return 1; }
+        static const char* const kinds[] = { "beat", "phase", "key", "conjunction" };
+        for (const CueMark& m : engine.cueMarks())
+            std::fprintf(f, "%10.3f  %8.2f s  %-11s %-10s %d %.2f\n", m.beat, score.tempo.secondsAt(m.beat), kinds[static_cast<int>(m.kind)], m.text, m.a, static_cast<double>(m.b));
+        std::fclose(f);
+    }
 
     WavWriter wav;
     if (!out.empty() && !wav.open(out.c_str(), static_cast<int>(rate), 2, WavFormat::Pcm24)) {

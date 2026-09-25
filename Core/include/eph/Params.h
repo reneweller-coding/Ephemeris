@@ -71,6 +71,8 @@ enum class Module : int { Compose = 0, Row, Master,
                           Drums,
                           /** Phase 5: the performer's hands on the running piece (PLAN 8.1, Perform). */
                           Perform,
+                          /** Phase 5: the score cues for a visualiser (PLAN 8.3, Cue.h). */
+                          Cue,
                           Count };
 
 constexpr int kRows = 8;   ///< instances of the row module (the rows of the rack) and of the voice module
@@ -146,6 +148,10 @@ enum : int { KickHz, Decay, Tone, Level, EchoSend, ReverbSend, Count };
  */
 namespace perform {
 enum : int { Filter, Transpose, Hold, Throw, Count };
+}
+/** @brief The score cues over OSC (module Cue; Cue.h): on or off, and the UDP port (the host: EPH_CUE_HOST, else this machine). */
+namespace cue {
+enum : int { Enabled, Port, Count };
 }
 /** @brief Parameters of the atmosphere (module Atmos; Atmos.h). */
 namespace atmos {

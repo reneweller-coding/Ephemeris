@@ -38,6 +38,7 @@ void Engine::load(const Score& score)
 {
     score_ = score;
     score_.sort();
+    cueMarks_ = cueMarksOf(score_);
     sample_ = 0;
     evCursor_ = 0;
 
