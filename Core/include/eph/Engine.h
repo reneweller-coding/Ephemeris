@@ -21,17 +21,17 @@
  * seconds; seek() lets a host move the playhead.
  */
 #pragma once
-#include "eph/Atmos.h"
-#include "eph/Drums.h"
-#include "eph/Dynamics.h"
-#include "eph/ModVoice.h"
+#include "eph/synth/Atmos.h"
+#include "eph/synth/Drums.h"
+#include "eph/fx/Dynamics.h"
+#include "eph/synth/ModVoice.h"
 #include "eph/Params.h"
-#include "eph/Reverb.h"
+#include "eph/fx/Reverb.h"
 #include "eph/Score.h"
-#include "eph/Spring.h"
-#include "eph/StringMachine.h"
-#include "eph/TapeEcho.h"
-#include "eph/TapeKeys.h"
+#include "eph/fx/Spring.h"
+#include "eph/synth/StringMachine.h"
+#include "eph/fx/TapeEcho.h"
+#include "eph/synth/TapeKeys.h"
 #include <cstdint>
 #include <vector>
 

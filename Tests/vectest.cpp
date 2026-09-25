@@ -10,7 +10,7 @@
  *       the half-band; the sections of the psytrance voices are left out.
  */
 #include "eph/Halfband.h"
-#include "eph/Ladder.h"
+#include "eph/synth/Ladder.h"
 #include "eph/Vec.h"
 #include "TestSupport.h"
 #include <algorithm>

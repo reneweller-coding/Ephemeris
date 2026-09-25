@@ -5,24 +5,24 @@ add_library(EphemerisCore STATIC
     src/Midi.cpp
     src/WavWriter.cpp
     src/Halfband.cpp
-    src/Harmony.cpp
-    src/GestureEngine.cpp
+    src/compose/Harmony.cpp
+    src/compose/GestureEngine.cpp
     src/Rack.cpp
-    src/ModVoice.cpp
-    src/TapeEcho.cpp
-    src/Reverb.cpp
-    src/TapeKeys.cpp
-    src/Pads.cpp
-    src/Atmos.cpp
-    src/Dynamics.cpp
-    src/StringMachine.cpp
-    src/Spring.cpp
-    src/Style.cpp
-    src/Form.cpp
-    src/Composer.cpp
+    src/synth/ModVoice.cpp
+    src/fx/TapeEcho.cpp
+    src/fx/Reverb.cpp
+    src/synth/TapeKeys.cpp
+    src/compose/Pads.cpp
+    src/synth/Atmos.cpp
+    src/fx/Dynamics.cpp
+    src/synth/StringMachine.cpp
+    src/fx/Spring.cpp
+    src/compose/Style.cpp
+    src/compose/Form.cpp
+    src/compose/Composer.cpp
     src/SetFile.cpp
-    src/Drums.cpp
-    src/Lead.cpp
+    src/synth/Drums.cpp
+    src/compose/Lead.cpp
     src/Engine.cpp
 )
 target_include_directories(EphemerisCore PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)

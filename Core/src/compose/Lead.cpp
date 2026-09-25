@@ -2,7 +2,7 @@
  * @file Lead.cpp
  * @brief Lead phrases by rule.
  */
-#include "eph/Lead.h"
+#include "eph/compose/Lead.h"
 #include "eph/Rack.h"
 #include <algorithm>
 #include <cmath>

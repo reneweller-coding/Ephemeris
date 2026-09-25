@@ -28,8 +28,8 @@
 #include "eph/Adaa.h"
 #include "eph/Dsp.h"
 #include "eph/Halfband.h"
-#include "eph/Ladder.h"
-#include "eph/Oscillator.h"
+#include "eph/synth/Ladder.h"
+#include "eph/synth/Oscillator.h"
 #include <cstdint>
 
 namespace eph {

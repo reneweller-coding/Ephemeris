@@ -3,7 +3,7 @@
  * @brief FDN reverb implementation.
  * @note Copied from Phosphene `Core/src/Reverb.cpp` at 9a2f615 (24.09.2026); namespace eph, prefix EPH_.
  */
-#include "eph/Reverb.h"
+#include "eph/fx/Reverb.h"
 #include "eph/Clock.h"
 #include <algorithm>
 #include <cmath>

@@ -36,7 +36,7 @@
  */
 #pragma once
 #include "eph/Dsp.h"
-#include "eph/Oscillator.h"
+#include "eph/synth/Oscillator.h"
 #include <cstdint>
 
 namespace eph {

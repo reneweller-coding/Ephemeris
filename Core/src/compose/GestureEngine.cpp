@@ -2,7 +2,7 @@
  * @file GestureEngine.cpp
  * @brief The player's hands.
  */
-#include "eph/GestureEngine.h"
+#include "eph/compose/GestureEngine.h"
 #include <algorithm>
 #include <cmath>
 

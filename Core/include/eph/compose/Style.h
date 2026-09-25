@@ -14,9 +14,9 @@
  * literature; the drums are drawn but not yet played (they come with the kit, later in Phase 4).
  */
 #pragma once
-#include "eph/GestureEngine.h"
+#include "eph/compose/GestureEngine.h"
 #include "eph/Params.h"
-#include "eph/TapeKeys.h"
+#include "eph/synth/TapeKeys.h"
 #include <vector>
 
 namespace eph {

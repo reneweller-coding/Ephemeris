@@ -2,13 +2,13 @@
  * @file Composer.cpp
  * @brief A piece and a concert.
  */
-#include "eph/Composer.h"
-#include "eph/Form.h"
-#include "eph/GestureEngine.h"
-#include "eph/Lead.h"
-#include "eph/Pads.h"
+#include "eph/compose/Composer.h"
+#include "eph/compose/Form.h"
+#include "eph/compose/GestureEngine.h"
+#include "eph/compose/Lead.h"
+#include "eph/compose/Pads.h"
 #include "eph/Rack.h"
-#include "eph/Style.h"
+#include "eph/compose/Style.h"
 #include <algorithm>
 #include <cmath>
 #include <string>

@@ -2,7 +2,7 @@
  * @file ModVoice.cpp
  * @brief The modular voice.
  */
-#include "eph/ModVoice.h"
+#include "eph/synth/ModVoice.h"
 #include <algorithm>
 #include <cmath>
 

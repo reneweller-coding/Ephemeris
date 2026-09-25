@@ -14,7 +14,7 @@
  *              [--list] [--version]
  */
 #include "eph/Engine.h"
-#include "eph/Composer.h"
+#include "eph/compose/Composer.h"
 #include "eph/Midi.h"
 #include "eph/SetFile.h"
 #include "eph/Sketch.h"

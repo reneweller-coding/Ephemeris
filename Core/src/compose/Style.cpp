@@ -2,7 +2,7 @@
  * @file Style.cpp
  * @brief The five profiles.
  */
-#include "eph/Style.h"
+#include "eph/compose/Style.h"
 #include <algorithm>
 
 namespace eph {

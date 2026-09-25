@@ -18,7 +18,7 @@
  */
 #pragma once
 #include "eph/Dsp.h"
-#include "eph/Style.h"
+#include "eph/compose/Style.h"
 #include <cstdint>
 #include <vector>
 

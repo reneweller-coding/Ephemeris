@@ -2,7 +2,7 @@
  * @file TapeKeys.cpp
  * @brief The tape keyboard.
  */
-#include "eph/TapeKeys.h"
+#include "eph/synth/TapeKeys.h"
 #include <algorithm>
 #include <cmath>
 

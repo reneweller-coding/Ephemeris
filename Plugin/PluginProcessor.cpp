@@ -4,7 +4,7 @@
  */
 #include "PluginProcessor.h"
 #include "PluginEditor.h"
-#include "eph/Composer.h"
+#include "eph/compose/Composer.h"
 #include "eph/Midi.h"
 #include "eph/WavWriter.h"
 #include <cmath>

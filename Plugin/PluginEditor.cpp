@@ -3,7 +3,7 @@
  * @brief The plugin's panel.
  */
 #include "PluginEditor.h"
-#include "eph/Composer.h"
+#include "eph/compose/Composer.h"
 #include <cstdlib>
 
 using namespace eph;

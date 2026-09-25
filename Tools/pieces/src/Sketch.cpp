@@ -3,9 +3,9 @@
  * @brief The sketch of Phase 2.
  */
 #include "eph/Sketch.h"
-#include "eph/GestureEngine.h"
-#include "eph/Lead.h"
-#include "eph/Pads.h"
+#include "eph/compose/GestureEngine.h"
+#include "eph/compose/Lead.h"
+#include "eph/compose/Pads.h"
 #include "eph/Rack.h"
 #include <algorithm>
 #include <cmath>

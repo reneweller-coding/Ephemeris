@@ -2,8 +2,8 @@
  * @file StringMachine.cpp
  * @brief Divide-down saws and the ensemble.
  */
-#include "eph/StringMachine.h"
-#include "eph/Oscillator.h"   // polyBlep
+#include "eph/synth/StringMachine.h"
+#include "eph/synth/Oscillator.h"   // polyBlep
 #include <algorithm>
 #include <cmath>
 

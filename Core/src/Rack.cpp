@@ -3,7 +3,7 @@
  * @brief The sequencer rack.
  */
 #include "eph/Rack.h"
-#include "eph/Harmony.h"
+#include "eph/compose/Harmony.h"
 #include <algorithm>
 #include <numeric>
 

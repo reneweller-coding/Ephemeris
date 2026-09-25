@@ -2,7 +2,7 @@
  * @file Pads.cpp
  * @brief Held chords with the least movement.
  */
-#include "eph/Pads.h"
+#include "eph/compose/Pads.h"
 #include "eph/Rack.h"
 #include <algorithm>
 #include <cmath>
