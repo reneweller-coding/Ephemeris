@@ -82,6 +82,7 @@ enum class RackOp : uint8_t {
     Ratchet,      ///< @p value steps of the row, drawn anew, split into two to four triggers (0: none)
     Thin,         ///< @p value more steps of the row fall silent: the sequence loses its pieces
     Division,     ///< the row's division becomes @p value (RowDivision) on its next step: the pulse doubled or halved
+    Fill,         ///< @p value of the row's thinned steps sound again (a row that came in with rests fills up)
 };
 
 /** @brief One change to the rack. */

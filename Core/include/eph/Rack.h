@@ -164,6 +164,7 @@ private:
         int mutations = 0;
         bool transposer = false;  ///< row.mode = Transposer
         double nextMutation = 64.0;   ///< the next 16-bar mark a mutation may fall on
+        bool thinned[kMaxSteps] = {}; ///< steps a thinning silenced (RackOp::Thin), which a Fill may bring back
         Figure figure = Figure::Classic;
         Rng rng;
         Rng dice;                 ///< probability gates, ratchets and thinning: apart from the patterns' stream

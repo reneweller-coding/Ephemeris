@@ -168,6 +168,7 @@ int characterDegree(int scale)
 void Rack::generate(int row, RowRole role)
 {
     Row& r = rows_[row];
+    for (bool& t : r.thinned) t = false;
     Rng& g = r.rng;
     const int n = scaleSize(scale_);
     int walk = 0;   // the Walk role's current degree
@@ -441,9 +442,20 @@ void Rack::run(Score& score, double endBeat)
                 }
                 case RackOp::Thin:
                     for (int k = 0, tries = 0; k < e.value && tries < 32 && r.length > 1; ++tries) {
-                        Step& st = r.steps[1 + r.dice.below(r.length - 1)];
+                        const int at = 1 + r.dice.below(r.length - 1);
+                        Step& st = r.steps[at];
                         if (!st.gate) continue;
                         st.gate = false;
+                        r.thinned[at] = true;
+                        ++k;
+                    }
+                    break;
+                case RackOp::Fill:
+                    for (int k = 0, tries = 0; k < e.value && tries < 64 && r.length > 1; ++tries) {
+                        const int at = 1 + r.dice.below(r.length - 1);
+                        if (!r.thinned[at]) continue;
+                        r.steps[at].gate = true;
+                        r.thinned[at] = false;
                         ++k;
                     }
                     break;

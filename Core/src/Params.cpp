@@ -273,13 +273,13 @@ const ParamDesc kCueParams[cue::Count] = {
 /** A style of the user's own (Style tab): the defaults are the Cosmic profile's numbers. */
 const ParamDesc kCustomParams[custom::Count] = {
     { "use",          "Use Custom Style", "",     0.0f,   1.0f,   0.0f, Curve::Toggle },
-    { "bpm_low",      "Tempo Low",        "BPM", 60.0f, 160.0f,  96.0f, Curve::Linear },
-    { "bpm_high",     "Tempo High",       "BPM", 60.0f, 160.0f, 118.0f, Curve::Linear },
+    { "bpm_low",      "Tempo Low",        "BPM", 60.0f, 160.0f, 112.0f, Curve::Linear },
+    { "bpm_high",     "Tempo High",       "BPM", 60.0f, 160.0f, 126.0f, Curve::Linear },
     { "minutes_low",  "Piece Min Low",    "min",  4.0f,  40.0f,  12.0f, Curve::Linear },
     { "minutes_high", "Piece Min High",   "min",  4.0f,  40.0f,  22.0f, Curve::Linear },
     { "phases_low",   "Phases Low",       "",     1.0f,   4.0f,   1.0f, Curve::Int },
     { "phases_high",  "Phases High",      "",     1.0f,   4.0f,   2.0f, Curve::Int },
-    { "intro",        "Atmosphere Share", "",     0.0f,   0.3f,   0.14f, Curve::Linear },
+    { "intro",        "Atmosphere Share", "",     0.0f,   0.3f,   0.08f, Curve::Linear },
     { "coda",         "Coda Share",       "",     0.0f,   0.3f,   0.10f, Curve::Linear },
     { "new_tempo",    "New Tempo Chance", "",     0.0f,   1.0f,   0.3f, Curve::Linear },
     { "new_key",      "New Key Chance",   "",     0.0f,   1.0f,   0.3f, Curve::Linear },

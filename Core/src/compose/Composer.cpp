@@ -216,6 +216,9 @@ void writeRack(Piece& c)
             } else if (sec.type == SectionType::Build) {
                 if (started < counters) {
                     ev.push_back({ sec.beat, started + 1, RackOp::Start, 0 });
+                    // It comes in with rests and fills up, a step every two bars (the style guide's 6.4).
+                    ev.push_back({ sec.beat, started + 1, RackOp::Thin, 6 });
+                    for (int f = 1; f <= 6; ++f) ev.push_back({ sec.beat + 8.0 * f, started + 1, RackOp::Fill, 1 });
                     if (rowFrom[static_cast<size_t>(started + 1)] < 0.0) rowFrom[static_cast<size_t>(started + 1)] = sec.beat;
                     ++started;
                 }
@@ -420,7 +423,7 @@ void writeAtmosphere(Piece& c)
     float grainsAt = 0.0f;
     auto grainsTo = [&](double b0, double b1, float v) {
         if (!c.grainsOn || b1 <= b0 || v == grainsAt) return;
-        s.gestures.push_back({ grains, b0, b1 - b0, grainsAt, v, G::MinimumJerk, 1 });
+        s.gestures.push_back({ grains, b0, b1 - b0, grainsAt, v, G::MinimumJerk, 3 });   // the composer's own hand
         grainsAt = v;
     };
     for (const Section& sec : c.form.sections) {
