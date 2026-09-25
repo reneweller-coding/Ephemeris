@@ -178,6 +178,19 @@ void writeRack(Piece& c)
     // Chances of the parallel changes of mode (3.2): brighter at the peak, darker in the breakdown.
     static const float kBrighten[] = { 0.35f, 0.0f, 0.5f, 0.3f, 0.2f }, kDarken[] = { 0.1f, 0.4f, 0.0f, 0.1f, 0.0f };
     const int si = std::clamp(static_cast<int>(c.style), 0, 4);
+    // A mode of its own for a later phase, as the parts of a suite have (the style guide's 6.5): another of the
+    // minor modes, by the guide's weights (Aeolian 40, Dorian 25, Phrygian 15). It starts at the bridge before
+    // the phase, so the phase's rows are drawn in it.
+    static const float kPhaseMode[] = { 0.4f, 0.5f, 0.35f, 0.3f, 0.3f };
+    std::vector<int> phaseScale(static_cast<size_t>(std::max(1, c.phases)), c.scale);
+    for (int ph = 1; ph < c.phases; ++ph) {
+        if (c.scale > 2 || harm.uniform() >= kPhaseMode[si]) continue;
+        const float w[3] = { c.scale == 0 ? 0.0f : 0.40f, c.scale == 1 ? 0.0f : 0.25f, c.scale == 2 ? 0.0f : 0.15f };
+        float u = harm.uniform() * (w[0] + w[1] + w[2]);
+        int m = 0;
+        while (m < 2 && (u -= w[m]) > 0.0f) ++m;
+        phaseScale[static_cast<size_t>(ph)] = m;
+    }
     for (int ph = 0; ph < c.phases; ++ph) {
         const Section* entry = form.find(SectionType::Entry, ph);
         if (entry == nullptr) continue;
@@ -225,16 +238,21 @@ void writeRack(Piece& c)
         const Section* peak = form.find(SectionType::Peak, ph);
         const Section* breakdown = form.find(SectionType::Breakdown, ph);
         const double chordsEnd = breakdown != nullptr ? breakdown->beat : end;
-        int peakScale = c.scale;
-        if (peak != nullptr && c.scale == 0 && harm.uniform() < kBrighten[si]) {
+        const int base = phaseScale[static_cast<size_t>(ph)];
+        const int next = ph + 1 < c.phases ? phaseScale[static_cast<size_t>(ph + 1)] : base;
+        int peakScale = base;
+        if (peak != nullptr && base == 0 && harm.uniform() < kBrighten[si]) {
             peakScale = 1;
             ev.push_back({ peak->beat, -1, RackOp::Scale, 1 });
-            ev.push_back({ chordsEnd, -1, RackOp::Scale, c.scale });
+            ev.push_back({ chordsEnd, -1, RackOp::Scale, base });
         }
-        if (breakdown != nullptr && (c.scale == 0 || c.scale == 1) && harm.uniform() < kDarken[si]) {
+        bool darkened = false;
+        if (breakdown != nullptr && (base == 0 || base == 1) && harm.uniform() < kDarken[si]) {
             ev.push_back({ breakdown->beat, -1, RackOp::Scale, 2 });
-            ev.push_back({ end, -1, RackOp::Scale, c.scale });
+            darkened = true;
         }
+        // At the phase's end: back from the breakdown's darkening, or on into the next phase's mode.
+        if (darkened || next != base) ev.push_back({ end, -1, RackOp::Scale, next });
         // The sequencing of the phase (the style guide's 4.3): ratchets on the plateau and at the peak, the pulse of
         // an eighths row doubled at the peak, the bass losing steps in the breakdown. Their own draws, after the harmony's.
         static const float kRatchets[] = { 0.6f, 0.3f, 0.8f, 0.7f, 0.2f }, kDouble[] = { 0.5f, 0.3f, 0.6f, 0.5f, 0.0f };
@@ -266,7 +284,7 @@ void writeRack(Piece& c)
             }
         };
         if (build0 != nullptr) {
-            chordSpan(build0->beat, peak != nullptr ? std::min(peak->beat, chordsEnd) : chordsEnd, c.scale);
+            chordSpan(build0->beat, peak != nullptr ? std::min(peak->beat, chordsEnd) : chordsEnd, base);
             if (peak != nullptr) chordSpan(peak->beat, chordsEnd, peakScale);
             ev.push_back({ chordsEnd, 0, RackOp::Chord, 0 });
             c.chords.push_back({ chordsEnd, 0 });
@@ -454,6 +472,19 @@ void writeSettings(Piece& c)
         c.s.gestures.push_back({ id, 0.0, 0.0, 0.0f, offsetTo(p, id, 0.0f), G::Step, 1 });
     const int bassHall = p.id(Module::Row, 0, row::ReverbSend);
     c.s.gestures.push_back({ bassHall, 0.0, 0.0, 0.0f, offsetTo(p, bassHall, std::min(p.get(bassHall), 0.1f)), G::Step, 1 });
+    // The stereo field (7.3): the bass in the middle, the main sequence near it, the other counter rows 30 to 50 % out
+    // to alternating sides, the lead a little off the middle, the drone wandering slowly across. Drawn on the rows' unit.
+    Rng pans;
+    pans.seed(mixSeed(c.seedOf(sRows), 0x70u));
+    auto panTo = [&](int id, float v) { c.s.gestures.push_back({ id, 0.0, 0.0, 0.0f, offsetTo(p, id, v), G::Step, 1 }); };
+    panTo(p.id(Module::Row, 0, row::Pan), 0.0f);
+    const float side = pans.uniform() < 0.5f ? -1.0f : 1.0f;
+    for (int k = 0; k < c.counters; ++k) {
+        const float amount = k == 0 ? 0.1f * pans.uniform() : 0.3f + 0.2f * pans.uniform();
+        panTo(p.id(Module::Row, k + 1, row::Pan), (k % 2 == 0 ? side : -side) * amount);
+    }
+    panTo(p.id(Module::Lead, 0, lead::Pan), -side * (0.1f + 0.1f * pans.uniform()));
+    panTo(p.id(Module::Drone, 0, lead::Pan), 0.0f);   // (its auto pan, drone.auto_pan, lets it wander)
     // The hall grows in the spaces and shrinks at the peak (7.3): a slow glide at the start of each section,
     // written by the composer's own hand (3), apart from the player's two.
     float hallAt = offsetTo(p, hall, c.prof.hallSeconds);

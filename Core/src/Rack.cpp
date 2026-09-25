@@ -119,6 +119,24 @@ float chanceShare(Style style)
     return kShare[std::clamp(static_cast<int>(style), 0, 4)];
 }
 
+/** @brief Share of a row's steps that play a quantised random note, by style (the style guide's 4.6). */
+float randomShare(Style style)
+{
+    static const float kShare[] = { 0.03f, 0.03f, 0.05f, 0.12f, 0.20f };   // Cosmic, Doom, Melodic, Modern, Drift
+    return kShare[std::clamp(static_cast<int>(style), 0, 4)];
+}
+
+/** @brief A note through the quantiser: root, fifth, octave, seventh, fourth or third, the lower ones likelier. */
+int quantisedDegree(int scale, Rng& dice)
+{
+    static const int kDegrees[6] = { 0, 4, 7, 6, 3, 2 };
+    static const float kWeights[6] = { 3.0f, 3.0f, 2.0f, 1.0f, 1.0f, 1.0f };
+    float u = dice.uniform() * 11.0f;
+    int k = 0;
+    while (k < 5 && (u -= kWeights[k]) > 0.0f) ++k;
+    return fromSeven(scale, kDegrees[k]);
+}
+
 template <size_t N>
 Figure drawFigure(const Figure (&f)[N], const float (&w)[N], Rng& g)
 {
@@ -248,7 +266,7 @@ void Rack::generate(int row, RowRole role)
     r.steps[0].gate = true;
     // Rests, accents and probability gates per eight steps.
     const bool threeThreeTwo = g.uniform() < 0.25f;
-    const float share = chanceShare(style_);
+    const float share = chanceShare(style_), randomly = randomShare(style_);
     for (int b = 0; b < kMaxSteps; b += 8) {
         int rests = 0;
         for (int i = b; i < b + 8; ++i) rests += r.steps[i].gate ? 0 : 1;
@@ -266,6 +284,7 @@ void Rack::generate(int row, RowRole role)
             s.accent = threeThreeTwo ? (k == 0 || k == 3 || k == 6) : (k == 0 || k == 4);
             if (role != RowRole::Bass && !threeThreeTwo && k == 4) s.accent = g.uniform() < 0.5f;
             if (i % 4 != 0 && g.uniform() < share) s.chance = 0.6f + 0.3f * g.uniform();
+            if (i != 0 && g.uniform() < randomly) s.random = true;
         }
     }
 }
@@ -332,11 +351,12 @@ void Rack::playStep(int index, Row& r, Score& score, std::vector<RackEvent>& log
     } else if (s.gate && (s.chance >= 1.0f || r.dice.uniform() < s.chance)) {
         // A ratchet splits the step into quick triggers, each a little softer.
         const int sub = std::max(1, s.ratchet);
+        const int degree = s.random ? quantisedDegree(scale_, r.dice) : s.degree;
         for (int k = 0; k < sub; ++k) {
             NoteEvent e;
             e.beat = beat + r.divBeats * static_cast<double>(k) / sub;
             e.part = rowPart(index);
-            e.pitch = std::clamp(rootNote(r) + r.transpose + shift_ + scaleSemitones(scale_, s.degree + r.chord) + 12 * s.octave, 0, 127);
+            e.pitch = std::clamp(rootNote(r) + r.transpose + shift_ + scaleSemitones(scale_, degree + r.chord) + 12 * s.octave, 0, 127);
             e.accent = s.accent && k == 0;
             e.velocity = std::min(1.0f, s.velocity + (e.accent ? 0.15f : 0.0f) - 0.06f * static_cast<float>(k));
             e.slide = s.slide && sub == 1;

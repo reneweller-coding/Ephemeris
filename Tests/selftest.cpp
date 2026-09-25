@@ -1236,6 +1236,96 @@ void testFormAndSpace()
 }
 
 /**
+ * The style guide's further rules: shifts by a third between the phases, a mode of its own for a later phase
+ * (the suite's parts), quantised random steps.
+ */
+void testGuideExtras()
+{
+    section("the style guide's further rules");
+    std::set<int> moves;
+    for (int seed = 1; seed <= 200; ++seed) {
+        Rng rng;
+        rng.seed(static_cast<uint64_t>(seed));
+        const PieceForm f = drawForm(styleProfile(Style::Drift), 20.0, 100.0, rng);
+        for (int k : f.phaseKey) moves.insert(k);
+    }
+    check(moves.count(-3) == 1 && moves.count(4) == 1, "later phases shift by a third as well (a minor third down, a major third up)",
+          fmt("%zu different keys", moves.size()));
+    int ownMode = 0, multi = 0;
+    for (int seed = 1; seed <= 40; ++seed) {
+        ParamStore p;
+        p.parseText("compose.style=Doom");
+        const Score sc = composePiece(p, static_cast<uint64_t>(seed), 20.0);
+        for (const Marker& m : sc.markers)
+            if (m.text == "Einsatz 2") {
+                ++multi;
+                ownMode += sc.scaleAt(m.beat + 0.01, 0) != sc.scaleAt(0.0, 0) ? 1 : 0;
+            }
+    }
+    check(ownMode > 0, "a later phase in a mode of its own", fmt("%d of %d second phases", ownMode, multi));
+    // Random steps: a new note through the quantiser each time round, always in the mode.
+    {
+        ParamStore p;
+        p.parseText("compose.style=Drift row1.active=1 row1.length=16 row1.division=1/16 row1.mutation=0");
+        int randomSteps = 0, varied = 0, outside = 0;
+        for (int seed = 1; seed <= 20; ++seed) {
+            Rack r;
+            r.setup(p, static_cast<uint64_t>(seed));
+            r.generate(0, RowRole::Counter);
+            std::set<int> pitches[16];
+            Score sc;
+            sc.clear(120.0);
+            r.run(sc, 64.0);
+            for (const NoteEvent& e : sc.notes) {
+                pitches[static_cast<int>(std::lround(e.beat * 4.0)) % 16].insert(e.pitch);
+                outside += inScale(e.pitch, 9, 0) ? 0 : 1;
+            }
+            for (int i = 0; i < 16; ++i) {
+                if (!r.steps(0)[i].random) continue;
+                ++randomSteps;
+                varied += pitches[i].size() > 1 ? 1 : 0;
+            }
+        }
+        check(randomSteps > 0 && varied * 2 > randomSteps && outside == 0, "random steps play new notes of the mode each time round",
+              fmt("%d random steps, %d varied, %d notes outside", randomSteps, varied, outside));
+    }
+    // The stereo field: the composer's pans, and the drone's slow wander in the engine.
+    {
+        ParamStore p;
+        p.parseText("compose.style=Melodic");
+        const Score sc = composePiece(p, 3, 10.0);
+        auto panAt = [&](Module m, int inst, int index) {
+            const int id = p.id(m, inst, index);
+            return p.fromNormalised(id, p.toNormalised(id, p.get(id)) + sc.gestureOffset(id, 1.0));
+        };
+        const float bass = panAt(Module::Row, 0, row::Pan), third = panAt(Module::Row, 2, row::Pan);
+        const float depth = panAt(Module::Drone, 0, lead::AutoPan);
+        check(std::fabs(bass) < 0.01f && std::fabs(third) >= 0.29f && depth > 0.3f, "the bass in the middle, a counter row out to the side, the drone wandering",
+              fmt("bass %.2f, row 3 %.2f, drone auto pan %.2f", bass, third, depth));
+        Score one;
+        one.clear(120.0);
+        one.notes.push_back({ 0.0, 44.0, Part::Drone, 45, 0.8f, false, false });
+        one.lengthBeats = 44.0;
+        Engine e;
+        e.params().parseText("drone.echo=0 drone.reverb=0 drone.pan=0 drone.auto_pan=1");
+        e.prepare(48000.0, 256);
+        e.load(one);
+        std::vector<float> L(256), R(256);
+        double lo = 1.0, hi = 0.0, l = 0.0, r = 0.0;
+        for (int done = 0, w = 0; done < 48000 * 21; done += 256) {
+            e.process(L.data(), R.data(), 256);
+            for (int i = 0; i < 256; ++i) { l += double(L[i]) * L[i]; r += double(R[i]) * R[i]; }
+            if (++w == 187) {   // about a second
+                if (done > 48000) { lo = std::min(lo, l / (l + r + 1e-30)); hi = std::max(hi, l / (l + r + 1e-30)); }
+                l = r = 0.0;
+                w = 0;
+            }
+        }
+        check(hi - lo > 0.4, "the drone's auto pan moves it across the field", fmt("left share %.2f .. %.2f", lo, hi));
+    }
+}
+
+/**
  * The offline render is the oracle only if a host's block size cannot change a sample: the study
  * rendered with blocks of 1, 37 and 512 must agree bit for bit (Engine.h).
  */
@@ -1384,6 +1474,7 @@ const TestSection kSections[] = {
     { "testHarmony", testHarmony },
     { "testSequencing", testSequencing },
     { "testFormAndSpace", testFormAndSpace },
+    { "testGuideExtras", testGuideExtras },
     { "testBlockSizes", testBlockSizes },
     { "testEcho", testEcho },
     { "testDrift", testDrift },

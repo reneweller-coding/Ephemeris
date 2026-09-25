@@ -132,6 +132,7 @@ const ParamDesc kLeadParams[lead::Count] = {
     { "vibrato",      "Vibrato",       "ct",     0.0f,   100.0f,   18.0f, Curve::Linear },
     { "vibrato_rate", "Vibrato Rate",  "Hz",     1.0f,    10.0f,    5.2f, Curve::Linear },
     { "reverb",       "Reverb Send",   "",       0.0f,     1.0f,    0.4f, Curve::Linear },
+    { "auto_pan",     "Auto Pan",      "",       0.0f,     1.0f,    0.0f, Curve::Linear },   // depth of a 0.05 Hz sine on the pan
 };
 
 /** The tape keyboard: a first setting of the machine (PLAN 5.4 wants it measured on recordings). */
@@ -170,6 +171,7 @@ const ParamDesc kDroneParams[lead::Count] = {
     { "vibrato",      "Vibrato",       "ct",     0.0f,   100.0f,   0.0f, Curve::Linear },
     { "vibrato_rate", "Vibrato Rate",  "Hz",     1.0f,    10.0f,    5.0f, Curve::Linear },
     { "reverb",       "Reverb Send",   "",       0.0f,     1.0f,    0.55f, Curve::Linear },
+    { "auto_pan",     "Auto Pan",      "",       0.0f,     1.0f,    0.35f, Curve::Linear },   // the drone wanders (7.3)
 };
 
 /** The atmosphere: all layers off until a piece or a hand brings them in. */

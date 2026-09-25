@@ -42,7 +42,9 @@
  * probability gates (Modern the most, Cosmic and Doom the fewest). Ratchets (RackOp::Ratchet) split a
  * few steps into quick triggers, a thinning (RackOp::Thin) silences steps one by one, a new division
  * (RackOp::Division) doubles the pulse -- all drawn from each row's own dice, so the patterns and the
- * mutations stay what they were.
+ * mutations stay what they were. A style's share of steps are random steps: each time round they play a
+ * note drawn anew through a quantiser -- root, fifth, octave, seventh, fourth or third of the mode, the
+ * style guide's interval stock (4.2, 4.6); Drift and Modern have the most, Cosmic and Doom the fewest.
  *
  * **A new key** (RackOp::Key, Phase 4) moves the whole rack -- rows, and the root the lead and the chords
  * follow -- by some semitones from the piece's key; the transposer then moves around the new key.
@@ -68,6 +70,7 @@ struct Step {
     bool slide = false;      ///< glides into the next step (legato)
     int ratchet = 1;         ///< triggers the step is split into (RackOp::Ratchet)
     float chance = 1.0f;     ///< chance that the step sounds each time it comes round (a probability gate)
+    bool random = false;     ///< a new note each time it comes round, through a quantiser on the mode (4.6)
 };
 
 /**

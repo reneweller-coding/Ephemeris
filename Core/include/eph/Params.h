@@ -126,7 +126,9 @@ namespace lead {
 enum : int { Wave, Detune, PulseWidth, Drift, Drive, Cutoff, Resonance, EnvAmount, Decay, KeyTrack,
              Accent, AmpDecay, Glide, Level, Pan, EchoSend, Vibrato, VibratoRate,
              // Phase 3: the send into the hall.
-             ReverbSend, Count };
+             ReverbSend,
+             // 25.09.2026: a slow sine (0.05 Hz) on the pan, the wandering drone of the style guide's 7.3.
+             AutoPan, Count };
 }
 /** @brief Parameters of the tape keyboard (module Tape; PLAN 5.4, TapeKeys.h). */
 namespace tape {

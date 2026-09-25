@@ -65,8 +65,10 @@ PieceForm drawForm(const StyleProfile& prof, double minutes, double bpm, Rng& rn
             if (rng.uniform() < prof.newTempoChance)
                 b = std::clamp(bpm * (0.88 + 0.24 * static_cast<double>(rng.uniform())), static_cast<double>(prof.bpmLow), static_cast<double>(prof.bpmHigh));
             if (rng.uniform() < prof.newKeyChance) {
-                const int moves[4] = { 5, -5, 3, -2 };   // up a fourth, down a fourth, the relative, a tone down
-                key = moves[rng.below(4)];
+                // Up a fourth, down a fourth, the relative, a tone down; and the style guide's shifts by a third (3.7):
+                // a minor third down, a major third up.
+                const int moves[6] = { 5, -5, 3, -2, -3, 4 };
+                key = moves[rng.below(6)];
             }
         }
         f.phaseBpm.push_back(std::round(b * 10.0) / 10.0);

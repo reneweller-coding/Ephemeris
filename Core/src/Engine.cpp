@@ -192,7 +192,14 @@ void Engine::updateCell()
         auto s = [&](int rowIndex, int leadIndex) {
             return row ? played(params_.id(Module::Row, r, rowIndex)) : played(params_.id(m, 0, leadIndex));
         };
-        setStrip(r, s(row::Level, lead::Level), s(row::Pan, lead::Pan), s(row::EchoSend, lead::EchoSend), s(row::ReverbSend, lead::ReverbSend));
+        float pan = s(row::Pan, lead::Pan);
+        if (!row) {
+            // The drone (or the lead) wanders slowly across the stereo field: lead.auto_pan, a sine of 0.05 Hz on the
+            // piece's clock (the style guide's 7.3).
+            const float depth = played(params_.id(m, 0, lead::AutoPan));
+            if (depth > 0.0f) pan += depth * static_cast<float>(std::sin(2.0 * 3.14159265358979 * 0.05 * seconds()));
+        }
+        setStrip(r, s(row::Level, lead::Level), pan, s(row::EchoSend, lead::EchoSend), s(row::ReverbSend, lead::ReverbSend));
     }
 
     // The tape keys, the string machine, the drums, the atmosphere.
