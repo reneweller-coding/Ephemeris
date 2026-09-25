@@ -5,18 +5,24 @@
 #include "eph/Rack.h"
 #include "eph/compose/Harmony.h"
 #include <algorithm>
+#include <cmath>
 #include <numeric>
 
 namespace eph {
 
 namespace {
 
-// compose.scale order: Aeolian, Dorian, Phrygian, Harmonic Minor, Minor Pentatonic.
-const int kScale7[4][7] = {
+// compose.scale order: Aeolian, Dorian, Phrygian, Harmonic Minor, Minor Pentatonic (its own table below),
+// Mixolydian, Lydian, Locrian.
+const int kScale7[kScales][7] = {
     { 0, 2, 3, 5, 7, 8, 10 },
     { 0, 2, 3, 5, 7, 9, 10 },
     { 0, 1, 3, 5, 7, 8, 10 },
     { 0, 2, 3, 5, 7, 8, 11 },
+    { 0, 2, 3, 5, 7, 8, 10 },   // (the pentatonic's place)
+    { 0, 2, 4, 5, 7, 9, 10 },
+    { 0, 2, 4, 6, 7, 9, 11 },
+    { 0, 1, 3, 5, 6, 8, 10 },
 };
 const int kPentatonic[5] = { 0, 3, 5, 7, 10 };
 
@@ -31,7 +37,7 @@ int scaleSemitones(int scale, int degree)
     const int n = scaleSize(scale);
     const int oct = floorDiv(degree, n);
     const int d = degree - oct * n;
-    const int semis = scale == 4 ? kPentatonic[d] : kScale7[std::clamp(scale, 0, 3)][d];
+    const int semis = scale == 4 ? kPentatonic[d] : kScale7[std::clamp(scale, 0, kScales - 1)][d];
     return oct * 12 + semis;
 }
 
@@ -47,6 +53,7 @@ void Rack::setup(const ParamStore& p, uint64_t seed)
     style_ = static_cast<Style>(p.getInt(p.id(Module::Compose, 0, compose::Style)));
     shift_ = base_ = degree_ = 0;
     shiftLog_.assign(1, { 0.0, 0 });
+    scaleLog_.assign(1, { 0.0, scale_ });
     for (int i = 0; i < kRows; ++i) {
         Row& r = rows_[i];
         auto get = [&](int index) { return p.get(p.id(Module::Row, i, index)); };
@@ -55,6 +62,7 @@ void Rack::setup(const ParamStore& p, uint64_t seed)
         r.direction = static_cast<RowDirection>(static_cast<int>(get(row::Direction)));
         r.octave = static_cast<int>(get(row::Octave));
         r.transpose = static_cast<int>(get(row::Transpose));
+        r.chord = 0;
         r.mutation = get(row::Mutation);
         r.gate = get(row::Gate) * 0.01f;
         r.running = get(row::Active) >= 0.5f;
@@ -77,7 +85,8 @@ void Rack::generate(int row, RowRole role)
     const int n = scaleSize(scale_);
     int walk = 0;   // the Walk role's current degree
     std::vector<int> roots;
-    if (role == RowRole::Transposer) roots = drawProgression(style_, r.length, g);
+    if (role == RowRole::Transposer)
+        roots = drawProgression(style_, scale_, r.length, std::max(1, static_cast<int>(std::lround(r.divBeats / kBeatsPerBar))), g);
     for (int i = 0; i < kMaxSteps; ++i) {
         Step s;
         s.velocity = 0.72f + 0.12f * g.uniform();
@@ -183,7 +192,7 @@ void Rack::playStep(int index, Row& r, Score& score, std::vector<RackEvent>& log
         NoteEvent e;
         e.beat = beat;
         e.part = rowPart(index);
-        e.pitch = std::clamp(rootNote(r) + r.transpose + shift_ + scaleSemitones(scale_, s.degree) + 12 * s.octave, 0, 127);
+        e.pitch = std::clamp(rootNote(r) + r.transpose + shift_ + scaleSemitones(scale_, s.degree + r.chord) + 12 * s.octave, 0, 127);
         e.accent = s.accent;
         e.velocity = std::min(1.0f, s.velocity + (s.accent ? 0.15f : 0.0f));
         e.slide = s.slide;
@@ -224,6 +233,11 @@ void Rack::run(Score& score, double endBeat)
                 if (shiftLog_.back().second != shift_) shiftLog_.push_back({ e.beat, shift_ });
                 continue;
             }
+            if (e.op == RackOp::Scale) {
+                scale_ = std::clamp(e.value, 0, kScales - 1);
+                if (scaleLog_.back().second != scale_) scaleLog_.push_back({ e.beat, scale_ });
+                continue;
+            }
             const int lo = e.row < 0 ? 0 : e.row, hi = e.row < 0 ? kRows - 1 : e.row;
             for (int i = lo; i <= hi && i < kRows; ++i) {
                 Row& r = rows_[i];
@@ -237,6 +251,7 @@ void Rack::run(Score& score, double endBeat)
                     if (r.transposer && degree_ != 0) { degree_ = 0; shift_ = base_; shiftLog_.push_back({ e.beat, shift_ }); }
                     break;
                 case RackOp::Transpose: r.transpose = e.value; break;
+                case RackOp::Chord: r.chord = e.value; break;
                 case RackOp::SetLength:
                     r.length = std::clamp(e.value, 1, kMaxSteps);
                     r.pos %= r.length;

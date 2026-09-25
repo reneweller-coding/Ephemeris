@@ -33,6 +33,7 @@
 #endif
 #include "eph/compose/Form.h"
 #include "eph/compose/GestureEngine.h"
+#include "eph/compose/Harmony.h"
 #include "eph/compose/Lead.h"
 #include "eph/Midi.h"
 #include "eph/synth/ModVoice.h"
@@ -575,7 +576,7 @@ void testComposer()
         int shift = 0;
         for (const auto& e : a.rootShifts) { if (e.first > n.beat) break; shift = e.second; }
         ++total;
-        if (!inScale(n.pitch, ((a.keyRoot + shift) % 12 + 12) % 12, 0)) ++outside;
+        if (!inScale(n.pitch, ((a.keyRoot + shift) % 12 + 12) % 12, a.scaleAt(n.beat, 0))) ++outside;
     }
     check(outside == 0, "every note in the scale of the root at its beat", fmt("%d of %d outside", outside, total));
     std::vector<std::pair<double, int>> edges;
@@ -924,6 +925,115 @@ void testStrings()
 }
 
 /**
+ * The harmony after the style guide (Harmony.h): the chord track's classes and degrees, the bass row that follows
+ * it under the unchanged counter rows, the transposer's moves, the drone on the centre, the open fifth at the end,
+ * the parallel change of mode at the peak.
+ */
+void testHarmony()
+{
+    section("harmony after the style guide");
+    // The chord track: starts on the tonic, changes on bar lines, only usable degrees, the style's classes.
+    int badDegree = 0, offBar = 0, statics[static_cast<int>(Style::Count)] = {};
+    for (int st = 0; st < static_cast<int>(Style::Count); ++st) {
+        for (int scale = 0; scale < kScales; ++scale) {
+            Rng rng;
+            rng.seed(static_cast<uint64_t>(100 * st + scale + 1));
+            for (int k = 0; k < 60; ++k) {
+                ChordClass cls;
+                const auto track = drawChordTrack(static_cast<Style>(st), scale, 64.0, 64.0 + 4.0 * 96, rng, &cls);
+                statics[st] += cls == ChordClass::Static ? 1 : 0;
+                if (track.front().first != 64.0 || track.front().second != 0) ++badDegree;
+                for (const auto& ch : track) {
+                    if (!usableDegree(scale, ch.second)) ++badDegree;
+                    if (std::fmod(ch.first - 64.0, 4.0) != 0.0) ++offBar;
+                }
+            }
+        }
+    }
+    check(badDegree == 0 && offBar == 0, "the chord track: from the tonic, on bar lines, no diminished chord",
+          fmt("%d bad degrees, %d off the bar", badDegree, offBar));
+    check(statics[static_cast<int>(Style::Drift)] > statics[static_cast<int>(Style::Melodic)] * 2,
+          "Drift stays on one chord far more often than Melodic", fmt("%d against %d of 480", statics[static_cast<int>(Style::Drift)],
+          statics[static_cast<int>(Style::Melodic)]));
+    // The transposer's moves leave the centre inside the moved scale (no fifth up in Lydian).
+    bool lydianFifth = false;
+    for (int seed = 1; seed < 40; ++seed) {
+        Rng rng;
+        rng.seed(static_cast<uint64_t>(seed));
+        for (int r : drawProgression(Style::Cosmic, 6, 8, 1, rng)) lydianFifth = lydianFifth || r == 7;
+    }
+    check(!lydianFifth, "no fifth up in Lydian, where the centre would leave the scale", "");
+
+    // The bass row under a chord (RackOp::Chord): moved diatonically, the counter row untouched.
+    {
+        auto play = [](bool chord) {
+            ParamStore p;
+            p.parseText("row1.active=1 row1.length=16 row1.division=1/16 row1.mutation=0 "
+                        "row2.active=1 row2.length=12 row2.division=1/16 row2.mutation=0");
+            Score s;
+            s.clear(120.0);
+            Rack r;
+            r.setup(p, 21);
+            r.generate(0, RowRole::Bass);
+            r.generate(1, RowRole::Counter);
+            if (chord) s.rack.push_back({ 16.0, 0, RackOp::Chord, -2 });   // VI, below the centre
+            r.run(s, 48.0);
+            s.sort();
+            return s;
+        };
+        const Score plain = play(false), moved = play(true);
+        int bassWrong = 0, counterWrong = 0, bassMoved = 0;
+        for (size_t i = 0; i < plain.notes.size() && i < moved.notes.size(); ++i) {
+            const NoteEvent &a = plain.notes[i], &b = moved.notes[i];
+            if (a.part == Part::Row2) { counterWrong += a.pitch != b.pitch ? 1 : 0; continue; }
+            const int d = b.pitch - a.pitch;
+            if (a.beat < 16.0) bassWrong += d != 0 ? 1 : 0;
+            else { bassWrong += (d != -3 && d != -4) || !inScale(b.pitch, 9, 0) ? 1 : 0; ++bassMoved; }
+        }
+        check(plain.notes.size() == moved.notes.size() && bassWrong == 0 && counterWrong == 0 && bassMoved > 20,
+              "a chord moves the bass row down to VI in the scale and leaves the counter row",
+              fmt("%d bass notes moved, %d wrong, %d counter notes changed", bassMoved, bassWrong, counterWrong));
+    }
+
+    // Pieces: the bass follows the chord, the transposer only moves by +7, +5, -3, the drone stays, the end is open.
+    int badMoves = 0, droneOff = 0, shifted = 0, fifthEnds = 0, ends = 0;
+    for (int seed = 1; seed <= 10; ++seed) {
+        ParamStore p;
+        p.parseText(seed % 2 ? "compose.style=Melodic" : "compose.style=Cosmic");
+        const Score sc = composePiece(p, static_cast<uint64_t>(seed), 12.0);
+        auto keyAt = [&](double beat) {
+            int k = 0;
+            for (const RackEvent& e : sc.rack) if (e.op == RackOp::Key && e.beat <= beat) k = e.value;
+            return k;
+        };
+        for (const auto& r : sc.rootShifts) {
+            const int m = r.second - keyAt(r.first);
+            if (m != 0 && m != 7 && m != 5 && m != -3) ++badMoves;
+        }
+        for (const NoteEvent& n : sc.notes)
+            if (n.part == Part::Drone && pitchClass(n.pitch - sc.keyRoot - keyAt(n.beat)) != 0) ++droneOff;
+        for (const auto& e : sc.scaleShifts) shifted += e.second != sc.scaleShifts.front().second ? 1 : 0;
+        // The last chord of the piece: the open fifth on the centre.
+        double last = -1.0;
+        for (const NoteEvent& n : sc.notes) if (n.part == Part::Strings || n.part == Part::TapeKeys) last = std::max(last, n.beat);
+        if (last > 0.8 * sc.lengthBeats) {
+            ++ends;
+            bool open = true;
+            for (const NoteEvent& n : sc.notes)
+                if ((n.part == Part::Strings || n.part == Part::TapeKeys) && n.beat >= last - 0.1) {
+                    const int pc = pitchClass(n.pitch - sc.keyRoot - keyAt(n.beat));
+                    open = open && (pc == 0 || pc == 7);
+                }
+            fifthEnds += open ? 1 : 0;
+        }
+    }
+    check(badMoves == 0, "the transposer moves only by a fifth up, a fourth up or a minor third down", fmt("%d other moves", badMoves));
+    check(droneOff == 0, "the drone stays on the centre", fmt("%d drone notes elsewhere", droneOff));
+    check(ends >= 3 && fifthEnds == ends, "the piece ends on the open fifth", fmt("%d of %d", fifthEnds, ends));
+    check(shifted > 0, "a parallel change of mode at some peak", fmt("%d changes of mode in ten pieces", shifted));
+}
+
+/**
  * The offline render is the oracle only if a host's block size cannot change a sample: the study
  * rendered with blocks of 1, 37 and 512 must agree bit for bit (Engine.h).
  */
@@ -1069,6 +1179,7 @@ const TestSection kSections[] = {
     { "testCues", testCues },
     { "testRooms", testRooms },
     { "testStrings", testStrings },
+    { "testHarmony", testHarmony },
     { "testBlockSizes", testBlockSizes },
     { "testEcho", testEcho },
     { "testDrift", testDrift },

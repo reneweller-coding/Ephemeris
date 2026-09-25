@@ -28,6 +28,14 @@
  * on. A fast row riding on a slow one is the epicycle of PLAN 5.1. At equal beats the transposer steps
  * first, so the downbeat of a bar already sounds in the new root.
  *
+ * **The chord** (RackOp::Chord, 25.09.2026, after the style guide's 3.5 D): a row's steps move by some
+ * degrees of the scale -- diatonically, so the bass row under an unchanged sequence plays the sixth
+ * degree's root, fifth and octave while the counter rows keep their notes. The sequence is heard anew
+ * over the new bass: the Berlin-School way of changing chords without touching the machine.
+ *
+ * **A new mode** (RackOp::Scale): the rows play in another scale from the next step on, on the same
+ * centre -- Aeolian brightening to Dorian at the peak (the style guide's 3.2).
+ *
  * **A new key** (RackOp::Key, Phase 4) moves the whole rack -- rows, and the root the lead and the chords
  * follow -- by some semitones from the piece's key; the transposer then moves around the new key.
  */
@@ -60,6 +68,9 @@ enum class RowRole : int {
     Transposer,///< the roots of the style's progression (Harmony.h); `degree` holds semitones
 };
 
+/** @brief Number of scales (compose.scale): Aeolian, Dorian, Phrygian, Harmonic Minor, Minor Pentatonic,
+ *         Mixolydian, Lydian, Locrian (the last three since 25.09.2026, after the style guide's 3.2). */
+constexpr int kScales = 8;
 /** @brief Semitones of scale degree @p degree in scale @p scale (compose.scale order); any integer degree. */
 int scaleSemitones(int scale, int degree);
 /** @brief Number of degrees in an octave of scale @p scale. */
@@ -88,6 +99,8 @@ public:
     int shift() const { return shift_; }
     /** @brief Every change of the transposer's offset so far, as (beat, semitones), for the lead to follow. */
     const std::vector<std::pair<double, int>>& shifts() const { return shiftLog_; }
+    /** @brief Every change of the scale so far, as (beat, scale), starting with compose.scale at beat 0. */
+    const std::vector<std::pair<double, int>>& scales() const { return scaleLog_; }
     /** @brief The key's pitch class and the scale (compose.scale order) the rack plays in. */
     int keyRoot() const { return keyRoot_; }   ///< the key's pitch class
     int scale() const { return scale_; }       ///< the scale, compose.scale order
@@ -111,6 +124,7 @@ private:
         RowDirection direction = RowDirection::Forward;
         int octave = 0;
         int transpose = 0;
+        int chord = 0;            ///< degrees the steps move by (RackOp::Chord)
         float mutation = 0.0f;
         float gate = 0.5f;
         bool running = false;
@@ -136,6 +150,7 @@ private:
     int base_ = 0;            ///< the key's offset from the piece's key (RackOp::Key)
     int degree_ = 0;          ///< the transposer's own offset
     std::vector<std::pair<double, int>> shiftLog_;
+    std::vector<std::pair<double, int>> scaleLog_;
     double position_ = 0.0;   ///< beat up to which the rack has run
 };
 

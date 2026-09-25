@@ -107,7 +107,7 @@ Score buildSketch(const ParamStore& params, uint64_t seed, double minutes)
     sp.low = 62;
     sp.high = 81;
     sp.restrikeSeconds = 1e6;
-    sp.colour = 0.5f;
+    sp.choir = false;
     writeChords(s, sp, at(0.46), at(0.88), padRng);
 
     // The hands.

@@ -121,11 +121,19 @@ bool inScale(int pitch, int rootPc, int scale)
 
 void writeLead(Score& score, const LeadPlan& plan, double from, double to, Rng& rng)
 {
-    bool sc[12], pent[12];
-    pitchSets(plan.scale, sc, pent);
-    bool chord[12] = {};
-    chord[0] = chord[7] = true;
-    chord[sc[3] ? 3 : 4] = true;
+    bool sc[12], pent[12], chord[12];
+    int setsFor = -1;
+    // The pitch sets of the scale at a beat (a parallel change of mode moves them).
+    auto setsAt = [&](double beat) {
+        const int scale = plan.scales.empty() ? plan.scale : rootShiftAt(plan.scales, beat);
+        if (scale == setsFor) return;
+        setsFor = scale;
+        pitchSets(scale, sc, pent);
+        for (bool& c : chord) c = false;
+        chord[0] = chord[7] = true;
+        chord[sc[3] ? 3 : 4] = true;
+    };
+    setsAt(from);
     const int centre = (plan.low + plan.high) / 2;
 
     double t = std::ceil(from / kBeatsPerBar - 1e-9) * kBeatsPerBar;
@@ -138,6 +146,7 @@ void writeLead(Score& score, const LeadPlan& plan, double from, double to, Rng& 
         const bool repeat = !lastRhythm.empty() && rng.uniform() < 0.4f;
         const int bars = repeat ? lastBars : (rng.uniform() < 0.55f ? 2 : 4);
         const double end = std::min(t + bars * kBeatsPerBar, to);
+        setsAt(t);
         const int rootPc = pitchClass(plan.keyRoot + rootShiftAt(plan.shifts, t));
         const std::vector<int> pentSet = allowed(plan.low, plan.high, rootPc, pent);
         const std::vector<int> fullSet = allowed(plan.low, plan.high, rootPc, sc);
@@ -164,7 +173,8 @@ void writeLead(Score& score, const LeadPlan& plan, double from, double to, Rng& 
                 // A passing tone of the full scale, off the beat.
                 pitch = fullSet[static_cast<size_t>(nearestIndex(fullSet, pitch + (step >= 0 ? 1 : -1)))];
             }
-            // Under a root that changes inside the phrase, the note is snapped into the new one.
+            // Under a root or a mode that changes inside the phrase, the note is snapped into the new one.
+            setsAt(beat);
             const int rootNow = pitchClass(plan.keyRoot + rootShiftAt(plan.shifts, beat));
             if (!sc[pitchClass(pitch - rootNow)]) {
                 const std::vector<int> now = allowed(plan.low, plan.high, rootNow, sc);

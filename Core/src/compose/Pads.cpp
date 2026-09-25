@@ -3,19 +3,21 @@
  * @brief Held chords with the least movement.
  */
 #include "eph/compose/Pads.h"
+#include "eph/compose/Harmony.h"
 #include "eph/Rack.h"
 #include <algorithm>
 #include <cmath>
 
 namespace eph {
 
-void writeDrone(Score& s, int keyRoot, double from, double to)
+void writeDrone(Score& s, int keyRoot, double from, double to, const std::vector<std::pair<double, int>>* roots)
 {
-    for (size_t i = 0; i < s.rootShifts.size(); ++i) {
-        const double b0 = std::max(from, s.rootShifts[i].first);
-        const double b1 = std::min(to, i + 1 < s.rootShifts.size() ? s.rootShifts[i + 1].first : to);
+    const std::vector<std::pair<double, int>>& r = roots != nullptr ? *roots : s.rootShifts;
+    for (size_t i = 0; i < r.size(); ++i) {
+        const double b0 = std::max(from, r[i].first);
+        const double b1 = std::min(to, i + 1 < r.size() ? r[i + 1].first : to);
         if (b1 <= b0 + 1.0) continue;
-        int pitch = 45 + ((keyRoot - 9 + 12) % 12) + s.rootShifts[i].second;
+        int pitch = 45 + ((keyRoot - 9 + 12) % 12) + r[i].second;
         while (pitch > 52) pitch -= 12;
         while (pitch < 40) pitch += 12;
         s.notes.push_back({ b0, b1 - b0 - 0.05, Part::Drone, pitch, 0.8f, false, false });
@@ -24,27 +26,34 @@ void writeDrone(Score& s, int keyRoot, double from, double to)
 
 int writeChords(Score& score, const PadPlan& plan, double from, double to, Rng& rng)
 {
-    // The roots in the span, as segments.
-    std::vector<std::pair<double, int>> seg;
-    int root = 0;
-    for (const auto& e : plan.shifts) if (e.first <= from) root = e.second;
-    seg.push_back({ from, root });
-    for (const auto& e : plan.shifts)
-        if (e.first > from && e.first < to) seg.push_back(e);
+    // The span in segments: a new one wherever the root, the chord or the scale changes.
+    std::vector<double> seg = { from };
+    for (const auto* list : { &plan.shifts, &plan.chords, &plan.scales })
+        for (const auto& e : *list) if (e.first > from && e.first < to) seg.push_back(e.first);
+    std::sort(seg.begin(), seg.end());
+    seg.erase(std::unique(seg.begin(), seg.end()), seg.end());
 
     std::vector<int> voices;   // the sounding voicing, low to high
     int struck = 0;
     for (size_t i = 0; i < seg.size(); ++i) {
-        const double s0 = seg[i].first, s1 = i + 1 < seg.size() ? seg[i + 1].first : to;
-        const int shift = seg[i].second;
-        // The chord: the triad of the key's scale built on the transposer's root. The transposer moves the
-        // whole sequence in parallel -- a row in A minor transposed to F plays in F minor -- so the chord is
+        const double s0 = seg[i], s1 = i + 1 < seg.size() ? seg[i + 1] : to;
+        const int shift = rootShiftAt(plan.shifts, s0);
+        const int degree = plan.openFifth ? 0 : rootShiftAt(plan.chords, s0);
+        const int scale = plan.scales.empty() ? plan.scale : rootShiftAt(plan.scales, s0);
+        // The chord: on the chord track's degree of the scale on the transposer's root. The transposer moves
+        // the whole sequence in parallel -- a row in A minor transposed to E plays in E minor -- so the chord is
         // built the way the rows are, not diatonically in the home key.
         const int base = plan.keyRoot + shift;
-        std::vector<int> pcs = { 0, 2, 4 };
-        if (rng.uniform() < plan.colour) pcs.push_back(rng.uniform() < 0.5f ? 6 : 8);
+        const ChordKind kind = plan.openFifth ? ChordKind::Fifth : drawChordKind(scale, degree, plan.choir, rng);
         std::vector<int> tones;
-        for (int d : pcs) tones.push_back(pitchClass(base + scaleSemitones(plan.scale, d)));
+        for (int t : chordTones(scale, degree, kind)) tones.push_back(pitchClass(base + t));
+        // A doubled tone (the open fifth's octave) only where the register holds two of it.
+        for (size_t a = 1; a < tones.size(); ++a) {
+            const bool doubled = std::find(tones.begin(), tones.begin() + static_cast<std::ptrdiff_t>(a), tones[a]) != tones.begin() + static_cast<std::ptrdiff_t>(a);
+            int room = 0;
+            for (int p = plan.low; p <= plan.high; ++p) room += p % 12 == tones[a] ? 1 : 0;
+            if (doubled && room < 2) tones.erase(tones.begin() + static_cast<std::ptrdiff_t>(a--));
+        }
         // Voicing with the least movement: every combination of octaves inside the register is tried (a
         // few dozen at most) and the one kept whose voices lie nearest to those of the last chord, with a
         // small pull towards the middle of the register and a penalty for a spread wider than a tenth.

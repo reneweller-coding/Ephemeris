@@ -5,6 +5,7 @@
 #include "eph/compose/Composer.h"
 #include "eph/compose/Form.h"
 #include "eph/compose/GestureEngine.h"
+#include "eph/compose/Harmony.h"
 #include "eph/compose/Lead.h"
 #include "eph/compose/Pads.h"
 #include "eph/Rack.h"
@@ -95,6 +96,8 @@ struct Piece {
     bool bleepsOn = false;                ///< the layers' draw for the atmosphere's bleeps
     bool grainsOn = false;                ///< the layers' last draw: the granular cloud
     double stringsFrom = -1.0;            ///< first beat of the string machine, -1 if the piece has none
+    std::vector<std::pair<double, int>> chords;   ///< the chord track: degrees of the mode over time (Harmony.h)
+    std::vector<std::pair<double, int>> keys = { { 0.0, 0 } };   ///< the phases' keys over time, for the drone
     std::function<uint64_t(Stream)> seedOf;   ///< the seed of a stream, rerolls counted
     /** @brief A fresh generator on stream @p k. */
     Rng stream(Stream k) const { Rng r; r.seed(seedOf(k)); return r; }
@@ -136,7 +139,7 @@ void setUpRows(Piece& c)
     rowSet(tr, row::Mode, static_cast<float>(RowMode::Transposer));
     rowSet(tr, row::Division, static_cast<float>(c.prof.transposerDivision));
     rowSet(tr, row::Length, static_cast<float>(c.prof.transposerLength));
-    rowSet(tr, row::Mutation, 0.3f);
+    rowSet(tr, row::Mutation, 0.0f);   // the chain of transpositions stays as drawn (Harmony.h)
 }
 
 /** @brief The cycle of row @p r in beats, as set up. */
@@ -149,6 +152,10 @@ double cycleBeats(const ParamStore& p, int r)
 /**
  * @brief Step 2b, the rack: new patterns in every phase; rows in through the builds, all at the peak, the
  *        counters out in the breakdown, everything out at the bridge or the coda (the bass a third into the coda).
+ *        The harmony (Harmony.h, the style guide's 3.x): the chord track on the bass row from the first build to
+ *        the breakdown, drawn anew at the peak in the peak's mode; the transposer only on the plateau (the lead's
+ *        section) and at the peak; a parallel change of mode at the peak (Aeolian to Dorian) or in the
+ *        breakdown (to Phrygian).
  */
 void writeRack(Piece& c)
 {
@@ -161,6 +168,13 @@ void writeRack(Piece& c)
     rack.setup(p, c.seedOf(sRack));
     std::vector<double>& rowFrom = c.rowFrom;
     rowFrom.assign(kRows, -1.0);
+    c.scale = p.getInt(p.id(Module::Compose, 0, compose::Scale));
+    // The harmony's own stream, on the rows' unit: a reroll of the rows draws a new harmony as well.
+    Rng harm;
+    harm.seed(mixSeed(c.seedOf(sRows), 0x68u));
+    // Chances of the parallel changes of mode (3.2): brighter at the peak, darker in the breakdown.
+    static const float kBrighten[] = { 0.35f, 0.0f, 0.5f, 0.3f, 0.2f }, kDarken[] = { 0.1f, 0.4f, 0.0f, 0.1f, 0.0f };
+    const int si = std::clamp(static_cast<int>(c.style), 0, 4);
     for (int ph = 0; ph < c.phases; ++ph) {
         const Section* entry = form.find(SectionType::Entry, ph);
         if (entry == nullptr) continue;
@@ -171,20 +185,25 @@ void writeRack(Piece& c)
         for (int k = 0; k < counters; ++k) rack.generate(k + 1, k % 2 == 0 ? RowRole::Counter : RowRole::Walk);
         rack.generate(tr, RowRole::Transposer);
         std::vector<RackEvent> ev;
-        if (form.phaseKey[static_cast<size_t>(ph)] != 0 || ph > 0) ev.push_back({ entry->beat, -1, RackOp::Key, form.phaseKey[static_cast<size_t>(ph)] });
+        if (form.phaseKey[static_cast<size_t>(ph)] != 0 || ph > 0) {
+            ev.push_back({ entry->beat, -1, RackOp::Key, form.phaseKey[static_cast<size_t>(ph)] });
+            c.keys.push_back({ entry->beat, form.phaseKey[static_cast<size_t>(ph)] });
+        }
         ev.push_back({ entry->beat, 0, RackOp::Start, 0 });
         if (rowFrom[0] < 0.0) rowFrom[0] = entry->beat;
         int started = 0;
         for (const Section& sec : form.sections) {
             if (sec.phase != ph) continue;
-            if (sec.type == SectionType::Build) {
-                if (sec.index == 0) ev.push_back({ sec.beat, tr, RackOp::Start, 0 });
+            if (sec.type == SectionType::Lead) {
+                ev.push_back({ sec.beat, tr, RackOp::Start, 0 });
+            } else if (sec.type == SectionType::Build) {
                 if (started < counters) {
                     ev.push_back({ sec.beat, started + 1, RackOp::Start, 0 });
                     if (rowFrom[static_cast<size_t>(started + 1)] < 0.0) rowFrom[static_cast<size_t>(started + 1)] = sec.beat;
                     ++started;
                 }
             } else if (sec.type == SectionType::Peak) {
+                if (form.find(SectionType::Lead, ph) == nullptr) ev.push_back({ sec.beat, tr, RackOp::Start, 0 });
                 for (; started < counters; ++started) {
                     ev.push_back({ sec.beat, started + 1, RackOp::Start, 0 });
                     if (rowFrom[static_cast<size_t>(started + 1)] < 0.0) rowFrom[static_cast<size_t>(started + 1)] = sec.beat;
@@ -198,6 +217,34 @@ void writeRack(Piece& c)
         const Section* bridge = form.find(SectionType::Bridge, ph + 1);
         const Section* coda = form.find(SectionType::Coda, ph);
         const double end = bridge != nullptr ? bridge->beat : (coda != nullptr ? coda->beat : form.lengthBeats);
+        // The harmony of the phase.
+        const Section* build0 = form.find(SectionType::Build, ph);
+        const Section* peak = form.find(SectionType::Peak, ph);
+        const Section* breakdown = form.find(SectionType::Breakdown, ph);
+        const double chordsEnd = breakdown != nullptr ? breakdown->beat : end;
+        int peakScale = c.scale;
+        if (peak != nullptr && c.scale == 0 && harm.uniform() < kBrighten[si]) {
+            peakScale = 1;
+            ev.push_back({ peak->beat, -1, RackOp::Scale, 1 });
+            ev.push_back({ chordsEnd, -1, RackOp::Scale, c.scale });
+        }
+        if (breakdown != nullptr && (c.scale == 0 || c.scale == 1) && harm.uniform() < kDarken[si]) {
+            ev.push_back({ breakdown->beat, -1, RackOp::Scale, 2 });
+            ev.push_back({ end, -1, RackOp::Scale, c.scale });
+        }
+        auto chordSpan = [&](double b0, double b1, int scale) {
+            if (b1 <= b0) return;
+            for (const auto& ch : drawChordTrack(c.style, scale, b0, b1, harm)) {
+                ev.push_back({ ch.first, 0, RackOp::Chord, bassDegree(scale, ch.second) });
+                c.chords.push_back(ch);
+            }
+        };
+        if (build0 != nullptr) {
+            chordSpan(build0->beat, peak != nullptr ? std::min(peak->beat, chordsEnd) : chordsEnd, c.scale);
+            if (peak != nullptr) chordSpan(peak->beat, chordsEnd, peakScale);
+            ev.push_back({ chordsEnd, 0, RackOp::Chord, 0 });
+            c.chords.push_back({ chordsEnd, 0 });
+        }
         for (int k = 0; k < counters; ++k) ev.push_back({ end, k + 1, RackOp::Stop, 0 });
         ev.push_back({ end, tr, RackOp::Stop, 0 });
         // In the coda the bass row plays on for a third of it, then leaves the atmosphere alone.
@@ -208,7 +255,7 @@ void writeRack(Piece& c)
     s.sort();
     rack.run(s, form.lengthBeats);
     s.rootShifts = rack.shifts();
-    c.scale = rack.scale();
+    s.scaleShifts = rack.scales();
     // The rows' shapes for a display, as the rack read them (Rack::setup).
     for (int r = 0; r < kRows; ++r) {
         const int length = std::clamp(static_cast<int>(p.get(p.id(Module::Row, r, row::Length))), 1, kMaxSteps);
@@ -235,23 +282,26 @@ void writeLayers(Piece& c)
     c.bleepsOn = layers.uniform() < prof.bleepChance;
     const bool drumsOn = layers.uniform() < prof.drumsChance;   // drawn last, so the draws above stay as they were
     const Section* coda = form.find(SectionType::Coda, c.phases - 1);
-    writeDrone(s, c.key, 0.0, coda != nullptr ? coda->beat + coda->length * 0.8 : form.lengthBeats);
+    writeDrone(s, c.key, 0.0, coda != nullptr ? coda->beat + coda->length * 0.8 : form.lengthBeats, &c.keys);
 
     Rng pads = c.stream(sPads);
     PadPlan pp;
     pp.keyRoot = c.key;
     pp.scale = c.scale;
     pp.shifts = s.rootShifts;
+    pp.chords = c.chords;
+    pp.scales = s.scaleShifts;
     PadPlan sp = pp;
     sp.part = Part::Strings;
     sp.low = 62; sp.high = 81;
     sp.restrikeSeconds = 1e6;
-    sp.colour = 0.5f;
+    sp.choir = false;
     Rng leadRng = c.stream(sLead);
     LeadPlan lp;
     lp.keyRoot = c.key;
     lp.scale = c.scale;
     lp.shifts = s.rootShifts;
+    lp.scales = s.scaleShifts;
     for (int ph = 0; ph < c.phases; ++ph) {
         const Section* peak = form.find(SectionType::Peak, ph);
         const Section* breakdown = form.find(SectionType::Breakdown, ph);
@@ -282,6 +332,13 @@ void writeLayers(Piece& c)
             for (const Section& sec : form.sections) if (sec.phase == ph && sec.type == SectionType::Build && sec.index == 1) second = &sec;
             writeDrums(s, c.style, second != nullptr ? second->beat : peak->beat, peak->beat + peak->length, layers);
         }
+    }
+    // The end on the open fifth (the style guide's 3.3, Phaedra's close): the strings, or else the tape keys,
+    // hold the centre and its fifth over the fading drone of the coda.
+    if (coda != nullptr && (stringsOn || tapeOn)) {
+        PadPlan fifth = stringsOn ? sp : pp;
+        fifth.openFifth = true;
+        writeChords(s, fifth, coda->beat + coda->length * 0.15, coda->beat + coda->length * 0.85, pads);
     }
     // The granular cloud: the layers' last draw, so every draw above stays as it was.
     c.grainsOn = layers.uniform() < prof.grainChance;
@@ -455,6 +512,7 @@ void appendScore(Score& dst, const Score& src, int rootOffset)
     for (RackEvent e : src.rack) { e.beat += off; dst.rack.push_back(e); }
     for (Marker m : src.markers) { m.beat += off; dst.markers.push_back(m); }
     for (const auto& r : src.rootShifts) dst.rootShifts.push_back({ off + r.first, r.second + rootOffset });
+    for (const auto& r : src.scaleShifts) dst.scaleShifts.push_back({ off + r.first, r.second });
     for (RowShape r : src.rowShapes) { r.from += off; dst.rowShapes.push_back(r); }
     dst.lengthBeats = off + src.lengthBeats;
     dst.sort();
@@ -494,7 +552,7 @@ Score composeConcert(const ParamStore& p, uint64_t seed, double minutes, const C
         Score piece = composePiece(q, mixSeed(seed, 1000 + static_cast<uint64_t>(i)), m, shift, curation,
                                    "piece" + std::to_string(i + 1) + ".", shaped ? &prof : nullptr);
         for (Marker& mk : piece.markers) mk.text = "Stueck " + std::to_string(i + 1) + ": " + mk.text;
-        if (i == 0) { out = piece; out.rootShifts.clear(); out.lengthBeats = 0.0; out.notes.clear(); out.gestures.clear();
+        if (i == 0) { out = piece; out.rootShifts.clear(); out.scaleShifts.clear(); out.lengthBeats = 0.0; out.notes.clear(); out.gestures.clear();
                       out.rack.clear(); out.markers.clear(); out.rowShapes.clear(); }
         const double before = out.tempo.secondsAt(out.lengthBeats);
         appendScore(out, piece, shift);

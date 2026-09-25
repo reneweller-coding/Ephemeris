@@ -13,7 +13,8 @@
 namespace eph {
 
 const char* const kKeyNames[12] = { "C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B" };
-const char* const kScaleNames[] = { "Aeolian", "Dorian", "Phrygian", "Harmonic Minor", "Minor Pentatonic" };
+const char* const kScaleNames[] = { "Aeolian", "Dorian", "Phrygian", "Harmonic Minor", "Minor Pentatonic",
+                                    "Mixolydian", "Lydian", "Locrian" };
 const char* const kStyleNames[] = { "Cosmic", "Doom", "Melodic", "Modern", "Drift" };
 const char* const kMorphNames[] = { "None", "Cosmic", "Doom", "Melodic", "Modern", "Drift" };
 const char* const kReverbTypeNames[] = { "Hall", "Plate" };
@@ -54,7 +55,7 @@ namespace {
 const ParamDesc kComposeParams[compose::Count] = {
     { "bpm",           "Tempo",         "BPM",  60.0f, 160.0f, 118.0f, Curve::Linear },
     { "key",           "Key",           "",      0.0f,  11.0f,   9.0f, Curve::Choice, kKeyNames },
-    { "scale",         "Scale",         "",      0.0f,   4.0f,   0.0f, Curve::Choice, kScaleNames },
+    { "scale",         "Scale",         "",      0.0f,   7.0f,   0.0f, Curve::Choice, kScaleNames },
     { "style",         "Style",         "",      0.0f,   4.0f,   0.0f, Curve::Choice, kStyleNames },
     { "piece_minutes", "Piece Length",  "min",   4.0f,  40.0f,  16.0f, Curve::Linear },
     { "style_tempo",   "Style Tempo",   "",      0.0f,   1.0f,   1.0f, Curve::Toggle },

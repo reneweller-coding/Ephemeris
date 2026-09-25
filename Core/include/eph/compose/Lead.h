@@ -35,6 +35,7 @@ struct LeadPlan {
     int high = 86;                  ///< highest note
     float intensity = 0.5f;         ///< 0..1: density of the phrases, fewer rests
     std::vector<std::pair<double, int>> shifts;   ///< the transposer's roots over time (Rack::shifts)
+    std::vector<std::pair<double, int>> scales;   ///< the scale over time (Score::scaleShifts; empty: @p scale)
 };
 
 /**

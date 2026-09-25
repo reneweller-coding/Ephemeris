@@ -53,6 +53,15 @@ Animieren der Mischung) und den "Harmonie- und Stilguide Moderne Berlin School" 
    ohne Echo; Lead-Phrasen 4-8 Takte, Pausen 2-4, enden auf Quinte oder kleiner Terz, dorische Sexte als
    Farbe, leicht hinter dem Schlag.
 Jeder Schritt mit Selbsttest, neuen Referenz-Hashes und Commit.
+Stand: Schritt 1 erledigt (cc10980; Registrierung zeigt im Regler die Namen der Mischungen). Schritt 2
+erledigt: `Harmony.h` (Akkordspur mit den Klassen Statik/Pendel/Schleife/Markov-Wanderung, Gewichte und
+harmonischer Rhythmus je Stil; nur Stufen mit reiner Quinte; Vokabular `chordTones`; Transposer-Kette nur
+mit Zügen, bei denen das Zentrum in der verschobenen Skala bleibt), `RackOp::Chord` (die Bassreihe rückt
+diatonisch, die Gegenreihen bleiben), `RackOp::Scale` und `Score::scaleShifts` (paralleler Moduswechsel:
+Äolisch -> Dorisch im Höhepunkt, -> Phrygisch im Abbau, Chancen je Stil), der Bordun folgt nur den Tonarten
+der Phasen, Schluss auf offener Quinte (Streicher, sonst Tape Keys), `compose.scale` um Mixolydisch, Lydisch
+und Lokrisch erweitert. Der Transposer läuft nur noch im Lead-Teil (Plateau) und im Höhepunkt, ohne
+Mutation. Selbsttest `testHarmony`.
 
 **25.09.2026: Eigener Stil, Platte und BBD, Granular, Konzertbogen.**
 - **Eigener Stil** (Modul `custom`, Style-Tab): alle Zahlen eines Profils als Parameter, "Copy <Stil> into

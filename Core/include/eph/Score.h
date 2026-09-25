@@ -77,6 +77,8 @@ enum class RackOp : uint8_t {
     SetLength,    ///< the row's length becomes @p value steps
     Mutate,       ///< step @p value changes (the new content is in the notes that follow)
     Key,          ///< the whole rack moves to a new key, @p value semitones from the piece's (row unused; Phase 4)
+    Chord,        ///< the row's steps move by @p value scale degrees (the bass wandering under the sequence; -1: all rows)
+    Scale,        ///< the rack plays in scale @p value (compose.scale order) from here: a parallel change of mode
 };
 
 /** @brief One change to the rack. */
@@ -119,6 +121,9 @@ struct Score {
     /** The transposer's roots over time as (beat, semitones), written by whoever ran the rack; the
      *  atmosphere's bleeps and anything else that must be in the rows' root read it. */
     std::vector<std::pair<double, int>> rootShifts;
+    /** The scale (compose.scale order) over time as (beat, scale), written by whoever ran the rack (Rack::scales):
+     *  a parallel change of mode (RackOp::Scale) shows here. Empty: compose.scale throughout. */
+    std::vector<std::pair<double, int>> scaleShifts;
 
     /** @brief Sorts every list by beat (stable, so equal beats keep the order they were written in). */
     void sort();
@@ -134,6 +139,8 @@ struct Score {
     float gestureOffset(int param, double beat) const;
     /** @brief The transposer's root offset at @p beat (rootShifts). */
     int rootAt(double beat) const { return rootShiftAt(rootShifts, beat); }
+    /** @brief The scale at @p beat (scaleShifts), @p fallback where the score has none. */
+    int scaleAt(double beat, int fallback) const { return scaleShifts.empty() ? fallback : rootShiftAt(scaleShifts, beat); }
 };
 
 } // namespace eph

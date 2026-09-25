@@ -37,6 +37,19 @@ hands slower, the sound a little darker -- and the pieces around 60 % of the way
 Compose writes a piece with the current seed, New seed draws another one, Play starts and stops the
 standalone (in a host the host's transport plays).
 
+Scale offers eight modes: Aeolian, Dorian, Phrygian, Harmonic Minor, Minor Pentatonic, Mixolydian, Lydian
+and Locrian. The harmony is the Berlin School's: a centre held by the drone and the bass, chords that
+change rarely. From the first build on, a chord track moves the bass row alone under the unchanged
+sequence -- the counter rows are heard anew over the wandering bass -- in one of four ways the style
+draws: one chord for the whole phase, a pendulum between two (i-VII, i-VI, i-iv, i-IV in Dorian, i-bII in
+Phrygian), a loop of three or four (i-VI-VII, i-VII-VI, i-iv-VI ...) or a walk by a table of chances.
+Drift and Modern stay longest on one chord, Melodic changes every four to eight bars. The tape keys and
+the strings build their chords on the same degree: the choirs mostly plain triads, the strings open
+fifths, triads, sus chords, add9, stacked fourths and m9 as well. The transposer moves the whole sequence
+a fifth up, a fourth up or a minor third down and back, only on the plateau and at the peak, while the
+drone stays on the centre. At some peaks Aeolian brightens to Dorian, in some breakdowns it darkens to
+Phrygian, and every piece ends on the open fifth.
+
 The reroll buttons draw one part of the piece again and leave everything else as it was, to the note:
 the form, the tempo, the rows' shapes, the rack's patterns, the layers, the lead, the chords and pads,
 and the hands on the knobs. Save set and Load set keep a piece as a small text file; Export writes the
