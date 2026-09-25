@@ -157,7 +157,7 @@ const ParamDesc kTapeParams[tape::Count] = {
     { "sag",     "Motor Load",   "ct",    0.0f,     5.0f,    1.0f, Curve::Linear },   // per key beyond the first
     { "tone",    "Tone",         "Hz", 1500.0f, 16000.0f, 7000.0f, Curve::Log },
     { "age",     "Age",          "",      0.0f,     1.0f,    0.5f, Curve::Linear },
-    { "level",   "Level",        "dB",  -60.0f,     6.0f,   -8.0f, Curve::Linear },
+    { "level",   "Level",        "dB",  -60.0f,     6.0f,   -1.0f, Curve::Linear },   // 25.09.2026: pads 6..12 dB under the sequence, not 17
     { "pan",     "Pan",          "",     -1.0f,     1.0f,   -0.1f, Curve::Linear },
     { "echo",    "Echo Send",    "",      0.0f,     1.0f,    0.1f, Curve::Linear },
     { "reverb",  "Reverb Send",  "",      0.0f,     1.0f,    0.5f, Curve::Linear },
@@ -206,7 +206,7 @@ const ParamDesc kAtmosParams[atmos::Count] = {
     { "sweep_level", "Sweep Level",  "dB",  -60.0f,     0.0f,  -18.0f, Curve::Linear },
     { "bleeps",      "Bleeps",       "/min",  0.0f,    12.0f,    0.0f, Curve::Linear },
     { "bleep_level", "Bleep Level",  "dB",  -60.0f,     0.0f,  -22.0f, Curve::Linear },
-    { "level",       "Level",        "dB",  -60.0f,     6.0f,   -4.0f, Curve::Linear },
+    { "level",       "Level",        "dB",  -60.0f,     6.0f,    0.0f, Curve::Linear },   // 25.09.2026: the horizon layer, not buried
     { "echo",        "Echo Send",    "",      0.0f,     1.0f,    0.2f, Curve::Linear },
     { "reverb",      "Reverb Send",  "",      0.0f,     1.0f,    0.6f, Curve::Linear },
     { "grains",        "Grains",        "dB",  -60.0f,     0.0f,  -60.0f, Curve::Linear },   // the granular cloud, off at -60

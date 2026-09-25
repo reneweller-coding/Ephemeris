@@ -1218,7 +1218,7 @@ void testFormAndSpace()
         for (const NoteEvent& n : sc.notes)
             if (n.part == Part::Drums) {
                 drums = true;
-                drumsOutside += n.beat < 0.45 * sc.lengthBeats - 1e-6 || n.beat > 0.9 * sc.lengthBeats ? 1 : 0;
+                drumsOutside += n.beat < 0.2 * sc.lengthBeats - 1e-6 || n.beat > 0.9 * sc.lengthBeats ? 1 : 0;
             }
         drumPieces += drums ? 1 : 0;
         const int echo = p.id(Module::Row, 0, row::EchoSend);
@@ -1232,7 +1232,7 @@ void testFormAndSpace()
         }
         if (peakEnd > 0.0 && atmoMid > 0.0 && sc.gestureOffset(hall, peakEnd) < sc.gestureOffset(hall, atmoMid)) ++hallShrinks;
     }
-    check(drumPieces > 0 && drumsOutside == 0, "the drums only between 45 and 90 % of the piece", fmt("%d pieces with drums, %d hits outside", drumPieces, drumsOutside));
+    check(drumPieces > 0 && drumsOutside == 0, "the pulse and the drums only between 20 and 90 % of the piece", fmt("%d pieces with drums, %d hits outside", drumPieces, drumsOutside));
     check(dryBass == pieces, "the bass without echo", fmt("%d of %d", dryBass, pieces));
     check(hallShrinks == pieces, "the hall shorter at the peak than in the atmosphere", fmt("%d of %d", hallShrinks, pieces));
 }

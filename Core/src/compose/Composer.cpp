@@ -71,6 +71,34 @@ void writeDrums(Score& s, Style style, double from, double to, Rng& rng)
     }
 }
 
+/**
+ * @brief The pulse (25.09.2026, hypnosis): a soft kick under the sequence where the kit does not play -- four to the
+ *        floor in Melodic and Modern, a heartbeat in Cosmic, a slow beat in Drift, a low tom every bar in Doom.
+ */
+void writePulse(Score& s, Style style, double from, double to, Rng& rng)
+{
+    auto hit = [&](double beat, int note, float vel) {
+        if (beat >= from && beat < to) s.notes.push_back({ beat, 0.1, Part::Drums, note, vel + 0.05f * rng.uniform(), false, false });
+    };
+    for (double b = std::ceil(from / kBeatsPerBar) * kBeatsPerBar; b < to; b += kBeatsPerBar) {
+        switch (style) {
+        case Style::Melodic: case Style::Modern:
+            for (int q = 0; q < 4; ++q) hit(b + q, 36, q == 0 ? 0.68f : 0.58f);
+            break;
+        case Style::Cosmic:
+            hit(b, 36, 0.58f); hit(b + 0.5, 36, 0.38f); hit(b + 2.0, 36, 0.52f); hit(b + 2.5, 36, 0.35f);
+            break;
+        case Style::Drift:
+            hit(b, 36, 0.45f); hit(b + 2.0, 36, 0.4f);
+            break;
+        case Style::Doom:
+            hit(b, 45, 0.6f);
+            break;
+        default: break;
+        }
+    }
+}
+
 } // namespace
 
 const char* const kUnitNames[8] = { "form", "tempo", "rows", "rack", "layers", "lead", "pads", "hands" };
@@ -385,13 +413,29 @@ void writeLayers(Piece& c)
         if (tapeOn && bridge != nullptr) writeChords(s, pp, bridge->beat, bridge->beat + bridge->length, pads);
         // The drums come late: from the second build (or the peak) to the end of the peak, and never before 45 % of
         // the piece or after 90 % (the style guide's 5.3: the kick not before the sequence, gone before the end).
+        double kitFrom = -1.0;
         if (drumsOn && peak != nullptr) {
             const Section* second = nullptr;
             for (const Section& sec : form.sections) if (sec.phase == ph && sec.type == SectionType::Build && sec.index == 1) second = &sec;
             const double d0 = std::max(second != nullptr ? second->beat : peak->beat,
-                                       std::ceil(0.45 * form.lengthBeats / kBeatsPerBar) * kBeatsPerBar);
+                                       std::ceil(0.3 * form.lengthBeats / kBeatsPerBar) * kBeatsPerBar);
             const double d1 = std::min(peak->beat + peak->length, std::floor(0.9 * form.lengthBeats / kBeatsPerBar) * kBeatsPerBar);
-            if (d1 - d0 >= 8 * kBeatsPerBar) writeDrums(s, c.style, d0, d1, layers);
+            if (d1 - d0 >= 8 * kBeatsPerBar) { writeDrums(s, c.style, d0, d1, layers); kitFrom = d0; }
+        }
+        // The pulse under the sequence from the second build (or the first), not before a fifth of the piece, to the
+        // kit or the breakdown; its own stream, so the layers' draws stay as they were.
+        {
+            static const float kPulse[] = { 0.5f, 0.35f, 0.8f, 0.7f, 0.3f };   // Cosmic, Doom, Melodic, Modern, Drift
+            Rng pr;
+            pr.seed(mixSeed(c.seedOf(sLayers), 0x7075u + static_cast<uint64_t>(ph)));
+            const Section* from = nullptr;
+            for (const Section& sec : form.sections)
+                if (sec.phase == ph && sec.type == SectionType::Build && (from == nullptr || sec.index == 1)) from = &sec;
+            if (from != nullptr && peak != nullptr && pr.uniform() < kPulse[std::clamp(static_cast<int>(c.style), 0, 4)]) {
+                const double p0 = std::max(from->beat, std::ceil(0.2 * form.lengthBeats / kBeatsPerBar) * kBeatsPerBar);
+                const double p1 = kitFrom >= 0.0 ? kitFrom : (breakdown != nullptr ? breakdown->beat : peak->beat + peak->length);
+                if (p1 - p0 >= 8 * kBeatsPerBar) writePulse(s, c.style, p0, std::min(p1, std::floor(0.9 * form.lengthBeats / kBeatsPerBar) * kBeatsPerBar), pr);
+            }
         }
     }
     // The end on the open fifth (the style guide's 3.3, Phaedra's close): the strings, or else the tape keys,
