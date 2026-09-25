@@ -11,9 +11,11 @@
  * processing suspended -- the engine allocates when it loads, and the audio thread never does.
  *
  * **Time.** In a host the playhead is the clock: while the host plays, the engine follows its position
- * in beats and jumps (Engine::seek) when the host does. The standalone has its own play and stop. Tempo
- * changes inside a piece belong to the score; in a host the host's tempo map is not followed yet
- * (PLAN 10), the export carries the piece's own tempo map.
+ * in beats and jumps (Engine::seek) when the host does, and it plays at the host's tempo: the score is
+ * loaded with the host's tempo as a constant (forPlayback), and a new host tempo loads it again on the
+ * message thread, from the beat the engine was at. The piece's own tempo changes (a new tempo in a
+ * bridge) are the standalone's and the export's; in a DAW the song's tempo track decides. The
+ * standalone has its own play and stop.
  */
 #pragma once
 #include "eph/Engine.h"
@@ -118,6 +120,11 @@ private:
     void run() override;          // the composer thread
     void timerCallback() override;   // loads a finished score on the message thread
     eph::Score composeNow();
+    /**
+     * @brief @p s as the engine plays it here: in a host at the host's tempo (constant, the piece's tempo
+     *        changes come only through the export and its MIDI file), in the standalone as composed.
+     */
+    eph::Score forPlayback(const eph::Score& s) const;
 
     eph::Engine engine_;
     std::vector<StoreParameter*> params_;
@@ -140,4 +147,6 @@ private:
     std::array<std::atomic<float>, eph::Engine::kChannels> meterPeak_{};   ///< audio thread raises, the editor takes (exchange 0)
     std::array<std::atomic<double>, eph::Engine::kChannels> meterSum_{};   ///< sums of squares since the editor last took them
     std::atomic<int> meterCount_{ 0 };                                      ///< samples in those sums
+    std::atomic<double> hostBpm_{ 0.0 };     ///< the host's tempo as the audio thread last saw it, 0 outside a host
+    std::atomic<double> playedBpm_{ 0.0 };   ///< the tempo the engine's score was loaded with (forPlayback), 0 as composed
 };

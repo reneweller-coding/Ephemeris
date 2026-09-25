@@ -74,4 +74,21 @@ if(EPH_BUILD_PLUGIN)
         GIT_SHALLOW    TRUE)
     FetchContent_MakeAvailable(JUCE)
     add_subdirectory(Plugin)
+    # The built VST3 loaded the way a DAW loads it (Tests/vst3test.cpp). Here and not in Tests/, because the
+    # plugin's target exists only from this point on.
+    if(EPH_BUILD_TOOLS AND TARGET Ephemeris_VST3)
+        add_executable(eph_vst3test Tests/vst3test.cpp)
+        target_link_libraries(eph_vst3test PRIVATE juce::juce_audio_utils juce::juce_recommended_config_flags)
+        # A VST3 tells its controller about a restored state through the message queue: the test runs it by hand.
+        target_compile_definitions(eph_vst3test PRIVATE JUCE_STANDALONE_APPLICATION=1 JUCE_PLUGINHOST_VST3=1
+                                   JUCE_MODAL_LOOPS_PERMITTED=1 JUCE_WEB_BROWSER=0 JUCE_USE_CURL=0
+                                   JUCE_DISPLAY_SPLASH_SCREEN=0 JUCE_REPORT_APP_USAGE=0)
+        add_dependencies(eph_vst3test Ephemeris_VST3)
+        if(MSVC)
+            target_compile_options(eph_vst3test PRIVATE /W4 /permissive- /utf-8)
+            target_link_options(eph_vst3test PRIVATE "LINKER:/STACK:16777216")
+        endif()
+        add_test(NAME vst3test COMMAND eph_vst3test "$<TARGET_FILE:Ephemeris_VST3>")
+        set_tests_properties(vst3test PROPERTIES LABELS "audio;slow" PROCESSORS 3)
+    endif()
 endif()

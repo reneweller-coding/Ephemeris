@@ -180,13 +180,32 @@ void EphemerisProcessor::timerCallback()
         next = std::move(pending_);
     }
     if (!next) {
+        // In a host the piece plays at the host's tempo. A new tempo means new sample positions for every
+        // event, and the engine allocates when it loads: so the score is loaded again here, on the message
+        // thread, and the engine goes on from the beat it was at.
+        const double bpm = hostBpm_.load();
+        if (wrapperType != wrapperType_Standalone && bpm > 0.0 && std::fabs(bpm - playedBpm_.load()) > 1.0e-3) {
+            Score s;
+            {
+                std::lock_guard<std::mutex> g(lock_);
+                s = forPlayback(current_);
+            }
+            suspendProcessing(true);
+            const double beat = engine_.beat();
+            engine_.prepare(sampleRate_, blockSize_);
+            engine_.load(s);
+            engine_.seek(beat);
+            playedBpm_ = bpm;
+            suspendProcessing(false);
+        }
         if (again_ && !composing_) { again_ = false; compose(); }
         return;
     }
     // The engine allocates when it loads: never on the audio thread.
     suspendProcessing(true);
     engine_.prepare(sampleRate_, blockSize_);
-    engine_.load(*next);
+    engine_.load(forPlayback(*next));
+    playedBpm_ = wrapperType != wrapperType_Standalone ? hostBpm_.load() : 0.0;
     {
         std::lock_guard<std::mutex> g(lock_);
         current_ = std::move(*next);
@@ -227,7 +246,16 @@ void EphemerisProcessor::prepareToPlay(double sampleRate, int samplesPerBlock)
         recordPos_ = 0;
     }
     std::lock_guard<std::mutex> g(lock_);
-    engine_.load(current_);
+    engine_.load(forPlayback(current_));
+    playedBpm_ = wrapperType != wrapperType_Standalone ? hostBpm_.load() : 0.0;
+}
+
+Score EphemerisProcessor::forPlayback(const Score& s) const
+{
+    Score out = s;
+    const double bpm = hostBpm_.load();
+    if (wrapperType != wrapperType_Standalone && bpm > 0.0) out.tempo.setConstant(bpm);
+    return out;
 }
 
 bool EphemerisProcessor::isBusesLayoutSupported(const BusesLayout& layouts) const
@@ -247,9 +275,13 @@ void EphemerisProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::Mi
         if (auto* ph = getPlayHead()) {
             if (const auto pos = ph->getPosition()) {
                 play = pos->getIsPlaying();
+                if (const auto bpm = pos->getBpm(); bpm && *bpm > 0.0) hostBpm_ = *bpm;
+                // Until the message thread has loaded the score at a new host tempo (timerCallback), the
+                // positions drift apart by design: only a real jump of the host's playhead is followed then.
+                const bool tempoPending = std::fabs(hostBpm_.load() - playedBpm_.load()) > 1.0e-3;
                 if (play) {
                     if (const auto ppq = pos->getPpqPosition()) {
-                        if (std::fabs(*ppq - engine_.beat()) > 0.05) engine_.seek(*ppq);
+                        if (std::fabs(*ppq - engine_.beat()) > (tempoPending ? 4.0 : 0.05)) engine_.seek(*ppq);
                     }
                 }
             }
