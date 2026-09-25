@@ -348,7 +348,7 @@ const ModuleSpec kModules[static_cast<int>(Module::Count)] = {
     { "perform", kPerformParams, perform::Count, 1 },
     { "cue",     kCueParams,     cue::Count,     1 },
     { "custom",  kCustomParams,  custom::Count,  1 },
-    { "echo2",   kEcho2Params,   echo2::Count,   1 },
+    { "delay",   kEcho2Params,   echo2::Count,   1 },   // the second echo (a prefix without a digit: "row1" is an instance)
 };
 
 bool isDiscrete(Curve c) { return c == Curve::Int || c == Curve::Choice || c == Curve::Toggle; }

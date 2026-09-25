@@ -189,7 +189,7 @@ private:
     Atmos atmos_;
     TapeEcho echo_;
     BbdEcho bbd_;          ///< echo.type BBD instead of the tape echo, on the same send
-    TapeEcho echo2_;       ///< the second echo (module echo2): its own time for the counter rows
+    TapeEcho echo2_;       ///< the second echo (Module::Echo2, keys "delay.*"): its own time for the counter rows
     Plate plate_;          ///< reverb.type Plate instead of the hall, on the same send
     bool bbdOn_ = false, plateOn_ = false;   ///< echo.type and reverb.type at the current cell
     Spring spring_;

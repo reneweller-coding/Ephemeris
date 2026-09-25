@@ -1362,7 +1362,7 @@ void testGuideExtras()
         one.lengthBeats = 8.0;
         auto render = [&](const char* setting) {
             Engine e;
-            e.params().parseText("row2.echo=0 row2.reverb=0 echo2.time=1/8 echo2.feedback=0.3 echo2.return=0 master.level=0");
+            e.params().parseText("row2.echo=0 row2.reverb=0 delay.time=1/8 delay.feedback=0.3 delay.return=0 master.level=0");
             e.params().parseText(setting);
             e.prepare(48000.0, 256);
             e.load(one);

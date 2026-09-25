@@ -197,7 +197,7 @@ enum : int { Size, Decay, Damping, PreDelay, LowCut, HighCut, Return,
 }
 static_assert(static_cast<int>(lead::Glide) == static_cast<int>(voice::Glide), "the first parameters of the lead are those of the voice, in the same order");
 /** @brief Parameters of the tape echo (module Echo; PLAN 5.8). */
-/** @brief Parameters of the second echo (module Echo2): a clean tape echo with its own time and return. */
+/** @brief Parameters of the second echo (Module::Echo2, keys "delay.*"): a clean tape echo with its own time and return. */
 namespace echo2 {
 enum : int { Time, Feedback, Tone, PingPong, Return, Count };
 }

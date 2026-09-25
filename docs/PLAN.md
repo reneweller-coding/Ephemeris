@@ -33,7 +33,7 @@ Danach die übrigen Regeln des Guides: Terzrückungen zwischen Phasen (-3, +4), 
 Phase (Suitenteile, 6.5), Zufallsschritte über einen Quantizer (4.6; Anteil je Stil, Drift und Modern am
 meisten), Stereobild (7.3; Bass Mitte, Gegenreihen 30-50 % abwechselnd, Lead leicht außermittig) mit
 `drone.auto_pan` (Sinus 0,05 Hz), `compose.album` (Zwischenspiele von 3-5 Minuten ohne Reihen, dunkelstes
-Stück in der Mitte, ätherischer Schluss; ohne Album unverändert), das zweite Echo (Modul `echo2`, Send
+Stück in der Mitte, ätherischer Schluss; ohne Album unverändert), das zweite Echo (Modul `delay`, im Code `Module::Echo2`, Send
 `row.echo2`, Zeit 1/8 oder 1/4T für die Gegenreihen ab der zweiten; `1/4T` auch im ersten Echo).
 Auftrag des Nutzers: die String Machine mehr wie Waldorfs Streichfett (Ensemble, Mischung der Register, langsames
 Animieren der Mischung) und den "Harmonie- und Stilguide Moderne Berlin School" (Downloads des Nutzers, Stand
