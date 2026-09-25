@@ -93,6 +93,7 @@ struct Piece {
     std::vector<double> rowFrom;          ///< first beat each row plays, -1 if never (for the hands)
     double firstLead = -1.0;              ///< first beat of a lead section, -1 if none
     bool bleepsOn = false;                ///< the layers' draw for the atmosphere's bleeps
+    bool grainsOn = false;                ///< the layers' last draw: the granular cloud
     std::function<uint64_t(Stream)> seedOf;   ///< the seed of a stream, rerolls counted
     /** @brief A fresh generator on stream @p k. */
     Rng stream(Stream k) const { Rng r; r.seed(seedOf(k)); return r; }
@@ -279,6 +280,8 @@ void writeLayers(Piece& c)
             writeDrums(s, c.style, second != nullptr ? second->beat : peak->beat, peak->beat + peak->length, layers);
         }
     }
+    // The granular cloud: the layers' last draw, so every draw above stays as it was.
+    c.grainsOn = layers.uniform() < prof.grainChance;
 }
 
 /** @brief Step 4, the atmosphere: wind and sweeps where no rows play, bleeps in the builds. */
@@ -287,6 +290,7 @@ void writeAtmosphere(Piece& c)
     Score& s = c.s;
     const int wind = c.p.id(Module::Atmos, 0, atmos::Wind), sweeps = c.p.id(Module::Atmos, 0, atmos::Sweeps);
     const int bleeps = c.p.id(Module::Atmos, 0, atmos::Bleeps);
+    const int grains = c.p.id(Module::Atmos, 0, atmos::Grains);
     using G = GestureShape;
     float windAt = 0.0f;
     auto windTo = [&](double b0, double b1, float v) {
@@ -294,13 +298,22 @@ void writeAtmosphere(Piece& c)
         s.gestures.push_back({ wind, b0, b1 - b0, windAt, v, G::MinimumJerk, 1 });
         windAt = v;
     };
+    // The granular cloud where the piece has it: up in the spaces without rows, away when they come in.
+    float grainsAt = 0.0f;
+    auto grainsTo = [&](double b0, double b1, float v) {
+        if (!c.grainsOn || b1 <= b0 || v == grainsAt) return;
+        s.gestures.push_back({ grains, b0, b1 - b0, grainsAt, v, G::MinimumJerk, 1 });
+        grainsAt = v;
+    };
     for (const Section& sec : c.form.sections) {
         switch (sec.type) {
         case SectionType::Atmo:
+            grainsTo(sec.beat + sec.length * 0.2, sec.beat + sec.length * 0.8, 0.7f);
             windTo(sec.beat, sec.beat + sec.length * 0.7, 0.6f);
             s.gestures.push_back({ sweeps, sec.beat, 0.0, 0.0f, 0.3f, G::Step, 1 });
             break;
         case SectionType::Entry:
+            grainsTo(sec.beat, sec.beat + sec.length * 0.5, 0.0f);
             windTo(sec.beat, sec.beat + sec.length, 0.3f);
             s.gestures.push_back({ sweeps, sec.beat, 0.0, 0.3f, 0.0f, G::Step, 1 });
             break;
@@ -312,10 +325,12 @@ void writeAtmosphere(Piece& c)
             if (c.bleepsOn) s.gestures.push_back({ bleeps, sec.beat, 0.0, 0.2f, 0.0f, G::Step, 1 });
             break;
         case SectionType::Bridge:
+            grainsTo(sec.beat, sec.beat + sec.length * 0.5, 0.6f);
             windTo(sec.beat, sec.beat + sec.length * 0.6, 0.5f);
             s.gestures.push_back({ sweeps, sec.beat, 0.0, 0.0f, 0.3f, G::Step, 1 });
             break;
         case SectionType::Coda:
+            grainsTo(sec.beat + sec.length * 0.1, sec.beat + sec.length * 0.6, 0.7f);
             windTo(sec.beat, sec.beat + sec.length * 0.6, 0.6f);
             s.gestures.push_back({ sweeps, sec.beat, 0.0, 0.0f, 0.3f, G::Step, 1 });
             break;

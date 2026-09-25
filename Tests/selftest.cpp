@@ -11,6 +11,7 @@
 #include "eph/Engine.h"
 #include "eph/Cue.h"
 #include "eph/fx/Plate.h"
+#include "eph/synth/Atmos.h"
 #include "eph/fx/Bbd.h"
 #if defined(_WIN32)
   #ifndef NOMINMAX
@@ -833,6 +834,23 @@ void testRooms()
     const double brightShort = window(shortY, 0.09, 0.12).second, brightLong = window(longY, 0.59, 0.62).second;
     check(brightLong < 0.7 * brightShort, "a longer BBD delay is darker (its clock is slower)",
           fmt("brightness %.4f at 100 ms, %.4f at 600 ms", brightShort, brightLong));
+
+    // The granular cloud of the atmosphere: silent when off, a cloud when on.
+    auto cloud = [&](float gain) {
+        Atmos a;
+        a.prepare(sr, 5);
+        AtmosSettings as;
+        as.grainGain = gain;
+        as.grainsPerSecond = 20.0f;
+        a.set(as);
+        std::vector<float> l(static_cast<size_t>(sr), 0.0f), r = l, bl = l, br = l;
+        for (int i = 0; i < sr; i += 256) a.process(l.data() + i, r.data() + i, bl.data() + i, br.data() + i, std::min(256, sr - i));
+        double e = 0.0;
+        for (size_t i = 0; i < l.size(); ++i) e += double(l[i]) * l[i] + double(r[i]) * r[i];
+        return std::sqrt(e / (2.0 * sr));
+    };
+    const double off = cloud(0.0f), on = cloud(0.5f);
+    check(off == 0.0 && on > 0.01, "the granular cloud is silent when off and sounds when on", fmt("rms %.4f off, %.4f on", off, on));
 }
 
 /**

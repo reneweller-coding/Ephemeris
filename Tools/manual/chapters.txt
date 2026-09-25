@@ -149,6 +149,12 @@ from where they were when a chord is stolen, as the machine's did.
 Wind (filtered noise in a moving band), slow sweeps, and bursts of sample-and-hold bleeps on the notes
 of the scale: the space at the start of a piece and in the bridges, and the stars over the builds.
 
+Grains is a granular cloud: short tones, each a sine under a soft window of 40 to 250 ms, on the notes of
+the scale over the current root two to three octaves up, each at its own place in the stereo field, as
+many per second as Grain Density says. A piece has the cloud with the style's chance (the Style page);
+the hands then raise it in the atmosphere, the bridges and the coda, and take it away when the rows come
+in.
+
 == Echo + Spring | echo spring | 10 ==
 
 A tape echo with a moving read head -- wow, flutter, saturation and loss of highs in the feedback --

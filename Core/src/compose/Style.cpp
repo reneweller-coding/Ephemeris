@@ -50,6 +50,7 @@ const StyleProfile kProfiles[] = {
         .darkness = -0.05f,
         .hallSeconds = 6.0f,
         .levelDb = 4.0f,
+        .grainChance = 0.6f,
     },
     // Doom: slow, low, dark, dissonant roots; strings tapes; few layers; much dynamics.
     {
@@ -80,6 +81,7 @@ const StyleProfile kProfiles[] = {
         .darkness = -0.15f,
         .hallSeconds = 7.5f,
         .levelDb = 0.0f,
+        .grainChance = 0.3f,
     },
     // Melodic: brighter, more rows and chord changes, leads, drums later in the piece, shorter pieces.
     {
@@ -110,6 +112,7 @@ const StyleProfile kProfiles[] = {
         .darkness = 0.05f,
         .hallSeconds = 4.5f,
         .levelDb = 3.0f,
+        .grainChance = 0.2f,
     },
     // Modern: hybrid and polished, cinematic pads, wider moves, sparse drums.
     {
@@ -140,6 +143,7 @@ const StyleProfile kProfiles[] = {
         .darkness = 0.0f,
         .hallSeconds = 5.0f,
         .levelDb = 4.0f,
+        .grainChance = 0.4f,
     },
     // Drift: long, improvised, ambient phases between sequence episodes, tempo and key drift.
     {
@@ -170,6 +174,7 @@ const StyleProfile kProfiles[] = {
         .darkness = -0.08f,
         .hallSeconds = 8.0f,
         .levelDb = 0.0f,
+        .grainChance = 0.7f,
     },
 };
 
@@ -216,6 +221,7 @@ StyleProfile morphProfile(const StyleProfile& a, const StyleProfile& b, float t)
     m.darkness = mix(a.darkness, b.darkness);
     m.hallSeconds = mix(a.hallSeconds, b.hallSeconds);
     m.levelDb = mix(a.levelDb, b.levelDb);
+    m.grainChance = mix(a.grainChance, b.grainChance);
     return m;
 }
 

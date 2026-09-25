@@ -56,6 +56,7 @@ const std::vector<Line>& lines()
         { "Lead section",           [](const StyleProfile& p) { return percent(p.leadChance); } },
         { "Bleeps",                 [](const StyleProfile& p) { return percent(p.bleepChance); } },
         { "Drums",                  [](const StyleProfile& p) { return percent(p.drumsChance); } },
+        { "Granular cloud",         [](const StyleProfile& p) { return percent(p.grainChance); } },
         { "Tape set",               [](const StyleProfile& p) { return juce::String(kTapeSetNames[static_cast<int>(p.tape)]); } },
         { "Lead density",           [](const StyleProfile& p) { return juce::String(p.leadIntensity, 2); } },
         { "Hands: a move / a rest", [](const StyleProfile& p) { return juce::String(p.hands.medianSeconds, 0) + " s / " + juce::String(p.hands.restSeconds, 0) + " s"; } },

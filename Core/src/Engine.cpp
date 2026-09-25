@@ -242,6 +242,8 @@ void Engine::updateCell()
     as.sweepGain = gain(knob(Module::Atmos, atmos::SweepLevel));
     as.bleepsPerMinute = knob(Module::Atmos, atmos::Bleeps);
     as.bleepGain = gain(knob(Module::Atmos, atmos::BleepLevel));
+    as.grainGain = gain(knob(Module::Atmos, atmos::Grains));
+    as.grainsPerSecond = knob(Module::Atmos, atmos::GrainDensity);
     // The bleeps take their notes from the root the rows are in.
     as.rootPc = pitchClass(score_.keyRoot + score_.rootAt(beat));
     as.scale = params_.getInt(params_.id(Module::Compose, 0, compose::Scale));

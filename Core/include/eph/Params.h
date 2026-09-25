@@ -171,7 +171,9 @@ enum : int { Enabled, Port, Count };
 }
 /** @brief Parameters of the atmosphere (module Atmos; Atmos.h). */
 namespace atmos {
-enum : int { Wind, WindTone, Sweeps, SweepLevel, Bleeps, BleepLevel, Level, EchoSend, ReverbSend, Count };
+enum : int { Wind, WindTone, Sweeps, SweepLevel, Bleeps, BleepLevel, Level, EchoSend, ReverbSend,
+             // 25.09.2026: the granular cloud (Atmos.h).
+             Grains, GrainDensity, Count };
 }
 /** @brief Parameters of the hall (module Reverb; PLAN 5.8): Phosphene's eight-line FDN. */
 namespace reverb {

@@ -179,6 +179,8 @@ const ParamDesc kAtmosParams[atmos::Count] = {
     { "level",       "Level",        "dB",  -60.0f,     6.0f,   -4.0f, Curve::Linear },
     { "echo",        "Echo Send",    "",      0.0f,     1.0f,    0.2f, Curve::Linear },
     { "reverb",      "Reverb Send",  "",      0.0f,     1.0f,    0.6f, Curve::Linear },
+    { "grains",        "Grains",        "dB",  -60.0f,     0.0f,  -60.0f, Curve::Linear },   // the granular cloud, off at -60
+    { "grain_density", "Grain Density", "/s",    1.0f,    40.0f,   12.0f, Curve::Log },
 };
 
 /** The string machine: slow in, slow out, the ensemble deep. */

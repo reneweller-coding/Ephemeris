@@ -12,7 +12,11 @@
  * - **Bleeps**: sample-and-hold tones -- short sines on random notes of the scale over the current root,
  *   two or three octaves up, a few in a burst -- the sound of a modular's random voltage into an
  *   oscillator. They go to the echo most of all.
- * Deterministic: one stream, seeded once; the rates are drawn per 32-sample cell.
+ * - **Grains** (25.09.2026): a cloud of short tones -- each a sine in a Hann window, 40 to 250 ms, on a note of
+ *   the scale over the current root two to three octaves up, at its own place in the stereo field -- started
+ *   as a Poisson process at `grainsPerSecond`, up to 24 at once. The granular shimmer of the space sections.
+ *   They draw on a stream of their own, so switching them on moves no other layer's randomness.
+ * Deterministic: one stream (and the grains' own), seeded once; the rates are drawn per 32-sample cell.
  */
 #pragma once
 #include "eph/Dsp.h"
@@ -29,8 +33,10 @@ struct AtmosSettings {
     float sweepGain = 0.0f;        ///< linear
     float bleepsPerMinute = 0.0f;  ///< rate of bleep bursts
     float bleepGain = 0.0f;        ///< linear
-    int rootPc = 9;                ///< the root the bleeps take their notes from
+    int rootPc = 9;                ///< the root the bleeps and the grains take their notes from
     int scale = 0;                 ///< compose.scale order
+    float grainGain = 0.0f;        ///< linear, 0 = no grains
+    float grainsPerSecond = 12.0f; ///< the cloud's density
 };
 
 /** @brief The atmosphere: stereo out, plus a separate bleep output for the echo send. */
@@ -62,6 +68,17 @@ private:
     float bleepPan_ = 0.0f;
     int64_t count_ = 0;
     float windNow_ = 0.0f;   ///< smoothed wind gain, so a knob's step does not click
+    /** @brief One grain of the cloud. */
+    struct Grain {
+        bool on = false;
+        double phase = 0.0, inc = 0.0;   ///< the sine's phase and step (cycles)
+        double age = 0.0, length = 0.1;  ///< seconds
+        float amp = 0.0f, gainL = 0.0f, gainR = 0.0f;
+    };
+    static constexpr int kGrains = 24;
+    Grain grains_[kGrains];
+    int grainsOn_ = 0;       ///< grains sounding
+    Rng grainRng_;           ///< the grains' own stream
 };
 
 } // namespace eph

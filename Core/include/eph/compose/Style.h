@@ -50,6 +50,7 @@ struct StyleProfile {
     float darkness;                      ///< offset of the voices' cutoffs at rest (negative: darker)
     float hallSeconds;                   ///< decay of the hall
     float levelDb;                       ///< master offset towards the profile's measured loudness
+    float grainChance = 0.0f;            ///< chance of the atmosphere's granular cloud in a piece (25.09.2026)
 };
 
 /** @brief The profile of a style. */

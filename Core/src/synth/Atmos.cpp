@@ -13,6 +13,9 @@ void Atmos::prepare(double sampleRate, uint64_t seed)
 {
     sr_ = sampleRate > 0.0 ? sampleRate : 48000.0;
     rng_.seed(seed);
+    grainRng_.seed(mixSeed(seed, 77));
+    for (Grain& g : grains_) g = Grain{};
+    grainsOn_ = 0;
     windL_.reset(); windR_.reset(); sweep_.reset();
     wanderL_.x = wanderR_.x = 0.0;
     pinkL_ = pinkR_ = 0.0f;
@@ -27,7 +30,7 @@ void Atmos::set(const AtmosSettings& s) { s_ = s; }
 bool Atmos::active() const
 {
     return s_.windGain > 1e-5f || windNow_ > 1e-5f || sweepAge_ >= 0.0 || bleepsLeft_ > 0
-        || s_.sweepsPerMinute > 0.0f || s_.bleepsPerMinute > 0.0f;
+        || s_.sweepsPerMinute > 0.0f || s_.bleepsPerMinute > 0.0f || s_.grainGain > 0.0f || grainsOn_ > 0;
 }
 
 void Atmos::process(float* L, float* R, float* bleepL, float* bleepR, int n)
@@ -55,6 +58,24 @@ void Atmos::process(float* L, float* R, float* bleepL, float* bleepR, int n)
                 bleepAge_ = 0.0;
                 bleepEvery_ = 0.08 + 0.12 * static_cast<double>(rng_.uniform());
                 bleepPan_ = rng_.bipolar() * 0.8f;
+            }
+            // A new grain: the chance of one in this cell (Poisson), on the grains' own stream.
+            if (s_.grainGain > 0.0f && grainsOn_ < kGrains && grainRng_.uniform() < s_.grainsPerSecond * dt) {
+                for (Grain& g : grains_) {
+                    if (g.on) continue;
+                    const int d = grainRng_.below(scaleSize(s_.scale) * 2);
+                    g.on = true;
+                    g.inc = midiToHz(72 + s_.rootPc % 12 + scaleSemitones(s_.scale, d)) / sr_;
+                    g.phase = 0.0;
+                    g.age = 0.0;
+                    g.length = 0.04 + 0.21 * static_cast<double>(grainRng_.uniform());
+                    g.amp = 0.5f + 0.5f * grainRng_.uniform();
+                    const float pan = grainRng_.bipolar();
+                    g.gainL = std::sqrt(0.5f * (1.0f - pan));
+                    g.gainR = std::sqrt(0.5f * (1.0f + pan));
+                    ++grainsOn_;
+                    break;
+                }
             }
             if (sweepAge_ >= 0.0) {
                 const double t = std::min(1.0, sweepAge_ / sweepLen_);
@@ -98,6 +119,23 @@ void Atmos::process(float* L, float* R, float* bleepL, float* bleepR, int n)
             bleepL[i] += bl; bleepR[i] += br;
             bleepAge_ += 1.0 / sr_;
             if (bleepAge_ >= bleepEvery_) { bleepAge_ = 0.0; --bleepsLeft_; }
+        }
+        if (grainsOn_ > 0) {
+            // The cloud: each grain a sine under a Hann window over its length.
+            float gl = 0.0f, gr = 0.0f;
+            for (Grain& g : grains_) {
+                if (!g.on) continue;
+                const float w = sin01(0.5 * g.age / g.length);
+                const float v = g.amp * w * w * sin01(g.phase);
+                gl += v * g.gainL;
+                gr += v * g.gainR;
+                g.phase += g.inc;
+                if (g.phase >= 1.0) g.phase -= 1.0;
+                g.age += 1.0 / sr_;
+                if (g.age >= g.length) { g.on = false; --grainsOn_; }
+            }
+            l += 0.35f * s_.grainGain * gl;
+            r += 0.35f * s_.grainGain * gr;
         }
         L[i] += l;
         R[i] += r;
