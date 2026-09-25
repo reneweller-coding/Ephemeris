@@ -15,6 +15,8 @@ const char* const kKeyNames[12] = { "C", "C#", "D", "D#", "E", "F", "F#", "G", "
 const char* const kScaleNames[] = { "Aeolian", "Dorian", "Phrygian", "Harmonic Minor", "Minor Pentatonic" };
 const char* const kStyleNames[] = { "Cosmic", "Doom", "Melodic", "Modern", "Drift" };
 const char* const kMorphNames[] = { "None", "Cosmic", "Doom", "Melodic", "Modern", "Drift" };
+const char* const kReverbTypeNames[] = { "Hall", "Plate" };
+const char* const kEchoTypeNames[] = { "Tape", "BBD" };
 const char* const kRowDivisionNames[] = { "1/4", "1/8", "1/8 T", "1/16", "1/16 T", "1/32", "1 Bar", "2 Bars", "4 Bars" };
 const char* const kRowDirectionNames[] = { "Forward", "Backward", "Pendulum", "Random Walk" };
 const char* const kRowModeNames[] = { "Notes", "Transposer" };
@@ -258,6 +260,7 @@ const ParamDesc kReverbParams[reverb::Count] = {
     { "lowcut",   "Low Cut",    "Hz",  40.0f,   500.0f,  110.0f, Curve::Log },
     { "highcut",  "High Cut",   "Hz", 1000.0f, 20000.0f, 9000.0f, Curve::Log },
     { "return",   "Return",     "dB",  -60.0f,   12.0f,    4.0f, Curve::Linear },   // the FDN returns quietly: +4 dB puts the tail ~10 dB under the dry mix
+    { "type",     "Room",       "",     0.0f,     1.0f,    0.0f, Curve::Choice, kReverbTypeNames },   // the hall or the plate (Plate.h)
 };
 
 const ParamDesc kEchoParams[echo::Count] = {
@@ -269,6 +272,7 @@ const ParamDesc kEchoParams[echo::Count] = {
     { "drive",     "Tape Drive",  "dB",     0.0f,   18.0f,    4.0f, Curve::Linear },
     { "pingpong",  "Ping-Pong",   "",       0.0f,    1.0f,    1.0f, Curve::Toggle },
     { "return",    "Return",      "dB",   -60.0f,    6.0f,   -4.0f, Curve::Linear },
+    { "type",      "Echo",        "",       0.0f,    1.0f,    0.0f, Curve::Choice, kEchoTypeNames },   // the tape or the BBD (Bbd.h)
 };
 
 /**

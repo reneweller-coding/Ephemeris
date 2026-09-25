@@ -87,7 +87,9 @@ void Engine::load(const Score& score)
     static_assert(kModVoices == kBankVoices, "the voice bank holds the rows, the lead and the drone");
     voices_.prepare(sampleRate_, voiceSeeds);
     echo_.prepare(sampleRate_, 2.5, mixSeed(score_.seed, 200));
+    bbd_.prepare(sampleRate_, 2.5, mixSeed(score_.seed, 210));
     reverb_.prepare(sampleRate_);
+    plate_.prepare(sampleRate_);
     tape_.prepare(sampleRate_, mixSeed(score_.seed, 500));
     tape_.setSingers(tapeSingers_);
     atmos_.prepare(sampleRate_, mixSeed(score_.seed, 600));
@@ -268,17 +270,23 @@ void Engine::updateCell()
     es.flutterMs = knob(Module::Echo, echo::Flutter);
     es.driveDb = knob(Module::Echo, echo::Drive);
     es.pingPong = knob(Module::Echo, echo::PingPong) >= 0.5f;
+    bbdOn_ = knob(Module::Echo, echo::Type) >= 0.5f;
     const EchoSettings& le = cache_.echo;
-    if (!cache_.valid || le.delaySeconds != es.delaySeconds || le.feedback != es.feedback || le.toneHz != es.toneHz || le.wowMs != es.wowMs
-        || le.flutterMs != es.flutterMs || le.driveDb != es.driveDb || le.pingPong != es.pingPong) {
+    if (!cache_.valid || cache_.echoType != static_cast<int>(bbdOn_) || le.delaySeconds != es.delaySeconds || le.feedback != es.feedback
+        || le.toneHz != es.toneHz || le.wowMs != es.wowMs || le.flutterMs != es.flutterMs || le.driveDb != es.driveDb || le.pingPong != es.pingPong) {
         cache_.echo = es;
-        echo_.set(es);
+        cache_.echoType = static_cast<int>(bbdOn_);
+        if (bbdOn_) bbd_.set(es); else echo_.set(es);
     }
     echoReturn_ = dbToGain(knob(Module::Echo, echo::Return));
-    const float hall[6] = { knob(Module::Reverb, reverb::Size), knob(Module::Reverb, reverb::Decay), knob(Module::Reverb, reverb::Damping),
+    plateOn_ = knob(Module::Reverb, reverb::Type) >= 0.5f;
+    const float hall[7] = { knob(Module::Reverb, reverb::Size), knob(Module::Reverb, reverb::Decay), knob(Module::Reverb, reverb::Damping),
                             knob(Module::Reverb, reverb::PreDelay) * 0.001f * static_cast<float>(sampleRate_),
-                            knob(Module::Reverb, reverb::LowCut), knob(Module::Reverb, reverb::HighCut) };
-    if (changed(cache_.reverb, hall, cache_.valid)) reverb_.set(hall[0], hall[1], hall[2], hall[3], hall[4], hall[5]);
+                            knob(Module::Reverb, reverb::LowCut), knob(Module::Reverb, reverb::HighCut), plateOn_ ? 1.0f : 0.0f };
+    if (changed(cache_.reverb, hall, cache_.valid)) {
+        if (plateOn_) plate_.set(hall[1], hall[2], hall[3], hall[4], hall[5]);
+        else reverb_.set(hall[0], hall[1], hall[2], hall[3], hall[4], hall[5]);
+    }
     reverbReturn_ = dbToGain(knob(Module::Reverb, reverb::Return));
     const float springs[2] = { knob(Module::Spring, spring::Decay), knob(Module::Spring, spring::Tone) };
     if (changed(cache_.spring, springs, cache_.valid)) spring_.set(springs[0], springs[1]);
@@ -388,7 +396,8 @@ void Engine::renderSpan(float* L, float* R, int n)
 
     // The tape echo, its springs, the hall, the master.
     float wetL[kCell] = {}, wetR[kCell] = {}, sprL[kCell] = {}, sprR[kCell] = {}, hallL[kCell], hallR[kCell];
-    echo_.process(echoL, echoR, wetL, wetR, n);
+    if (bbdOn_) bbd_.process(echoL, echoR, wetL, wetR, n);
+    else echo_.process(echoL, echoR, wetL, wetR, n);
     // The springs take the echo's send, as in a tape echo with springs built in; they return beside it.
     spring_.process(echoL, echoR, sprL, sprR, n);
     for (int i = 0; i < n; ++i) {
@@ -400,7 +409,13 @@ void Engine::renderSpan(float* L, float* R, int n)
         hallInL[i] += wetL[i] * echoReturn_ * 0.5f;
         hallInR[i] += wetR[i] * echoReturn_ * 0.5f;
     }
-    reverb_.process(hallInL, hallInR, hallL, hallR, n);
+    if (plateOn_) {
+        std::fill(hallL, hallL + n, 0.0f);
+        std::fill(hallR, hallR + n, 0.0f);
+        plate_.process(hallInL, hallInR, hallL, hallR, n);
+    } else {
+        reverb_.process(hallInL, hallInR, hallL, hallR, n);
+    }
     for (int i = 0; i < n; ++i) {
         if (stemL_ != nullptr) {
             stemL_[kChannels][spanAt_ + i] = wetL[i] * echoReturn_ + hallL[i] * reverbReturn_;

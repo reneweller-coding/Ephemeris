@@ -29,6 +29,8 @@
 #include "eph/Params.h"
 #include "eph/Cue.h"
 #include "eph/fx/Reverb.h"
+#include "eph/fx/Plate.h"
+#include "eph/fx/Bbd.h"
 #include "eph/Score.h"
 #include "eph/fx/Spring.h"
 #include "eph/synth/StringMachine.h"
@@ -184,6 +186,9 @@ private:
     DrumKit drums_;
     Atmos atmos_;
     TapeEcho echo_;
+    BbdEcho bbd_;          ///< echo.type BBD instead of the tape echo, on the same send
+    Plate plate_;          ///< reverb.type Plate instead of the hall, on the same send
+    bool bbdOn_ = false, plateOn_ = false;   ///< echo.type and reverb.type at the current cell
     Spring spring_;
     Reverb reverb_;
     BusCompressor comp_;
@@ -210,8 +215,9 @@ private:
         StringSettings strings;               ///< StringMachine::set
         DrumSettings drums;                   ///< DrumKit::set
         AtmosSettings atmos;                  ///< Atmos::set
-        EchoSettings echo;                    ///< TapeEcho::set
-        float reverb[6] = {};                 ///< Reverb::set
+        EchoSettings echo;                    ///< TapeEcho::set, BbdEcho::set
+        int echoType = -1;                    ///< which of the two took it
+        float reverb[7] = {};                 ///< Reverb::set or Plate::set, and which
         float spring[2] = {};                 ///< Spring::set
         float compress = 0.0f, ceiling = 0.0f;   ///< BusCompressor::set, TruePeakLimiter::set
     } cache_;

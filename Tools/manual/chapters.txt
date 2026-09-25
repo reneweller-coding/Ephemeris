@@ -156,10 +156,22 @@ synchronised to the tempo, with a ping-pong option; its feedback can run into se
 the echo throw uses. Springs are built into it, as in the tape echoes of the time: they take the echo's
 send and return beside it.
 
+Echo switches the same send to a bucket-brigade delay instead of the tape: an analogue delay of 4096 stages
+as in the pedals of the late seventies. Its clock runs slower the longer the delay is set, and its filters
+have to follow the clock, so the longer the echo, the darker its repeats; the clock wanders slowly (Wow
+sets how far), and the compander saturates and hisses faintly in the loop. Time, feedback, tone, drive and
+ping-pong work as on the tape.
+
 == Hall | reverb | 11 ==
 
 A long, dark hall (an eight-line feedback delay network) with its size, decay, damping, pre-delay and
 the band it returns.
+
+Room switches the same send to a plate instead: Dattorro's plate reverberator (1997) -- four diffusers and a
+tank of two halves that feed each other, each with a slowly moving all-pass, a damping low pass and the
+decay -- denser and brighter than the hall and without a room's early reflections, the sound of the
+plates on the records of the seventies. Decay, damping, pre-delay and the band work on it as well; its
+return is matched to the hall's level, so the switch changes the room, not the loudness.
 
 == Drums | drums | 12 ==
 

@@ -10,6 +10,8 @@
 #include "eph/compose/Composer.h"
 #include "eph/Engine.h"
 #include "eph/Cue.h"
+#include "eph/fx/Plate.h"
+#include "eph/fx/Bbd.h"
 #if defined(_WIN32)
   #ifndef NOMINMAX
     #define NOMINMAX
@@ -770,6 +772,69 @@ void testCues()
     check(heard == want, "the sender's datagram arrives through the loopback, byte for byte", fmt("%zu bytes", heard.size()));
 }
 
+/** The other rooms (PLAN 5.8): the plate decays as set, the BBD repeats on time and darker the longer it is. */
+void testRooms()
+{
+    section("plate and bucket-brigade delay");
+    const int sr = 48000;
+    // The plate: an impulse, 4 s of response at a set T60 of 3 s.
+    Plate plate;
+    plate.prepare(sr);
+    plate.set(3.0f, 0.3f, 0.0f, 40.0f, 16000.0f);
+    std::vector<float> inL(static_cast<size_t>(4 * sr), 0.0f), inR = inL, outL = inL, outR = inL;
+    inL[0] = inR[0] = 1.0f;
+    for (int i = 0; i < 4 * sr; i += 256) plate.process(inL.data() + i, inR.data() + i, outL.data() + i, outR.data() + i, 256);
+    auto energy = [&](double t0, double t1) {
+        double e = 0.0;
+        for (int i = static_cast<int>(t0 * sr); i < static_cast<int>(t1 * sr); ++i) e += double(outL[static_cast<size_t>(i)]) * outL[static_cast<size_t>(i)] + double(outR[static_cast<size_t>(i)]) * outR[static_cast<size_t>(i)];
+        return e / ((t1 - t0) * sr);
+    };
+    const double drop = 10.0 * std::log10(energy(0.25, 0.45) / std::max(1e-30, energy(3.25, 3.45)));
+    double diff = 0.0;
+    for (size_t i = 0; i < outL.size(); ++i) diff += std::fabs(outL[i] - outR[i]);
+    check(drop > 45.0 && drop < 75.0 && diff > 0.1, "the plate falls about 60 dB over its T60 of 3 s, and its sides differ",
+          fmt("%.1f dB in 3 s", drop));
+
+    // The BBD: repeats at 250 ms with feedback 0.5.
+    auto run = [&](double seconds, std::vector<float>& out) {
+        BbdEcho b;
+        b.prepare(sr, 2.5, 3);
+        EchoSettings es;
+        es.delaySeconds = seconds;
+        es.feedback = 0.5f;
+        es.toneHz = 12000.0f;
+        es.wowMs = 0.0f;
+        es.pingPong = false;
+        b.set(es);
+        std::vector<float> xL(static_cast<size_t>(2 * sr), 0.0f), xR = xL, yR = xL;
+        out.assign(static_cast<size_t>(2 * sr), 0.0f);
+        // A burst of noise, so the repeats carry a spectrum.
+        Rng r;
+        r.seed(1);
+        for (int i = 0; i < 480; ++i) xL[static_cast<size_t>(i)] = xR[static_cast<size_t>(i)] = r.bipolar();
+        for (int i = 0; i < 2 * sr; i += 256) b.process(xL.data() + i, xR.data() + i, out.data() + i, yR.data() + i, 256);
+    };
+    std::vector<float> y;
+    run(0.25, y);
+    auto window = [&](const std::vector<float>& v, double t0, double t1) {
+        double e = 0.0, d = 0.0;
+        for (int i = static_cast<int>(t0 * sr) + 1; i < static_cast<int>(t1 * sr); ++i) {
+            e += double(v[static_cast<size_t>(i)]) * v[static_cast<size_t>(i)];
+            d += double(v[static_cast<size_t>(i)] - v[static_cast<size_t>(i - 1)]) * (v[static_cast<size_t>(i)] - v[static_cast<size_t>(i - 1)]);
+        }
+        return std::make_pair(e, d / std::max(1e-30, e));
+    };
+    const double first = window(y, 0.24, 0.27).first, early = window(y, 0.02, 0.22).first, second = window(y, 0.49, 0.52).first;
+    check(first > 100.0 * early && second < first && second > 0.01 * first, "the BBD repeats on time, each repeat weaker",
+          fmt("first %.3g, before it %.3g, second %.3g", first, early, second));
+    std::vector<float> shortY, longY;
+    run(0.1, shortY);
+    run(0.6, longY);
+    const double brightShort = window(shortY, 0.09, 0.12).second, brightLong = window(longY, 0.59, 0.62).second;
+    check(brightLong < 0.7 * brightShort, "a longer BBD delay is darker (its clock is slower)",
+          fmt("brightness %.4f at 100 ms, %.4f at 600 ms", brightShort, brightLong));
+}
+
 /**
  * The offline render is the oracle only if a host's block size cannot change a sample: the study
  * rendered with blocks of 1, 37 and 512 must agree bit for bit (Engine.h).
@@ -914,6 +979,7 @@ const TestSection kSections[] = {
     { "testCuration", testCuration },
     { "testPerform", testPerform },
     { "testCues", testCues },
+    { "testRooms", testRooms },
     { "testBlockSizes", testBlockSizes },
     { "testEcho", testEcho },
     { "testDrift", testDrift },

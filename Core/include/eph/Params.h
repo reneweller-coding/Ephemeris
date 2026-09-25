@@ -175,12 +175,16 @@ enum : int { Wind, WindTone, Sweeps, SweepLevel, Bleeps, BleepLevel, Level, Echo
 }
 /** @brief Parameters of the hall (module Reverb; PLAN 5.8): Phosphene's eight-line FDN. */
 namespace reverb {
-enum : int { Size, Decay, Damping, PreDelay, LowCut, HighCut, Return, Count };
+enum : int { Size, Decay, Damping, PreDelay, LowCut, HighCut, Return,
+             // Phase 5: the room: the hall (Reverb.h) or the plate (Plate.h), on the same send.
+             Type, Count };
 }
 static_assert(static_cast<int>(lead::Glide) == static_cast<int>(voice::Glide), "the first parameters of the lead are those of the voice, in the same order");
 /** @brief Parameters of the tape echo (module Echo; PLAN 5.8). */
 namespace echo {
-enum : int { Time, Feedback, Tone, Wow, Flutter, Drive, PingPong, Return, Count };
+enum : int { Time, Feedback, Tone, Wow, Flutter, Drive, PingPong, Return,
+             // Phase 5: the tape echo (TapeEcho.h) or the bucket-brigade delay (Bbd.h), on the same send.
+             Type, Count };
 }
 /** @brief The echo times, in the order of echo.time. */
 enum class EchoTime : int { Sixteenth = 0, Eighth, EighthD, Quarter, QuarterD, Half, Count };
@@ -205,6 +209,8 @@ extern const char* const kKeyNames[12];         ///< names of compose.key, C .. 
 extern const char* const kScaleNames[];         ///< names of compose.scale
 extern const char* const kStyleNames[];         ///< names of compose.style
 extern const char* const kMorphNames[];         ///< names of compose.morph_to: "None", then the styles
+extern const char* const kReverbTypeNames[];    ///< names of reverb.type: "Hall", "Plate"
+extern const char* const kEchoTypeNames[];      ///< names of echo.type: "Tape", "BBD"
 extern const char* const kRowDivisionNames[];   ///< names of row.division
 extern const char* const kRowDirectionNames[];  ///< names of row.direction
 extern const char* const kRowModeNames[];       ///< names of row.mode

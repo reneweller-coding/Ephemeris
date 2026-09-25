@@ -25,6 +25,8 @@ add_library(EphemerisCore STATIC
     src/compose/Lead.cpp
     src/Engine.cpp
     src/Cue.cpp
+    src/fx/Plate.cpp
+    src/fx/Bbd.cpp
 )
 target_include_directories(EphemerisCore PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
 if(WIN32)
