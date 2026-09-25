@@ -35,6 +35,20 @@ meisten), Stereobild (7.3; Bass Mitte, Gegenreihen 30-50 % abwechselnd, Lead lei
 `drone.auto_pan` (Sinus 0,05 Hz), `compose.album` (Zwischenspiele von 3-5 Minuten ohne Reihen, dunkelstes
 Stück in der Mitte, ätherischer Schluss; ohne Album unverändert), das zweite Echo (Modul `delay`, im Code `Module::Echo2`, Send
 `row.echo2`, Zeit 1/8 oder 1/4T für die Gegenreihen ab der zweiten; `1/4T` auch im ersten Echo).
+Danach der "Produktionsguide Tiefe, Weite und Transparenz" (Downloads des Nutzers, 25.09.2026), soweit er
+sich auf eine Maschine übertragen lässt, die ihre Musik selbst spielt: `Loudness.h` (EBU R128 integriert,
+Kurzzeit-Maximum, LRA, True Peak, PSR, PLR, Korrelation mit tiefster Sekunde über -50 dBFS, Side unter Mid;
+`eph_render` druckt es für jeden Render); `low_cut` je Quelle (Bass 30, Hauptsequenz 90, Gegenreihen 200, Lead
+und Tape 150, Streicher 200, Atmosphäre 120, Bordun 40, Drums 25 Hz); Summenbus mit 20-Hz-Hochpass, Side mono
+unter 100 Hz (12 dB/Okt.), `master.width` über 300 Hz mit Wächter (Side höchstens 3 dB unter Mid),
+`master.mono`; Echo-Wiederholungen mit Hochpass in der Schleife (`echo.low_cut` 200, `delay.low_cut` 300 Hz) und
+auf 70 % Breite; `echo.duck`/`reverb.duck` (die Reihen ducken die Returns, 3 und 2 dB); Hall-Return 250 Hz bis
+6,5 kHz, Pre-Delay eine 64tel im Tempo; Automation statt Kompression (Pegel und Breite entlang der Form, Pads
+-3 dB unter dem Lead, Hall im Höhepunkt -40 %); Stilpegel neu (Cosmic +4,5, Doom +2, Melodic +5, Modern +5,
+Drift +3,5 dB). Gemessen, 10 Minuten, Seed 7: Cosmic/Melodic/Modern -15,3 bis -15,5 LUFS, Doom -18,6,
+Drift -19,0; Kurzzeit-Maximum um -12 LUFS, True Peak -1,0 dBTP, PSR 11-14, LRA 8-13 LU, tiefste Sekunde
+um 0 (nur im Ausklang der Atmosphäre). Nicht umgesetzt: die drei getrennten Hall-Instanzen (Early, Plate,
+großer Hall als eigene Sends), dynamische EQs, Resonanzunterdrücker, Transient-Designer, weicher Clipper.
 Auftrag des Nutzers: die String Machine mehr wie Waldorfs Streichfett (Ensemble, Mischung der Register, langsames
 Animieren der Mischung) und den "Harmonie- und Stilguide Moderne Berlin School" (Downloads des Nutzers, Stand
 25.09.2026) umsetzen, soweit sinnvoll. Reihenfolge und Stand:

@@ -89,6 +89,20 @@ void Engine::load(const Score& score)
     echo_.prepare(sampleRate_, 2.5, mixSeed(score_.seed, 200));
     bbd_.prepare(sampleRate_, 2.5, mixSeed(score_.seed, 210));
     echo2_.prepare(sampleRate_, 2.5, mixSeed(score_.seed, 220));
+    {
+        const float sr = static_cast<float>(sampleRate_);
+        dcL_.setQ(20.0f, 0.70710678f, sr);
+        dcR_.copyCoefficients(dcL_);
+        sideHp_.setQ(100.0f, 0.70710678f, sr);
+        sideHp300_.setQ(300.0f, 0.70710678f, sr);
+        dcL_.reset(); dcR_.reset(); sideHp_.reset(); sideHp300_.reset();
+        energyMid_ = energyLow_ = energyHigh_ = 0.0f;
+        energyCoef_ = 1.0f - std::exp(-1.0f / (0.3f * sr));
+        envAttack_ = std::exp(-1.0f / (0.005f * sr));
+        envRelease_ = std::exp(-1.0f / (0.25f * sr));
+        duckEnv_ = 0.0f;
+        for (Strip& st : strips_) { st.hpL.reset(); st.hpR.reset(); }
+    }
     reverb_.prepare(sampleRate_);
     plate_.prepare(sampleRate_);
     tape_.prepare(sampleRate_, mixSeed(score_.seed, 500));
@@ -163,6 +177,18 @@ void Engine::setStrip(int s, float levelDb, float pan, float echo, float reverb,
     st.echo2 = echo2;
 }
 
+void Engine::setLowCut(int s, float hz)
+{
+    if (cache_.valid && cache_.lowCut[s] == hz) return;
+    cache_.lowCut[s] = hz;
+    Strip& st = strips_[s];
+    st.lowCut = hz;
+    if (hz > 0.0f) {
+        st.hpL.setQ(hz, 0.70710678f, static_cast<float>(sampleRate_));
+        st.hpR.copyCoefficients(st.hpL);
+    }
+}
+
 void Engine::updateCell()
 {
     // Gesture offsets at this cell's beat.
@@ -203,6 +229,7 @@ void Engine::updateCell()
         }
         setStrip(r, s(row::Level, lead::Level), pan, s(row::EchoSend, lead::EchoSend), s(row::ReverbSend, lead::ReverbSend), 1.0f,
                  row ? played(params_.id(Module::Row, r, row::Echo2Send)) : 0.0f);
+        setLowCut(r, s(row::LowCut, lead::LowCut));
     }
 
     // The tape keys, the string machine, the drums, the atmosphere.
@@ -217,6 +244,7 @@ void Engine::updateCell()
     if (changed(cache_.tape, ts, cache_.valid)) tape_.set(ts);
     strips_[kSrcTape].running = tape_.active();
     setStrip(kSrcTape, knob(Module::Tape, tape::Level), knob(Module::Tape, tape::Pan), knob(Module::Tape, tape::EchoSend), knob(Module::Tape, tape::ReverbSend));
+    setLowCut(kSrcTape, knob(Module::Tape, tape::LowCut));
 
     StringSettings ss;
     ss.attackS = knob(Module::Strings, strings::Attack);
@@ -234,6 +262,7 @@ void Engine::updateCell()
     // The ensemble spreads the machine over both sides; the pan law's 3 dB come back with sqrt 2.
     setStrip(kSrcStrings, knob(Module::Strings, strings::Level), knob(Module::Strings, strings::Pan),
              knob(Module::Strings, strings::EchoSend), knob(Module::Strings, strings::ReverbSend), 1.41421356f);
+    setLowCut(kSrcStrings, knob(Module::Strings, strings::LowCut));
 
     DrumSettings ds;
     ds.kickHz = knob(Module::Drums, drums::KickHz);
@@ -248,6 +277,8 @@ void Engine::updateCell()
         d.echo = knob(Module::Drums, drums::EchoSend);
         d.reverb = knob(Module::Drums, drums::ReverbSend);
     }
+    setLowCut(kSrcDrums, knob(Module::Drums, drums::LowCut));
+    setLowCut(kSrcAtmos, knob(Module::Atmos, atmos::LowCut));
 
     auto gain = [](float db) { return db <= -59.9f ? 0.0f : dbToGain(db); };
     AtmosSettings as;
@@ -287,10 +318,12 @@ void Engine::updateCell()
     es.flutterMs = knob(Module::Echo, echo::Flutter);
     es.driveDb = knob(Module::Echo, echo::Drive);
     es.pingPong = knob(Module::Echo, echo::PingPong) >= 0.5f;
+    es.lowCutHz = knob(Module::Echo, echo::LowCut);
     bbdOn_ = knob(Module::Echo, echo::Type) >= 0.5f;
     const EchoSettings& le = cache_.echo;
     if (!cache_.valid || cache_.echoType != static_cast<int>(bbdOn_) || le.delaySeconds != es.delaySeconds || le.feedback != es.feedback
-        || le.toneHz != es.toneHz || le.wowMs != es.wowMs || le.flutterMs != es.flutterMs || le.driveDb != es.driveDb || le.pingPong != es.pingPong) {
+        || le.toneHz != es.toneHz || le.wowMs != es.wowMs || le.flutterMs != es.flutterMs || le.driveDb != es.driveDb || le.pingPong != es.pingPong
+        || le.lowCutHz != es.lowCutHz) {
         cache_.echo = es;
         cache_.echoType = static_cast<int>(bbdOn_);
         if (bbdOn_) bbd_.set(es); else echo_.set(es);
@@ -305,13 +338,18 @@ void Engine::updateCell()
     e2.flutterMs = 0.03f;
     e2.driveDb = 2.0f;
     e2.pingPong = knob(Module::Echo2, echo2::PingPong) >= 0.5f;
+    e2.lowCutHz = knob(Module::Echo2, echo2::LowCut);
     const EchoSettings& l2 = cache_.echo2;
     if (!cache_.valid || l2.delaySeconds != e2.delaySeconds || l2.feedback != e2.feedback || l2.toneHz != e2.toneHz
-        || l2.pingPong != e2.pingPong) {
+        || l2.pingPong != e2.pingPong || l2.lowCutHz != e2.lowCutHz) {
         cache_.echo2 = e2;
         echo2_.set(e2);
     }
     echo2Return_ = dbToGain(knob(Module::Echo2, echo2::Return));
+    echoDuckDb_ = knob(Module::Echo, echo::Duck);
+    hallDuckDb_ = knob(Module::Reverb, reverb::Duck);
+    width_ = dbToGain(knob(Module::Master, master::Width));
+    mono_ = knob(Module::Master, master::Mono) >= 0.5f;
     plateOn_ = knob(Module::Reverb, reverb::Type) >= 0.5f;
     const float hall[7] = { knob(Module::Reverb, reverb::Size), knob(Module::Reverb, reverb::Decay), knob(Module::Reverb, reverb::Damping),
                             knob(Module::Reverb, reverb::PreDelay) * 0.001f * static_cast<float>(sampleRate_),
@@ -354,7 +392,17 @@ int Engine::takeMeters(float* peak, double* sumSq)
 
 void Engine::mix(int source, const float* xl, const float* xr, int n, const Buses& b, bool echoSend)
 {
-    const Strip& strip = strips_[source];
+    Strip& strip = strips_[source];
+    // The strip's low cut first (the production guide's 4.2): every role keeps out of the bands below its own.
+    float fl[kCell], fr[kCell];
+    if (strip.lowCut > 0.0f) {
+        float lo, bo, hp;
+        for (int i = 0; i < n; ++i) { strip.hpL.tick(xl[i], lo, bo, hp); fl[i] = hp; }
+        if (xr == xl) std::copy(fl, fl + n, fr);
+        else for (int i = 0; i < n; ++i) { strip.hpR.tick(xr[i], lo, bo, hp); fr[i] = hp; }
+        xl = fl;
+        xr = fr;
+    }
     const float echo = strip.echo + echoThrow_;   // the throw on top of the send (exactly the send without it)
     for (int i = 0; i < n; ++i) {
         const float l = xl[i] * strip.gainL, r = xr[i] * strip.gainR;
@@ -365,6 +413,7 @@ void Engine::mix(int source, const float* xl, const float* xr, int n, const Buse
         b.hallR[i] += r * strip.reverb;
         b.echo2L[i] += l * strip.echo2;
         b.echo2R[i] += r * strip.echo2;
+        if (source < kRows) { b.rowsL[i] += l; b.rowsR[i] += r; }
     }
     if (metering_) {
         // What the strip put into the mix, read again: the sums above are not touched.
@@ -388,6 +437,7 @@ void Engine::mix(int source, const float* xl, const float* xr, int n, const Buse
 void Engine::renderSpan(float* L, float* R, int n)
 {
     float bufL[kCell], bufR[kCell], echoL[kCell], echoR[kCell], hallInL[kCell], hallInR[kCell], echo2L[kCell], echo2R[kCell];
+    float rowsL[kCell] = {}, rowsR[kCell] = {};
     std::fill(L, L + n, 0.0f);
     std::fill(R, R + n, 0.0f);
     std::fill(echoL, echoL + n, 0.0f);
@@ -396,7 +446,7 @@ void Engine::renderSpan(float* L, float* R, int n)
     std::fill(hallInR, hallInR + n, 0.0f);
     std::fill(echo2L, echo2L + n, 0.0f);
     std::fill(echo2R, echo2R + n, 0.0f);
-    const Buses b{ L, R, echoL, echoR, hallInL, hallInR, echo2L, echo2R };
+    const Buses b{ L, R, echoL, echoR, hallInL, hallInR, echo2L, echo2R, rowsL, rowsR };
     if (metering_) meterCount_ += n;
 
     // The sources, each through its strip, in a fixed order (the order of the sums is part of the result).
@@ -441,9 +491,28 @@ void Engine::renderSpan(float* L, float* R, int n)
         wetL[i] += sprL[i] * springReturn_ / std::max(echoReturn_, 1e-6f);
         wetR[i] += sprR[i] * springReturn_ / std::max(echoReturn_, 1e-6f);
     }
+    // Ducking (the production guide's 5.2, 5.4): the rows' dry signal pushes the echoes' and the hall's returns down
+    // a few dB, so the tails grow in the gaps and step back under the notes: from -30 dBFS on, fully at -12.
+    // Sample by sample, so the result does not depend on how the block is cut into spans.
+    float duckAmount[kCell];
+    for (int i = 0; i < n; ++i) {
+        const float x = std::max(std::fabs(rowsL[i]), std::fabs(rowsR[i]));
+        duckEnv_ = x + (x > duckEnv_ ? envAttack_ : envRelease_) * (duckEnv_ - x);
+        duckAmount[i] = std::clamp((duckEnv_ - 0.0316f) / (0.2512f - 0.0316f), 0.0f, 1.0f);   // -30 .. -12 dBFS
+    }
+    const float echoK = -echoDuckDb_ * 0.11512925f, hallK = -hallDuckDb_ * 0.11512925f;   // ln 10 / 20
     // The second echo, beside the first.
     float wet2L[kCell] = {}, wet2R[kCell] = {};
     echo2_.process(echo2L, echo2R, wet2L, wet2R, n);
+    // Both echoes' repeats at about 70 % of the base, not hard left and right (the production guide's 5.4): the
+    // middle keeps a share of each repeat, so the ping-pong stays audible in mono.
+    for (int i = 0; i < n; ++i) {
+        const float l = wetL[i], r = wetR[i], l2 = wet2L[i], r2 = wet2R[i];
+        wetL[i] = 0.85f * l + 0.15f * r;
+        wetR[i] = 0.85f * r + 0.15f * l;
+        wet2L[i] = 0.85f * l2 + 0.15f * r2;
+        wet2R[i] = 0.85f * r2 + 0.15f * l2;
+    }
     // The echoes' repeats go into the hall too, as they do on a desk where the echo returns to a channel.
     for (int i = 0; i < n; ++i) {
         hallInL[i] += wetL[i] * echoReturn_ * 0.5f + wet2L[i] * echo2Return_ * 0.5f;
@@ -457,15 +526,46 @@ void Engine::renderSpan(float* L, float* R, int n)
         reverb_.process(hallInL, hallInR, hallL, hallR, n);
     }
     for (int i = 0; i < n; ++i) {
+        const float eg = std::exp(echoK * duckAmount[i]), hg = std::exp(hallK * duckAmount[i]);
+        const float rl = (wetL[i] * echoReturn_ + wet2L[i] * echo2Return_) * eg + hallL[i] * reverbReturn_ * hg;
+        const float rr = (wetR[i] * echoReturn_ + wet2R[i] * echo2Return_) * eg + hallR[i] * reverbReturn_ * hg;
         if (stemL_ != nullptr) {
-            stemL_[kChannels][spanAt_ + i] = wetL[i] * echoReturn_ + wet2L[i] * echo2Return_ + hallL[i] * reverbReturn_;
-            stemR_[kChannels][spanAt_ + i] = wetR[i] * echoReturn_ + wet2R[i] * echo2Return_ + hallR[i] * reverbReturn_;
+            stemL_[kChannels][spanAt_ + i] = rl;
+            stemR_[kChannels][spanAt_ + i] = rr;
         }
-        L[i] = (L[i] + wetL[i] * echoReturn_ + wet2L[i] * echo2Return_ + hallL[i] * reverbReturn_) * master_;
-        R[i] = (R[i] + wetR[i] * echoReturn_ + wet2R[i] * echo2Return_ + hallR[i] * reverbReturn_) * master_;
+        L[i] = (L[i] + rl) * master_;
+        R[i] = (R[i] + rr) * master_;
+    }
+    // The mix bus (the production guide's 3.3, 6.3, 6.4): a 20 Hz high pass for DC and subsonics; the side through a
+    // 12 dB/octave high pass at 100 Hz (mono beneath), plus the widening by master.width on what lies above 300 Hz --
+    // both Butterworth, so no bass leaks into the widening.
+    for (int i = 0; i < n; ++i) {
+        float lo, bo, hl, hr;
+        dcL_.tick(L[i], lo, bo, hl);
+        dcR_.tick(R[i], lo, bo, hr);
+        const float m = 0.5f * (hl + hr), s = 0.5f * (hl - hr);
+        float sl, sb, sh, l3, b3, high;
+        sideHp_.tick(s, sl, sb, sh);
+        sideHp300_.tick(s, l3, b3, high);
+        // The side never over the mid (6.5): the widening stops where the side's energy would come within 3 dB of
+        // the mid's (energies over about 300 ms), so decorrelated spaces are not pushed into negative correlation.
+        energyMid_ += energyCoef_ * (m * m - energyMid_);
+        energyLow_ += energyCoef_ * (sh * sh - energyLow_);
+        energyHigh_ += energyCoef_ * (high * high - energyHigh_);
+        float g = width_;
+        if (g > 1.0f) {
+            const float room = 0.5f * energyMid_ - energyLow_;
+            const float most = room > 0.0f && energyHigh_ > 1e-12f ? std::sqrt(1.0f + room / energyHigh_) : 1.0f;
+            g = std::clamp(most, 1.0f, g);
+        }
+        const float side = sh + (g - 1.0f) * high;
+        L[i] = m + side;
+        R[i] = m - side;
     }
     comp_.process(L, R, n);
     limiter_.process(L, R, n);
+    if (mono_)
+        for (int i = 0; i < n; ++i) L[i] = R[i] = 0.5f * (L[i] + R[i]);
 }
 
 void Engine::seek(double beat)

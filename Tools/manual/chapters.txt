@@ -73,6 +73,13 @@ other counter rows 30 to 50 % out to alternating sides, the lead a little off th
 dry and the tape keys and strings out of the echo, and sends the counter rows after the first into the
 second echo, so each layer of the sequence has a delay time of its own.
 
+Every source has a Low Cut on its own page: a gentle high pass (12 dB per octave) that keeps it out of the
+bands below its own, after the production guide's frequency plan. Only the bass row reaches down to 30 Hz;
+the composer starts the main sequence at 90 Hz and the other counter rows at 200 Hz; the lead and the tape
+keys start at 150 Hz, the strings at 200 Hz, the atmosphere at 120 Hz, the drone at 40 Hz (its lowest note
+is at 82 Hz), the drums at 25 Hz. Mud between 200 and 500 Hz and a crowded bass are what make a long
+piece tiring; this is where they are kept away.
+
 The meter reads what the source puts into the mix after its fader and pan: a green bar for the RMS
 level with a release of 300 ms, turning amber above -6 dBFS and red above 0, and a peak line that holds
 for a second and a half before it falls at 20 dB per second. The figure under the meter is the held
@@ -207,7 +214,10 @@ synchronised to the tempo, with a ping-pong option; its feedback can run into se
 the echo throw uses. Springs are built into it, as in the tape echoes of the time: they take the echo's
 send and return beside it. The composer keeps the bass and the pads out of the echo -- the bass dry, the
 tape keys and the strings in the hall only -- and the hands lean the feedback high in the quiet parts of
-a piece and low at the peak.
+a piece and low at the peak. Low Cut is a high pass inside the loop, so every repeat is thinner than the
+one before, as a distant sound is; Duck lowers the return (of both echoes) while the rows play. The repeats
+of both echoes sit at about 70 % of the stereo base rather than hard left and right, so the middle keeps
+a share of each and the ping-pong survives in mono.
 
 Echo switches the same send to a bucket-brigade delay instead of the tape: an analogue delay of 4096 stages
 as in the pedals of the late seventies. Its clock runs slower the longer the delay is set, and its filters
@@ -224,8 +234,11 @@ draws it for each piece.
 == Hall | reverb | 11 ==
 
 A long, dark hall (an eight-line feedback delay network) with its size, decay, damping, pre-delay and
-the band it returns. The composer lets its decay grow in the atmosphere, the bridges and the coda and
-shrink at the peak.
+the band it returns -- by default 250 Hz to 6.5 kHz, so the hall adds space without mud or glare. The
+composer lets its decay grow in the atmosphere, the bridges and the coda and shrink by 40 % at the peak,
+and sets the pre-delay to a 64th note at the piece's tempo (32 ms at 118 BPM), which keeps the dry sounds in
+front of their room. Duck lowers the hall's return by up to that many dB while the rows play, so the tail
+blooms in the gaps and steps back under the notes.
 
 Room switches the same send to a plate instead: Dattorro's plate reverberator (1997) -- four diffusers and a
 tank of two halves that feed each other, each with a slowly moving all-pass, a damping low pass and the
@@ -242,9 +255,23 @@ after them.
 
 == Master | master compose cue | 13 ==
 
-The master: its level, a gentle bus compressor that keeps the music's dynamics, and a true-peak limiter
-as protection. Below, the composer's settings -- the style, key, scale, tempo, lengths and whether the
-style chooses the tempo -- which the top bar also shows.
+The master: its level, a gentle bus compressor that keeps the music's dynamics (a ratio of at most 1.5),
+and a true-peak limiter as protection at -1 dBTP. Before them the mix bus removes DC and subsonics under
+20 Hz, keeps everything under 100 Hz in mono whatever its pan, and widens what lies above 300 Hz by Width
+(dB of side) -- never so far that the side comes within 3 dB of the mid, so the correlation stays positive
+and the mix survives in mono. Mono sums both sides after the limiter, to check the mix as a small speaker
+would play it. The composer moves the level along the form instead of compressing it -- the spaces 3 dB
+under the peak, the entry and the breakdown 1.5 dB -- and the width too: widest in the spaces, narrow
+where the dry bass comes in, growing again with the layers; while the lead plays, the tape keys and the
+strings step back 3 dB.
+
+The styles are levelled to the loudness a streamed release is played at (EBU R128, measured with the
+offline renderer on ten-minute pieces): Cosmic, Melodic and Modern about -15.5 LUFS integrated, Doom and
+Drift about -19; the loudest three seconds around -12 LUFS, the true peak at -1 dBTP, the peak-to-loudness
+ratio 11 to 14 dB and the loudness range 8 to 13 LU -- the dynamics are the product. eph_render prints these
+figures for everything it renders, with the stereo correlation and how far the side lies under the mid.
+Below, the composer's settings -- the style, key, scale, tempo, lengths and whether the style chooses the
+tempo -- which the top bar also shows.
 
 Album Form makes a concert an album: an interlude of three to five minutes between the long pieces -- no
 rows, only the drone, a slow chord every 16 to 32 bars on the strings or the tape keys, the atmosphere with

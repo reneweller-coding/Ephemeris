@@ -41,7 +41,7 @@ void TapeEcho::set(const EchoSettings& s)
     if (fresh_) { delay_.snap(static_cast<float>(target_)); fresh_ = false; }
     const float sr = static_cast<float>(sr_);
     lpL_.set(s.toneHz, 0.0f, sr); lpR_.copyCoefficients(lpL_);
-    hpL_.set(70.0f, 0.0f, sr);    hpR_.copyCoefficients(hpL_);
+    hpL_.set(s.lowCutHz, 0.0f, sr);    hpR_.copyCoefficients(hpL_);
     drive_ = dbToGain(s.driveDb);
     driveNorm_ = 1.0f / drive_;
 }

@@ -148,6 +148,8 @@ private:
         float echo = 0.0f;      ///< send into the tape echo (and its springs)
         float reverb = 0.0f;    ///< send into the hall
         float echo2 = 0.0f;     ///< send into the second echo (the rows)
+        float lowCut = 0.0f;    ///< the strip's high pass in Hz, 0 none (the production guide's 4.2)
+        Svf hpL, hpR;           ///< its states
     };
     /** @brief The buses of one span: the mix, the echo send, the hall send. */
     struct Buses {
@@ -155,6 +157,7 @@ private:
         float* echoL; float* echoR;     ///< into the tape echo
         float* hallL; float* hallR;     ///< into the hall
         float* echo2L; float* echo2R;   ///< into the second echo
+        float* rowsL; float* rowsR;     ///< the rows' dry sum, which ducks the rooms' returns
     };
     void updateCell();
     void renderSpan(float* L, float* R, int n);
@@ -162,6 +165,8 @@ private:
     VoiceSettings voiceSettings(Module m, int instance, bool vibrato) const;
     /** @brief Level, equal-power pan (times @p width) and sends of strip @p s. */
     void setStrip(int s, float levelDb, float pan, float echo, float reverb, float width = 1.0f, float echo2 = 0.0f);
+    /** @brief The strip's low cut (a second-order Butterworth high pass), @p hz 0 for none. */
+    void setLowCut(int s, float hz);
     /** @brief Adds source @p source's output through its strip to the buses (and the meter); @p echoSend false
      *         leaves the echo send alone. */
     void mix(int source, const float* xl, const float* xr, int n, const Buses& b, bool echoSend = true);
@@ -197,6 +202,14 @@ private:
     BusCompressor comp_;
     TruePeakLimiter limiter_;
     float echoReturn_ = 0.0f, springReturn_ = 0.0f, reverbReturn_ = 0.0f, master_ = 1.0f, echo2Return_ = 0.0f;
+    // The production guide's mix bus (25.09.2026): a 20 Hz DC and subsonic filter, the side mono under 100 Hz and
+    // widened above 300 Hz, a mono switch; the rooms' returns ducked by the rows.
+    Svf dcL_, dcR_, sideHp_, sideHp300_;
+    float width_ = 1.0f;
+    float energyMid_ = 0.0f, energyLow_ = 0.0f, energyHigh_ = 0.0f, energyCoef_ = 0.0f;   ///< the width's guard
+    bool mono_ = false;
+    float duckEnv_ = 0.0f, envAttack_ = 0.0f, envRelease_ = 0.0f;
+    float echoDuckDb_ = 0.0f, hallDuckDb_ = 0.0f;
     int transpose_ = 0;   ///< perform.transpose at the current cell, for the notes that start
     int tapeSingers_ = kSingers;   ///< setTapeSingers()
     float* const* stemL_ = nullptr;   ///< setStems(), left
@@ -214,6 +227,7 @@ private:
         bool valid = false;                   ///< false: every setter runs at the next cell
         VoiceSettings voice[kModVoices];      ///< ModVoiceBank::set
         float strip[kSources][6] = {};        ///< setStrip: level, pan, echo, reverb, width, echo 2
+        float lowCut[kSources] = {};          ///< setLowCut
         TapeSettings tape;                    ///< TapeKeys::set
         StringSettings strings;               ///< StringMachine::set
         DrumSettings drums;                   ///< DrumKit::set

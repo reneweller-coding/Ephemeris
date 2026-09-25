@@ -26,6 +26,10 @@ The plan, the musical specification and the literature behind each building bloc
   the open fifth at the end, the rooms and the lead's phrasing after the guide; a mode of its own for a
   later phase, quantised random steps, the stereo field with a wandering drone, a second echo for the
   counter rows, and concerts as albums with interludes.
+- A mix after a production guide for depth, width and clarity: a low cut per source, the bass mono under
+  100 Hz, a guarded width, ducked echo and hall returns, level and width automated along the form, the
+  styles levelled to about -15.5 LUFS (Doom and Drift -19); eph_render reports loudness (EBU R128), true
+  peak, PSR, loudness range and the stereo correlation of every render.
 - Score cues over OSC for a visualiser (Kaleidoscope); stems; a gestures page and a style page.
 - The Quest app (built, not yet run on a headset), the release build with installer and pluginval, and the
   manual generator.

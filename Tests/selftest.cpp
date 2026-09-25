@@ -9,6 +9,7 @@
 #include "eph/Clock.h"
 #include "eph/compose/Composer.h"
 #include "eph/Engine.h"
+#include "eph/Loudness.h"
 #include "eph/Cue.h"
 #include "eph/fx/Plate.h"
 #include "eph/synth/Atmos.h"
@@ -1312,9 +1313,19 @@ void testGuideExtras()
         e.load(one);
         std::vector<float> L(256), R(256);
         double lo = 1.0, hi = 0.0, l = 0.0, r = 0.0;
+        // Above 300 Hz, where the overtones wander: under 100 Hz the mix bus keeps everything mono.
+        Svf hpl, hpr;
+        hpl.setQ(300.0f, 0.7071f, 48000.0f);
+        hpr.copyCoefficients(hpl);
         for (int done = 0, w = 0; done < 48000 * 21; done += 256) {
             e.process(L.data(), R.data(), 256);
-            for (int i = 0; i < 256; ++i) { l += double(L[i]) * L[i]; r += double(R[i]) * R[i]; }
+            for (int i = 0; i < 256; ++i) {
+                float a, b, xl, xr;
+                hpl.tick(L[i], a, b, xl);
+                hpr.tick(R[i], a, b, xr);
+                l += double(xl) * xl;
+                r += double(xr) * xr;
+            }
             if (++w == 187) {   // about a second
                 if (done > 48000) { lo = std::min(lo, l / (l + r + 1e-30)); hi = std::max(hi, l / (l + r + 1e-30)); }
                 l = r = 0.0;
@@ -1383,6 +1394,113 @@ void testGuideExtras()
         const double before = energy(0.1, 0.45), repeat = energy(0.5, 0.8);
         check(repeat > 1e-3 && repeat > 100.0 * before, "the second echo returns a row after its own time",
               fmt("difference %.2g before the eighth, %.2g after it", before, repeat));
+    }
+}
+
+/**
+ * The loudness meter (Loudness.h) against the standards' own test signals: a 997 Hz sine at full scale in one
+ * channel reads -3.01 LUFS (BS.1770-4); a sine at a quarter of the rate, sampled 45 degrees off its crests,
+ * has samples at -3 dBFS and a true peak at 0 dBTP; identical channels correlate at +1, inverted ones at -1.
+ */
+void testLoudness()
+{
+    section("loudness meter");
+    const int sr = 48000;
+    auto measure = [&](auto gen) {
+        LoudnessMeter m;
+        m.prepare(sr);
+        std::vector<float> L(sr), R(sr);
+        for (int s = 0; s < 10; ++s) {
+            for (int i = 0; i < sr; ++i) gen(s * sr + i, L[static_cast<size_t>(i)], R[static_cast<size_t>(i)]);
+            m.process(L.data(), R.data(), sr);
+        }
+        return m.report();
+    };
+    const LoudnessReport one = measure([](int i, float& l, float& r) { l = static_cast<float>(std::sin(2.0 * 3.14159265358979 * 997.0 * i / 48000.0)); r = 0.0f; });
+    check(std::fabs(one.integrated + 3.01) < 0.1 && std::fabs(one.shortTermMax + 3.01) < 0.1 && one.range < 0.1,
+          "a full-scale 997 Hz sine in one channel reads -3.01 LUFS", fmt("%.2f LUFS integrated, %.2f short-term, range %.2f LU", one.integrated, one.shortTermMax, one.range));
+    const LoudnessReport quarter = measure([](int i, float& l, float& r) { l = r = static_cast<float>(std::sin(3.14159265358979 * 0.5 * i + 3.14159265358979 * 0.25)); });
+    check(std::fabs(quarter.truePeak) < 0.3, "the true peak between the samples: 0 dBTP from samples at -3 dBFS", fmt("%.2f dBTP", quarter.truePeak));
+    const LoudnessReport same = measure([](int i, float& l, float& r) { l = r = 0.3f * static_cast<float>(std::sin(0.05 * i)); });
+    const LoudnessReport inverted = measure([](int i, float& l, float& r) { l = 0.3f * static_cast<float>(std::sin(0.05 * i)); r = -l; });
+    check(same.correlation > 0.999 && inverted.correlation < -0.999 && same.sideUnderMid > 100.0 && inverted.sideUnderMid < -100.0,
+          "the correlation and the side against the mid", fmt("%.3f and %.3f", same.correlation, inverted.correlation));
+}
+
+/**
+ * The mix after the production guide (Engine.h): a strip's low cut, the bass mono under 100 Hz on the mix bus,
+ * the mono switch; and in a piece the composer's frequency plan and its automation along the form.
+ */
+void testMixBus()
+{
+    section("mix bus after the production guide");
+    // One low note on the bass row, hard left: A1 (55 Hz), dry.
+    Score one;
+    one.clear(120.0);
+    one.notes.push_back({ 0.0, 6.0, Part::Row1, 33, 0.9f, false, false });
+    one.lengthBeats = 8.0;
+    auto render = [&](const char* setting, std::vector<float>& L, std::vector<float>& R) {
+        Engine e;
+        e.params().parseText("row1.echo=0 row1.reverb=0 row1.pan=-1 master.level=0");
+        e.params().parseText(setting);
+        e.prepare(48000.0, 256);
+        e.load(one);
+        L.clear(); R.clear();
+        std::vector<float> l(256), r(256);
+        for (int done = 0; done < 48000 * 3; done += 256) {
+            e.process(l.data(), r.data(), 256);
+            if (done >= 48000) { L.insert(L.end(), l.begin(), l.end()); R.insert(R.end(), r.begin(), r.end()); }
+        }
+    };
+    auto energy = [](const std::vector<float>& v) { double e = 0.0; for (float x : v) e += double(x) * x; return e; };
+    std::vector<float> L, R, L2, R2;
+    render("row1.low_cut=30", L, R);
+    render("row1.low_cut=300", L2, R2);
+    check(energy(L2) + energy(R2) < 0.3 * (energy(L) + energy(R)), "a strip's low cut takes the bass away",
+          fmt("%.1f dB less", 10.0 * std::log10((energy(L) + energy(R)) / std::max(1e-30, energy(L2) + energy(R2)))));
+    // Hard left, yet under 100 Hz it comes out of both sides: the side is mono down there (measured under 70 Hz).
+    double lr = 0.0, ll = 0.0, rr = 0.0;
+    Svf la, lb, ra, rb;
+    la.setQ(70.0f, 0.7071f, 48000.0f); lb.copyCoefficients(la); ra.copyCoefficients(la); rb.copyCoefficients(la);
+    for (size_t i = 0; i < L.size(); ++i) {
+        const double l = lb.lp(la.lp(L[i])), r = rb.lp(ra.lp(R[i]));
+        if (i < 4800) continue;   // the filters settle
+        lr += l * r; ll += l * l; rr += r * r;
+    }
+    check(lr / std::sqrt(ll * rr) > 0.8 && rr > 0.5 * ll, "the bass is mono under 100 Hz on the mix bus, even panned hard left",
+          fmt("correlation %.2f, right %.1f dB under left", lr / std::sqrt(ll * rr), 10.0 * std::log10(ll / std::max(1e-30, rr))));
+    render("row1.low_cut=30 master.mono=1", L2, R2);
+    bool same = true;
+    for (size_t i = 0; i < L2.size(); ++i) same = same && L2[i] == R2[i];
+    check(same, "the mono switch sums both sides", "");
+
+    // In a piece: the frequency plan and the automation along the form.
+    ParamStore p;
+    p.parseText("compose.style=Melodic");
+    const Score sc = composePiece(p, 12, 12.0);
+    auto valueAt = [&](Module m, int inst, int index, double beat) {
+        const int id = p.id(m, inst, index);
+        return p.fromNormalised(id, p.toNormalised(id, p.get(id)) + sc.gestureOffset(id, beat));
+    };
+    const float bassCut = valueAt(Module::Row, 0, row::LowCut, 1.0), mainCut = valueAt(Module::Row, 1, row::LowCut, 1.0);
+    const float counterCut = valueAt(Module::Row, 2, row::LowCut, 1.0);
+    check(std::fabs(bassCut - 30.0f) < 1.0f && std::fabs(mainCut - 90.0f) < 2.0f && std::fabs(counterCut - 200.0f) < 4.0f,
+          "the frequency plan: the bass from 30 Hz, the main sequence from 90, the counter rows from 200",
+          fmt("%.0f, %.0f, %.0f Hz", bassCut, mainCut, counterCut));
+    double atmoEnd = -1.0, peakEnd = -1.0, leadMid = -1.0;
+    for (size_t m = 0; m + 1 < sc.markers.size(); ++m) {
+        const std::string& t = sc.markers[m].text;
+        if (t.rfind("Atmo", 0) == 0) atmoEnd = sc.markers[m + 1].beat - 1.0;
+        if (t.rfind("Hoehepunkt", 0) == 0 && peakEnd < 0.0) peakEnd = sc.markers[m + 1].beat - 1.0;
+        if (t.rfind("Lead", 0) == 0 && leadMid < 0.0) leadMid = 0.5 * (sc.markers[m].beat + sc.markers[m + 1].beat);
+    }
+    const float atmoLevel = valueAt(Module::Master, 0, master::Level, atmoEnd), peakLevel = valueAt(Module::Master, 0, master::Level, peakEnd);
+    const float atmoWidth = valueAt(Module::Master, 0, master::Width, atmoEnd), peakWidth = valueAt(Module::Master, 0, master::Width, peakEnd);
+    check(atmoLevel < peakLevel - 2.0f && atmoWidth > peakWidth, "along the form: the spaces quieter and wider than the peak",
+          fmt("level %.1f against %.1f dB, width %.1f against %.1f dB", atmoLevel, peakLevel, atmoWidth, peakWidth));
+    if (leadMid > 0.0) {
+        const float tape = valueAt(Module::Tape, 0, tape::Level, leadMid) - p.get(p.id(Module::Tape, 0, tape::Level));
+        check(tape < -2.5f, "the pads step back while the lead plays", fmt("tape keys %.1f dB", tape));
     }
 }
 
@@ -1536,6 +1654,8 @@ const TestSection kSections[] = {
     { "testSequencing", testSequencing },
     { "testFormAndSpace", testFormAndSpace },
     { "testGuideExtras", testGuideExtras },
+    { "testLoudness", testLoudness },
+    { "testMixBus", testMixBus },
     { "testBlockSizes", testBlockSizes },
     { "testEcho", testEcho },
     { "testDrift", testDrift },

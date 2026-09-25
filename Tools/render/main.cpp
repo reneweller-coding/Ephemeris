@@ -13,6 +13,7 @@
  *              [--frame [--ramp-to B]]
  *              [--stems DIR] [--cues FILE] [--list] [--dump-params FILE] [--version]
  */
+#include "eph/Loudness.h"
 #include "eph/Engine.h"
 #include "eph/compose/Composer.h"
 #include "eph/Midi.h"
@@ -245,9 +246,12 @@ int main(int argc, char** argv)
     const int64_t total = static_cast<int64_t>(std::llround((engine.lengthSeconds() + tail) * rate));
     std::vector<float> L(static_cast<size_t>(block)), R(static_cast<size_t>(block));
     double peak = 0.0, sumSq = 0.0;
+    LoudnessMeter meter;   // the production guide's figures (Loudness.h)
+    meter.prepare(rate);
     for (int64_t done = 0; done < total;) {
         const int n = static_cast<int>(std::min<int64_t>(block, total - done));
         engine.process(L.data(), R.data(), n);
+        meter.process(L.data(), R.data(), n);
         for (int i = 0; i < n; ++i) {
             peak = std::max(peak, static_cast<double>(std::max(std::fabs(L[static_cast<size_t>(i)]), std::fabs(R[static_cast<size_t>(i)]))));
             sumSq += 0.5 * (static_cast<double>(L[static_cast<size_t>(i)]) * L[static_cast<size_t>(i)] + static_cast<double>(R[static_cast<size_t>(i)]) * R[static_cast<size_t>(i)]);
@@ -268,6 +272,10 @@ int main(int argc, char** argv)
     std::printf("  %zu notes, %zu gestures, %zu rack events; peak %.1f dBFS, rms %.1f dBFS\n",
                 score.notes.size(), score.gestures.size(), score.rack.size(),
                 20.0 * std::log10(std::max(peak, 1e-12)), 10.0 * std::log10(std::max(sumSq / static_cast<double>(std::max<int64_t>(total, 1)), 1e-24)));
+    const LoudnessReport lr = meter.report();
+    std::printf("  loudness %.1f LUFS integrated, %.1f LUFS short-term max, range %.1f LU; true peak %.1f dBTP, PSR %.1f dB, PLR %.1f dB\n",
+                lr.integrated, lr.shortTermMax, lr.range, lr.truePeak, lr.psr, lr.plr);
+    std::printf("  stereo: correlation %.2f (lowest second %.2f at %.0f s), side %.1f dB under mid\n", lr.correlation, lr.correlationLow, lr.correlationLowAt, lr.sideUnderMid);
     std::printf("  %.3f s to render: %.0fx real time, %.2f %% of a core\n", took, secs / std::max(took, 1e-9), 100.0 * took / secs);
     for (const TempoPoint& tp : score.tempo.points())
         std::printf("  tempo point: beat %.1f, %.2f BPM%s, at %.3f s\n", tp.beat, tp.bpm, tp.rampToNext ? ", ramps" : "",

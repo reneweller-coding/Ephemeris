@@ -49,7 +49,7 @@ const StyleProfile kProfiles[] = {
         .hands = hands(8.0, 14.0),
         .darkness = -0.05f,
         .hallSeconds = 6.0f,
-        .levelDb = 4.0f,
+        .levelDb = 4.5f,
         .grainChance = 0.6f,
     },
     // Doom: slow, low, dark, dissonant roots; strings tapes; few layers; much dynamics.
@@ -80,7 +80,7 @@ const StyleProfile kProfiles[] = {
         .hands = hands(10.0, 16.0),
         .darkness = -0.15f,
         .hallSeconds = 7.5f,
-        .levelDb = 0.0f,
+        .levelDb = 2.0f,
         .grainChance = 0.3f,
     },
     // Melodic: brighter, more rows and chord changes, leads, drums later in the piece, shorter pieces.
@@ -111,7 +111,7 @@ const StyleProfile kProfiles[] = {
         .hands = hands(7.0, 12.0),
         .darkness = 0.05f,
         .hallSeconds = 4.5f,
-        .levelDb = 3.0f,
+        .levelDb = 5.0f,
         .grainChance = 0.2f,
     },
     // Modern: hybrid and polished, cinematic pads, wider moves, sparse drums.
@@ -142,7 +142,7 @@ const StyleProfile kProfiles[] = {
         .hands = hands(6.0, 11.0),
         .darkness = 0.0f,
         .hallSeconds = 5.0f,
-        .levelDb = 4.0f,
+        .levelDb = 5.0f,
         .grainChance = 0.4f,
     },
     // Drift: long, improvised, ambient phases between sequence episodes, tempo and key drift.
@@ -173,7 +173,7 @@ const StyleProfile kProfiles[] = {
         .hands = hands(12.0, 18.0),
         .darkness = -0.08f,
         .hallSeconds = 8.0f,
-        .levelDb = 0.0f,
+        .levelDb = 3.5f,
         .grainChance = 0.7f,
     },
 };

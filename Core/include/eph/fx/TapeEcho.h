@@ -35,6 +35,7 @@ struct EchoSettings {
     float flutterMs = 0.06f;     ///< depth of the fast wander
     float driveDb = 4.0f;        ///< saturation drive in the loop
     bool pingPong = true;        ///< cross the loops
+    float lowCutHz = 70.0f;      ///< the loop's high pass: each repeat thinner (the production guide's 5.4)
 };
 
 /** @brief A stereo tape echo; returns only the wet signal. */

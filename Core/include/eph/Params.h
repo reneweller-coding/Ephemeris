@@ -105,14 +105,17 @@ enum : int { Active, Length, Division, Direction, Octave, Transpose, Mutation, G
              Mode,
              // Phase 3: the send into the hall.
              ReverbSend,
-             // 25.09.2026: the send into the second echo.
-             Echo2Send, Count };
+             // 25.09.2026: the send into the second echo; the strip's low cut (the production guide's 4.2).
+             Echo2Send, LowCut, Count };
 }
 /** @brief Parameters of the master section. */
 namespace master {
 enum : int { Level,
              // Phase 3: a gentle bus compressor and a true-peak limiter as protection (PLAN 5.8).
-             Compress, Ceiling, Count };
+             Compress, Ceiling,
+             // 25.09.2026 (the production guide's 6.3, 6.4): the side above 300 Hz in dB (under 100 Hz it is always
+             // mono), and a mono switch for listening.
+             Width, Mono, Count };
 }
 /**
  * @brief Parameters of one modular voice (module Voice, "voice1" .. "voice8", one per row; PLAN 5.2).
@@ -134,11 +137,13 @@ enum : int { Wave, Detune, PulseWidth, Drift, Drive, Cutoff, Resonance, EnvAmoun
              // Phase 3: the send into the hall.
              ReverbSend,
              // 25.09.2026: a slow sine (0.05 Hz) on the pan, the wandering drone of the style guide's 7.3.
-             AutoPan, Count };
+             AutoPan, LowCut, Count };
 }
 /** @brief Parameters of the tape keyboard (module Tape; PLAN 5.4, TapeKeys.h). */
 namespace tape {
-enum : int { Set, Vowel, Wow, Flutter, Sag, Tone, Age, Level, Pan, EchoSend, ReverbSend, Count };
+enum : int { Set, Vowel, Wow, Flutter, Sag, Tone, Age, Level, Pan, EchoSend, ReverbSend,
+             // 25.09.2026: the strip's low cut.
+             LowCut, Count };
 }
 extern const char* const kTapeSetNames[];       ///< names of tape.set
 /** @brief The drone's parameters are the lead's table with other defaults (module Drone). */
@@ -147,7 +152,9 @@ namespace drone = lead;
 namespace strings {
 enum : int { Attack, Release, Feet, Tone, Ensemble, Level, Pan, EchoSend, ReverbSend,
              // 25.09.2026, after Waldorf's Streichfett: the registration, its animation, the ensemble's type, the phaser.
-             Registration, Animate, AnimateRate, EnsembleType, Phaser, Count };
+             Registration, Animate, AnimateRate, EnsembleType, Phaser,
+             // the strip's low cut
+             LowCut, Count };
 }
 /** @brief Parameters of the springs (module Spring; Spring.h): fed from the echo's send. */
 namespace spring {
@@ -155,7 +162,7 @@ enum : int { Decay, Tone, Return, Count };
 }
 /** @brief Parameters of the drum kit (module Drums; Drums.h). */
 namespace drums {
-enum : int { KickHz, Decay, Tone, Level, EchoSend, ReverbSend, Count };
+enum : int { KickHz, Decay, Tone, Level, EchoSend, ReverbSend, /** 25.09.2026 */ LowCut, Count };
 }
 /**
  * @brief The performer's controls (module Perform; PLAN 8.1). They act on the piece as it plays and are
@@ -187,24 +194,28 @@ enum : int { Enabled, Port, Count };
 namespace atmos {
 enum : int { Wind, WindTone, Sweeps, SweepLevel, Bleeps, BleepLevel, Level, EchoSend, ReverbSend,
              // 25.09.2026: the granular cloud (Atmos.h).
-             Grains, GrainDensity, Count };
+             Grains, GrainDensity, LowCut, Count };
 }
 /** @brief Parameters of the hall (module Reverb; PLAN 5.8): Phosphene's eight-line FDN. */
 namespace reverb {
 enum : int { Size, Decay, Damping, PreDelay, LowCut, HighCut, Return,
              // Phase 5: the room: the hall (Reverb.h) or the plate (Plate.h), on the same send.
-             Type, Count };
+             Type,
+             // 25.09.2026: the return ducked by the rows (the production guide 5.2).
+             Duck, Count };
 }
 static_assert(static_cast<int>(lead::Glide) == static_cast<int>(voice::Glide), "the first parameters of the lead are those of the voice, in the same order");
 /** @brief Parameters of the tape echo (module Echo; PLAN 5.8). */
 /** @brief Parameters of the second echo (Module::Echo2, keys "delay.*"): a clean tape echo with its own time and return. */
 namespace echo2 {
-enum : int { Time, Feedback, Tone, PingPong, Return, Count };
+enum : int { Time, Feedback, Tone, PingPong, Return, LowCut, Count };
 }
 namespace echo {
 enum : int { Time, Feedback, Tone, Wow, Flutter, Drive, PingPong, Return,
              // Phase 5: the tape echo (TapeEcho.h) or the bucket-brigade delay (Bbd.h), on the same send.
-             Type, Count };
+             Type,
+             // 25.09.2026: the repeats' low cut in the loop; the return ducked by the rows (the production guide 5.4).
+             LowCut, Duck, Count };
 }
 /** @brief The echo times, in the order of echo.time. */
 enum class EchoTime : int { Sixteenth = 0, Eighth, EighthD, Quarter, QuarterD, Half,

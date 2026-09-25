@@ -494,22 +494,70 @@ void writeSettings(Piece& c)
         setTo(p.id(Module::Row, k + 1, row::Echo2Send), 0.35f);
         setTo(p.id(Module::Row, k + 1, row::EchoSend), 0.1f);
     }
-    // The hall grows in the spaces and shrinks at the peak (7.3): a slow glide at the start of each section,
-    // written by the composer's own hand (3), apart from the player's two.
-    float hallAt = offsetTo(p, hall, c.prof.hallSeconds);
-    for (const Section& sec : c.form.sections) {
-        float factor = 1.0f;
-        switch (sec.type) {
-        case SectionType::Atmo: case SectionType::Bridge: factor = 1.3f; break;
-        case SectionType::Coda: factor = 1.4f; break;
-        case SectionType::Peak: factor = 0.75f; break;
-        case SectionType::Breakdown: factor = 1.1f; break;
-        default: break;
+    // The frequency architecture of the production guide (4.1, 4.2): the bass row alone down to 30 Hz, the main
+    // sequence from 90 Hz, the other counter rows from 200 Hz (the drone, the lead, the pads have their own defaults).
+    setTo(p.id(Module::Row, 0, row::LowCut), 30.0f);
+    for (int k = 0; k < c.counters; ++k) setTo(p.id(Module::Row, k + 1, row::LowCut), k == 0 ? 90.0f : 200.0f);
+    // The hall's pre-delay a 64th at the piece's tempo (5.3: 32 ms at 118 BPM), which keeps the dry sounds in front.
+    const int preDelay = p.id(Module::Reverb, 0, reverb::PreDelay);
+    setTo(preDelay, static_cast<float>(60000.0 / (c.form.phaseBpm.front() * 16.0)));
+
+    // Along the form, by the composer's own hand (3), apart from the player's two: a slow glide at the start of each
+    // section towards the section's value (at most eight bars).
+    auto alongForm = [&](int id, float start, const std::function<float(SectionType)>& value) {
+        float at = offsetTo(p, id, start);
+        for (const Section& sec : c.form.sections) {
+            const float to = offsetTo(p, id, value(sec.type));
+            if (to == at) continue;
+            c.s.gestures.push_back({ id, sec.beat, std::min(sec.length, 8.0 * kBeatsPerBar), at, to, G::MinimumJerk, 3 });
+            at = to;
         }
-        const float to = offsetTo(p, hall, c.prof.hallSeconds * factor);
-        if (to == hallAt) continue;
-        c.s.gestures.push_back({ hall, sec.beat, std::min(sec.length, 8.0 * kBeatsPerBar), hallAt, to, G::MinimumJerk, 3 });
-        hallAt = to;
+    };
+    // The hall grows in the spaces and shrinks at the peak by 40 % (the style guide's 7.3, the production guide's 5.6).
+    alongForm(hall, c.prof.hallSeconds, [&](SectionType t) {
+        switch (t) {
+        case SectionType::Atmo: case SectionType::Bridge: return c.prof.hallSeconds * 1.3f;
+        case SectionType::Coda: return c.prof.hallSeconds * 1.4f;
+        case SectionType::Peak: return c.prof.hallSeconds * 0.6f;
+        case SectionType::Breakdown: return c.prof.hallSeconds * 1.1f;
+        default: return c.prof.hallSeconds;
+        }
+    });
+    // Automation instead of compression (7.2): the level follows the form, quieter spaces, the peak the loudest.
+    const float base = p.get(level) + c.prof.levelDb;
+    alongForm(level, base, [&](SectionType t) {
+        switch (t) {
+        case SectionType::Atmo: case SectionType::Bridge: case SectionType::Coda: return base - 3.0f;
+        case SectionType::Entry: case SectionType::Breakdown: return base - 1.5f;
+        case SectionType::Build: return base - 1.0f;
+        case SectionType::Lead: return base - 0.5f;
+        default: return base;
+        }
+    });
+    // The width over the form (6.6): the widest in the spaces, narrow where the dry bass comes in, growing again.
+    const int width = p.id(Module::Master, 0, master::Width);
+    const float w0 = p.get(width);
+    alongForm(width, w0, [&](SectionType t) {
+        switch (t) {
+        case SectionType::Atmo: case SectionType::Bridge: case SectionType::Coda: return w0 + 2.0f;
+        case SectionType::Entry: return w0 - 1.5f;
+        case SectionType::Build: return w0 - 0.5f;
+        case SectionType::Peak: return w0 + 0.5f;
+        case SectionType::Breakdown: return w0 + 1.0f;
+        default: return w0;
+        }
+    });
+    // The pads step back 3 dB while the lead plays (7.2): its section and the peak after it.
+    for (int ph = 0; ph < c.phases; ++ph) {
+        const Section* lead = c.form.find(SectionType::Lead, ph);
+        if (lead == nullptr) continue;
+        const Section* peak = c.form.find(SectionType::Peak, ph);
+        const double from = lead->beat, to = peak != nullptr ? peak->beat + peak->length : lead->beat + lead->length;
+        for (int id : { p.id(Module::Tape, 0, tape::Level), p.id(Module::Strings, 0, strings::Level) }) {
+            const float at = offsetTo(p, id, p.get(id)), down = offsetTo(p, id, p.get(id) - 3.0f);
+            c.s.gestures.push_back({ id, from, 2.0 * kBeatsPerBar, at, down, G::MinimumJerk, 3 });
+            c.s.gestures.push_back({ id, std::max(from + 2.0 * kBeatsPerBar, to - 2.0 * kBeatsPerBar), 2.0 * kBeatsPerBar, down, at, G::MinimumJerk, 3 });
+        }
     }
 }
 
