@@ -87,6 +87,15 @@ struct RackEvent {
     int value = 0;              ///< the operation's argument
 };
 
+/** @brief A sequencer row's shape as composed, from a beat on: what a display needs to draw it (the orrery). */
+struct RowShape {
+    double from = 0.0;        ///< the beat it holds from (each piece of a concert brings its own)
+    int row = 0;              ///< which row (0-based)
+    int length = 16;          ///< steps per cycle
+    double divBeats = 0.25;   ///< beats per step
+    bool transposer = false;  ///< the transposer row
+};
+
 /** @brief A named position: a phase of a piece, the start of a piece. */
 struct Marker {
     double beat = 0.0;   ///< position in beats
@@ -106,6 +115,7 @@ struct Score {
     std::vector<Gesture> gestures;     ///< gestures, sorted by beat after sort()
     std::vector<RackEvent> rack;       ///< rack events, sorted by beat after sort()
     std::vector<Marker> markers;       ///< markers, sorted by beat after sort()
+    std::vector<RowShape> rowShapes;   ///< the rows as composed (Composer), in beat order; nothing plays from it
     /** The transposer's roots over time as (beat, semitones), written by whoever ran the rack; the
      *  atmosphere's bleeps and anything else that must be in the rows' root read it. */
     std::vector<std::pair<double, int>> rootShifts;

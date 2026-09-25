@@ -50,6 +50,7 @@ void Score::clear(double bpm)
     rack.clear();
     markers.clear();
     rootShifts.clear();
+    rowShapes.clear();
 }
 
 int rootShiftAt(const std::vector<std::pair<double, int>>& shifts, double beat)

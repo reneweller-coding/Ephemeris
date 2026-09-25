@@ -191,6 +191,13 @@ void writeRack(Piece& c)
     rack.run(s, form.lengthBeats);
     s.rootShifts = rack.shifts();
     c.scale = rack.scale();
+    // The rows' shapes for a display, as the rack read them (Rack::setup).
+    for (int r = 0; r < kRows; ++r) {
+        const int length = std::clamp(static_cast<int>(p.get(p.id(Module::Row, r, row::Length))), 1, kMaxSteps);
+        const double div = rowDivisionBeats(static_cast<RowDivision>(static_cast<int>(p.get(p.id(Module::Row, r, row::Division)))));
+        const bool transposer = static_cast<int>(p.get(p.id(Module::Row, r, row::Mode))) == static_cast<int>(RowMode::Transposer);
+        s.rowShapes.push_back({ 0.0, r, length, div, transposer });
+    }
 }
 
 /**
@@ -404,6 +411,7 @@ void appendScore(Score& dst, const Score& src, int rootOffset)
     for (RackEvent e : src.rack) { e.beat += off; dst.rack.push_back(e); }
     for (Marker m : src.markers) { m.beat += off; dst.markers.push_back(m); }
     for (const auto& r : src.rootShifts) dst.rootShifts.push_back({ off + r.first, r.second + rootOffset });
+    for (RowShape r : src.rowShapes) { r.from += off; dst.rowShapes.push_back(r); }
     dst.lengthBeats = off + src.lengthBeats;
     dst.sort();
 }
@@ -425,7 +433,7 @@ Score composeConcert(const ParamStore& p, uint64_t seed, double minutes, const C
                                    "piece" + std::to_string(i + 1) + ".");
         for (Marker& mk : piece.markers) mk.text = "Stueck " + std::to_string(i + 1) + ": " + mk.text;
         if (i == 0) { out = piece; out.rootShifts.clear(); out.lengthBeats = 0.0; out.notes.clear(); out.gestures.clear();
-                      out.rack.clear(); out.markers.clear(); }
+                      out.rack.clear(); out.markers.clear(); out.rowShapes.clear(); }
         const double before = out.tempo.secondsAt(out.lengthBeats);
         appendScore(out, piece, shift);
         elapsed += out.tempo.secondsAt(out.lengthBeats) - before;

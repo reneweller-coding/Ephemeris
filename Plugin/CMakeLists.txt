@@ -14,7 +14,7 @@ juce_add_plugin(Ephemeris
     VST3_CATEGORIES             Instrument Synth
     VERSION                     ${PROJECT_VERSION}
     PRODUCT_NAME                "Ephemeris")
-target_sources(Ephemeris PRIVATE PluginProcessor.cpp PluginEditor.cpp EditorMixer.cpp)
+target_sources(Ephemeris PRIVATE PluginProcessor.cpp PluginEditor.cpp EditorMixer.cpp EditorOrrery.cpp)
 target_compile_definitions(Ephemeris PUBLIC
     JUCE_WEB_BROWSER=0
     JUCE_USE_CURL=0

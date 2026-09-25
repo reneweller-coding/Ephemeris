@@ -210,6 +210,7 @@ void EphemerisProcessor::timerCallback()
         std::lock_guard<std::mutex> g(lock_);
         current_ = std::move(*next);
     }
+    ++scoreVersion_;
     position_ = 0.0;
     if (autoPlay_) { autoPlay_ = false; playing_ = true; }
     suspendProcessing(false);

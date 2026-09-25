@@ -74,6 +74,17 @@ Render 9,3 s. Die übrigen Posten dort: Hall 1,6 s, Federn 1,5 s, `updateCell` 1
 Limiter 0,9 s, Echo 0,7 s, die anderen Klangerzeuger 1,7 s. Hörprüfung offen: Die Sigmoide biegt etwas
 früher als tanh, die Stimmen sind dadurch rund 0,5 dB leiser (RMS des Mixes −19,5 statt −19,0 dBFS).
 
+**25.09.2026: Rack-Tab mit der Orrery-Ansicht.** Links die Reihen als Umlaufbahnen um den Grundton (die Sonne
+in der Mitte ist der Transposer, ihr Buchstabe der Grundton, auf dem die Reihen gerade spielen), der Bass innen;
+ein Umlauf ist ein Zyklus der Reihe, oben liegt Schritt 1. Stehen spielende Reihen dort zusammen, steigt eine
+Lichtlinie auf (Konjunktion); darunter die Zyklen der Reihen und wann sich alle spielenden Reihen wieder
+treffen. Gerechnet aus der Partitur, die die Engine spielt (neu: `Score::rowShapes`, die Form der Reihen, wie
+der Komponist sie gesetzt hat; klingt nicht mit, die Referenz-Renders bleiben bitgleich) und der Abspielposition.
+Rechts die Parameter der Reihen. Außerdem: Im Host spielt Ephemeris im Tempo des Hosts (die Partitur wird mit
+dem Host-Tempo geladen, ein Tempowechsel lädt sie im Nachrichten-Thread neu); vorher sprang die Engine bei
+abweichendem Tempo alle halbe Sekunde. Neuer Test `vst3test` (nach Phosphene): das VST3 wie in einer DAW
+geladen, 27 Prüfungen. pluginval selbst ist nicht auf dieser Maschine.
+
 **25.09.2026: Mixer-Tab mit Metern wie in Phosphene.** Ein Kanalzug je Quelle der Engine (Reihen 1 bis 8,
 Lead, Drone, Tape Keys, Strings, Drums, Atmosphäre) mit Pan, Echo- und Hall-Send, Fader und Meter: RMS-Balken
 mit 300 ms Rückfall, Spitzenlinie, die 1,5 s hält und dann mit 20 dB/s fällt, Spitze in Ziffern

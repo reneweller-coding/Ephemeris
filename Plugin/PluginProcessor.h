@@ -72,6 +72,10 @@ public:
     bool isPlaying() const { return playing_.load(); }   ///< whether the standalone plays
     void seekTo(double beat) { seekRequest_ = beat; }    ///< jump to @p beat at the next block
     double positionBeats() const { return position_.load(); }   ///< where the audio thread is, in beats
+    /** @brief Counts the scores the engine has loaded: a display compares it to know when to copy again. */
+    int scoreVersion() const { return scoreVersion_.load(); }
+    /** @brief A copy of the score the engine plays (message thread; for the orrery). */
+    void copyScore(eph::Score& out) const { std::lock_guard<std::mutex> g(lock_); out = current_; }
     /** @brief A copy of the markers and the length, for the arrange view. */
     void arrangement(std::vector<eph::Marker>& markers, double& lengthBeats, double& seconds) const;
 
@@ -147,6 +151,7 @@ private:
     std::array<std::atomic<float>, eph::Engine::kChannels> meterPeak_{};   ///< audio thread raises, the editor takes (exchange 0)
     std::array<std::atomic<double>, eph::Engine::kChannels> meterSum_{};   ///< sums of squares since the editor last took them
     std::atomic<int> meterCount_{ 0 };                                      ///< samples in those sums
+    std::atomic<int> scoreVersion_{ 0 };     ///< scoreVersion()
     std::atomic<double> hostBpm_{ 0.0 };     ///< the host's tempo as the audio thread last saw it, 0 outside a host
     std::atomic<double> playedBpm_{ 0.0 };   ///< the tempo the engine's score was loaded with (forPlayback), 0 as composed
 };
