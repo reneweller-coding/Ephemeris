@@ -573,6 +573,20 @@ void writeSettings(Piece& c)
     setTo(p.id(Module::Lead, 0, lead::ReverbSend), 0.25f);
     setTo(p.id(Module::Drums, 0, drums::BlendSend), 0.25f);
     setTo(p.id(Module::Drums, 0, drums::ReverbSend), 0.05f);
+    // Send A, the early reflections: distance and glue without a tail -- the second layer, a little of the main sequence.
+    for (int k = 0; k < c.counters; ++k) setTo(p.id(Module::Row, k + 1, row::EarlySend), k == 0 ? 0.1f : 0.25f);
+    setTo(p.id(Module::Lead, 0, lead::EarlySend), 0.2f);
+    setTo(p.id(Module::Drums, 0, drums::EarlySend), 0.3f);
+    // Send D, the effect hall: the drone, the atmosphere and the tape keys in the spaces and the transitions (the
+    // atmosphere, the bridges, the coda), nothing while the machine runs.
+    auto spaces = [](SectionType t) { return t == SectionType::Atmo || t == SectionType::Bridge || t == SectionType::Coda; };
+    const std::pair<int, float> shimmerSends[3] = { { p.id(Module::Drone, 0, lead::ShimmerSend), 0.2f },
+                                                     { p.id(Module::Atmos, 0, atmos::ShimmerSend), 0.35f },
+                                                     { p.id(Module::Tape, 0, tape::ShimmerSend), 0.15f } };
+    for (const auto& [id, amount] : shimmerSends) {
+        const float at = p.get(id), wet = amount;
+        alongForm(id, at, [&, at, wet](SectionType t) { return spaces(t) ? std::min(1.0f, at + wet) : at; });
+    }
     // The main sequence's attacks lifted, so it stays in front (the production guide's 7.5).
     if (c.counters > 0) setTo(p.id(Module::Row, 1, row::Punch), 0.5f);
     // The serial feed into the hall down to 5 % at the peak, where energy would pile up in the far room (the addon's 4).

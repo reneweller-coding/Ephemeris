@@ -1718,6 +1718,81 @@ void testBlendAndBus()
 }
 
 /**
+ * The rooms A and D and the resonance suppressor (fx/Rooms.h, Engine.h): early reflections without a tail, the
+ * shimmer's octave feeding its own tail, a resonant row pulled back where its peak sticks out.
+ */
+void testSendsAD()
+{
+    section("early reflections, shimmer, resonance tamer");
+    auto render = [](const Score& sc, const char* setting, double seconds) {
+        Engine e;
+        e.params().parseText("master.level=0 master.motion=0 master.clip=0");
+        e.params().parseText(setting);
+        e.prepare(48000.0, 256);
+        e.load(sc);
+        std::vector<float> out, l(256), r(256);
+        for (int done = 0; done < static_cast<int>(48000 * seconds); done += 256) {
+            e.process(l.data(), r.data(), 256);
+            for (int i = 0; i < 256; ++i) out.push_back(0.5f * (l[i] + r[i]));
+        }
+        return out;
+    };
+    auto energy = [](const std::vector<float>& a, const std::vector<float>* b, double s0, double s1) {
+        double e = 0.0;
+        for (size_t i = static_cast<size_t>(s0 * 48000.0); i < static_cast<size_t>(s1 * 48000.0) && i < a.size(); ++i) {
+            const double d = b != nullptr ? double(a[i]) - (*b)[i] : double(a[i]);
+            e += d * d;
+        }
+        return e;
+    };
+    Score click;
+    click.clear(120.0);
+    click.notes.push_back({ 0.0, 0.05, Part::Row2, 57, 1.0f, false, false });
+    click.lengthBeats = 8.0;
+    const char* dry = "row2.echo=0 row2.reverb=0 row2.amp_decay=5 voice2.amp_decay=5 voice2.decay=20";
+    const auto plain = render(click, dry, 1.5), early = render(click, (std::string(dry) + " row2.early=1").c_str(), 1.5);
+    check(energy(early, &plain, 0.0, 0.15) > 100.0 * energy(early, &plain, 0.4, 1.5) && energy(early, &plain, 0.0, 0.15) > 1e-6,
+          "early reflections: the room's first 80 ms, and no tail", fmt("%.2g in the first 150 ms, %.2g after 400", energy(early, &plain, 0.0, 0.15), energy(early, &plain, 0.4, 1.5)));
+    Score pad;
+    pad.clear(120.0);
+    for (int k : { 57, 64 }) pad.notes.push_back({ 0.0, 1.0, Part::Strings, k, 0.9f, false, false });
+    pad.lengthBeats = 16.0;
+    const auto still = render(pad, "strings.reverb=0 strings.echo=0 strings.shimmer=1 shimmer.amount=0", 6.0);
+    const auto shim = render(pad, "strings.reverb=0 strings.echo=0 strings.shimmer=1 shimmer.amount=0.6", 6.0);
+    check(energy(shim, nullptr, 3.0, 6.0) > 1.5 * energy(still, nullptr, 3.0, 6.0), "the shimmer's octave feeds its own tail",
+          fmt("tail %.2g with the octave, %.2g without", energy(shim, nullptr, 3.0, 6.0), energy(still, nullptr, 3.0, 6.0)));
+    // The resonance tamer: noise with a loud 1 kHz sine (a ringing peak) and plain noise.
+    auto tame = [](bool peak, double& sineIn, double& sineOut, double& noiseChange) {
+        ResonanceTamer t;
+        t.prepare(48000.0);
+        Rng rng;
+        rng.seed(3);
+        std::vector<float> L(48000), R(48000), dry(48000);
+        for (int i = 0; i < 48000; ++i) {
+            const float x = 0.05f * rng.bipolar() + (peak ? 0.3f * static_cast<float>(std::sin(2.0 * 3.14159265358979 * 1000.0 * i / 48000.0)) : 0.0f);
+            L[static_cast<size_t>(i)] = R[static_cast<size_t>(i)] = dry[static_cast<size_t>(i)] = x;
+        }
+        for (int i = 0; i < 48000; i += 32) t.process(L.data() + i, R.data() + i, 32, 1.0f);
+        // The 1 kHz component in and out (correlation with the sine over the last half second), and how much changed.
+        sineIn = sineOut = noiseChange = 0.0;
+        double total = 0.0;
+        for (int i = 24000; i < 48000; ++i) {
+            const double s = std::sin(2.0 * 3.14159265358979 * 1000.0 * i / 48000.0);
+            sineIn += dry[static_cast<size_t>(i)] * s;
+            sineOut += L[static_cast<size_t>(i)] * s;
+            noiseChange += (double(L[static_cast<size_t>(i)]) - dry[static_cast<size_t>(i)]) * (double(L[static_cast<size_t>(i)]) - dry[static_cast<size_t>(i)]);
+            total += double(dry[static_cast<size_t>(i)]) * dry[static_cast<size_t>(i)];
+        }
+        noiseChange /= std::max(1e-30, total);
+    };
+    double in1, out1, ch1, in2, out2, ch2;
+    tame(true, in1, out1, ch1);
+    tame(false, in2, out2, ch2);
+    check(std::fabs(out1) < 0.7 * std::fabs(in1) && ch2 < 0.05, "the resonance tamer pulls a peak back and leaves a flat spectrum",
+          fmt("1 kHz peak %.1f dB lower; plain noise changed by %.1f %%", 20.0 * std::log10(std::fabs(in1) / std::max(1e-30, std::fabs(out1))), 100.0 * ch2));
+}
+
+/**
  * The offline render is the oracle only if a host's block size cannot change a sample: the study
  * rendered with blocks of 1, 37 and 512 must agree bit for bit (Engine.h).
  */
@@ -1872,6 +1947,7 @@ const TestSection kSections[] = {
     { "testAddon", testAddon },
     { "testPresets", testPresets },
     { "testBlendAndBus", testBlendAndBus },
+    { "testSendsAD", testSendsAD },
     { "testBlockSizes", testBlockSizes },
     { "testEcho", testEcho },
     { "testDrift", testDrift },

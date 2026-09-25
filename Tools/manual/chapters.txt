@@ -89,8 +89,11 @@ moves the bass with it: at each entry it comes in from 0.7 over 45 seconds, in t
 up to two minutes, and in the coda before it stops -- an approach and a leaving instead of a fader ride.
 
 The rows also make room for themselves: while they play, the pads (strings and tape keys) step back in their
-middle band, 300 Hz to 5 kHz, by up to Cascade Duck (Master page, 2.5 dB), and the pads in turn push the
-atmosphere back in the same band -- the pads stay full while the sequence rests.
+middle, by up to Cascade Duck (Master page, 2.5 dB) -- in six bands between 350 Hz and 4.8 kHz, each only
+where the rows have energy in it -- and the pads in turn push the atmosphere back the same way: the pads stay
+full while the sequence rests. The rows reach the mix through a resonance suppressor (Resonance Tamer, Master
+page): in the same six bands, a band that stands more than 6 dB over the others is pulled back, up to 3:1, so a
+filter's resonance sweeping through never sticks out or tires the ear.
 
 The meter reads what the source puts into the mix after its fader and pan: a green bar for the RMS
 level with a release of 300 ms, turning amber above -6 dBFS and red above 0, and a peak line that holds
@@ -263,7 +266,7 @@ layer of the sequence have its own delay: the main sequence on the first echo's 
 counter rows on the second in eighths or quarter triplets (1/4T, which both echoes offer), as the composer
 draws it for each piece.
 
-== Hall | reverb blend | 11 ==
+== Hall | reverb blend early shimmer | 11 ==
 
 A long, dark hall (an eight-line feedback delay network) with its size, decay, damping, pre-delay and
 the band it returns -- by default 250 Hz to 6.5 kHz, so the hall adds space without mud or glare. The
@@ -279,6 +282,14 @@ not like a second place -- the serial far space of the dark-ambient practice. Th
 layer there -- the counter rows, the lead, the drums -- with only a little hall; the pads, the drone and the
 atmosphere stay in the hall, the bass stays dry; at the peak the feed into the hall drops to 5 %, where the
 far room would fill up. Both returns are ducked by the rows alike.
+
+With the early reflections (send A) and the shimmer (send D) the four rooms of the production guide are complete.
+The early reflections are a room without its tail: twelve reflections a side within Early Size (35 ms), 200 Hz
+to 8 kHz -- distance and glue for the counter rows, the lead and the drums, with nothing that smears. The
+shimmer is the effect hall: a long plate (Shimmer Decay, 8 s) whose output, shifted up an exact octave, is fed
+back into it (Shimmer, 0.35), so every round of the tail is an octave brighter and fainter; 400 Hz to 4 kHz.
+The composer opens it for the drone, the atmosphere and the tape keys in the atmosphere, the bridges and the
+coda, and closes it while the machine runs. Being an octave, it never detunes anything.
 
 Room switches the same send to a plate instead: Dattorro's plate reverberator (1997) -- four diffusers and a
 tank of two halves that feed each other, each with a slowly moving all-pass, a damping low pass and the

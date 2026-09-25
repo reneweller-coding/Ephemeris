@@ -38,7 +38,8 @@ The plan, the musical specification and the literature behind each building bloc
   sixteen groups each, with names from dark to bright; they set the sound, never the mix or the tuning;
   your own presets saved beside them.
 - A blend room (a short plate) that feeds the hall -- the serial far space; a soft clipper before the limiter,
-  a limiter for the band under 80 Hz, a punch for the main sequence.
+  a limiter for the band under 80 Hz, a punch for the main sequence; early reflections and a shimmer hall as
+  the production guide's sends A and D, spectral ducking in six bands, a resonance tamer on the rows.
 - Score cues over OSC for a visualiser (Kaleidoscope); stems; a gestures page and a style page.
 - The Quest app (built, not yet run on a headset), the release build with installer and pluginval, and the
   manual generator.

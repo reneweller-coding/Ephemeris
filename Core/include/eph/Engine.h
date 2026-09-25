@@ -35,6 +35,7 @@
 #include "eph/fx/Spring.h"
 #include "eph/synth/StringMachine.h"
 #include "eph/fx/TapeEcho.h"
+#include "eph/fx/Rooms.h"
 #include "eph/synth/TapeKeys.h"
 #include <cstdint>
 #include <vector>
@@ -156,6 +157,9 @@ private:
         Svf lpL, lpR;           ///< its states
         Svf splitLo[2], splitHi[2];   ///< the band 300 Hz .. 5 kHz a cascaded duck works in
         float blend = 0.0f;     ///< send into the blend room (the addon's serial far space)
+        float early = 0.0f;     ///< send into the early reflections (send A)
+        float shimmer = 0.0f;   ///< send into the effect hall (send D)
+        Svf band[2][6];         ///< the six bands a spectral duck works in (the addon's 4)
         float punch = 0.0f;     ///< the transient shaper's amount (rows)
         float envFast = 0.0f, envSlow = 0.0f;   ///< its two followers
     };
@@ -168,6 +172,8 @@ private:
         float* rowsL; float* rowsR;     ///< the rows' dry sum, which ducks the rooms' returns and the pads
         float* padsL; float* padsR;     ///< the pads' sum (strings, tape keys), which ducks the atmosphere
         float* blendL; float* blendR;   ///< into the blend room
+        float* earlyL; float* earlyR;   ///< into the early reflections
+        float* shimL; float* shimR;     ///< into the effect hall
     };
     void updateCell();
     void renderSpan(float* L, float* R, int n);
@@ -230,6 +236,16 @@ private:
     // The blend room (a second plate, short) and its serial feed into the hall; the soft clipper (with first-order
     // antiderivative anti-aliasing) and the limiter under 80 Hz on the mix bus.
     Plate blend_;
+    EarlyReflections early_;
+    Shimmer shimmer_;
+    float earlyReturn_ = 0.0f, shimmerReturn_ = 0.0f, tame_ = 0.0f;
+    // The six bands of the spectral duck and of the resonance suppressor: the rows' and the pads' side chains, the
+    // rows' bus (both sides), and their followers.
+    static constexpr int kBands = 6;
+    Svf rowSide_[kBands], padSide_[kBands];
+    float rowBandEnv_[kBands] = {}, padBandEnv_[kBands] = {};
+    ResonanceTamer tamer_;   ///< on the rows' bus (fx/Rooms.h)
+    float duckTable_[256] = {};   ///< the spectral duck's gains by amount (0 .. 1 in 256 steps)
     float blendReturn_ = 0.0f, blendIntoHall_ = 0.0f;
     float clipDb_ = 0.0f, clipCeiling_ = 1.0f, clipPrev_[2] = {}, subCeiling_ = 1.0f, subEnv_ = 0.0f, subAttack_ = 0.0f, subRelease_ = 0.0f;
     float punchFastA_ = 0.0f, punchFastR_ = 0.0f, punchSlowA_ = 0.0f, punchSlowR_ = 0.0f;
@@ -261,6 +277,8 @@ private:
         EchoSettings echo2;                   ///< the second echo's TapeEcho::set
         float reverb[7] = {};                 ///< Reverb::set or Plate::set, and which
         float blend[5] = {};                  ///< the blend room's Plate::set
+        float early[3] = {};                  ///< EarlyReflections::set
+        float shimmer[4] = {};                ///< Shimmer::set
         float spring[2] = {};                 ///< Spring::set
         float compress = 0.0f, ceiling = 0.0f;   ///< BusCompressor::set, TruePeakLimiter::set
     } cache_;

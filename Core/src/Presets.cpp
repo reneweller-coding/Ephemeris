@@ -489,18 +489,19 @@ bool presetLeaves(Module module, int k)
     switch (module) {
     case Module::Lead: case Module::Drone:
         return k == lead::Level || k == lead::Pan || k == lead::EchoSend || k == lead::ReverbSend || k == lead::AutoPan
-            || k == lead::LowCut || k == lead::Distance || k == lead::BlendSend;
+            || k == lead::LowCut || k == lead::Distance || k == lead::BlendSend || k == lead::EarlySend || k == lead::ShimmerSend;
     case Module::Tape:
         return k == tape::Level || k == tape::Pan || k == tape::EchoSend || k == tape::ReverbSend || k == tape::LowCut
-            || k == tape::Distance || k == tape::Spread || k == tape::BlendSend;
+            || k == tape::Distance || k == tape::Spread || k == tape::BlendSend || k == tape::EarlySend || k == tape::ShimmerSend;
     case Module::Strings:
         return k == strings::Level || k == strings::Pan || k == strings::EchoSend || k == strings::ReverbSend
-            || k == strings::LowCut || k == strings::Distance || k == strings::BlendSend;
+            || k == strings::LowCut || k == strings::Distance || k == strings::BlendSend || k == strings::EarlySend
+            || k == strings::ShimmerSend;
     case Module::Drums:
-        return k == drums::Level || k == drums::EchoSend || k == drums::ReverbSend || k == drums::LowCut || k == drums::BlendSend;
+        return k == drums::Level || k == drums::EchoSend || k == drums::ReverbSend || k == drums::LowCut || k == drums::BlendSend || k == drums::EarlySend;
     case Module::Atmos:
         return k == atmos::Wind || k == atmos::Sweeps || k == atmos::Bleeps || k == atmos::Grains || k == atmos::Level
-            || k == atmos::EchoSend || k == atmos::ReverbSend || k == atmos::LowCut;
+            || k == atmos::EchoSend || k == atmos::ReverbSend || k == atmos::LowCut || k == atmos::ShimmerSend;
     default:
         return false;
     }

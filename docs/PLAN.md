@@ -76,6 +76,14 @@ Spitzen), Limiter unter 80 Hz (`master.sub_ceiling` -6 dBFS, Linkwitz-Riley-Weic
 fast frei), Benutzer-Presets mit "Save..." (Textdateien unter Ephemeris/Presets). Gemessen: -15,1 bis -15,2
 LUFS, Doom/Drift -17,5; Crest 16,7-19,4 dB; Render 15-20x Echtzeit (die zweite Platte kostet rund 2 % eines
 Kerns). Selbsttest `testBlendAndBus`.
+Danach die vier Räume vollständig und die übrigen Punkte: frühe Reflexionen (Send A, `Module::Early`, 12 Abgriffe
+je Seite bis 35 ms, 200 Hz bis 8 kHz; Gegenreihen, Lead, Drums), Shimmer (Send D, `Module::Shimmer`, lange Platte
+mit Oktave nach oben in der Rückkopplung, 400 Hz bis 4 kHz; Bordun, Atmosphäre, Tape Keys in Atmosphäre, Brücken
+und Ausklang), das spektrale Ducking in sechs Bändern (350 Hz bis 4,8 kHz, Q 2), der Resonanzunterdrücker auf dem
+Reihen-Bus (`ResonanceTamer`, sechs Bänder Q 2,5, lokale Spitzen 4,5 dB über den Nachbarn bis 3:1,
+`master.tame` 0,6). Die Reihen laufen dafür über einen eigenen Bus. Rechenzeit nach Tabelle für die Duck-Gains
+und Leerlauf des Shimmers 7-8 % eines Kerns (vorher 5-6,5). Nicht umgesetzt: der Sub als eigenes Instrument
+(mit dem Nutzer so beschlossen). Selbsttest `testSendsAD`.
 Auftrag des Nutzers: die String Machine mehr wie Waldorfs Streichfett (Ensemble, Mischung der Register, langsames
 Animieren der Mischung) und den "Harmonie- und Stilguide Moderne Berlin School" (Downloads des Nutzers, Stand
 25.09.2026) umsetzen, soweit sinnvoll. Reihenfolge und Stand:

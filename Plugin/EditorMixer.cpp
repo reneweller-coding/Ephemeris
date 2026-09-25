@@ -84,14 +84,15 @@ void MixerStrip::resized()
     r.removeFromTop(20);   // the name
     // The knobs one under the other: fourteen strips leave a strip too narrow for two knobs of a size a hand
     // can grab. The name sits under each knob.
-    const int kh = juce::jlimit(28, 44, r.getWidth() - 18), lh = 12;
+    // Six knobs at most a strip; they shrink where the console is short, so the faders keep their room.
+    const int lh = 12, kh = juce::jlimit(20, 44, std::min(r.getWidth() - 18, (r.getHeight() - 170) / 6 - lh));
     for (size_t i = 0; i < knobs_.size(); ++i) {
         auto row = r.removeFromTop(kh + lh);
         knobs_[i]->setBounds(row.removeFromTop(kh));
         knobNames_[i]->setBounds(row);
     }
-    // Room for the rows' five knobs on every strip, so the faders and meters line up across the console.
-    r.removeFromTop(static_cast<int>(5 - std::min<size_t>(5, knobs_.size())) * (kh + lh));
+    // Room for six knobs on every strip, so the faders and meters line up across the console.
+    r.removeFromTop(static_cast<int>(6 - std::min<size_t>(6, knobs_.size())) * (kh + lh));
     r.removeFromTop(6);
     r.removeFromBottom(15);   // the peak readout
     const int half = r.getWidth() / 2;
@@ -188,8 +189,18 @@ MixerConsole::MixerConsole(EphemerisProcessor& proc) : proc_(proc)
         else if (m == M::Tape) blendSend = tape::BlendSend;
         else if (m == M::Strings) blendSend = strings::BlendSend;
         else if (m == M::Drums) blendSend = drums::BlendSend;
+        // Send A, the early reflections, where the source has one; then the blend room, the hall, send D.
+        int earlySend = -1, shimmerSend = -1;
+        if (c < kRows) earlySend = row::EarlySend;
+        else if (m == M::Lead || m == M::Drone) { earlySend = lead::EarlySend; shimmerSend = lead::ShimmerSend; }
+        else if (m == M::Tape) { earlySend = tape::EarlySend; shimmerSend = tape::ShimmerSend; }
+        else if (m == M::Strings) { earlySend = strings::EarlySend; shimmerSend = strings::ShimmerSend; }
+        else if (m == M::Drums) earlySend = drums::EarlySend;
+        else if (m == M::Atmos) shimmerSend = atmos::ShimmerSend;
+        if (earlySend >= 0) knobs.emplace_back(p.id(m, inst, earlySend), "Early");
         if (blendSend >= 0) knobs.emplace_back(p.id(m, inst, blendSend), "Blend");
         knobs.emplace_back(p.id(m, inst, reverbSend), "Hall");
+        if (shimmerSend >= 0) knobs.emplace_back(p.id(m, inst, shimmerSend), "Shimmer");
         auto strip = std::make_unique<MixerStrip>(proc, Engine::channelName(c), colour, p.id(m, inst, level), knobs);
         addAndMakeVisible(*strip);
         strips_.push_back(std::move(strip));

@@ -85,6 +85,7 @@ const ParamDesc kRowParams[row::Count] = {
     { "distance", "Distance", "",   0.0f,   1.0f,   0.0f, Curve::Linear },   // 0 near .. 1 the horizon (the addon's macro)
     { "blend",    "Blend Send", "",  0.0f,   1.0f,   0.0f, Curve::Linear },   // into the blend room (the addon's send B)
     { "punch",    "Punch",    "",    0.0f,   1.0f,   0.0f, Curve::Linear },   // the attacks lifted (a transient shaper)
+    { "early",    "Early Send", "",  0.0f,   1.0f,   0.0f, Curve::Linear },   // into the early reflections (send A)
 };
 
 /**
@@ -142,6 +143,8 @@ const ParamDesc kLeadParams[lead::Count] = {
     { "low_cut",  "Low Cut", "Hz", 10.0f, 500.0f, 150.0f, Curve::Log },   // the strip's high pass (production guide 4.2)
     { "distance", "Distance", "",   0.0f,   1.0f,   0.0f, Curve::Linear },   // 0 near .. 1 the horizon (the addon's macro)
     { "blend",    "Blend Send", "",  0.0f,   1.0f,   0.0f, Curve::Linear },   // into the blend room (the addon's send B)
+    { "early",    "Early Send", "",  0.0f,   1.0f,   0.0f, Curve::Linear },   // into the early reflections (send A)
+    { "shimmer",  "Shimmer Send", "", 0.0f,  1.0f,   0.0f, Curve::Linear },   // into the effect hall (send D)
 };
 
 /** The tape keyboard: a first setting of the machine (PLAN 5.4 wants it measured on recordings). */
@@ -161,6 +164,8 @@ const ParamDesc kTapeParams[tape::Count] = {
     { "distance", "Distance", "",   0.0f,   1.0f,   0.0f, Curve::Linear },   // 0 near .. 1 the horizon (the addon's macro)
     { "spread",   "Spread",   "",   0.0f,   1.0f,   0.7f, Curve::Linear },   // allpass decorrelation of the mono keyboard
     { "blend",    "Blend Send", "",  0.0f,   1.0f,   0.0f, Curve::Linear },   // into the blend room (the addon's send B)
+    { "early",    "Early Send", "",  0.0f,   1.0f,   0.0f, Curve::Linear },   // into the early reflections (send A)
+    { "shimmer",  "Shimmer Send", "", 0.0f,  1.0f,   0.0f, Curve::Linear },   // into the effect hall (send D)
 };
 
 /** The drone: the lead's table, set dark and slow, with a two-second release and much hall. */
@@ -188,6 +193,8 @@ const ParamDesc kDroneParams[lead::Count] = {
     { "low_cut",  "Low Cut", "Hz", 10.0f, 500.0f, 40.0f, Curve::Log },   // the strip's high pass (production guide 4.2)
     { "distance", "Distance", "",   0.0f,   1.0f,   0.0f, Curve::Linear },   // 0 near .. 1 the horizon (the addon's macro)
     { "blend",    "Blend Send", "",  0.0f,   1.0f,   0.0f, Curve::Linear },   // into the blend room (the addon's send B)
+    { "early",    "Early Send", "",  0.0f,   1.0f,   0.0f, Curve::Linear },   // into the early reflections (send A)
+    { "shimmer",  "Shimmer Send", "", 0.0f,  1.0f,   0.0f, Curve::Linear },   // into the effect hall (send D)
 };
 
 /** The atmosphere: all layers off until a piece or a hand brings them in. */
@@ -204,6 +211,7 @@ const ParamDesc kAtmosParams[atmos::Count] = {
     { "grains",        "Grains",        "dB",  -60.0f,     0.0f,  -60.0f, Curve::Linear },   // the granular cloud, off at -60
     { "grain_density", "Grain Density", "/s",    1.0f,    40.0f,   12.0f, Curve::Log },
     { "low_cut",  "Low Cut", "Hz", 10.0f, 500.0f, 120.0f, Curve::Log },   // the strip's high pass (production guide 4.2)
+    { "shimmer",  "Shimmer Send", "", 0.0f,  1.0f,   0.0f, Curve::Linear },   // into the effect hall (send D)
 };
 
 /** The string machine: slow in, slow out, the ensemble deep. */
@@ -226,6 +234,8 @@ const ParamDesc kStringsParams[strings::Count] = {
     { "low_cut",  "Low Cut", "Hz", 10.0f, 500.0f, 200.0f, Curve::Log },   // the strip's high pass (production guide 4.2)
     { "distance", "Distance", "",   0.0f,   1.0f,   0.0f, Curve::Linear },   // 0 near .. 1 the horizon (the addon's macro)
     { "blend",    "Blend Send", "",  0.0f,   1.0f,   0.0f, Curve::Linear },   // into the blend room (the addon's send B)
+    { "early",    "Early Send", "",  0.0f,   1.0f,   0.0f, Curve::Linear },   // into the early reflections (send A)
+    { "shimmer",  "Shimmer Send", "", 0.0f,  1.0f,   0.0f, Curve::Linear },   // into the effect hall (send D)
 };
 
 /** The springs: a short, bright-ish tank under the echo, quiet by default. */
@@ -245,6 +255,7 @@ const ParamDesc kDrumsParams[drums::Count] = {
     { "reverb",  "Reverb Send", "",     0.0f,   1.0f,   0.2f, Curve::Linear },
     { "low_cut",  "Low Cut", "Hz", 10.0f, 500.0f, 25.0f, Curve::Log },   // the strip's high pass (production guide 4.2)
     { "blend",    "Blend Send", "",  0.0f,   1.0f,   0.0f, Curve::Linear },   // into the blend room (the addon's send B)
+    { "early",    "Early Send", "",  0.0f,   1.0f,   0.0f, Curve::Linear },   // into the early reflections (send A)
 };
 
 const ParamDesc kPerformParams[perform::Count] = {
@@ -341,6 +352,7 @@ const ParamDesc kMasterParams[master::Count] = {
     { "sub_solo", "Sub Solo", "",      0.0f, 1.0f,  0.0f, Curve::Toggle },   // an 80 Hz low pass on the sum, for listening
     { "clip",        "Soft Clip",    "dB", 0.0f, 2.0f,  0.75f, Curve::Linear },   // what a soft clipper may take off the peaks
     { "sub_ceiling", "Sub Ceiling",  "dBFS", -18.0f, 0.0f, -6.0f, Curve::Linear }, // a limiter on the band under 80 Hz
+    { "tame",     "Resonance Tamer", "", 0.0f, 1.0f,  0.6f, Curve::Linear },   // the rows' bus: what sticks out 6 dB over the rest
 };
 
 /** @brief One module: its prefix, table, how many instances exist, and optionally their names. */
@@ -373,6 +385,21 @@ const ParamDesc kBlendParams[blend::Count] = {
     { "into_hall", "Into Hall",       "",      0.0f,     0.5f,   0.15f, Curve::Linear },   // the serial far space
 };
 
+/** The early reflections (send A) and the effect hall (send D) of the production guide (fx/Rooms.h). */
+const ParamDesc kEarlyParams[early::Count] = {
+    { "size",      "Early Size",      "ms",   10.0f,    80.0f,   35.0f, Curve::Linear },
+    { "low_cut",   "Early Low Cut",   "Hz",   60.0f,   800.0f,  200.0f, Curve::Log },
+    { "high_cut",  "Early High Cut",  "Hz", 2000.0f, 16000.0f, 8000.0f, Curve::Log },
+    { "return",    "Early Return",    "dB",  -60.0f,     6.0f,   -4.0f, Curve::Linear },
+};
+const ParamDesc kShimmerParams[shimmer::Count] = {
+    { "decay",     "Shimmer Decay",   "s",     2.0f,    20.0f,    8.0f, Curve::Log },
+    { "amount",    "Shimmer",         "",      0.0f,     0.6f,   0.35f, Curve::Linear },   // the octave fed back
+    { "low_cut",   "Shimmer Low Cut", "Hz",  100.0f,  1500.0f,  400.0f, Curve::Log },
+    { "high_cut",  "Shimmer High Cut","Hz", 1500.0f, 12000.0f, 4000.0f, Curve::Log },
+    { "return",    "Shimmer Return",  "dB",  -60.0f,     6.0f,   -8.0f, Curve::Linear },
+};
+
 const ModuleSpec kModules[static_cast<int>(Module::Count)] = {
     { "compose", kComposeParams, compose::Count, 1 },
     { "row",     kRowParams,     row::Count,     kRows },
@@ -391,7 +418,9 @@ const ModuleSpec kModules[static_cast<int>(Module::Count)] = {
     { "cue",     kCueParams,     cue::Count,     1 },
     { "custom",  kCustomParams,  custom::Count,  1 },
     { "delay",   kEcho2Params,   echo2::Count,   1 },
-    { "blend",   kBlendParams,   blend::Count,   1 },   // the blend room   // the second echo (a prefix without a digit: "row1" is an instance)
+    { "blend",   kBlendParams,   blend::Count,   1 },   // the blend room
+    { "early",   kEarlyParams,   early::Count,   1 },   // send A
+    { "shimmer", kShimmerParams, shimmer::Count, 1 },   // send D   // the second echo (a prefix without a digit: "row1" is an instance)
 };
 
 bool isDiscrete(Curve c) { return c == Curve::Int || c == Curve::Choice || c == Curve::Toggle; }

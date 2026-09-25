@@ -138,6 +138,19 @@ void Engine::load(const Score& score)
     reverb_.prepare(sampleRate_);
     plate_.prepare(sampleRate_);
     blend_.prepare(sampleRate_);
+    early_.prepare(sampleRate_);
+    shimmer_.prepare(sampleRate_);
+    {
+        // The six bands (350 Hz .. 4.8 kHz, about three quarters of an octave apart).
+        static const float kCentre[kBands] = { 350.0f, 600.0f, 1000.0f, 1700.0f, 2900.0f, 4800.0f };
+        const float sr = static_cast<float>(sampleRate_);
+        for (int k = 0; k < kBands; ++k) {
+            for (Svf* f : { &rowSide_[k], &padSide_[k] }) { f->setQ(kCentre[k], 1.2f, sr); f->reset(); }
+            for (Strip& st : strips_) for (int c = 0; c < 2; ++c) { st.band[c][k].setQ(kCentre[k], 2.0f, sr); st.band[c][k].reset(); }
+            rowBandEnv_[k] = padBandEnv_[k] = 0.0f;
+        }
+        tamer_.prepare(sampleRate_);
+    }
     tape_.prepare(sampleRate_, mixSeed(score_.seed, 500));
     tape_.setSingers(tapeSingers_);
     atmos_.prepare(sampleRate_, mixSeed(score_.seed, 600));
@@ -282,6 +295,8 @@ void Engine::updateCell()
                  row ? played(params_.id(Module::Row, r, row::Echo2Send)) : 0.0f, s(row::Distance, lead::Distance));
         setLowCut(r, s(row::LowCut, lead::LowCut));
         strips_[r].blend = s(row::BlendSend, lead::BlendSend);
+        strips_[r].early = s(row::EarlySend, lead::EarlySend);
+        strips_[r].shimmer = row ? 0.0f : played(params_.id(m, 0, lead::ShimmerSend));
         strips_[r].punch = row ? played(params_.id(Module::Row, r, row::Punch)) : 0.0f;
     }
 
@@ -308,6 +323,8 @@ void Engine::updateCell()
              1.0f, 0.0f, knob(Module::Tape, tape::Distance));
     tapeSpread_ = knob(Module::Tape, tape::Spread);
     strips_[kSrcTape].blend = knob(Module::Tape, tape::BlendSend);
+    strips_[kSrcTape].early = knob(Module::Tape, tape::EarlySend);
+    strips_[kSrcTape].shimmer = knob(Module::Tape, tape::ShimmerSend);
     setLowCut(kSrcTape, knob(Module::Tape, tape::LowCut));
 
     StringSettings ss;
@@ -329,6 +346,8 @@ void Engine::updateCell()
              1.41421356f, 0.0f, knob(Module::Strings, strings::Distance));
     setLowCut(kSrcStrings, knob(Module::Strings, strings::LowCut));
     strips_[kSrcStrings].blend = knob(Module::Strings, strings::BlendSend);
+    strips_[kSrcStrings].early = knob(Module::Strings, strings::EarlySend);
+    strips_[kSrcStrings].shimmer = knob(Module::Strings, strings::ShimmerSend);
 
     DrumSettings ds;
     ds.kickHz = knob(Module::Drums, drums::KickHz);
@@ -345,6 +364,8 @@ void Engine::updateCell()
     }
     setLowCut(kSrcDrums, knob(Module::Drums, drums::LowCut));
     strips_[kSrcDrums].blend = knob(Module::Drums, drums::BlendSend);
+    strips_[kSrcDrums].early = knob(Module::Drums, drums::EarlySend);
+    strips_[kSrcAtmos].shimmer = knob(Module::Atmos, atmos::ShimmerSend);
     setLowCut(kSrcAtmos, knob(Module::Atmos, atmos::LowCut));
 
     auto gain = [](float db) { return db <= -59.9f ? 0.0f : dbToGain(db); };
@@ -418,7 +439,12 @@ void Engine::updateCell()
     width_ = dbToGain(knob(Module::Master, master::Width));
     mono_ = knob(Module::Master, master::Mono) >= 0.5f;
     subSolo_ = knob(Module::Master, master::SubSolo) >= 0.5f;
-    cascadeDb_ = knob(Module::Master, master::Cascade);
+    const float cascade = knob(Module::Master, master::Cascade);
+    if (cascade != cascadeDb_ || !cache_.valid) {
+        // The duck's gains from its amount, once per change: 256 steps are finer than anyone hears (at most 0.02 dB).
+        cascadeDb_ = cascade;
+        for (int k = 0; k < 256; ++k) duckTable_[k] = dbToGain(-cascadeDb_ * static_cast<float>(k) / 255.0f);
+    }
     plateOn_ = knob(Module::Reverb, reverb::Type) >= 0.5f;
     const float hall[7] = { knob(Module::Reverb, reverb::Size), knob(Module::Reverb, reverb::Decay), knob(Module::Reverb, reverb::Damping),
                             knob(Module::Reverb, reverb::PreDelay) * 0.001f * static_cast<float>(sampleRate_),
@@ -434,6 +460,14 @@ void Engine::updateCell()
     if (changed(cache_.blend, blendSet, cache_.valid)) blend_.set(blendSet[0], blendSet[1], blendSet[2], blendSet[3], blendSet[4]);
     blendReturn_ = dbToGain(knob(Module::Blend, blend::Return));
     blendIntoHall_ = knob(Module::Blend, blend::IntoHall);
+    const float earlySet[3] = { knob(Module::Early, early::Size), knob(Module::Early, early::LowCut), knob(Module::Early, early::HighCut) };
+    if (changed(cache_.early, earlySet, cache_.valid)) early_.set(earlySet[0], earlySet[1], earlySet[2]);
+    earlyReturn_ = dbToGain(knob(Module::Early, early::Return));
+    const float shimSet[4] = { knob(Module::Shimmer, shimmer::Decay), knob(Module::Shimmer, shimmer::Amount),
+                               knob(Module::Shimmer, shimmer::LowCut), knob(Module::Shimmer, shimmer::HighCut) };
+    if (changed(cache_.shimmer, shimSet, cache_.valid)) shimmer_.set(shimSet[0], shimSet[1], shimSet[2], shimSet[3]);
+    shimmerReturn_ = dbToGain(knob(Module::Shimmer, shimmer::Return));
+    tame_ = knob(Module::Master, master::Tame);
     clipDb_ = knob(Module::Master, master::Clip);
     clipCeiling_ = dbToGain(knob(Module::Master, master::Ceiling));
     subCeiling_ = dbToGain(knob(Module::Master, master::SubCeiling));
@@ -506,17 +540,21 @@ void Engine::mix(int source, const float* xl, const float* xr, int n, const Buse
         xl = fl;
         xr = fr;
     }
-    // The cascaded duck (the addon's 4): only the band 300 Hz .. 5 kHz steps back, the body and the air stay.
+    // The cascaded, spectral duck (the addon's 4): six bands between 350 Hz and 4.8 kHz, each stepping back by its own
+    // gain (midGain holds kBands rows of kCell): only where the side chain has energy; the body and the air stay.
     if (midGain != nullptr) {
         float* out[2] = { fl, fr };
         const float* in[2] = { xl, xr };
         for (int c = 0; c < (mono ? 1 : 2); ++c) {
             for (int i = 0; i < n; ++i) {
-                float lo, bp, hp, l2, b2, high;
-                strip.splitLo[c].tick(in[c][i], lo, bp, hp);
-                strip.splitHi[c].tick(in[c][i], l2, b2, high);
-                const float mid = in[c][i] - lo - high;
-                out[c][i] = in[c][i] - (1.0f - midGain[i]) * mid;
+                const float x = in[c][i];
+                float y = x;
+                for (int k = 0; k < kBands; ++k) {
+                    float lo, bp, hp;
+                    strip.band[c][k].tick(x, lo, bp, hp);
+                    y += (midGain[k * kCell + i] - 1.0f) * bp * strip.band[c][k].k;
+                }
+                out[c][i] = y;
             }
         }
         if (mono) std::copy(fl, fl + n, fr);
@@ -526,8 +564,8 @@ void Engine::mix(int source, const float* xl, const float* xr, int n, const Buse
     const float echo = strip.echo + echoThrow_;   // the throw on top of the send (exactly the send without it)
     for (int i = 0; i < n; ++i) {
         const float l = xl[i] * strip.gainL, r = xr[i] * strip.gainR;
-        b.L[i] += l;
-        b.R[i] += r;
+        // The rows go onto their own bus (the resonance suppressor works on it, renderSpan); the rest into the mix.
+        if (source >= kRows) { b.L[i] += l; b.R[i] += r; }
         if (echoSend) { b.echoL[i] += l * echo; b.echoR[i] += r * echo; }
         b.hallL[i] += l * strip.reverb;
         b.hallR[i] += r * strip.reverb;
@@ -537,6 +575,10 @@ void Engine::mix(int source, const float* xl, const float* xr, int n, const Buse
         if (source == kSrcStrings || source == kSrcTape) { b.padsL[i] += l; b.padsR[i] += r; }
         b.blendL[i] += l * strip.blend;
         b.blendR[i] += r * strip.blend;
+        b.earlyL[i] += l * strip.early;
+        b.earlyR[i] += r * strip.early;
+        b.shimL[i] += l * strip.shimmer;
+        b.shimR[i] += r * strip.shimmer;
     }
     if (metering_) {
         // What the strip put into the mix, read again: the sums above are not touched.
@@ -561,6 +603,7 @@ void Engine::renderSpan(float* L, float* R, int n)
 {
     float bufL[kCell], bufR[kCell], echoL[kCell], echoR[kCell], hallInL[kCell], hallInR[kCell], echo2L[kCell], echo2R[kCell];
     float rowsL[kCell] = {}, rowsR[kCell] = {}, padsL[kCell] = {}, padsR[kCell] = {}, blendInL[kCell] = {}, blendInR[kCell] = {};
+    float earlyInL[kCell] = {}, earlyInR[kCell] = {}, shimInL[kCell] = {}, shimInR[kCell] = {};
     std::fill(L, L + n, 0.0f);
     std::fill(R, R + n, 0.0f);
     std::fill(echoL, echoL + n, 0.0f);
@@ -569,7 +612,8 @@ void Engine::renderSpan(float* L, float* R, int n)
     std::fill(hallInR, hallInR + n, 0.0f);
     std::fill(echo2L, echo2L + n, 0.0f);
     std::fill(echo2R, echo2R + n, 0.0f);
-    const Buses b{ L, R, echoL, echoR, hallInL, hallInR, echo2L, echo2R, rowsL, rowsR, padsL, padsR, blendInL, blendInR };
+    const Buses b{ L, R, echoL, echoR, hallInL, hallInR, echo2L, echo2R, rowsL, rowsR, padsL, padsR, blendInL, blendInR,
+                   earlyInL, earlyInR, shimInL, shimInR };
     if (metering_) meterCount_ += n;
 
     // The sources, each through its strip, in a fixed order (the order of the sums is part of the result).
@@ -581,13 +625,30 @@ void Engine::renderSpan(float* L, float* R, int n)
     // The rows' envelope, sample by sample (so the result does not depend on how a block is cut into spans): it ducks
     // the rooms' returns (the production guide's 5.2, 5.4) and, in their middle band, the pads (the addon's 4). From
     // -30 dBFS on, fully at -12.
-    float duckAmount[kCell], rowGain[kCell], padGain[kCell];
-    const float casK = -cascadeDb_ * 0.11512925f;   // ln 10 / 20
+    // The rows' bus through the resonance suppressor (the production guide's 4.4, 8.2): six bands, each one's follower
+    // (3 ms up, 60 ms down) against its neighbours'; a band more than 4.5 dB over them is pulled back 3:1 (master.tame scales
+    // the ratio), so a filter's resonance that sweeps through does not stick out; then into the mix.
+    {
+        float tl[kCell], tr[kCell];
+        std::copy(rowsL, rowsL + n, tl);
+        std::copy(rowsR, rowsR + n, tr);
+        tamer_.process(tl, tr, n, tame_);
+        for (int i = 0; i < n; ++i) { L[i] += tl[i]; R[i] += tr[i]; }
+    }
+    float duckAmount[kCell], rowGain[kBands * kCell], padGain[kBands * kCell];
     for (int i = 0; i < n; ++i) {
         const float x = std::max(std::fabs(rowsL[i]), std::fabs(rowsR[i]));
         duckEnv_ = x + (x > duckEnv_ ? envAttack_ : envRelease_) * (duckEnv_ - x);
         duckAmount[i] = std::clamp((duckEnv_ - 0.0316f) / (0.2512f - 0.0316f), 0.0f, 1.0f);
-        rowGain[i] = std::exp(casK * duckAmount[i]);
+        // The side chain in the six bands: each band of the pads steps back where the rows have energy in it.
+        const float mono = 0.5f * (rowsL[i] + rowsR[i]);
+        for (int k = 0; k < kBands; ++k) {
+            float lo, bp, hp;
+            rowSide_[k].tick(mono, lo, bp, hp);
+            const float bx = std::fabs(bp * rowSide_[k].k);
+            rowBandEnv_[k] = bx + (bx > rowBandEnv_[k] ? envAttack_ : envRelease_) * (rowBandEnv_[k] - bx);
+            rowGain[k * kCell + i] = duckTable_[static_cast<int>(255.0f * std::clamp((rowBandEnv_[k] - 0.01f) / (0.08f - 0.01f), 0.0f, 1.0f))];
+        }
     }
     if (strips_[kSrcDrums].running) {
         drums_.process(bufL, bufR, n);
@@ -623,7 +684,14 @@ void Engine::renderSpan(float* L, float* R, int n)
     for (int i = 0; i < n; ++i) {
         const float x = std::max(std::fabs(padsL[i]), std::fabs(padsR[i]));
         padEnv_ = x + (x > padEnv_ ? envAttack_ : envRelease_) * (padEnv_ - x);
-        padGain[i] = std::exp(casK * std::clamp((padEnv_ - 0.0316f) / (0.2512f - 0.0316f), 0.0f, 1.0f));
+        const float mono = 0.5f * (padsL[i] + padsR[i]);
+        for (int k = 0; k < kBands; ++k) {
+            float lo, bp, hp;
+            padSide_[k].tick(mono, lo, bp, hp);
+            const float y = std::fabs(bp * padSide_[k].k);
+            padBandEnv_[k] = y + (y > padBandEnv_[k] ? envAttack_ : envRelease_) * (padBandEnv_[k] - y);
+            padGain[k * kCell + i] = duckTable_[static_cast<int>(255.0f * std::clamp((padBandEnv_[k] - 0.01f) / (0.08f - 0.01f), 0.0f, 1.0f))];
+        }
     }
     if (strips_[kSrcAtmos].running) {
         // The whole atmosphere goes to the mix and the hall, only its bleeps to the echo.
@@ -670,8 +738,10 @@ void Engine::renderSpan(float* L, float* R, int n)
     }
     // The blend room (the addon's serial far space): a short plate; a share of its return goes on into the hall, so the
     // far room sounds like the near one going on, not like a second place.
-    float blendL[kCell] = {}, blendR[kCell] = {};
+    float blendL[kCell] = {}, blendR[kCell] = {}, earlyL[kCell] = {}, earlyR[kCell] = {}, shimL[kCell] = {}, shimR[kCell] = {};
     blend_.process(blendInL, blendInR, blendL, blendR, n);
+    early_.process(earlyInL, earlyInR, earlyL, earlyR, n);
+    shimmer_.process(shimInL, shimInR, shimL, shimR, n);
     for (int i = 0; i < n; ++i) {
         hallInL[i] += blendL[i] * blendReturn_ * blendIntoHall_;
         hallInR[i] += blendR[i] * blendReturn_ * blendIntoHall_;
@@ -685,8 +755,10 @@ void Engine::renderSpan(float* L, float* R, int n)
     }
     for (int i = 0; i < n; ++i) {
         const float eg = std::exp(echoK * duckAmount[i]), hg = std::exp(hallK * duckAmount[i]);
-        const float rl = (wetL[i] * echoReturn_ + wet2L[i] * echo2Return_) * eg + (hallL[i] * reverbReturn_ + blendL[i] * blendReturn_) * hg;
-        const float rr = (wetR[i] * echoReturn_ + wet2R[i] * echo2Return_) * eg + (hallR[i] * reverbReturn_ + blendR[i] * blendReturn_) * hg;
+        const float rl = (wetL[i] * echoReturn_ + wet2L[i] * echo2Return_) * eg
+                       + (hallL[i] * reverbReturn_ + blendL[i] * blendReturn_ + earlyL[i] * earlyReturn_) * hg + shimL[i] * shimmerReturn_;
+        const float rr = (wetR[i] * echoReturn_ + wet2R[i] * echo2Return_) * eg
+                       + (hallR[i] * reverbReturn_ + blendR[i] * blendReturn_ + earlyR[i] * earlyReturn_) * hg + shimR[i] * shimmerReturn_;
         if (stemL_ != nullptr) {
             stemL_[kChannels][spanAt_ + i] = rl;
             stemR_[kChannels][spanAt_ + i] = rr;

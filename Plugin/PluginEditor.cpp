@@ -386,7 +386,7 @@ EphemerisEditor::EphemerisEditor(EphemerisProcessor& p) : juce::AudioProcessorEd
     page("Strings", { { M::Strings, 0 } }, 1);
     page("Atmosphere", { { M::Atmos, 0 } }, 1);
     page("Echo + Spring", { { M::Echo, 0 }, { M::Spring, 0 }, { M::Echo2, 0 } }, 1);
-    page("Hall", { { M::Reverb, 0 }, { M::Blend, 0 } }, 1);
+    page("Hall", { { M::Reverb, 0 }, { M::Blend, 0 }, { M::Early, 0 }, { M::Shimmer, 0 } }, 1);
     page("Drums", { { M::Drums, 0 } }, 1);
     page("Master", { { M::Master, 0 }, { M::Compose, 0 }, { M::Cue, 0 } }, 1);
     tabs_.addTab("Style", kPanel, new StylePage(proc_, std::make_unique<ParamPage>(proc_, std::vector<std::pair<M, int>>{ { M::Custom, 0 } }, 1)), true);
