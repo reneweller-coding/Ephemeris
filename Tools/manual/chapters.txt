@@ -177,7 +177,10 @@ Filter Sweep turns the row's cutoff slowly up and down, a sine of its own period
 for every row, never in step with the bars or with each other: the long openings and closings of the
 Berlin School. The composer gives the main sequence the widest sweep and a squelchy voice -- more
 resonance, a short deep filter envelope, strong accents -- the bass a round one and the other rows
-something between; Motion on the Master page scales every sweep with the other slow movements.
+something between; Motion on the Master page scales every sweep with the other slow movements. And on every
+counter row one knob of its timbre wanders through the piece in glides of one to three minutes -- the place in
+its wavetable, else the mix of saw and pulse, or the pulse width where the pulse is heard -- as does the pad
+synth's place in its table: a spectrum that never stands still for long. The bass keeps its sound, the ground.
 
 No sequence runs more than sixteen bars unchanged. The composer plans the variations the way a player at
 the sequencer makes them, one at a time, every eight to sixteen bars: a step switched off or on, a step

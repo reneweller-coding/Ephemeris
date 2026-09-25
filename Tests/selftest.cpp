@@ -2178,6 +2178,39 @@ void testRowTables()
 }
 
 /**
+ * The timbre drift (the style guide's 4.3): every counter row that plays has a knob of its timbre wandering in long
+ * glides, the pad synth its place in the table; the bass has none.
+ */
+void testTimbreDrift()
+{
+    section("timbre drift");
+    int rows = 0, drifting = 0, bass = 0, pads = 0, padDrift = 0;
+    for (uint64_t seed : { 1u, 2u, 3u, 4u }) {
+        ParamStore q;
+        q.parseText("compose.style=Melodic");
+        const Score sc = composePiece(q, seed, 8.0);
+        for (int r = 0; r < kRows; ++r) {
+            bool plays = false;
+            for (const NoteEvent& n : sc.notes) if (n.part == rowPart(r)) { plays = true; break; }
+            bool long3 = false;
+            for (const Gesture& g : sc.gestures)
+                if (g.hand == 3 && g.length >= 100.0 && (g.param == q.id(Module::Voice, r, voice::Wave) || g.param == q.id(Module::Voice, r, voice::PulseWidth)
+                                                          || g.param == q.id(Module::Voice, r, voice::TablePos))) long3 = true;
+            if (r == 0) { bass += long3; continue; }
+            rows += plays;
+            drifting += plays && long3;
+        }
+        bool hasPad = false, posDrift = false;
+        for (const NoteEvent& n : sc.notes) hasPad = hasPad || n.part == Part::Pad;
+        for (const Gesture& g : sc.gestures) posDrift = posDrift || (g.param == q.id(Module::Poly, 0, poly::Position) && g.hand == 3 && g.length >= 100.0);
+        pads += hasPad;
+        padDrift += hasPad && posDrift;
+    }
+    check(rows > 0 && drifting == rows && bass == 0, "every counter row's timbre wanders, the bass's not", fmt("%d of %d rows", drifting, rows));
+    check(pads == padDrift, "the pad synth wanders through its table", fmt("%d of %d pieces with pads", padDrift, pads));
+}
+
+/**
  * The offline render is the oracle only if a host's block size cannot change a sample: the study
  * rendered with blocks of 1, 37 and 512 must agree bit for bit (Engine.h).
  */
@@ -2339,6 +2372,7 @@ const TestSection kSections[] = {
     { "testSounds", testSounds },
     { "testPoly", testPoly },
     { "testRowTables", testRowTables },
+    { "testTimbreDrift", testTimbreDrift },
     { "testBlockSizes", testBlockSizes },
     { "testEcho", testEcho },
     { "testDrift", testDrift },

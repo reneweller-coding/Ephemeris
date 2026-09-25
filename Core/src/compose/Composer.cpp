@@ -969,6 +969,37 @@ void writeSettings(Piece& c)
             c.s.gestures.push_back({ id, std::max(from + 2.0 * kBeatsPerBar, to - 2.0 * kBeatsPerBar), 2.0 * kBeatsPerBar, down, at, G::MinimumJerk, 3 });
         }
     }
+    // Timbre drift (the style guide's 4.3, "wave mix, PWM, sync, detune changed slowly -- all the time"; 0zk's one
+    // slow modulation per layer): on every counter row one knob of its timbre wanders over the piece -- the place in
+    // its wavetable, else the wave mix, or the pulse width where the pulse is heard -- and the pad synth's place in its
+    // table; glides of one to three minutes around where the settings put the knob, by the composer's own hand. The
+    // bass stays as it is, the ground. Their own stream on the sounds' unit.
+    {
+        Rng dr;
+        dr.seed(mixSeed(c.seedOf(sSounds), 0x6472u));
+        auto value = [&](int id) { return p.fromNormalised(id, std::clamp(p.toNormalised(id, p.get(id)) + c.s.gestureOffset(id, 0.0), 0.0f, 1.0f)); };
+        auto wander = [&](int id, double from, float range) {
+            if (from < 0.0) return;
+            const float base = c.s.gestureOffset(id, 0.0);
+            float at = base;
+            for (double t = from; t < c.form.lengthBeats - 8.0 * kBeatsPerBar;) {
+                const double len = std::min((60.0 + 120.0 * dr.uniform()) * c.s.tempo.bpmAt(t) / 60.0, c.form.lengthBeats - t);
+                const float to = std::clamp(base + range * (2.0f * dr.uniform() - 1.0f), -1.0f, 1.0f);
+                c.s.gestures.push_back({ id, t, len, at, to, G::MinimumJerk, 3 });
+                at = to;
+                t += len;
+            }
+        };
+        for (int k = 0; k < c.counters; ++k) {
+            const int r = k + 1;
+            const bool table = value(p.id(Module::Voice, r, voice::Table)) >= 0.5f;
+            const bool pulse = value(p.id(Module::Voice, r, voice::Wave)) >= 0.2f;
+            const int id = table ? p.id(Module::Voice, r, voice::TablePos)
+                         : p.id(Module::Voice, r, pulse && dr.uniform() < 0.5f ? voice::PulseWidth : voice::Wave);
+            wander(id, c.rowFrom[static_cast<size_t>(r)], table ? 0.3f : 0.25f);
+        }
+        wander(p.id(Module::Poly, 0, poly::Position), c.polyFrom, 0.25f);
+    }
 }
 
 /**
