@@ -7,6 +7,7 @@
 #include "EditorOrrery.h"
 #include "EditorPerform.h"
 #include "EditorGestures.h"
+#include "EditorStyle.h"
 #include "eph/compose/Composer.h"
 #include <cstdlib>
 
@@ -290,6 +291,7 @@ EphemerisEditor::EphemerisEditor(EphemerisProcessor& p) : juce::AudioProcessorEd
     page("Hall", { { M::Reverb, 0 } }, 1);
     page("Drums", { { M::Drums, 0 } }, 1);
     page("Master", { { M::Master, 0 }, { M::Compose, 0 }, { M::Cue, 0 } }, 1);
+    tabs_.addTab("Style", kPanel, new StylePage(proc_), true);
     addAndMakeVisible(tabs_);
 
     setResizable(true, true);

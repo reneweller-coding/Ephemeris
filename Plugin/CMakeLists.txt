@@ -15,7 +15,7 @@ juce_add_plugin(Ephemeris
     VERSION                     ${PROJECT_VERSION}
     PRODUCT_NAME                "Ephemeris"
     ICON_BIG                    "${CMAKE_SOURCE_DIR}/Deploy/ephemeris.png")
-target_sources(Ephemeris PRIVATE PluginProcessor.cpp PluginEditor.cpp EditorMixer.cpp EditorOrrery.cpp EditorPerform.cpp EditorGestures.cpp)
+target_sources(Ephemeris PRIVATE PluginProcessor.cpp PluginEditor.cpp EditorMixer.cpp EditorOrrery.cpp EditorPerform.cpp EditorGestures.cpp EditorStyle.cpp)
 target_compile_definitions(Ephemeris PUBLIC
     JUCE_WEB_BROWSER=0
     JUCE_USE_CURL=0
