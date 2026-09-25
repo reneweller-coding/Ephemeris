@@ -27,7 +27,8 @@ umgesetzt (die Einträge darunter); offen ist, was einen Menschen, eine Installa
 5. ~~Kleinere Ideen aus 8.1~~ erledigt am 25.09.2026 (siehe unten): eigener Stil, Platte und BBD, Granular,
    Spannungsbogen über ein Konzert.
 
-**In Arbeit (25.09.2026, nachmittags): String Machine nach dem Vorbild Streichfett, Stilguide umsetzen.**
+**25.09.2026, nachmittags: String Machine nach dem Vorbild Streichfett, Stilguide umgesetzt** (alle vier
+Schritte erledigt; Release-Build mit pluginval Strenge 10 und Installer, Quest-APK gebaut).
 Auftrag des Nutzers: die String Machine mehr wie Waldorfs Streichfett (Ensemble, Mischung der Register, langsames
 Animieren der Mischung) und den "Harmonie- und Stilguide Moderne Berlin School" (Downloads des Nutzers, Stand
 25.09.2026) umsetzen, soweit sinnvoll. Reihenfolge und Stand:

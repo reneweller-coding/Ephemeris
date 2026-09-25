@@ -18,6 +18,12 @@ The plan, the musical specification and the literature behind each building bloc
   keys, controllers and learn), the rack with the orrery, a page per source; the host's tempo in a host.
 - Concerts that morph from one style to another and follow an arc of tension; a style of your own.
 - Rooms: the hall or a plate, the tape echo or a bucket-brigade delay; a granular cloud in the atmosphere.
+- A string machine after Waldorf's Streichfett: five registers morphing through eight registrations, the
+  mix animated by a slow LFO, three ensembles and a phaser.
+- Harmony, sequencing and form after a style guide of the modern Berlin School: a chord track the bass
+  follows under the unchanged sequence, sequencer transpositions, parallel changes of mode, eight modes;
+  sequence archetypes, ratchets, probability gates, a doubled pulse, a sequence that loses its steps;
+  the open fifth at the end, the rooms and the lead's phrasing after the guide.
 - Score cues over OSC for a visualiser (Kaleidoscope); stems; a gestures page and a style page.
 - The Quest app (built, not yet run on a headset), the release build with installer and pluginval, and the
   manual generator.
