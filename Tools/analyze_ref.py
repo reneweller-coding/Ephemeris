@@ -8,7 +8,15 @@ For every track of a profile's folders (Tools/ref_sets.txt) it measures:
   * the filter sweeps: brightness = log2 of the power-weighted spectral centroid over 150 Hz .. 8 kHz
     in half-second frames, smoothed over 4 s; a sweep is a run between two turning points at least
     0.25 octave apart -- its duration in seconds and its span in octaves;
-  * length and level (RMS dBFS of the whole, and the 10..95 % range of 3-second RMS).
+  * length and level (RMS dBFS of the whole, and the 10..95 % range of 3-second RMS);
+  * the tempogram (25.09.2026, PLAN 11.4): the tempo in sliding 12-second windows, each scored by a comb
+    over the beat, the half bar and the bar (Grosche and Mueller, "Extracting predominant local pulse
+    information from music recordings", IEEE TASLP 2011, in its autocorrelation form), so the metrical
+    level is decided per window and a tempo change or a free section shows as such; the track's tempo is
+    the mode over the windows that hold a pulse, with the share of windows within 2 % of it;
+  * the row length from the pitches, not the rhythm: a chroma vector per sequencer step (the step period
+    of the window), and the shortest lag in steps (3..32) at which the chroma pattern repeats nearly as
+    well as at its best -- a histogram over the windows.
 
 Usage:
   python Tools/analyze_ref.py [--profiles Cosmic,Melodic] [--max-tracks 10] [--out Tools/ref_stats.json]
@@ -144,15 +152,93 @@ def measure(x):
     rms = np.sqrt(np.array([np.mean(x[i:i + seg] ** 2) for i in range(0, len(x) - seg, seg)]) + 1e-20)
     res['rms_db'] = round(float(10 * np.log10(np.mean(x ** 2) + 1e-20)), 1)
     res['range_db'] = round(float(20 * np.log10(np.percentile(rms, 95) / max(np.percentile(rms, 10), 1e-10))), 1)
+    res.update(tempogram(x))
     return res
+
+
+def tempogram(x, win_s=12.0, hop_s=3.0):
+    """Local tempo per window (see the module comment); the track's tempo, its stability, row lengths."""
+    P, hop = stft_power(x)
+    f = np.fft.rfftfreq(1024, 1 / SR)
+    fr = SR / hop
+    L = np.log1p(P[:, f > 100] * 1e4)
+    flux = np.maximum(np.diff(L, axis=0), 0).sum(axis=1)
+    flux -= np.convolve(flux, np.ones(43) / 43, mode='same')
+    flux = np.maximum(flux, 0)
+    # Chroma per STFT frame, 200 Hz .. 2.5 kHz, for the row lengths: above the bass, whose root and octaves
+    # would make every lag look alike.
+    band = (f >= 200) & (f <= 2500)
+    pcs = (np.round(12 * np.log2(f[band] / 440.0)) + 9).astype(int) % 12
+    C = np.zeros((P.shape[0], 12))
+    for pc in range(12):
+        C[:, pc] = P[:, band][:, pcs == pc].sum(axis=1)
+    W, H = int(win_s * fr), int(hop_s * fr)
+    beats = np.arange(0.40, 0.75, 0.002)          # beat periods, 80 .. 150 BPM
+    local, rows = [], []
+    for start in range(0, len(flux) - W, H):
+        e = flux[start:start + W]
+        e = e - e.mean()
+        ac = np.correlate(e, e, mode='full')[W - 1:]
+        if ac[0] <= 0:
+            continue
+        ac /= ac[0]
+
+        def at(t):
+            j = t * fr
+            i = int(j)
+            return ac[i] + (j - i) * (ac[i + 1] - ac[i]) if i + 1 < len(ac) else 0.0
+        # The comb: a beat period T counts with its sixteenths, eighths, half bar and bar.
+        score = np.array([0.5 * at(T / 4) + 0.5 * at(T / 2) + at(T) + 0.5 * at(2 * T) + 0.5 * at(4 * T) for T in beats])
+        k = int(np.argmax(score))
+        if score[k] < 0.35:                          # no pulse: a free section
+            continue
+        T = beats[k]
+        local.append(60.0 / T)
+        # The row length in steps (sixteenths of this beat, or eighths where the sixteenth is weak).
+        step = T / 4 if at(T / 4) >= 0.6 * at(T / 2) else T / 2
+        n = int((W / fr) / step)
+        if n < 70:
+            continue
+        idx = (start + (np.arange(n) * step * fr)).astype(int)
+        idx = idx[idx < C.shape[0]]
+        v = C[idx]
+        v = v / (np.linalg.norm(v, axis=1, keepdims=True) + 1e-20)
+        sims = [(float(np.mean(np.sum(v[:-lag] * v[lag:], axis=1))), lag) for lag in range(3, 33) if lag < len(v) - 8]
+        if not sims:
+            continue
+        # Against the median of all lags: a pattern repeats where its similarity stands out, and the row is
+        # the shortest such lag (its multiples repeat as well). A window where nothing stands out has no row.
+        best, med = max(sv for sv, _ in sims), float(np.median([sv for sv, _ in sims]))
+        if best - med < 0.03:
+            continue
+        rows.append(min(lag for sv, lag in sims if sv - med >= 0.8 * (best - med)))
+    out = {'windows_with_pulse': len(local)}
+    if local:
+        hist, edges = np.histogram(local, bins=np.arange(80, 151, 1.0))
+        mode = float(edges[int(np.argmax(hist))] + 0.5)
+        near = [t for t in local if abs(t - mode) <= 0.02 * mode]
+        out['tempogram_bpm'] = round(float(np.median(near)), 1)
+        out['tempo_stability'] = round(len(near) / len(local), 2)
+        out['tempo_q10_q90'] = [round(float(np.percentile(local, 10)), 1), round(float(np.percentile(local, 90)), 1)]
+    if rows:
+        vals, counts = np.unique(rows, return_counts=True)
+        order = np.argsort(-counts)
+        out['row_lengths'] = {int(vals[i]): int(counts[i]) for i in order[:5]}
+    return out
 
 
 def summary(rows):
     def med(key):
         v = [r[key] for r in rows if key in r]
         return round(float(np.median(v)), 2) if v else None
-    return {k: med(k) for k in ('seconds', 'bpm', 'step_s', 'sweep_s_median', 'sweep_oct_median',
-                                'sweeps_per_min', 'brightness_range_oct', 'rms_db', 'range_db')} | {'tracks': len(rows)}
+    out = {k: med(k) for k in ('seconds', 'bpm', 'tempogram_bpm', 'tempo_stability', 'step_s', 'sweep_s_median',
+                               'sweep_oct_median', 'sweeps_per_min', 'brightness_range_oct', 'rms_db', 'range_db')}
+    lengths = {}
+    for r in rows:
+        for k, c in r.get('row_lengths', {}).items():
+            lengths[int(k)] = lengths.get(int(k), 0) + c
+    out['row_lengths'] = dict(sorted(lengths.items(), key=lambda kv: -kv[1])[:6])
+    return out | {'tracks': len(rows)}
 
 
 def main():
@@ -176,6 +262,8 @@ def main():
             r['track'] = os.path.basename(path)
             rows.append(r)
             print(f"  {prof:8s} {r['track'][:48]:48s} {r['seconds']:6.0f}s  bpm {r.get('bpm', '-')!s:>6}"
+                  f"  tempogram {r.get('tempogram_bpm', '-')!s:>6} ({r.get('tempo_stability', '-')})"
+                  f"  row lengths {r.get('row_lengths', {})}"
                   f"  rows {r.get('row_length_candidates')}  sweep {r.get('sweep_s_median', '-')}s"
                   f" / {r.get('sweep_oct_median', '-')} oct  rms {r.get('rms_db')}")
         stats[prof] = {'summary': summary(rows), 'tracks': rows}

@@ -39,7 +39,6 @@ private:
         Svf lp, hp;
         float y = 0.0f;
     };
-    float tick(Tank& t, float x);
     double sr_ = 48000.0;
     Tank tanks_[2];
 };

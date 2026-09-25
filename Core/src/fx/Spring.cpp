@@ -44,29 +44,36 @@ void Spring::set(float decaySeconds, float toneHz)
     }
 }
 
-float Spring::tick(Tank& t, float x)
-{
-    // The loop: delay -> dispersion -> tone -> gain, fed back; the output is the dispersed wave.
-    float v = t.line[(t.write - static_cast<size_t>(t.delay)) & t.mask];
-    for (int i = 0; i < kStages; ++i) {
-        // First-order all-pass y = a x + s; s' = x - a y (transposed direct form II).
-        const float y = kApCoef * v + t.ap[i];
-        t.ap[i] = v - kApCoef * y;
-        v = y;
-    }
-    float lo, bp, hi;
-    t.hp.tick(t.lp.lp(v), lo, bp, hi);
-    t.y = hi;
-    t.line[t.write] = x + t.gain * t.y;
-    t.write = (t.write + 1) & t.mask;
-    return t.y;
-}
-
 void Spring::process(const float* inL, const float* inR, float* outL, float* outR, int n)
 {
+    // The loop of each spring: delay -> dispersion -> tone -> gain, fed back; the output is the dispersed wave.
+    // The 48 all-passes are a chain -- each waits for the one before -- so the two springs go through them
+    // side by side, and the processor works on both chains at once. Each stage is two fused multiply-adds.
+    Tank& a = tanks_[0];
+    Tank& b = tanks_[1];
     for (int i = 0; i < n; ++i) {
-        outL[i] += tick(tanks_[0], inL[i]);
-        outR[i] += tick(tanks_[1], inR[i]);
+        float va = a.line[(a.write - static_cast<size_t>(a.delay)) & a.mask];
+        float vb = b.line[(b.write - static_cast<size_t>(b.delay)) & b.mask];
+        for (int k = 0; k < kStages; ++k) {
+            // First-order all-pass y = c x + s; s' = x - c y (transposed direct form II).
+            const float ya = std::fma(kApCoef, va, a.ap[k]);
+            const float yb = std::fma(kApCoef, vb, b.ap[k]);
+            a.ap[k] = std::fma(-kApCoef, ya, va);
+            b.ap[k] = std::fma(-kApCoef, yb, vb);
+            va = ya;
+            vb = yb;
+        }
+        float lo, bp, hi;
+        a.hp.tick(a.lp.lp(va), lo, bp, hi);
+        a.y = hi;
+        b.hp.tick(b.lp.lp(vb), lo, bp, hi);
+        b.y = hi;
+        a.line[a.write] = inL[i] + a.gain * a.y;
+        b.line[b.write] = inR[i] + b.gain * b.y;
+        a.write = (a.write + 1) & a.mask;
+        b.write = (b.write + 1) & b.mask;
+        outL[i] += a.y;
+        outR[i] += b.y;
     }
 }
 

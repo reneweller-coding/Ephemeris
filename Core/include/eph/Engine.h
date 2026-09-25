@@ -21,6 +21,7 @@
  * seconds; seek() lets a host move the playhead.
  */
 #pragma once
+#include <array>
 #include "eph/synth/Atmos.h"
 #include "eph/synth/Drums.h"
 #include "eph/fx/Dynamics.h"
@@ -173,6 +174,28 @@ private:
     TruePeakLimiter limiter_;
     float echoReturn_ = 0.0f, springReturn_ = 0.0f, reverbReturn_ = 0.0f, master_ = 1.0f;
     int transpose_ = 0;   ///< perform.transpose at the current cell, for the notes that start
+    float echoThrow_ = 0.0f;   ///< perform.throw's addition to every echo send (mix())
+    /**
+     * @brief What each setter was last called with (updateCell): a setter runs only when its input has
+     *        changed. The setters are pure functions of their input, so this changes no sample; it saves
+     *        recomputing unchanged coefficients -- the hall's eight powers, the springs', the voices'
+     *        exponentials, the pan law -- 1500 times a second. Invalid after load() and seek().
+     */
+    struct SetCache {
+        bool valid = false;                   ///< false: every setter runs at the next cell
+        VoiceSettings voice[kModVoices];      ///< ModVoiceBank::set
+        float strip[kSources][5] = {};        ///< setStrip: level, pan, echo, reverb, width
+        TapeSettings tape;                    ///< TapeKeys::set
+        StringSettings strings;               ///< StringMachine::set
+        DrumSettings drums;                   ///< DrumKit::set
+        AtmosSettings atmos;                  ///< Atmos::set
+        EchoSettings echo;                    ///< TapeEcho::set
+        float reverb[6] = {};                 ///< Reverb::set
+        float spring[2] = {};                 ///< Spring::set
+        float compress = 0.0f, ceiling = 0.0f;   ///< BusCompressor::set, TruePeakLimiter::set
+    } cache_;
+    /** @brief played()'s last result per parameter: knob, offset, value (the curve's log and exp saved). */
+    mutable std::vector<std::array<float, 3>> playedCache_;
 };
 
 } // namespace eph

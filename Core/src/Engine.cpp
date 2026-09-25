@@ -5,9 +5,23 @@
 #include "eph/Engine.h"
 #include "eph/Dsp.h"
 #include <algorithm>
+#include <limits>
+#include <cstring>
+#include <bit>
 #include <cmath>
 
 namespace eph {
+
+namespace {
+/** @brief Whether @p now differs from @p last bit for bit (or @p valid is false); if so, @p last takes it. */
+template <class T>
+bool changed(T& last, const T& now, bool valid)
+{
+    if (valid && std::memcmp(&last, &now, sizeof(T)) == 0) return false;
+    std::memcpy(&last, &now, sizeof(T));
+    return true;
+}
+} // namespace
 
 namespace {
 constexpr int kCell = 32;   ///< the parameter raster in samples
@@ -56,6 +70,8 @@ void Engine::load(const Score& score)
     // Gestures grouped by the knob they move.
     tracks_.clear();
     trackOf_.assign(static_cast<size_t>(params_.count()), -1);
+    playedCache_.assign(static_cast<size_t>(params_.count()), { std::numeric_limits<float>::quiet_NaN(), 0.0f, 0.0f });
+    cache_.valid = false;
     for (const Gesture& g : score_.gestures) {
         if (g.param < 0 || g.param >= params_.count()) continue;
         int& t = trackOf_[static_cast<size_t>(g.param)];
@@ -89,8 +105,13 @@ float Engine::played(int id) const
     if (t < 0) return knob;
     const float off = tracks_[static_cast<size_t>(t)].offset;
     if (off == 0.0f) return knob;
+    // The same knob and offset as last time give the same value: compared bit for bit.
+    std::array<float, 3>& c = playedCache_[static_cast<size_t>(id)];
+    if (std::bit_cast<uint32_t>(c[0]) == std::bit_cast<uint32_t>(knob) && std::bit_cast<uint32_t>(c[1]) == std::bit_cast<uint32_t>(off))
+        return c[2];
     const float norm = std::clamp(params_.toNormalised(id, knob) + off, 0.0f, 1.0f);
-    return params_.fromNormalised(id, norm);
+    c = { knob, off, params_.fromNormalised(id, norm) };
+    return c[2];
 }
 
 VoiceSettings Engine::voiceSettings(Module m, int instance, bool vibrato) const
@@ -125,6 +146,8 @@ VoiceSettings Engine::voiceSettings(Module m, int instance, bool vibrato) const
 
 void Engine::setStrip(int s, float levelDb, float pan, float echo, float reverb, float width)
 {
+    const float in[5] = { levelDb, pan, echo, reverb, width };
+    if (!changed(cache_.strip[s], in, cache_.valid)) return;
     Strip& st = strips_[s];
     const float level = dbToGain(levelDb);
     const float a = (std::clamp(pan, -1.0f, 1.0f) + 1.0f) * 0.25f * kPi;
@@ -159,7 +182,8 @@ void Engine::updateCell()
         const bool row = r < kRows;
         const Module m = row ? Module::Voice : (r == kSrcLead ? Module::Lead : Module::Drone);
         const int inst = row ? r : 0;
-        voices_.set(r, voiceSettings(m, inst, !row));
+        const VoiceSettings vs = voiceSettings(m, inst, !row);
+        if (changed(cache_.voice[r], vs, cache_.valid)) voices_.set(r, vs);
         strips_[r].running = voices_.active(r) || voices_.held(r);
         auto s = [&](int rowIndex, int leadIndex) {
             return row ? played(params_.id(Module::Row, r, rowIndex)) : played(params_.id(m, 0, leadIndex));
@@ -176,7 +200,7 @@ void Engine::updateCell()
     ts.sagCents = knob(Module::Tape, tape::Sag);
     ts.toneHz = knob(Module::Tape, tape::Tone);
     ts.age = knob(Module::Tape, tape::Age);
-    tape_.set(ts);
+    if (changed(cache_.tape, ts, cache_.valid)) tape_.set(ts);
     strips_[kSrcTape].running = tape_.active();
     setStrip(kSrcTape, knob(Module::Tape, tape::Level), knob(Module::Tape, tape::Pan), knob(Module::Tape, tape::EchoSend), knob(Module::Tape, tape::ReverbSend));
 
@@ -186,7 +210,7 @@ void Engine::updateCell()
     ss.feet = knob(Module::Strings, strings::Feet);
     ss.toneHz = knob(Module::Strings, strings::Tone);
     ss.ensemble = knob(Module::Strings, strings::Ensemble);
-    strings_.set(ss);
+    if (changed(cache_.strings, ss, cache_.valid)) strings_.set(ss);
     strips_[kSrcStrings].running = strings_.active();
     // The ensemble spreads the machine over both sides; the pan law's 3 dB come back with sqrt 2.
     setStrip(kSrcStrings, knob(Module::Strings, strings::Level), knob(Module::Strings, strings::Pan),
@@ -196,7 +220,7 @@ void Engine::updateCell()
     ds.kickHz = knob(Module::Drums, drums::KickHz);
     ds.decay = knob(Module::Drums, drums::Decay);
     ds.tone = knob(Module::Drums, drums::Tone);
-    drums_.set(ds);
+    if (changed(cache_.drums, ds, cache_.valid)) drums_.set(ds);
     {
         // The kit pans its instruments itself (Drums.h): the strip only sets the level.
         Strip& d = strips_[kSrcDrums];
@@ -217,7 +241,7 @@ void Engine::updateCell()
     // The bleeps take their notes from the root the rows are in.
     as.rootPc = pitchClass(score_.keyRoot + score_.rootAt(beat));
     as.scale = params_.getInt(params_.id(Module::Compose, 0, compose::Scale));
-    atmos_.set(as);
+    if (changed(cache_.atmos, as, cache_.valid)) atmos_.set(as);
     {
         // Stereo already: the strip only sets the level; the echo takes the bleeps (renderSpan).
         Strip& at = strips_[kSrcAtmos];
@@ -229,7 +253,7 @@ void Engine::updateCell()
 
     // The echo throw (perform.throw): every send up, and the echo's feedback with them (below).
     const float throwAmount = knob(Module::Perform, perform::Throw);
-    if (throwAmount > 0.0f) for (Strip& st : strips_) st.echo += 0.8f * throwAmount;
+    echoThrow_ = 0.8f * throwAmount;
 
     // The rooms and the master.
     EchoSettings es;
@@ -242,17 +266,26 @@ void Engine::updateCell()
     es.flutterMs = knob(Module::Echo, echo::Flutter);
     es.driveDb = knob(Module::Echo, echo::Drive);
     es.pingPong = knob(Module::Echo, echo::PingPong) >= 0.5f;
-    echo_.set(es);
+    const EchoSettings& le = cache_.echo;
+    if (!cache_.valid || le.delaySeconds != es.delaySeconds || le.feedback != es.feedback || le.toneHz != es.toneHz || le.wowMs != es.wowMs
+        || le.flutterMs != es.flutterMs || le.driveDb != es.driveDb || le.pingPong != es.pingPong) {
+        cache_.echo = es;
+        echo_.set(es);
+    }
     echoReturn_ = dbToGain(knob(Module::Echo, echo::Return));
-    reverb_.set(knob(Module::Reverb, reverb::Size), knob(Module::Reverb, reverb::Decay), knob(Module::Reverb, reverb::Damping),
-                knob(Module::Reverb, reverb::PreDelay) * 0.001f * static_cast<float>(sampleRate_),
-                knob(Module::Reverb, reverb::LowCut), knob(Module::Reverb, reverb::HighCut));
+    const float hall[6] = { knob(Module::Reverb, reverb::Size), knob(Module::Reverb, reverb::Decay), knob(Module::Reverb, reverb::Damping),
+                            knob(Module::Reverb, reverb::PreDelay) * 0.001f * static_cast<float>(sampleRate_),
+                            knob(Module::Reverb, reverb::LowCut), knob(Module::Reverb, reverb::HighCut) };
+    if (changed(cache_.reverb, hall, cache_.valid)) reverb_.set(hall[0], hall[1], hall[2], hall[3], hall[4], hall[5]);
     reverbReturn_ = dbToGain(knob(Module::Reverb, reverb::Return));
-    spring_.set(knob(Module::Spring, spring::Decay), knob(Module::Spring, spring::Tone));
+    const float springs[2] = { knob(Module::Spring, spring::Decay), knob(Module::Spring, spring::Tone) };
+    if (changed(cache_.spring, springs, cache_.valid)) spring_.set(springs[0], springs[1]);
     springReturn_ = gain(knob(Module::Spring, spring::Return));
     master_ = dbToGain(knob(Module::Master, master::Level));
-    comp_.set(-16.0f, 1.0f + 0.5f * knob(Module::Master, master::Compress), 6.0f, 30.0f, 300.0f);
-    limiter_.set(knob(Module::Master, master::Ceiling), 150.0f);
+    const float compress = knob(Module::Master, master::Compress), ceiling = knob(Module::Master, master::Ceiling);
+    if (changed(cache_.compress, compress, cache_.valid)) comp_.set(-16.0f, 1.0f + 0.5f * compress, 6.0f, 30.0f, 300.0f);
+    if (changed(cache_.ceiling, ceiling, cache_.valid)) limiter_.set(ceiling, 150.0f);
+    cache_.valid = true;
 }
 
 const char* Engine::channelName(int c)
@@ -279,11 +312,12 @@ int Engine::takeMeters(float* peak, double* sumSq)
 void Engine::mix(int source, const float* xl, const float* xr, int n, const Buses& b, bool echoSend)
 {
     const Strip& strip = strips_[source];
+    const float echo = strip.echo + echoThrow_;   // the throw on top of the send (exactly the send without it)
     for (int i = 0; i < n; ++i) {
         const float l = xl[i] * strip.gainL, r = xr[i] * strip.gainR;
         b.L[i] += l;
         b.R[i] += r;
-        if (echoSend) { b.echoL[i] += l * strip.echo; b.echoR[i] += r * strip.echo; }
+        if (echoSend) { b.echoL[i] += l * echo; b.echoR[i] += r * echo; }
         b.hallL[i] += l * strip.reverb;
         b.hallR[i] += r * strip.reverb;
     }
@@ -336,8 +370,8 @@ void Engine::renderSpan(float* L, float* R, int n)
         const Strip& at = strips_[kSrcAtmos];
         mix(kSrcAtmos, bufL, bufR, n, b, false);
         for (int i = 0; i < n; ++i) {
-            echoL[i] += bleepL[i] * at.gainL * (0.5f + at.echo);
-            echoR[i] += bleepR[i] * at.gainR * (0.5f + at.echo);
+            echoL[i] += bleepL[i] * at.gainL * (0.5f + at.echo + echoThrow_);
+            echoR[i] += bleepR[i] * at.gainR * (0.5f + at.echo + echoThrow_);
         }
     }
     if (strips_[kSrcTape].running) {
@@ -378,6 +412,7 @@ void Engine::seek(double beat)
     tape_.reset();
     strings_.silence();
     drums_.prepare(sampleRate_, mixSeed(score_.seed, 800));
+    cache_.valid = false;   // the components were reset: every setter runs again
     for (Track& t : tracks_) t.cursor = t.gestures.size();
     cellDirty_ = true;
 }

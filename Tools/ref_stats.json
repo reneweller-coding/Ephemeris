@@ -1,16 +1,25 @@
 {
  "Cosmic": {
   "summary": {
-   "seconds": 760.15,
-   "bpm": 103.8,
-   "step_s": 0.43,
-   "sweep_s_median": 8.5,
-   "sweep_oct_median": 0.65,
-   "sweeps_per_min": 5.75,
-   "brightness_range_oct": 1.41,
-   "rms_db": -13.7,
-   "range_db": 7.65,
-   "tracks": 8
+   "seconds": 693.8,
+   "bpm": 103.9,
+   "tempogram_bpm": 89.0,
+   "tempo_stability": 0.97,
+   "step_s": 0.36,
+   "sweep_s_median": 9.25,
+   "sweep_oct_median": 0.57,
+   "sweeps_per_min": 6.12,
+   "brightness_range_oct": 1.61,
+   "rms_db": -13.45,
+   "range_db": 5.5,
+   "row_lengths": {
+    "3": 177,
+    "10": 8,
+    "9": 5,
+    "4": 5,
+    "6": 4
+   },
+   "tracks": 4
   },
   "tracks": [
    {
@@ -35,134 +44,71 @@
     "brightness_range_oct": 1.0,
     "rms_db": -13.4,
     "range_db": 6.3,
+    "windows_with_pulse": 306,
+    "tempogram_bpm": 89.0,
+    "tempo_stability": 1.0,
+    "tempo_q10_q90": [
+     89.0,
+     89.0
+    ],
+    "row_lengths": {
+     "3": 112,
+     "10": 8,
+     "9": 5,
+     "4": 5,
+     "6": 4
+    },
     "track": "01 - Ecliptic Flow.flac"
    },
    {
-    "seconds": 486.0,
-    "step_s": 0.4862,
-    "step_strength": 0.584,
+    "seconds": 722.4,
+    "step_s": 0.5249,
+    "step_strength": 0.015,
     "row_length_candidates": [
-     6
+     13,
+     14,
+     29
     ],
-    "sweeps": 37,
-    "sweep_s_median": 10.5,
-    "sweep_s_q25_q75": [
-     5.0,
-     19.5
-    ],
-    "sweep_oct_median": 0.39,
-    "sweeps_per_min": 4.57,
-    "brightness_range_oct": 0.51,
-    "rms_db": -13.1,
-    "range_db": 5.5,
-    "track": "Martin Sturtzer - Protostar - 03 Heliosphere.flac"
-   },
-   {
-    "seconds": 414.0,
-    "step_s": 0.5308,
-    "step_strength": 0.065,
-    "row_length_candidates": [
-     11
-    ],
-    "sweeps": 19,
-    "sweep_s_median": 20.5,
-    "sweep_s_q25_q75": [
-     13.5,
-     24.2
-    ],
-    "sweep_oct_median": 0.84,
-    "sweeps_per_min": 2.75,
-    "brightness_range_oct": 0.95,
-    "rms_db": -16.2,
-    "range_db": 7.1,
-    "track": "Martin Sturtzer - Protostar - 08 Delta Wave Communication.flac"
-   },
-   {
-    "seconds": 1028.2,
-    "step_s": 0.2526,
-    "step_strength": 0.668,
-    "bpm": 118.8,
-    "step_as": "eighths",
-    "row_length_candidates": [
-     8
-    ],
-    "sweeps": 107,
-    "sweep_s_median": 8.0,
-    "sweep_s_q25_q75": [
-     5.2,
-     11.0
-    ],
-    "sweep_oct_median": 0.66,
-    "sweeps_per_min": 6.24,
-    "brightness_range_oct": 2.44,
-    "rms_db": -19.9,
-    "range_db": 11.3,
-    "track": "01 - The Smell Of Fear.mp3"
-   },
-   {
-    "seconds": 1101.1,
-    "step_s": 0.5289,
-    "step_strength": 0.557,
-    "row_length_candidates": [
-     3,
-     8,
-     12
-    ],
-    "sweeps": 137,
-    "sweep_s_median": 6.0,
-    "sweep_s_q25_q75": [
-     4.5,
-     10.5
-    ],
-    "sweep_oct_median": 0.64,
-    "sweeps_per_min": 7.47,
-    "brightness_range_oct": 1.33,
-    "rms_db": -13.9,
-    "range_db": 6.7,
-    "track": "01 - So So Far Away.flac"
-   },
-   {
-    "seconds": 347.3,
-    "step_s": 0.5015,
-    "step_strength": 0.434,
-    "row_length_candidates": [
-     4,
-     8
-    ],
-    "sweeps": 39,
-    "sweep_s_median": 6.5,
-    "sweep_s_q25_q75": [
-     4.2,
-     9.5
-    ],
-    "sweep_oct_median": 0.69,
-    "sweeps_per_min": 6.74,
-    "brightness_range_oct": 2.04,
-    "rms_db": -15.9,
-    "range_db": 10.5,
-    "track": "07 - The End Of The Circle.flac"
-   },
-   {
-    "seconds": 855.1,
-    "step_s": 0.3724,
-    "step_strength": 0.5,
-    "bpm": 80.6,
-    "step_as": "eighths",
-    "row_length_candidates": [
-     14
-    ],
-    "sweeps": 75,
-    "sweep_s_median": 9.0,
+    "sweeps": 47,
+    "sweep_s_median": 13.0,
     "sweep_s_q25_q75": [
      5.5,
-     13.0
+     19.0
     ],
-    "sweep_oct_median": 0.79,
-    "sweeps_per_min": 5.26,
-    "brightness_range_oct": 1.56,
-    "rms_db": -12.7,
-    "range_db": 12.8,
-    "track": "05 - A New Start.flac"
+    "sweep_oct_median": 0.52,
+    "sweeps_per_min": 3.9,
+    "brightness_range_oct": 1.94,
+    "rms_db": -12.4,
+    "range_db": 4.5,
+    "windows_with_pulse": 0,
+    "track": "02 - Sleep.flac"
+   },
+   {
+    "seconds": 434.8,
+    "step_s": 0.3756,
+    "step_strength": 0.1,
+    "row_length_candidates": [
+     27
+    ],
+    "sweeps": 59,
+    "sweep_s_median": 6.0,
+    "sweep_s_q25_q75": [
+     4.0,
+     9.0
+    ],
+    "sweep_oct_median": 0.63,
+    "sweeps_per_min": 8.14,
+    "brightness_range_oct": 1.74,
+    "rms_db": -15.0,
+    "range_db": 4.7,
+    "windows_with_pulse": 33,
+    "tempogram_bpm": 80.2,
+    "tempo_stability": 0.97,
+    "tempo_q10_q90": [
+     80.2,
+     80.2
+    ],
+    "track": "05 - Slow Heat.flac"
    },
    {
     "seconds": 665.2,
@@ -186,6 +132,16 @@
     "brightness_range_oct": 1.49,
     "rms_db": -13.5,
     "range_db": 8.2,
+    "windows_with_pulse": 140,
+    "tempogram_bpm": 120.0,
+    "tempo_stability": 0.8,
+    "tempo_q10_q90": [
+     80.6,
+     120.0
+    ],
+    "row_lengths": {
+     "3": 65
+    },
     "track": "05 - My Darkest Wishes.mp3"
    }
   ]
@@ -193,15 +149,25 @@
  "Doom": {
   "summary": {
    "seconds": 495.8,
-   "bpm": 107.6,
-   "step_s": 0.25,
-   "sweep_s_median": 9.0,
-   "sweep_oct_median": 0.51,
-   "sweeps_per_min": 5.13,
-   "brightness_range_oct": 1.38,
-   "rms_db": -20.75,
-   "range_db": 17.05,
-   "tracks": 8
+   "bpm": 119.0,
+   "tempogram_bpm": 120.25,
+   "tempo_stability": 0.95,
+   "step_s": 0.29,
+   "sweep_s_median": 10.5,
+   "sweep_oct_median": 0.48,
+   "sweeps_per_min": 4.27,
+   "brightness_range_oct": 1.31,
+   "rms_db": -19.05,
+   "range_db": 17.8,
+   "row_lengths": {
+    "3": 29,
+    "32": 9,
+    "16": 8,
+    "31": 7,
+    "4": 6,
+    "12": 2
+   },
+   "tracks": 4
   },
   "tracks": [
    {
@@ -224,29 +190,18 @@
     "brightness_range_oct": 1.12,
     "rms_db": -21.9,
     "range_db": 20.2,
+    "windows_with_pulse": 3,
+    "tempogram_bpm": 80.9,
+    "tempo_stability": 0.33,
+    "tempo_q10_q90": [
+     88.1,
+     122.2
+    ],
+    "row_lengths": {
+     "3": 1,
+     "4": 1
+    },
     "track": "01 - Fridge.flac"
-   },
-   {
-    "seconds": 186.3,
-    "step_s": 0.1631,
-    "step_strength": 0.104,
-    "bpm": 92.0,
-    "step_as": "sixteenths",
-    "row_length_candidates": [
-     8
-    ],
-    "sweeps": 23,
-    "sweep_s_median": 5.0,
-    "sweep_s_q25_q75": [
-     4.0,
-     8.8
-    ],
-    "sweep_oct_median": 0.49,
-    "sweeps_per_min": 7.41,
-    "brightness_range_oct": 1.94,
-    "rms_db": -24.8,
-    "range_db": 6.6,
-    "track": "03 - Drowned.flac"
    },
    {
     "seconds": 576.0,
@@ -270,53 +225,21 @@
     "brightness_range_oct": 1.67,
     "rms_db": -21.1,
     "range_db": 18.7,
+    "windows_with_pulse": 146,
+    "tempogram_bpm": 120.0,
+    "tempo_stability": 0.93,
+    "tempo_q10_q90": [
+     120.0,
+     120.0
+    ],
+    "row_lengths": {
+     "3": 16,
+     "16": 3,
+     "12": 2,
+     "4": 1,
+     "8": 1
+    },
     "track": "05 - Damage.flac"
-   },
-   {
-    "seconds": 1219.9,
-    "step_s": 0.213,
-    "step_strength": 0.729,
-    "bpm": 140.9,
-    "step_as": "eighths",
-    "row_length_candidates": [
-     3,
-     4,
-     7
-    ],
-    "sweeps": 39,
-    "sweep_s_median": 17.5,
-    "sweep_s_q25_q75": [
-     6.2,
-     42.8
-    ],
-    "sweep_oct_median": 0.49,
-    "sweeps_per_min": 1.92,
-    "brightness_range_oct": 1.24,
-    "rms_db": -20.4,
-    "range_db": 17.2,
-    "track": "07 - Hybernation.flac"
-   },
-   {
-    "seconds": 375.0,
-    "step_s": 0.4412,
-    "step_strength": 0.739,
-    "row_length_candidates": [
-     3,
-     4,
-     5
-    ],
-    "sweeps": 45,
-    "sweep_s_median": 7.0,
-    "sweep_s_q25_q75": [
-     5.0,
-     11.0
-    ],
-    "sweep_oct_median": 1.1,
-    "sweeps_per_min": 7.2,
-    "brightness_range_oct": 2.4,
-    "rms_db": -21.2,
-    "range_db": 13.8,
-    "track": "01 - Intrip.flac"
    },
    {
     "seconds": 923.4,
@@ -337,30 +260,21 @@
     "brightness_range_oct": 1.51,
     "rms_db": -17.0,
     "range_db": 16.9,
+    "windows_with_pulse": 300,
+    "tempogram_bpm": 150.0,
+    "tempo_stability": 0.97,
+    "tempo_q10_q90": [
+     150.0,
+     150.0
+    ],
+    "row_lengths": {
+     "3": 12,
+     "32": 9,
+     "31": 7,
+     "16": 5,
+     "4": 4
+    },
     "track": "03 - Nodular.flac"
-   },
-   {
-    "seconds": 1025.7,
-    "step_s": 0.1559,
-    "step_strength": 0.029,
-    "bpm": 96.2,
-    "step_as": "sixteenths",
-    "row_length_candidates": [
-     5,
-     29
-    ],
-    "sweeps": 109,
-    "sweep_s_median": 6.0,
-    "sweep_s_q25_q75": [
-     5.0,
-     9.0
-    ],
-    "sweep_oct_median": 0.7,
-    "sweeps_per_min": 6.38,
-    "brightness_range_oct": 1.2,
-    "rms_db": -17.1,
-    "range_db": 18.6,
-    "track": "05 - Before The Storm.flac"
    },
    {
     "seconds": 415.6,
@@ -384,22 +298,39 @@
     "brightness_range_oct": 1.06,
     "rms_db": -14.1,
     "range_db": 12.6,
+    "windows_with_pulse": 106,
+    "tempogram_bpm": 120.5,
+    "tempo_stability": 0.99,
+    "tempo_q10_q90": [
+     120.5,
+     121.5
+    ],
     "track": "Runes Order - Secret Place (The Final Chapter).mp3"
    }
   ]
  },
  "Melodic": {
   "summary": {
-   "seconds": 396.35,
-   "bpm": 98.65,
-   "step_s": 0.34,
-   "sweep_s_median": 9.75,
-   "sweep_oct_median": 0.52,
+   "seconds": 434.8,
+   "bpm": 95.1,
+   "tempogram_bpm": 94.55,
+   "tempo_stability": 0.99,
+   "step_s": 0.42,
+   "sweep_s_median": 8.0,
+   "sweep_oct_median": 0.47,
    "sweeps_per_min": 4.75,
-   "brightness_range_oct": 1.13,
-   "rms_db": -15.85,
-   "range_db": 5.4,
-   "tracks": 8
+   "brightness_range_oct": 1.14,
+   "rms_db": -16.75,
+   "range_db": 5.45,
+   "row_lengths": {
+    "3": 223,
+    "16": 70,
+    "4": 35,
+    "32": 8,
+    "12": 3,
+    "5": 3
+   },
+   "tracks": 4
   },
   "tracks": [
    {
@@ -422,142 +353,93 @@
     "brightness_range_oct": 1.4,
     "rms_db": -18.0,
     "range_db": 5.8,
+    "windows_with_pulse": 223,
+    "tempogram_bpm": 89.8,
+    "tempo_stability": 0.98,
+    "tempo_q10_q90": [
+     89.8,
+     89.8
+    ],
+    "row_lengths": {
+     "16": 58,
+     "3": 40,
+     "4": 27,
+     "32": 8,
+     "12": 3
+    },
     "track": "01 - The Grand Banks.flac"
    },
    {
-    "seconds": 418.4,
-    "step_s": 0.2485,
-    "step_strength": 0.539,
-    "bpm": 120.7,
+    "seconds": 470.9,
+    "step_s": 0.3011,
+    "step_strength": 0.813,
+    "bpm": 99.6,
     "step_as": "eighths",
     "row_length_candidates": [
-     8
+     14,
+     15,
+     16
     ],
-    "sweeps": 19,
-    "sweep_s_median": 17.0,
+    "sweeps": 35,
+    "sweep_s_median": 6.0,
     "sweep_s_q25_q75": [
-     6.5,
-     26.2
-    ],
-    "sweep_oct_median": 0.53,
-    "sweeps_per_min": 2.72,
-    "brightness_range_oct": 0.94,
-    "rms_db": -17.4,
-    "range_db": 3.8,
-    "track": "01 - Khazad-Dum.flac"
-   },
-   {
-    "seconds": 343.0,
-    "step_s": 0.5686,
-    "step_strength": 0.021,
-    "row_length_candidates": [
-     18,
-     31
-    ],
-    "sweeps": 13,
-    "sweep_s_median": 20.5,
-    "sweep_s_q25_q75": [
-     16.5,
-     28.0
+     4.5,
+     15.8
     ],
     "sweep_oct_median": 0.5,
-    "sweeps_per_min": 2.27,
-    "brightness_range_oct": 1.13,
-    "rms_db": -22.4,
-    "range_db": 5.0,
-    "track": "07 - Goodbye.flac"
+    "sweeps_per_min": 4.46,
+    "brightness_range_oct": 1.21,
+    "rms_db": -19.0,
+    "range_db": 4.9,
+    "windows_with_pulse": 134,
+    "tempogram_bpm": 99.3,
+    "tempo_stability": 0.99,
+    "tempo_q10_q90": [
+     99.3,
+     99.3
+    ],
+    "row_lengths": {
+     "3": 87,
+     "16": 9,
+     "4": 4,
+     "5": 1
+    },
+    "track": "09 - Ambersage.flac"
    },
    {
-    "seconds": 1105.3,
-    "step_s": 0.3724,
-    "step_strength": 0.673,
-    "bpm": 80.6,
-    "step_as": "eighths",
+    "seconds": 398.7,
+    "step_s": 0.5112,
+    "step_strength": 0.701,
     "row_length_candidates": [
      3,
-     4
+     4,
+     6
     ],
-    "sweeps": 69,
-    "sweep_s_median": 11.5,
+    "sweeps": 33,
+    "sweep_s_median": 10.0,
     "sweep_s_q25_q75": [
-     7.0,
-     20.5
+     5.0,
+     15.5
     ],
-    "sweep_oct_median": 0.48,
-    "sweeps_per_min": 3.75,
-    "brightness_range_oct": 1.18,
-    "rms_db": -16.0,
-    "range_db": 11.2,
-    "track": "03 - Well! So What.flac"
-   },
-   {
-    "seconds": 374.3,
-    "step_s": 0.351,
-    "step_strength": 0.575,
-    "bpm": 85.5,
-    "step_as": "eighths",
-    "row_length_candidates": [
-     8,
-     16
-    ],
-    "sweeps": 31,
-    "sweep_s_median": 9.5,
-    "sweep_s_q25_q75": [
-     6.8,
-     14.8
-    ],
-    "sweep_oct_median": 0.43,
+    "sweep_oct_median": 0.42,
     "sweeps_per_min": 4.97,
-    "brightness_range_oct": 1.57,
-    "rms_db": -15.7,
-    "range_db": 3.8,
-    "track": "05 - Gwahir.flac"
-   },
-   {
-    "seconds": 311.2,
-    "step_s": 0.2738,
-    "step_strength": 0.356,
-    "bpm": 109.6,
-    "step_as": "eighths",
-    "row_length_candidates": [
-     8,
-     16,
-     24
+    "brightness_range_oct": 1.06,
+    "rms_db": -12.7,
+    "range_db": 5.1,
+    "windows_with_pulse": 128,
+    "tempogram_bpm": 87.7,
+    "tempo_stability": 1.0,
+    "tempo_q10_q90": [
+     87.7,
+     88.2
     ],
-    "sweeps": 29,
-    "sweep_s_median": 8.0,
-    "sweep_s_q25_q75": [
-     5.5,
-     17.0
-    ],
-    "sweep_oct_median": 0.64,
-    "sweeps_per_min": 5.59,
-    "brightness_range_oct": 1.13,
-    "rms_db": -11.5,
-    "range_db": 1.8,
-    "track": "04 - Desolate Station.flac"
-   },
-   {
-    "seconds": 798.8,
-    "step_s": 0.2812,
-    "step_strength": 0.541,
-    "bpm": 106.7,
-    "step_as": "eighths",
-    "row_length_candidates": [
-     16
-    ],
-    "sweeps": 69,
-    "sweep_s_median": 7.0,
-    "sweep_s_q25_q75": [
-     4.0,
-     13.5
-    ],
-    "sweep_oct_median": 0.57,
-    "sweeps_per_min": 5.18,
-    "brightness_range_oct": 1.09,
-    "rms_db": -13.8,
-    "range_db": 9.0,
-    "track": "01 - First Monument.flac"
+    "row_lengths": {
+     "3": 96,
+     "4": 4,
+     "16": 3,
+     "5": 2
+    },
+    "track": "02 - Chasing The Rabbit.flac"
    },
    {
     "seconds": 307.6,
@@ -579,22 +461,34 @@
     "brightness_range_oct": 0.87,
     "rms_db": -15.5,
     "range_db": 8.3,
+    "windows_with_pulse": 96,
+    "tempogram_bpm": 113.6,
+    "tempo_stability": 1.0,
+    "tempo_q10_q90": [
+     113.6,
+     113.6
+    ],
     "track": "07 - Seventh Monument.flac"
    }
   ]
  },
  "Modern": {
   "summary": {
-   "seconds": 332.65,
-   "bpm": 86.05,
-   "step_s": 0.37,
-   "sweep_s_median": 9.0,
-   "sweep_oct_median": 0.73,
-   "sweeps_per_min": 4.89,
-   "brightness_range_oct": 1.77,
-   "rms_db": -14.1,
-   "range_db": 14.15,
-   "tracks": 8
+   "seconds": 214.35,
+   "bpm": 92.9,
+   "tempogram_bpm": 99.5,
+   "tempo_stability": 1.0,
+   "step_s": 0.42,
+   "sweep_s_median": 11.0,
+   "sweep_oct_median": 0.69,
+   "sweeps_per_min": 3.15,
+   "brightness_range_oct": 3.05,
+   "rms_db": -13.45,
+   "range_db": 8.3,
+   "row_lengths": {
+    "3": 17
+   },
+   "tracks": 4
   },
   "tracks": [
    {
@@ -615,137 +509,78 @@
     "brightness_range_oct": 1.85,
     "rms_db": -14.1,
     "range_db": 17.6,
+    "windows_with_pulse": 116,
+    "tempogram_bpm": 122.0,
+    "tempo_stability": 0.77,
+    "tempo_q10_q90": [
+     81.3,
+     122.0
+    ],
+    "row_lengths": {
+     "3": 2
+    },
     "track": "1.01 - Shrine.flac"
    },
    {
-    "seconds": 299.7,
-    "step_s": 0.1748,
-    "step_strength": 0.14,
-    "bpm": 85.8,
-    "step_as": "sixteenths",
-    "row_length_candidates": [
-     3
-    ],
-    "sweeps": 35,
-    "sweep_s_median": 7.5,
-    "sweep_s_q25_q75": [
-     5.2,
-     9.8
-    ],
-    "sweep_oct_median": 0.78,
-    "sweeps_per_min": 7.01,
-    "brightness_range_oct": 1.25,
-    "rms_db": -25.2,
-    "range_db": 13.7,
-    "track": "04 - Lightfall.flac"
-   },
-   {
     "seconds": 63.1,
-    "step_s": 0.4858,
-    "step_strength": 0.6,
-    "row_length_candidates": [
-     6,
-     8,
-     12
-    ],
-    "sweeps": 5,
-    "sweep_s_median": 9.0,
-    "sweep_s_q25_q75": [
-     6.5,
-     13.0
-    ],
-    "sweep_oct_median": 0.46,
-    "sweeps_per_min": 4.75,
-    "brightness_range_oct": 3.95,
-    "rms_db": -13.4,
-    "range_db": 1.7,
-    "track": "16 - Evolving Worlds.flac"
-   },
-   {
-    "seconds": 576.9,
-    "step_s": 0.349,
-    "step_strength": 0.39,
-    "bpm": 86.0,
+    "step_s": 0.301,
+    "step_strength": 0.665,
+    "bpm": 99.7,
     "step_as": "eighths",
     "row_length_candidates": [
+     3,
      4,
-     8,
-     32
+     13
     ],
-    "sweeps": 81,
-    "sweep_s_median": 6.0,
+    "sweeps": 3,
+    "sweep_s_median": 13.0,
     "sweep_s_q25_q75": [
-     4.5,
-     8.5
+     13.0,
+     17.2
     ],
-    "sweep_oct_median": 0.66,
-    "sweeps_per_min": 8.42,
-    "brightness_range_oct": 1.98,
-    "rms_db": -14.1,
-    "range_db": 14.6,
-    "track": "05 - Reflex.flac"
+    "sweep_oct_median": 0.49,
+    "sweeps_per_min": 2.85,
+    "brightness_range_oct": 4.26,
+    "rms_db": -11.8,
+    "range_db": 1.9,
+    "windows_with_pulse": 18,
+    "tempogram_bpm": 99.3,
+    "tempo_stability": 1.0,
+    "tempo_q10_q90": [
+     99.3,
+     99.3
+    ],
+    "row_lengths": {
+     "3": 15
+    },
+    "track": "27 - Nitrogene.flac"
    },
    {
-    "seconds": 963.7,
-    "step_s": 0.3887,
-    "step_strength": 0.648,
+    "seconds": 33.6,
+    "step_s": 0.5189,
+    "step_strength": 0.028,
     "row_length_candidates": [
-     3
-    ],
-    "sweeps": 71,
-    "sweep_s_median": 7.5,
-    "sweep_s_q25_q75": [
-     5.0,
-     12.2
-    ],
-    "sweep_oct_median": 0.67,
-    "sweeps_per_min": 4.42,
-    "brightness_range_oct": 1.29,
-    "rms_db": -13.6,
-    "range_db": 17.0,
-    "track": "04 - Monument.flac"
-   },
-   {
-    "seconds": 33.7,
-    "step_s": 0.5027,
-    "step_strength": 0.352,
-    "row_length_candidates": [
-     4
+     7
     ],
     "sweeps": 1,
-    "sweep_s_median": 30.0,
+    "sweep_s_median": 7.0,
     "sweep_s_q25_q75": [
-     30.0,
-     30.0
+     7.0,
+     7.0
     ],
-    "sweep_oct_median": 5.9,
-    "sweeps_per_min": 1.78,
-    "brightness_range_oct": 5.31,
-    "rms_db": -14.3,
-    "range_db": 4.4,
-    "track": "32 - The X Factor.flac"
-   },
-   {
-    "seconds": 226.4,
-    "step_s": 0.3001,
-    "step_strength": 0.169,
-    "bpm": 100.0,
-    "step_as": "eighths",
-    "row_length_candidates": [
-     23
+    "sweep_oct_median": 5.21,
+    "sweeps_per_min": 1.79,
+    "brightness_range_oct": 5.35,
+    "rms_db": -14.4,
+    "range_db": 7.1,
+    "windows_with_pulse": 7,
+    "tempogram_bpm": 99.7,
+    "tempo_stability": 1.0,
+    "tempo_q10_q90": [
+     99.3,
+     99.9
     ],
-    "sweeps": 19,
-    "sweep_s_median": 9.0,
-    "sweep_s_q25_q75": [
-     5.0,
-     14.2
-    ],
-    "sweep_oct_median": 0.78,
-    "sweeps_per_min": 5.03,
-    "brightness_range_oct": 1.5,
-    "rms_db": -21.0,
-    "range_db": 30.1,
-    "track": "11 - Sub-Aquiem.flac"
+    "track": "21 - Out Of This World.flac"
    },
    {
     "seconds": 365.6,
@@ -769,22 +604,39 @@
     "brightness_range_oct": 1.7,
     "rms_db": -12.8,
     "range_db": 9.5,
+    "windows_with_pulse": 78,
+    "tempogram_bpm": 86.2,
+    "tempo_stability": 1.0,
+    "tempo_q10_q90": [
+     86.2,
+     86.2
+    ],
     "track": "08 - Prism.flac"
    }
   ]
  },
  "Drift": {
   "summary": {
-   "seconds": 389.1,
-   "bpm": 93.9,
-   "step_s": 0.32,
-   "sweep_s_median": 9.0,
-   "sweep_oct_median": 0.68,
-   "sweeps_per_min": 5.65,
-   "brightness_range_oct": 2.15,
-   "rms_db": -20.05,
-   "range_db": 10.1,
-   "tracks": 8
+   "seconds": 447.5,
+   "bpm": 105.9,
+   "tempogram_bpm": 112.65,
+   "tempo_stability": 0.94,
+   "step_s": 0.3,
+   "sweep_s_median": 8.25,
+   "sweep_oct_median": 0.64,
+   "sweeps_per_min": 6.17,
+   "brightness_range_oct": 1.64,
+   "rms_db": -14.8,
+   "range_db": 7.1,
+   "row_lengths": {
+    "3": 109,
+    "8": 18,
+    "16": 9,
+    "4": 7,
+    "5": 6,
+    "6": 1
+   },
+   "tracks": 4
   },
   "tracks": [
    {
@@ -808,97 +660,84 @@
     "brightness_range_oct": 3.24,
     "rms_db": -19.3,
     "range_db": 20.9,
+    "windows_with_pulse": 24,
+    "tempogram_bpm": 94.0,
+    "tempo_stability": 0.75,
+    "tempo_q10_q90": [
+     81.6,
+     94.9
+    ],
+    "row_lengths": {
+     "3": 1
+    },
     "track": "01 - Wish You Were There (Wish You Were There).flac"
    },
    {
-    "seconds": 300.0,
-    "step_s": 0.0922,
-    "step_strength": 0.506,
-    "row_length_candidates": [
-     25
-    ],
-    "sweeps": 97,
-    "sweep_s_median": 2.0,
-    "sweep_s_q25_q75": [
-     1.5,
-     4.0
-    ],
-    "sweep_oct_median": 0.47,
-    "sweeps_per_min": 19.4,
-    "brightness_range_oct": 1.4,
-    "rms_db": -21.4,
-    "range_db": 4.2,
-    "track": "02 - A Saucerful Of Ambience (Part II).flac"
-   },
-   {
-    "seconds": 1106.2,
-    "step_s": 0.3761,
-    "step_strength": 0.092,
-    "row_length_candidates": [
-     25
-    ],
-    "sweeps": 91,
-    "sweep_s_median": 10.5,
-    "sweep_s_q25_q75": [
-     6.8,
-     14.8
-    ],
-    "sweep_oct_median": 0.5,
-    "sweeps_per_min": 4.94,
-    "brightness_range_oct": 0.93,
-    "rms_db": -20.8,
-    "range_db": 14.7,
-    "track": "01 - Phantom Heart Brother Part I.flac"
-   },
-   {
-    "seconds": 476.5,
-    "step_s": 0.3247,
-    "step_strength": 0.133,
-    "bpm": 92.4,
+    "seconds": 372.2,
+    "step_s": 0.2516,
+    "step_strength": 0.571,
+    "bpm": 119.2,
     "step_as": "eighths",
     "row_length_candidates": [
-     3
+     4,
+     8,
+     16
     ],
-    "sweeps": 47,
-    "sweep_s_median": 9.5,
+    "sweeps": 25,
+    "sweep_s_median": 10.0,
     "sweep_s_q25_q75": [
-     4.8,
-     14.2
+     4.0,
+     20.0
     ],
-    "sweep_oct_median": 1.47,
-    "sweeps_per_min": 5.92,
-    "brightness_range_oct": 2.92,
-    "rms_db": -26.8,
-    "range_db": 16.6,
-    "track": "06 - Three Pipers At The Gates Of Dawn Part VI.flac"
+    "sweep_oct_median": 0.52,
+    "sweeps_per_min": 4.03,
+    "brightness_range_oct": 1.64,
+    "rms_db": -13.3,
+    "range_db": 6.9,
+    "windows_with_pulse": 116,
+    "tempogram_bpm": 120.0,
+    "tempo_stability": 0.93,
+    "tempo_q10_q90": [
+     120.0,
+     120.0
+    ],
+    "row_lengths": {
+     "3": 6
+    },
+    "track": "04 - Phantom Heart Brother Part IV.flac"
    },
    {
-    "seconds": 14.9,
-    "track": "01 - Psychedelic Brunch Part I.flac"
-   },
-   {
-    "seconds": 488.3,
-    "step_s": 0.4286,
-    "step_strength": 0.383,
+    "seconds": 1516.2,
+    "step_s": 0.3979,
+    "step_strength": 0.605,
     "row_length_candidates": [
-     32
+     3,
+     4,
+     5
     ],
-    "sweeps": 33,
-    "sweep_s_median": 8.5,
+    "sweeps": 241,
+    "sweep_s_median": 4.5,
     "sweep_s_q25_q75": [
-     4.5,
-     13.5
+     3.5,
+     8.0
     ],
-    "sweep_oct_median": 0.72,
-    "sweeps_per_min": 4.05,
-    "brightness_range_oct": 2.67,
-    "rms_db": -10.2,
-    "range_db": 5.5,
-    "track": "04 - Careful With The AKS, Peter (Part IV).flac"
-   },
-   {
-    "seconds": 12.7,
-    "track": "01 - Intro.flac"
+    "sweep_oct_median": 0.64,
+    "sweeps_per_min": 9.54,
+    "brightness_range_oct": 1.31,
+    "rms_db": -16.3,
+    "range_db": 7.3,
+    "windows_with_pulse": 482,
+    "tempogram_bpm": 150.0,
+    "tempo_stability": 0.94,
+    "tempo_q10_q90": [
+     150.0,
+     150.0
+    ],
+    "row_lengths": {
+     "3": 6,
+     "6": 1
+    },
+    "track": "01 - Careful With The AKS, Peter (Part I).flac"
    },
    {
     "seconds": 522.8,
@@ -922,6 +761,20 @@
     "brightness_range_oct": 1.64,
     "rms_db": -9.6,
     "range_db": 4.6,
+    "windows_with_pulse": 161,
+    "tempogram_bpm": 105.3,
+    "tempo_stability": 1.0,
+    "tempo_q10_q90": [
+     105.3,
+     105.3
+    ],
+    "row_lengths": {
+     "3": 96,
+     "8": 18,
+     "16": 9,
+     "4": 7,
+     "5": 6
+    },
     "track": "12 - VIII6 - Careful With The AKS, Peter.flac"
    }
   ]

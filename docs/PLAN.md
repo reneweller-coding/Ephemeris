@@ -74,6 +74,13 @@ Render 9,3 s. Die übrigen Posten dort: Hall 1,6 s, Federn 1,5 s, `updateCell` 1
 Limiter 0,9 s, Echo 0,7 s, die anderen Klangerzeuger 1,7 s. Hörprüfung offen: Die Sigmoide biegt etwas
 früher als tanh, die Stimmen sind dadurch rund 0,5 dB leiser (RMS des Mixes −19,5 statt −19,0 dBFS).
 
+**25.09.2026: Leistung, zweite Runde.** Die Engine ruft einen Setter nur noch, wenn sich seine Eingabe
+geändert hat (Hall, Federn, Echo, Kompressor, Limiter, die zehn Stimmen, die Kanalzüge, Tape Keys, Strings,
+Drums, Atmosphäre; die Setter sind reine Funktionen ihrer Eingabe, also bitgleich), `played()` merkt sich
+Knopf, Offset und Wert je Parameter, der Echo-Wurf wird in `mix()` addiert statt in die Kanalzüge
+geschrieben. Die Federn rechnen ihre beiden Allpass-Ketten Stufe für Stufe verschränkt und mit FMA (neue
+Referenz-Hashes). Fünf Minuten Melodic: 11,4 → 8,3 s (Minimum aus drei Läufen, im direkten Vergleich).
+
 **25.09.2026: Perform.** Ein Modul `perform` mit vier Bedienelementen, die auf das laufende Stück wirken und in
 der Grundstellung neutral sind (die Referenz-Renders bleiben bitgleich): Filter (die Hand auf den Filtern der
 Reihen, ±2 Oktaven), Transpose (die Transpositionstaste, ±12 Halbtöne für jede tonale Note, die danach
@@ -174,6 +181,19 @@ Noch offen aus Phase 4:
   lückenlos, auf Takten, über ihren Mindestlängen und gleich lang.
 - **Kalibrierung**: Tempo und Reihenlängen der Referenzen brauchen ein besseres Messverfahren
   (Tempogramm); die Schichtwahrscheinlichkeiten und Längen sind Setzungen.
+  **25.09.2026: Tempogramm gebaut** (`Tools/analyze_ref.py`): lokales Tempo in 12-s-Fenstern, jedes über
+  einen Kamm aus Sechzehntel, Achtel, Schlag, halbem Takt und Takt bewertet (Grosche und Müller 2011, in
+  der Autokorrelationsform); je Stück der häufigste Wert und der Anteil der Fenster innerhalb 2 %. Die
+  Reihenlänge aus den Tonhöhen: ein Chroma-Vektor je Sequenzerschritt (über dem Bass), die kürzeste
+  Verschiebung, bei der sich das Muster deutlich über dem Median wiederholt. Am eigenen Render geprüft:
+  112,4 für 112 BPM (die alte Messung fand keins), Reihen 12 und 6 (die Melodic-Reihen haben 12 Schritte,
+  ihre Arpeggio-Figur hat Periode 6).
+  Referenzen (je vier Stücke, Median; Tempo-Stabilität in Klammern): Cosmic 89 BPM (0,97; Profil 96–118),
+  Doom 120 (0,95; Profil 84–108, vermutlich doppelte Zählung eines halbschnellen Grooves), Melodic 94,5
+  (0,99; Profil 104–126), Modern 99,5 (1,0; Profil 90–120), Drift 112,7 (0,94; Profil 80–110). Reihen:
+  überall eine Dreierfigur, Melodic und Doom dazu 16 und 32, Drift 8 und 16. **Nicht übernommen**: Cosmic
+  und Melodic wären nach der Messung langsamer als ihre Profile, der Nutzer fand die Studie aber schon
+  "sehr langsam"; die Tempi bleiben, bis die Hörrunde entscheidet.
 
 **24.09.2026: Phase 3 im Wesentlichen fertig.** Die Skizze (`eph_render --minutes 10 --seed 3`) hat
 jetzt ein kosmisches Intro aus Wind und Sweeps mit Drone, danach die Reihen; Chor-Akkorde auf den Tape
