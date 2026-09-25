@@ -108,9 +108,41 @@ void ParamPage::resized()
 
 // ---------------------------------------------------------------------------------------------------
 
+void ArrangeView::rebuild()
+{
+    Score s;
+    proc_.copyScore(s);
+    lanes_.assign(static_cast<size_t>(kLanes * kBins), 0.0f);
+    if (s.lengthBeats <= 0.0) return;
+    std::vector<uint8_t> rows(static_cast<size_t>(kBins), 0);   // a bit per row playing in the column
+    for (const NoteEvent& n : s.notes) {
+        int lane = -1;
+        const int part = static_cast<int>(n.part);
+        if (part < kRows) lane = 0;
+        else if (n.part == Part::Lead) lane = 1;
+        else if (n.part == Part::TapeKeys) lane = 2;
+        else if (n.part == Part::Strings || n.part == Part::Pad) lane = 3;
+        else if (n.part == Part::Drone) lane = 4;
+        else if (n.part == Part::Drums) lane = 5;
+        if (lane < 0) continue;
+        const int b0 = std::clamp(static_cast<int>(n.beat / s.lengthBeats * kBins), 0, kBins - 1);
+        const int b1 = std::clamp(static_cast<int>((n.beat + std::max(n.length, 0.25)) / s.lengthBeats * kBins), b0, kBins - 1);
+        for (int b = b0; b <= b1; ++b) {
+            if (lane == 0) rows[static_cast<size_t>(b)] = static_cast<uint8_t>(rows[static_cast<size_t>(b)] | (1u << part));
+            else lanes_[static_cast<size_t>(lane * kBins + b)] = 1.0f;
+        }
+    }
+    for (int b = 0; b < kBins; ++b) {
+        int count = 0;
+        for (uint8_t v = rows[static_cast<size_t>(b)]; v != 0; v &= static_cast<uint8_t>(v - 1)) ++count;
+        lanes_[static_cast<size_t>(b)] = count == 0 ? 0.0f : 0.35f + 0.65f * static_cast<float>(count) / static_cast<float>(kRows);
+    }
+}
+
 void ArrangeView::paint(juce::Graphics& g)
 {
     g.fillAll(kPanel);
+    if (proc_.scoreVersion() != version_) { version_ = proc_.scoreVersion(); rebuild(); }
     std::vector<Marker> markers;
     double beats = 0.0, secs = 0.0;
     proc_.arrangement(markers, beats, secs);
@@ -125,8 +157,31 @@ void ArrangeView::paint(juce::Graphics& g)
         g.setColour(kInk);
         g.setFont(juce::FontOptions(11.0f));
         if (x1 - x0 > 30.0f)
-            g.drawFittedText(name.fromLastOccurrenceOf(": ", false, false), juce::Rectangle<int>(static_cast<int>(x0) + 4, 8, static_cast<int>(x1 - x0) - 8, static_cast<int>(h) - 16),
-                             juce::Justification::topLeft, 3);
+            g.drawFittedText(name.fromLastOccurrenceOf(": ", false, false), juce::Rectangle<int>(static_cast<int>(x0) + 4, 8, static_cast<int>(x1 - x0) - 8, 16),
+                             juce::Justification::topLeft, 1);
+    }
+    // The instrumentation matrix under the names: a lane per layer, lit where it has notes.
+    const float top = 26.0f, laneH = (h - 12.0f - top) / static_cast<float>(kLanes);
+    if (!lanes_.empty() && laneH > 3.0f) {
+        const float bw = w / static_cast<float>(kBins);
+        for (int l = 0; l < kLanes; ++l) {
+            const float y = top + laneH * static_cast<float>(l);
+            for (int b = 0; b < kBins; ++b) {
+                const float a = lanes_[static_cast<size_t>(l * kBins + b)];
+                if (a <= 0.0f) continue;
+                g.setColour(kInk.withAlpha(0.55f * a));
+                g.fillRect(bw * static_cast<float>(b), y + 1.0f, bw + 0.5f, laneH - 2.0f);
+            }
+        }
+        static const char* const names[kLanes] = { "rows", "lead", "tape", "strings", "drone", "drums" };
+        g.setFont(juce::FontOptions(9.0f));
+        for (int l = 0; l < kLanes; ++l) {
+            const juce::Rectangle<float> r(2.0f, top + laneH * static_cast<float>(l), 44.0f, laneH);
+            g.setColour(kPanel.withAlpha(0.7f));
+            g.fillRect(r.withWidth(40.0f));
+            g.setColour(kDim);
+            g.drawText(names[l], r.reduced(2.0f, 0.0f), juce::Justification::centredLeft);
+        }
     }
     const float x = static_cast<float>(proc_.positionBeats() / beats) * w;
     g.setColour(kAccent);

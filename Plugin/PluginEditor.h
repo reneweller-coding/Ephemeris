@@ -44,15 +44,24 @@ private:
     std::vector<std::unique_ptr<juce::ButtonParameterAttachment>> buttons_;
 };
 
-/** @brief The sections of the piece as blocks, with the playhead. */
+/**
+ * @brief The sections of the piece as blocks, with the playhead, and the instrumentation matrix (PLAN 8.1,
+ *        Arrange): under the sections' names a lane per layer -- the rows (brighter the more of them play),
+ *        the lead, the tape keys, the strings, the drone, the drums -- lit where it has notes.
+ */
 class ArrangeView final : public juce::Component {
 public:
     explicit ArrangeView(EphemerisProcessor& p) : proc_(p) {}   ///< shows @p p's score
-    void paint(juce::Graphics& g) override;                     ///< the sections and the playhead
+    void paint(juce::Graphics& g) override;                     ///< the sections, the matrix and the playhead
     void mouseDown(const juce::MouseEvent& e) override;         ///< jumps to the clicked position
 
 private:
+    static constexpr int kLanes = 6;      ///< rows, lead, tape keys, strings, drone, drums
+    static constexpr int kBins = 480;     ///< columns of the matrix across the piece
+    void rebuild();                       ///< the matrix of a new score
     EphemerisProcessor& proc_;
+    int version_ = -1;                    ///< the score the matrix was built from
+    std::vector<float> lanes_;            ///< kLanes x kBins activity, 0..1
 };
 
 /** @brief The editor. */
