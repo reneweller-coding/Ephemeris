@@ -57,6 +57,7 @@ void usage()
                 "  --midi FILE      write a Standard MIDI File\n"
                 "  --list           print every parameter and exit\n"
                 "  --dump-params F  write every parameter's description as JSON (for the manual) and exit\n"
+                "  --quality Q      desktop (default) or quest: the headset's level (3 singers per choir key)\n"
                 "  --version        print the version and exit\n", EPH_VERSION);
 }
 
@@ -70,6 +71,7 @@ int main(int argc, char** argv)
     std::string out, midi, set;
     bool list = false, frame = false, study = false, sketch = false;
     std::string dump;
+    int singers = 6;
     double concert = 0.0;
     std::string setIn, setOut;
     Curation curation;
@@ -92,6 +94,7 @@ int main(int argc, char** argv)
         else if (a == "--midi") midi = next("--midi");
         else if (a == "--list") list = true;
         else if (a == "--dump-params") dump = next("--dump-params");
+        else if (a == "--quality") singers = std::string(next("--quality")) == "quest" ? 3 : 6;
         else if (a == "--frame") frame = true;
         else if (a == "--study") study = true;
         else if (a == "--sketch") sketch = true;
@@ -107,6 +110,7 @@ int main(int argc, char** argv)
     }
 
     Engine engine;
+    engine.setTapeSingers(singers);
     ParamStore& p = engine.params();
     if (!setIn.empty()) {
         // A saved set: its seed, lengths, parameters and rerolls; the command line's rerolls come on top.

@@ -70,12 +70,14 @@ mute=1                     start silent (the test rule); the engine still runs
 seed=2026                  the first piece's seed; the next piece takes the next seed
 minutes=12                 length of a piece
 style=Cosmic               Cosmic, Doom, Melodic, Modern or Drift
+quality=quest              quest (default: 3 singers per choir key) or desktop (6)
 set=compose.key=D;compose.scale=Dorian     any knobs, repeatable
 ```
 
 ## Still open
 
-- A quality level for the headset (PLAN: tape-key singers 6 → 3, the rows without 2x oversampling except the
-  bass row) — to be decided after measuring on the device.
+- The quality level has one setting so far, the tape keys' singers (6 → 3; `eph_render --quality quest`
+  renders it on the desktop). The rows' 2x oversampling stays: in the SIMD lanes the ten voices cost two
+  (NEON: three) registers, and whether that is too much is for the device to say.
 - The NEON lane path is only checked through the x86 shim on the desktop (`vectest_neon`); on the device,
   build the core with the NDK and run `eph_vectest` and `eph_selftest` over adb, as Phosphene's README shows.

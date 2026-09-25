@@ -42,7 +42,7 @@
 namespace eph {
 
 constexpr int kTapeKeys = 8;          ///< keys that can sound at once
-constexpr int kSingers = 6;           ///< voices per choir key (Quality::Quest: fewer, Phase 6)
+constexpr int kSingers = 6;           ///< voices per choir key at most (the Quest plays fewer: setSingers)
 constexpr double kTapeSeconds = 8.0;  ///< length of a tape
 
 /** @brief Which recordings are on the tapes. */
@@ -68,6 +68,12 @@ public:
     void reset();
     /** @brief Takes the settings; call at every 32-sample cell. */
     void set(const TapeSettings& s);
+    /**
+     * @brief How many of a choir key's singers sound (1 .. kSingers; the Quest's quality level plays 3). The
+     *        sum is scaled by 1 / sqrt(6 n), which keeps the level of a choir of random phases the same for any
+     *        n and is exactly 1/6 for all six, so the desktop's sound does not move by a bit.
+     */
+    void setSingers(int n) { singers_ = n < 1 ? 1 : (n > kSingers ? kSingers : n); }
     /** @brief Presses a key; if all keys sound, the oldest is taken. */
     void noteOn(int pitch, float velocity, int id);
     /** @brief Releases the key started with @p id. */
@@ -118,7 +124,8 @@ private:
     int64_t count_ = 0;
     float thump_ = 0.0f;
     double fallCoef_ = 0.0;       ///< the release's factor per sample (70 ms time constant)
-    float formantGain_[5] = {};   ///< the choir's formant levels at the current vowel
+    float formantGain_[5] = {};
+    int singers_ = kSingers;       ///< setSingers()   ///< the choir's formant levels at the current vowel
 };
 
 } // namespace eph

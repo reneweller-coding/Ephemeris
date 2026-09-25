@@ -88,6 +88,7 @@ void Engine::load(const Score& score)
     echo_.prepare(sampleRate_, 2.5, mixSeed(score_.seed, 200));
     reverb_.prepare(sampleRate_);
     tape_.prepare(sampleRate_, mixSeed(score_.seed, 500));
+    tape_.setSingers(tapeSingers_);
     atmos_.prepare(sampleRate_, mixSeed(score_.seed, 600));
     strings_.prepare(sampleRate_, mixSeed(score_.seed, 700));
     drums_.prepare(sampleRate_, mixSeed(score_.seed, 800));

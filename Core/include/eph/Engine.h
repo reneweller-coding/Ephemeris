@@ -50,6 +50,11 @@ public:
     void prepare(double sampleRate, int maxBlock);
     /** @brief Replaces the score (not from the audio thread) and returns to its start. */
     void load(const Score& score);
+    /**
+     * @brief The quality level's one setting so far: the singers per choir key (TapeKeys::setSingers), 6 on
+     *        the desktop, 3 on the Quest. Kept across load().
+     */
+    void setTapeSingers(int n) { tapeSingers_ = n; tape_.setSingers(n); }
 
     /**
      * @brief Renders @p n samples into @p L and @p R (overwritten) and advances the position.
@@ -174,6 +179,7 @@ private:
     TruePeakLimiter limiter_;
     float echoReturn_ = 0.0f, springReturn_ = 0.0f, reverbReturn_ = 0.0f, master_ = 1.0f;
     int transpose_ = 0;   ///< perform.transpose at the current cell, for the notes that start
+    int tapeSingers_ = kSingers;   ///< setTapeSingers()
     float echoThrow_ = 0.0f;   ///< perform.throw's addition to every echo send (mix())
     /**
      * @brief What each setter was last called with (updateCell): a setter runs only when its input has

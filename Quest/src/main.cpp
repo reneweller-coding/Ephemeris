@@ -36,6 +36,7 @@
  *   seed=2026           the first piece's seed; the next piece takes the next seed
  *   minutes=12          length of a piece
  *   style=Cosmic        Cosmic, Doom, Melodic, Modern or Drift
+ *   quality=quest       quest (default here: 3 singers per choir key) or desktop (6)
  *   set=compose.key=D;perform.throw=0     any knobs, repeatable
  * @endcode
  */
@@ -191,6 +192,7 @@ struct Config {
     bool mute = false;              ///< start silent (test rule); the engine still runs
     uint64_t seed = 1;              ///< the first piece's seed
     double minutes = 12.0;          ///< length of a piece
+    int singers = 3;                ///< singers per choir key: 3 at the quality level `quest` (default here), 6 at `desktop`
     std::string sets;               ///< knob assignments, "key=value" separated by ';' or newlines
 };
 
@@ -213,6 +215,7 @@ Config readConfig(const char* dir)
         if (k == "mute") c.mute = v != "0";
         else if (k == "seed") c.seed = std::strtoull(v.c_str(), nullptr, 10);
         else if (k == "minutes") c.minutes = std::max(4.0, std::atof(v.c_str()));
+        else if (k == "quality") c.singers = v == "desktop" ? 6 : 3;
         else if (k == "style") { c.sets += "compose.style=" + v; c.sets += ";"; }
         else if (k == "set") { c.sets += v; c.sets += ";"; }
         else LOGE("eph.cfg: unknown key %s", k.c_str());
@@ -251,6 +254,7 @@ public:
         gainCoef_ = static_cast<float>(1.0 - std::exp(-1.0 / (0.015 * sampleRate)));   // 15 ms
         levelCoef_ = static_cast<float>(1.0 - std::exp(-1.0 / (0.3 * sampleRate)));    // 300 ms
         engine_.prepare(sampleRate, block);
+        engine_.setTapeSingers(cfg.singers);
         auto score = std::make_shared<Score>(composePiece(engine_.params(), seed_, minutes_));
         engine_.load(*score);
         publish(score);

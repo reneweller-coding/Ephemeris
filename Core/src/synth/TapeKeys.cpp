@@ -155,7 +155,8 @@ float TapeKeys::render(Key& k, double speedCents)
     switch (k.set) {
     case TapeSet::Choir: {
         if ((count_ & 7) == 0) {
-            for (Singer& g : k.singers) {
+            for (int i = 0; i < singers_; ++i) {
+                Singer& g = k.singers[i];
                 g.vibPhase += 8.0 * g.vibHz / sr_;
                 if (g.vibPhase >= 1.0) g.vibPhase -= 1.0;
                 if ((count_ & 2047) == 0) g.wanderTarget = 6.0 * static_cast<double>(rng_.bipolar());
@@ -165,9 +166,9 @@ float TapeKeys::render(Key& k, double speedCents)
             }
         }
         float sum = 0.0f;
-        for (Singer& g : k.singers) sum += static_cast<float>(g.level) * g.osc.next();
+        for (int i = 0; i < singers_; ++i) sum += static_cast<float>(k.singers[i].level) * k.singers[i].osc.next();
         float lo, bp, hi;
-        k.singers[0].tilt.tick(sum * (1.0f / kSingers), lo, bp, hi);
+        k.singers[0].tilt.tick(sum * (1.0f / std::sqrt(static_cast<float>(kSingers * singers_))), lo, bp, hi);
         const float src = lo;
         for (int f = 0; f < 5; ++f) {
             float fl, fb, fh;
