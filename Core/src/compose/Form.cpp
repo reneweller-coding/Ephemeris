@@ -77,7 +77,9 @@ PieceForm drawForm(const StyleProfile& prof, double minutes, double bpm, Rng& rn
 
     // Seconds: intro, coda, bridges, the rest to the phases.
     const double total = std::max(4.0, minutes) * 60.0;
-    const double intro = prof.introShare * total, coda = prof.codaShare * total;
+    // (A night set's piece has them in bars, so that it overlaps its neighbours by whole bars.)
+    const double intro = prof.introBars > 0 ? prof.introBars * kBeatsPerBar * 60.0 / f.phaseBpm.front() : prof.introShare * total;
+    const double coda = prof.codaBars > 0 ? prof.codaBars * kBeatsPerBar * 60.0 / f.phaseBpm.back() : prof.codaShare * total;
     const double bridge = 0.06 * total;
     const double phaseTotal = std::max(60.0, total - intro - coda - bridge * (phases - 1));
     std::vector<double> phaseSec;
@@ -114,7 +116,9 @@ PieceForm drawForm(const StyleProfile& prof, double minutes, double bpm, Rng& rn
         for (const auto& x : parts) {
             const double sec = phaseSec[static_cast<size_t>(p)] * x.second / w;
             switch (x.first) {
-            case SectionType::Entry: add(x.first, p, 0, sec, tempo, 0.2f, 0.3f); break;
+            case SectionType::Entry:
+                add(x.first, p, 0, p == 0 && prof.entryBars > 0 ? prof.entryBars * kBeatsPerBar * 60.0 / tempo : sec, tempo, 0.2f, 0.3f);
+                break;
             case SectionType::Build: {
                 const float a = 0.3f + 0.45f * static_cast<float>(b) / builds, c = 0.3f + 0.45f * static_cast<float>(b + 1) / builds;
                 add(x.first, p, b, sec, tempo, a, c);

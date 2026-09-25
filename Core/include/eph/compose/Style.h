@@ -51,6 +51,15 @@ struct StyleProfile {
     float hallSeconds;                   ///< decay of the hall
     float levelDb;                       ///< master offset towards the profile's measured loudness
     float grainChance = 0.0f;            ///< chance of the atmosphere's granular cloud in a piece (25.09.2026)
+    // The night sets (25.09.2026, composeNightSet): a piece that overlaps its neighbours as a DJ mixes two tracks.
+    int introBars = 0;                   ///< the atmosphere before the first phase in bars (0: introShare)
+    int entryBars = 0;                   ///< the first phase's entry (the bass alone) in bars (0: its share)
+    int codaBars = 0;                    ///< the coda in bars (0: codaShare)
+    bool djOutro = false;                ///< the coda an outro to mix out of: the rows play on into it (below)
+    int bassHandover = 0;                ///< bars into the outro where the next piece's bass comes in: the counter rows
+                                         ///< stop there, the bass gives up its lows and recedes (0: halfway)
+    int mainHandover = 0;                ///< bars into the outro where the next piece's main sequence comes in: this
+                                         ///< one's recedes from there to the end (0: at the bass's handover)
 };
 
 /** @brief The profile of a style. */

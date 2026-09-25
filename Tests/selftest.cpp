@@ -49,6 +49,7 @@
 #include "eph/synth/TapeKeys.h"
 #include "TestSupport.h"
 #include <algorithm>
+#include <chrono>
 #include <cmath>
 #include <cstdio>
 #include <cstring>
@@ -1837,6 +1838,74 @@ void testModLane()
 }
 
 /**
+ * The night set (composeNightSet): hours of pieces in mixed styles, a rung of the ladder apart, each laid over the
+ * last one's outro on the other bank of rows -- both banks sounding together at every handover -- beat-matched, the
+ * drone sliding into the new key.
+ */
+void testNightSet()
+{
+    section("night set");
+    ParamStore p;
+    p.parseText("compose.style=Cosmic compose.concert_minutes=480 compose.night_set=1");
+    const auto t0 = std::chrono::steady_clock::now();
+    const Score s = composeConcert(p, 11, 480.0);
+    const double took = std::chrono::duration<double>(std::chrono::steady_clock::now() - t0).count();
+    const double secs = s.tempo.secondsAt(s.lengthBeats);
+    struct Start { double beat; std::string style; };
+    std::vector<Start> starts;
+    for (const Marker& m : s.markers) {
+        const size_t a = m.text.find(" ("), b = m.text.find("): ");
+        if (m.text.rfind("Stueck ", 0) != 0 || a == std::string::npos || b == std::string::npos) continue;
+        if (std::atoi(m.text.c_str() + 7) == static_cast<int>(starts.size()) + 1) starts.push_back({ m.beat, m.text.substr(a + 2, b - a - 2) });
+    }
+    check(std::fabs(secs - 28800.0) < 900.0 && starts.size() >= 25, "a night of pieces, about as long as asked",
+          fmt("%zu pieces, %.2f h, composed in %.1f s", starts.size(), secs / 3600.0, took));
+    static const char* const ladder[5] = { "Drift", "Doom", "Cosmic", "Modern", "Melodic" };
+    auto rung = [](const std::string& name) { for (int k = 0; k < 5; ++k) if (name == ladder[k]) return k; return -9; };
+    std::vector<std::string> kinds;
+    bool adjacent = true, noThird = true;
+    for (size_t i = 0; i < starts.size(); ++i) {
+        if (std::find(kinds.begin(), kinds.end(), starts[i].style) == kinds.end()) kinds.push_back(starts[i].style);
+        if (i > 0) adjacent = adjacent && std::abs(rung(starts[i].style) - rung(starts[i - 1].style)) <= 1;
+        if (i > 1) noThird = noThird && !(starts[i].style == starts[i - 1].style && starts[i].style == starts[i - 2].style);
+    }
+    check(kinds.size() >= 4 && adjacent && noThird, "mixed styles, a rung of the ladder apart, never three of one in a row",
+          fmt("%zu styles", kinds.size()));
+    // Every handover: both banks of rows in one bar, no tempo change where the next piece starts, the drone sliding.
+    int mixed = 0, matched = 0, slid = 0;
+    std::vector<NoteEvent> drones;
+    for (const NoteEvent& n : s.notes) if (n.part == Part::Drone) drones.push_back(n);
+    for (size_t i = 1; i < starts.size(); ++i) {
+        const double at = starts[i].beat;
+        bool both = false;
+        for (double bar = at; bar < at + 32.0 * kBeatsPerBar && !both; bar += kBeatsPerBar) {
+            bool lo = false, hi = false;
+            auto it = std::lower_bound(s.notes.begin(), s.notes.end(), bar, [](const NoteEvent& n, double v) { return n.beat < v; });
+            for (; it != s.notes.end() && it->beat < bar + kBeatsPerBar; ++it) {
+                const NoteEvent& n = *it;
+                const int r = static_cast<int>(n.part) - static_cast<int>(Part::Row1);
+                if (r >= 0 && r < 4) lo = true;
+                if (r >= 4 && r < kRows) hi = true;
+            }
+            both = lo && hi;
+        }
+        mixed += both;
+        matched += std::fabs(s.tempo.bpmAt(at - 0.5) - s.tempo.bpmAt(at + 0.5)) < 1e-6;
+        const NoteEvent* before = nullptr;
+        bool slides = false;
+        for (const NoteEvent& n : drones) {
+            if (n.beat < at - 1e-6) before = &n;
+            else { slides = std::fabs(n.beat - at) < 1e-6 && before != nullptr && before->slide && before->beat + before->length > at; break; }
+        }
+        slid += slides;
+    }
+    const int handovers = static_cast<int>(starts.size()) - 1;
+    check(mixed == handovers && matched == handovers, "every handover: the two pieces' rows together, beat-matched",
+          fmt("%d and %d of %d", mixed, matched, handovers));
+    check(slid == handovers, "the drone slides into the next piece's key", fmt("%d of %d", slid, handovers));
+}
+
+/**
  * The offline render is the oracle only if a host's block size cannot change a sample: the study
  * rendered with blocks of 1, 37 and 512 must agree bit for bit (Engine.h).
  */
@@ -1993,6 +2062,7 @@ const TestSection kSections[] = {
     { "testBlendAndBus", testBlendAndBus },
     { "testSendsAD", testSendsAD },
     { "testModLane", testModLane },
+    { "testNightSet", testNightSet },
     { "testBlockSizes", testBlockSizes },
     { "testEcho", testEcho },
     { "testDrift", testDrift },

@@ -59,10 +59,11 @@ const ParamDesc kComposeParams[compose::Count] = {
     { "style",         "Style",         "",      0.0f,   4.0f,   0.0f, Curve::Choice, kStyleNames },
     { "piece_minutes", "Piece Length",  "min",   4.0f,  40.0f,  16.0f, Curve::Linear },
     { "style_tempo",   "Style Tempo",   "",      0.0f,   1.0f,   1.0f, Curve::Toggle },
-    { "concert_minutes", "Concert Length", "min", 0.0f, 240.0f,  0.0f, Curve::Linear },
+    { "concert_minutes", "Concert Length", "min", 0.0f, 720.0f,  0.0f, Curve::Linear },   // up to a night of twelve hours
     { "morph_to",      "Morph To",      "",      0.0f,   5.0f,   0.0f, Curve::Choice, kMorphNames },
     { "concert_arc",   "Concert Arc",   "",      0.0f,   1.0f,   0.0f, Curve::Linear },
     { "album",         "Album Form",    "",      0.0f,   1.0f,   0.0f, Curve::Toggle },
+    { "night_set",     "Night Set",     "",      0.0f,   1.0f,   0.0f, Curve::Toggle },
 };
 
 const ParamDesc kRowParams[row::Count] = {

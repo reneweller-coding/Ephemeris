@@ -98,6 +98,8 @@ private:
     juce::ComboBox style_, key_, scale_;
     juce::Slider minutes_, concert_;
     juce::Label minutesLabel_, concertLabel_;
+    juce::ToggleButton night_ { "Night" };   ///< compose.night_set: the concert as a night set
+    std::unique_ptr<juce::ButtonParameterAttachment> nightAttach_;
     juce::TextButton compose_{ "Compose" }, seed_{ "New seed" }, play_{ "Play" }, mute_{ "Mute" };
     juce::OwnedArray<juce::TextButton> rerollButtons_;
     juce::TextButton save_{ "Save set" }, load_{ "Load set" }, export_{ "Export WAV + MIDI" };

@@ -40,13 +40,22 @@ Schritte:
    Intros 6-9 %; Reihen setzen ausgedünnt ein und füllen sich (`RackOp::Fill`).
 5. Puls: weiche Vierviertel-Kick bzw. Herzschlag ab dem zweiten Aufbau je Stil, Schlagzeug früher (ab 30 %).
 6. Pegel: Sequenzen gegen Pads/Räume nachmessen (Stems) und anheben.
-7. Nacht-Sets (`compose.set_hours`): Stile gemischt nach Energiewellen (Guide 6.3 "Wellen"), Stücke 8-15 min,
+7. Nacht-Sets (umgesetzt als `compose.night_set`): Stile gemischt nach Energiewellen (Guide 6.3 "Wellen"), Stücke 8-15 min,
    DJ-Überlappung 16-32 Takte: abwechselnde Reihenbänke (Stück A Reihen 1-4, Stück B 5-8, Transposer jeweils in
    der anderen Bank), B übernimmt A's Tempo und rampt später, harmonische Tonartwechsel (Quinte, Quarte,
    Parallele), Bass-Übergabe über das Distanz-Makro und den Low Cut (A entfernt sich, B nähert sich), der Bordun
    gleitet in die neue Tonart. Offline (`eph_render --set`), Plugin und Quest.
 Jeder Schritt mit Selbsttest, neuen Referenz-Hashes, Handbuch und Commit.
-Stand: Schritte 1-6 erledigt (Puls writePulse je Stil ab dem zweiten Aufbau, Kit ab 30 %; Tape Keys -1 dB und Atmosphäre 0 dB, gemessen: Hauptsequenz -19.7, Tape -30, Atmosphäre -45.6 dBFS). Weiter mit 7 (Nacht-Sets).
+Stand: Schritte 1-7 erledigt (Puls writePulse je Stil ab dem zweiten Aufbau, Kit ab 30 %; Tape Keys -1 dB und Atmosphäre 0 dB, gemessen: Hauptsequenz -19.7, Tape -30, Atmosphäre -45.6 dBFS).
+Schritt 7 umgesetzt als Schalter `compose.night_set` auf dem Konzert (`compose.concert_minutes` jetzt bis 720), composeNightSet:
+Stil-Leiter Drift-Doom-Cosmic-Modern-Melodic, eine Sprosse je Stück, Wellen 80-120 min über concertArc, nie drei gleiche
+in Folge. Messung am 34-min-Set zeigte zuerst 10 dB Einbruch je Übergabe (A's Gegenreihen, Flächen und B's Formpegel ab
+Überlappungsbeginn); daher länger gemischt: B's Intro 8-16 Takte, Einsatz 8 Takte, Hauptsequenz füllt 16 Takte unter A's
+Outro (32-40 Takte); A's Gegenreihen stoppen beim B-Bass, A's Bass Low Cut 30->250 Hz über 2 Takte und Distanz ->0.7,
+A's Hauptsequenz Distanz ->0.6 ab B's Hauptsequenz; der Masterbus bleibt A's bis zu dessen Ende; Doom/Drift +1.2 dB.
+Danach 3 dB sanfte Blende statt Einbruch. Tempo innerhalb Stilbereich ±6 BPM, Rampe 16 Takte je 4 BPM. Nebenbei behoben:
+im Konzert blieben Regler, die ein Stück bewegt und das nächste nicht setzt (z. B. die Körnerwolke), stehen -- sie gehen
+jetzt beim Stückwechsel auf den Knopf zurück. Quest: `night=8` in eph.cfg. Offen: Hören.
 
 **Nächste Schritte (Stand 25.09.2026, nachmittags).** Die Programmieraufgaben der Phasen 4 bis 7 sind
 umgesetzt (die Einträge darunter); offen ist, was einen Menschen, eine Installation oder ein Gerät braucht:

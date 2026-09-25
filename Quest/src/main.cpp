@@ -225,6 +225,10 @@ Config readConfig(const char* dir)
         else if (k == "osc_port") c.oscPort = std::atoi(v.c_str());
         else if (k == "style") { c.sets += "compose.style=" + v; c.sets += ";"; }
         else if (k == "set") { c.sets += v; c.sets += ";"; }
+        else if (k == "night") {
+            // A night set of this many hours (composeNightSet): styles mixed, the pieces overlapping as a DJ mixes them.
+            c.sets += "compose.night_set=1;compose.concert_minutes=" + std::to_string(std::clamp(std::atof(v.c_str()), 0.5, 12.0) * 60.0) + ";";
+        }
         else LOGE("eph.cfg: unknown key %s", k.c_str());
     }
     std::fclose(f);
@@ -263,7 +267,7 @@ public:
         levelCoef_ = static_cast<float>(1.0 - std::exp(-1.0 / (0.3 * sampleRate)));    // 300 ms
         engine_.prepare(sampleRate, block);
         engine_.setTapeSingers(cfg.singers);
-        auto score = std::make_shared<Score>(composePiece(engine_.params(), seed_, minutes_));
+        auto score = std::make_shared<Score>(composeFor(seed_));
         engine_.load(*score);
         publish(score);
         ready_.store(true, std::memory_order_release);
@@ -348,7 +352,7 @@ private:
         setPlaying(false);
         const int next = piece_.load(std::memory_order_relaxed) + 1;
         // Composed while the fade runs and the old piece still waits: nothing is taken from the audio thread yet.
-        auto score = std::make_shared<Score>(composePiece(engine_.params(), seed_ + static_cast<uint64_t>(next - 1), minutes_));
+        auto score = std::make_shared<Score>(composeFor(seed_ + static_cast<uint64_t>(next - 1)));
         std::this_thread::sleep_for(std::chrono::milliseconds(60));
         int expected = kIdle;
         while (!state_.compare_exchange_weak(expected, kBlocked)) {
@@ -368,6 +372,14 @@ private:
     }
 
     void publish(std::shared_ptr<const Score> s) { std::lock_guard<std::mutex> lock(scoreMutex_); score_ = std::move(s); }
+
+    /** @brief A piece, or with compose.concert_minutes a concert (a night set with compose.night_set). Composer thread. */
+    Score composeFor(uint64_t seed)
+    {
+        const ParamStore& p = engine_.params();
+        const double concert = p.get(p.id(Module::Compose, 0, compose::ConcertMinutes));
+        return concert > 0.0 ? composeConcert(p, seed, concert) : composePiece(p, seed, minutes_);
+    }
 
     Engine engine_;
     uint64_t seed_ = 1;

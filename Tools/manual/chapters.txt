@@ -37,6 +37,21 @@ hands slower, the sound a little darker -- and the pieces around 60 % of the way
 Compose writes a piece with the current seed, New seed draws another one, Play starts and stops the
 standalone (in a host the host's transport plays).
 
+Night turns a concert (up to twelve hours) into a night set, played as a DJ plays one. The pieces last
+eight to fifteen minutes and their styles climb and descend a ladder -- Drift, Doom, Cosmic, Modern,
+Melodic -- one rung at a time, along waves of energy of 80 to 120 minutes over the night's own arc (the
+densest around 60 % of the way), never three pieces of one style in a row; the style in the top bar is the
+first. No piece ends in silence: each one's last 32 to 40 bars are an outro in which its rows play on, and
+the next piece starts over it, on the other half of the rack (rows 1-4 and 5-8 take turns). First its
+intro, 8 to 16 bars -- the drone slides into the new key, a fourth or a fifth away (now and then a minor
+third), with its pads and its air -- then its bass, alone for eight bars: there the old piece's counter
+rows stop and its bass gives up its lows on the EQ and recedes, as a DJ swaps the bass. Then the new main
+sequence comes in and fills up while the old one recedes to its end. The mix is beat-matched: the new
+piece takes the tempo the old one ended in, within 6 BPM of its style's range, and ramps to its own only
+after the handover (16 bars for every 4 BPM). The level stays the old piece's until its end, and Doom and
+Drift are brought 1.2 dB nearer to the louder styles. A piece of a night set has at most four rows.
+Composing eight hours takes about half a second; export writes the whole night.
+
 Scale offers eight modes: Aeolian, Dorian, Phrygian, Harmonic Minor, Minor Pentatonic, Mixolydian, Lydian
 and Locrian. The harmony is the Berlin School's: a centre held by the drone and the bass, chords that
 change rarely. From the first build on, a chord track moves the bass row alone under the unchanged
@@ -133,21 +148,34 @@ The composer uses the conjunctions: a build, which brings in a new counter row, 
 the bass row begin their cycles together again, if such a bar is near.
 
 On the right, the rows' parameters: length and step, direction, octave and transposition, the chance
-of a mutation at the end of each cycle (a Turing machine's shift register), the gate, level, pan and
-sends, and the mode -- notes, or the transposer that moves the others. The composer sets the rows for
-each piece; the values here are what a piece starts from.
+of a mutation (a Turing machine's shift register) -- weighed once every sixteen bars, so that a pattern
+holds at least that long, as a hypnotic one must -- the gate, level, pan and sends, the filter sweep, and
+the mode -- notes, or the transposer that moves the others. The composer sets the rows for each piece;
+the values here are what a piece starts from.
 
 The composer draws each row from one of the Berlin School's figures: the octave pendulum, the fifth
 anchor, the 3+1 pulse (three notes and a rest), stairs up and down, the mode's colour (the note that
 makes Dorian or Phrygian heard), the Phrygian push, the arpeggio spiral from i to VI, or a canon of the
 row before -- three steps later or a fifth up -- besides the older free rules. The bass ostinato has eight
 or sixteen steps and a long gate; every eight steps have one to three rests (the bass none to two), the
-first always sounds on the root or the fifth, accents fall on the first and fifth step or 3+3+2. Some
-steps are probability gates that sound on some rounds only -- Modern has the most, Cosmic and Doom the
-fewest; a few steps, the most in Drift and Modern, play a new note each time round, drawn through a
-quantiser from the root, fifth, octave, seventh, fourth and third of the mode. On the plateau and at the
-peak a few steps are ratcheted into quick triggers, at some peaks the
-eighths row doubles its pulse, and in the breakdown and the coda the bass loses its steps one by one.
+first always sounds on the root or the fifth, accents fall on the first and fifth step or 3+3+2. The
+bass and the main sequence hold the ground: they change at half the style's rate and never by chance. On
+the other counter rows some steps are probability gates that sound on some rounds only -- Modern has the
+most, Cosmic and Doom the fewest; a few steps, the most in Drift and Modern, play a new note each time
+round, drawn through a quantiser from the root, fifth, octave, seventh, fourth and third of the mode. A
+counter row comes in with six of its steps silent and fills a step every two bars. On the plateau and at
+the peak a few steps are ratcheted into quick triggers, at some peaks the eighths row doubles its pulse,
+and in the breakdown and the coda the bass loses its steps one by one.
+
+What makes a sequence hypnotic is less its notes than its timbre moving against them. Every row carries
+a modulation sequencer beside its notes: a lane of 3, 5, 7 or 12 steps -- never the row's own length --
+that opens the filter on a few notes and closes it on others, so the accents of timbre wander through the
+pattern and meet it again only after many rounds (Modern the deepest, Drift the shallowest). Over that,
+Filter Sweep turns the row's cutoff slowly up and down, a sine of its own period between 39 and 79 seconds
+for every row, never in step with the bars or with each other: the long openings and closings of the
+Berlin School. The composer gives the main sequence the widest sweep and a squelchy voice -- more
+resonance, a short deep filter envelope, strong accents -- the bass a round one and the other rows
+something between; Motion on the Master page scales every sweep with the other slow movements.
 
 == Gestures | | 3 ==
 
@@ -304,9 +332,14 @@ return is matched to the hall's level, so the switch changes the room, not the l
 == Drums | drums | 12 ==
 
 A small analogue kit for the styles that have drums: kick, snare, hats, toms tuned to the root, rim and
-shaker, with patterns per style. The drums come late in a piece, from the second build to the end of
-the peak, and never before 45 % of the piece or after 90 %: the sequence is there before them and stays
-after them.
+shaker, with patterns per style. The kit comes late in a piece, from the second build to the end of the
+peak, and never before 30 % of the piece or after 90 %: the sequence is there before it and stays after
+it.
+
+Before the kit, a pulse carries the sequence in most pieces: a soft kick four to the floor in Melodic and
+Modern, a heartbeat in Cosmic, a slow beat on one and three in Drift, a low tom once a bar in Doom. It
+comes with the second build (not before a fifth of the piece) and makes way for the kit or the breakdown;
+Melodic has it in four pieces out of five, Drift in one out of three.
 
 == Master | master compose cue | 13 ==
 
@@ -324,8 +357,8 @@ where the dry bass comes in, growing again with the layers; while the lead plays
 strings step back 3 dB.
 
 The styles are levelled to the loudness a streamed release is played at (EBU R128, measured with the
-offline renderer on ten-minute pieces): Cosmic, Melodic and Modern about -15.5 LUFS integrated, Doom and
-Drift about -19; the loudest three seconds around -12 LUFS, the true peak at -1 dBTP, the peak-to-loudness
+offline renderer on ten-minute pieces): Cosmic, Melodic and Modern about -15 LUFS integrated, Doom and
+Drift about -17.5; the loudest three seconds around -12 LUFS, the true peak at -1 dBTP, the peak-to-loudness
 ratio 11 to 14 dB and the loudness range 8 to 13 LU -- the dynamics are the product. eph_render prints these
 figures for everything it renders, with the stereo correlation and how far the side lies under the mid.
 Below, the composer's settings -- the style, key, scale, tempo, lengths and whether the style chooses the

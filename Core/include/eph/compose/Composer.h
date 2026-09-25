@@ -76,7 +76,24 @@ Score composeInterlude(const ParamStore& p, uint64_t seed, double minutes, int k
 /** @brief The names of a piece's units, in stream order: form, tempo, rows, rack, layers, lead, pads, hands. */
 extern const char* const kUnitNames[8];
 
-/** @brief Appends @p src to @p dst at @p dst's end; its roots are moved by @p rootOffset semitones. */
+/**
+ * @brief Appends @p src to @p dst at @p dst's end; its roots are moved by @p rootOffset semitones. A knob dst moved
+ *        and src does not set goes back to the knob itself where src begins.
+ */
 void appendScore(Score& dst, const Score& src, int rootOffset);
+
+/**
+ * @brief Writes a night set (compose.night_set; a concert of up to twelve hours), as a DJ plays one: pieces of eight
+ *        to fifteen minutes, their styles climbing and descending the ladder Drift, Doom, Cosmic, Modern, Melodic a
+ *        rung at a time along waves of energy (80 to 120 minutes) over the night's arc (concertArc), never a third
+ *        piece of one style in a row. Each piece ends in an outro of 32 to 40 bars in which its rows play on; the
+ *        next one starts over it on the other bank of rows (rows 1-4 and 5-8 by turns) with an intro of 8 to 16 bars
+ *        -- the drone gliding into the new key, a fourth or a fifth away (now and then a minor third), its pads and
+ *        atmosphere -- then its bass alone for 8 bars, where the last one's counter rows stop and its bass gives up
+ *        its lows and recedes, then its main sequence filling up, where the last one's recedes to the end. The tempo
+ *        is the one the last piece ended in, within 6 BPM of the style's range (else it ramps after the handover, 16
+ *        bars for every 4 BPM). A piece has at most four rows. compose.style is the first piece's style.
+ */
+Score composeNightSet(const ParamStore& p, uint64_t seed, double minutes, const Curation* curation = nullptr);
 
 } // namespace eph

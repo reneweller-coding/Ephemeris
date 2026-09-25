@@ -321,13 +321,20 @@ void writeRack(Piece& c)
             ev.push_back({ chordsEnd, 0, RackOp::Chord, 0 });
             c.chords.push_back({ chordsEnd, 0 });
         }
-        for (int k = 0; k < counters; ++k) ev.push_back({ end, k + 1, RackOp::Stop, 0 });
+        // A DJ outro (a night set's piece): the rows play on, whole, for the next piece to come in over them -- the
+        // counter rows until its bass comes in, the main sequence and the bass to the end.
+        const bool outro = bridge == nullptr && c.prof.djOutro;
+        const double codaBars = coda != nullptr ? std::floor(coda->length / kBeatsPerBar) : 0.0;
+        const double handover = end + (c.prof.bassHandover > 0 ? std::min<double>(c.prof.bassHandover, codaBars) : std::floor(codaBars / 2.0)) * kBeatsPerBar;
+        for (int k = 0; k < counters; ++k)
+            ev.push_back({ outro ? (k == 0 ? form.lengthBeats : handover) : end, k + 1, RackOp::Stop, 0 });
         ev.push_back({ end, tr, RackOp::Stop, 0 });
         // In the coda the bass row plays on for a third of it, then leaves the atmosphere alone.
-        const double bassEnd = bridge != nullptr ? end : end + std::floor((coda != nullptr ? coda->length : 0.0) / 3.0 / kBeatsPerBar) * kBeatsPerBar;
+        const double bassEnd = outro ? form.lengthBeats
+                             : bridge != nullptr ? end : end + std::floor((coda != nullptr ? coda->length : 0.0) / 3.0 / kBeatsPerBar) * kBeatsPerBar;
         ev.push_back({ bassEnd, 0, RackOp::Stop, 0 });
         // In the coda the bass loses a step every two bars before it stops (the style guide's 4.7).
-        if (bridge == nullptr)
+        if (bridge == nullptr && !outro)
             for (double b = end + 2 * kBeatsPerBar; b < bassEnd; b += 2 * kBeatsPerBar) ev.push_back({ b, 0, RackOp::Thin, 1 });
         s.rack.insert(s.rack.end(), ev.begin(), ev.end());
     }
@@ -608,7 +615,25 @@ void writeSettings(Piece& c)
     }
     if (const Section* coda = c.form.find(SectionType::Coda, c.phases - 1)) {
         const double third = std::floor(coda->length / 3.0 / kBeatsPerBar) * kBeatsPerBar;
-        if (third > 0.0) c.s.gestures.push_back({ dist, coda->beat, third, near, far, G::MinimumJerk, 3 });
+        if (c.prof.djOutro) {
+            // The handover of a night set: where the next piece's bass comes in, this one's gives up its lows over
+            // two bars, as a DJ swaps the bass on the EQ, and recedes to the end; where the next main sequence comes
+            // in, this one's recedes.
+            const double bars = std::floor(coda->length / kBeatsPerBar);
+            const double hb = coda->beat + (c.prof.bassHandover > 0 ? std::min<double>(c.prof.bassHandover, bars) : std::floor(bars / 2.0)) * kBeatsPerBar;
+            const double hm = std::max(hb, coda->beat + std::min<double>(c.prof.mainHandover, bars) * kBeatsPerBar);
+            const int cut = p.id(Module::Row, 0, row::LowCut);
+            if (c.form.lengthBeats > hb) {
+                c.s.gestures.push_back({ cut, hb, 2.0 * kBeatsPerBar, offsetTo(p, cut, 30.0f), offsetTo(p, cut, 250.0f), G::MinimumJerk, 3 });
+                c.s.gestures.push_back({ dist, hb, c.form.lengthBeats - hb, near, far, G::MinimumJerk, 3 });
+            }
+            if (c.counters > 0 && c.form.lengthBeats > hm) {
+                const int d1 = p.id(Module::Row, 1, row::Distance);
+                c.s.gestures.push_back({ d1, hm, c.form.lengthBeats - hm, offsetTo(p, d1, 0.0f), offsetTo(p, d1, 0.6f), G::MinimumJerk, 3 });
+            }
+        } else if (third > 0.0) {
+            c.s.gestures.push_back({ dist, coda->beat, third, near, far, G::MinimumJerk, 3 });
+        }
     }
     // The rooms per layer (the addon's 4, the production guide's 5.2): the second layer -- the counter rows, the lead,
     // the drums -- in the blend room with a little hall, the main sequence near it with less, the bass dry; the pads,
@@ -869,23 +894,248 @@ Score composeInterlude(const ParamStore& params, uint64_t seed, double minutes, 
     return s;
 }
 
+namespace {
+
+/** @brief The parameters' registry (every store has the same ids), for what does not depend on the values. */
+const ParamStore& registry()
+{
+    static const ParamStore reg;
+    return reg;
+}
+
+/**
+ * @brief The rows' parameters (the modules with an instance per row, Row and Voice): the row of each id, and the id
+ *        of the same parameter four rows away -- a night set's pieces take turns on rows 1-4 and 5-8.
+ */
+struct RowParams {
+    std::vector<int> row;          ///< the row of a parameter id, -1 for every other parameter
+    std::vector<int> other;        ///< the id of the same parameter on the row four away (itself for the others)
+    std::vector<char> discrete;    ///< Int, Choice, Toggle: a knob that jumps, never glides
+    std::vector<char> master;      ///< the master bus's knobs
+    RowParams()
+    {
+        const ParamStore& p = registry();
+        const size_t n = static_cast<size_t>(p.count());
+        row.assign(n, -1);
+        other.resize(n);
+        discrete.assign(n, 0);
+        master.assign(n, 0);
+        for (int i = 0; i < ParamStore::moduleCount(Module::Master); ++i) master[static_cast<size_t>(p.id(Module::Master, 0, i))] = 1;
+        for (int id = 0; id < p.count(); ++id) {
+            other[static_cast<size_t>(id)] = id;
+            const Curve cv = p.desc(id).curve;
+            discrete[static_cast<size_t>(id)] = cv == Curve::Int || cv == Curve::Choice || cv == Curve::Toggle;
+        }
+        for (Module m : { Module::Row, Module::Voice })
+            for (int r = 0; r < kRows; ++r)
+                for (int i = 0; i < ParamStore::moduleCount(m); ++i) {
+                    const size_t id = static_cast<size_t>(p.id(m, r, i));
+                    row[id] = r;
+                    other[id] = p.id(m, (r + kRows / 2) % kRows, i);
+                }
+    }
+};
+
+const RowParams& rowParams()
+{
+    static const RowParams rp;
+    return rp;
+}
+
+/** @brief Swaps the knobs of rows 1-4 and 5-8: a piece composed on rows 1-4 is then set against the knobs it will play on. */
+void swapBanks(ParamStore& p)
+{
+    for (Module m : { Module::Row, Module::Voice })
+        for (int r = 0; r < kRows / 2; ++r)
+            for (int i = 0; i < ParamStore::moduleCount(m); ++i) {
+                const int a = p.id(m, r, i), b = p.id(m, r + kRows / 2, i);
+                const float va = p.get(a);
+                p.set(a, p.get(b));
+                p.set(b, va);
+            }
+}
+
+/** @brief Moves a piece from rows 1-4 to rows 5-8 (its transposer from row 8 to row 4): notes, knobs, rack, shapes. */
+void toOtherBank(Score& s)
+{
+    const RowParams& rp = rowParams();
+    for (NoteEvent& n : s.notes) {
+        const int r = static_cast<int>(n.part) - static_cast<int>(Part::Row1);
+        if (r >= 0 && r < kRows) n.part = rowPart((r + kRows / 2) % kRows);
+    }
+    for (Gesture& g : s.gestures)
+        if (g.param >= 0 && g.param < static_cast<int>(rp.other.size())) g.param = rp.other[static_cast<size_t>(g.param)];
+    for (RackEvent& e : s.rack) if (e.row >= 0) e.row = (e.row + kRows / 2) % kRows;
+    for (RowShape& r : s.rowShapes) r.row = (r.row + kRows / 2) % kRows;
+}
+
+/**
+ * @brief Lays @p src into @p dst, @p overlap beats before dst's end (0: at its end); src's roots moved by
+ *        @p rootOffset semitones.
+ *
+ * A knob src never sets but dst moved goes back to where src expects it -- the knob itself -- where src begins (a
+ * piece of a concert used to keep the last one's granular cloud, say). With an overlap (a night set: two tracks in a
+ * DJ's mix) src plays over dst's outro on the other bank of rows (@p srcBank, 0 or 1; -1: no banks); dst's other
+ * layers end where src begins, its drone held half a beat into src's first note and sliding into it; the knobs src
+ * owns (all but those of dst's rows) are src's from there on, its first settings gliding over up to eight bars from
+ * where dst left them; the tempo stays dst's to dst's end, then ramps to src's (16 bars for every 4 BPM). The master
+ * bus (its level and width along the form) stays dst's through the overlap as well, and glides at dst's end to where
+ * src has it by then: a DJ's mix keeps its level while one track goes and the other comes.
+ */
+void mixInto(Score& dst, const Score& src, double overlap, int rootOffset, int srcBank)
+{
+    using G = GestureShape;
+    constexpr double kEps = 1e-9;
+    const RowParams& rp = rowParams();
+    const int n = registry().count();
+    const double end = dst.lengthBeats, at = std::max(0.0, end - overlap);
+    const bool mixing = overlap > 0.0;
+    auto owned = [&](int id) {
+        const int r = rp.row[static_cast<size_t>(id)];
+        return srcBank < 0 || r < 0 || r / (kRows / 2) == srcBank;
+    };
+    auto valid = [n](int id) { return id >= 0 && id < n; };
+    bool drone = false;
+    if (mixing) {
+        // dst's layers other than the rows end where src begins: what starts later goes, what sounds on is cut two
+        // beats in; the drone holds on half a beat and slides into src's first note.
+        std::vector<NoteEvent> kept;
+        kept.reserve(dst.notes.size());
+        size_t last = 0;
+        for (const NoteEvent& note : dst.notes) {
+            const int r = static_cast<int>(note.part) - static_cast<int>(Part::Row1);
+            if (r >= 0 && r < kRows) { kept.push_back(note); continue; }
+            if (note.beat >= at - kEps) continue;
+            kept.push_back(note);
+            NoteEvent& k = kept.back();
+            if (k.part == Part::Drone) {
+                if (k.beat + k.length > at - 0.5) { k.length = at + 0.5 - k.beat; last = kept.size(); drone = true; }
+            } else if (k.beat + k.length > at + 2.0) {
+                k.length = at + 2.0 - k.beat;
+            }
+        }
+        if (drone) kept[last - 1].slide = true;
+        dst.notes.swap(kept);
+        // dst's moves of src's knobs from there on go; the roots and the scale are src's.
+        dst.gestures.erase(std::remove_if(dst.gestures.begin(), dst.gestures.end(),
+                                          [&](const Gesture& g) { return g.beat >= at - kEps && valid(g.param) && owned(g.param); }),
+                           dst.gestures.end());
+        auto cut = [&](std::vector<std::pair<double, int>>& v) {
+            v.erase(std::remove_if(v.begin(), v.end(), [&](const std::pair<double, int>& e) { return e.first >= at - kEps; }), v.end());
+        };
+        cut(dst.rootShifts);
+        cut(dst.scaleShifts);
+    }
+    // Where dst leaves each of src's knobs: its latest move (in the order the engine reads them).
+    std::vector<int> lastOf(static_cast<size_t>(n), -1);
+    for (size_t i = 0; i < dst.gestures.size(); ++i) {
+        const Gesture& g = dst.gestures[i];
+        if (valid(g.param) && g.beat <= at + kEps && owned(g.param)) lastOf[static_cast<size_t>(g.param)] = static_cast<int>(i);
+    }
+    auto leftAt = [&](int id) { const int i = lastOf[static_cast<size_t>(id)]; return i < 0 ? 0.0f : gestureValue(dst.gestures[static_cast<size_t>(i)], at); };
+    // src's settings at its start (the last move at beat 0 on each knob) and its next move on each knob.
+    std::vector<int> atZero(static_cast<size_t>(n), -1);
+    std::vector<double> next(static_cast<size_t>(n), 1e300);
+    for (size_t i = 0; i < src.gestures.size(); ++i) {
+        const Gesture& g = src.gestures[i];
+        if (!valid(g.param)) continue;
+        if (g.beat <= kEps) atZero[static_cast<size_t>(g.param)] = static_cast<int>(i);
+        else next[static_cast<size_t>(g.param)] = std::min(next[static_cast<size_t>(g.param)], g.beat);
+    }
+    const double glideBeats = 8.0 * kBeatsPerBar;
+    std::vector<Gesture> added;
+    added.reserve(src.gestures.size() + 64);
+    // The master bus in a mix: dst's to its end, then a glide to where src has it at that point.
+    auto held = [&](int id) { return mixing && rp.master[static_cast<size_t>(id)] != 0; };
+    if (mixing) {
+        for (int i = 0; i < ParamStore::moduleCount(Module::Master); ++i) {
+            const int id = registry().id(Module::Master, 0, i);
+            bool seen = lastOf[static_cast<size_t>(id)] >= 0;
+            double after = 1e300;
+            for (const Gesture& g : src.gestures) {
+                if (g.param != id) continue;
+                if (g.beat < overlap - kEps) seen = true;
+                else after = std::min(after, g.beat - overlap);
+            }
+            if (!seen) continue;
+            const float from = leftAt(id), to = src.gestureOffset(id, overlap);
+            if (from == to) continue;
+            const bool glide = !rp.discrete[static_cast<size_t>(id)];
+            added.push_back({ id, end, glide ? std::min(glideBeats, after) : 0.0, from, to, glide ? G::MinimumJerk : G::Step, 3 });
+        }
+    }
+    // The knobs dst moved and src does not set: back to the knob itself.
+    for (int id = 0; id < n; ++id) {
+        const int i = lastOf[static_cast<size_t>(id)];
+        if (i < 0 || atZero[static_cast<size_t>(id)] >= 0 || held(id)) continue;
+        const Gesture& g = dst.gestures[static_cast<size_t>(i)];
+        const float v = gestureValue(g, at);
+        const bool moving = g.shape != G::Step && g.beat + g.length > at + kEps;
+        if (v == 0.0f && !moving) continue;
+        const bool glide = mixing && !rp.discrete[static_cast<size_t>(id)];
+        added.push_back({ id, at, glide ? std::min(glideBeats, next[static_cast<size_t>(id)]) : 0.0, v, 0.0f,
+                          glide ? G::MinimumJerk : G::Step, 3 });
+    }
+    for (size_t i = 0; i < src.gestures.size(); ++i) {
+        Gesture g = src.gestures[i];
+        if (valid(g.param) && held(g.param) && g.beat < overlap - kEps) continue;   // (the master bus, above)
+        if (mixing && valid(g.param) && atZero[static_cast<size_t>(g.param)] == static_cast<int>(i)) {
+            // src's setting of the knob starts from where dst left it, and glides there over up to eight bars.
+            g.from = leftAt(g.param);
+            if ((g.shape == G::Step || g.length <= 0.0) && !rp.discrete[static_cast<size_t>(g.param)] && g.from != g.to) {
+                g.shape = G::MinimumJerk;
+                g.length = std::min(glideBeats, next[static_cast<size_t>(g.param)]);
+            }
+        }
+        g.beat += at;
+        added.push_back(g);
+    }
+    if (drone) {
+        // The drone's slide into the new key, slow: its glide opened a beat before and closed four bars after.
+        const int glide = registry().id(Module::Drone, 0, lead::Glide);
+        added.push_back({ glide, at - 1.0, 0.0, 0.0f, 1.0f, G::Step, 3 });
+        added.push_back({ glide, at + 4.0 * kBeatsPerBar, 0.0, 1.0f, 0.0f, G::Step, 3 });
+    }
+    dst.gestures.insert(dst.gestures.end(), added.begin(), added.end());
+    // The tempo: without an overlap src's own from its start; with one dst's to its end, then a ramp to src's, 16
+    // bars for every 4 BPM (16 to 64 bars): the drift of a set, not a jump.
+    if (!mixing) {
+        for (const TempoPoint& tp : src.tempo.points()) dst.tempo.add(at + tp.beat, tp.bpm, tp.rampToNext);
+    } else {
+        const double from = dst.tempo.bpmAt(end), to = src.tempo.bpmAt(0.0);
+        const double rampEnd = end + std::clamp(std::ceil(std::abs(from - to) / 4.0) * 16.0, 16.0, 64.0) * kBeatsPerBar;
+        if (std::abs(from - to) > 1e-6) {
+            dst.tempo.add(end, from, true);
+            dst.tempo.add(rampEnd, to, false);
+        }
+        for (const TempoPoint& tp : src.tempo.points())
+            if (at + tp.beat > rampEnd + kEps) dst.tempo.add(at + tp.beat, tp.bpm, tp.rampToNext);
+    }
+    for (NoteEvent note : src.notes) { note.beat += at; dst.notes.push_back(note); }
+    for (RackEvent e : src.rack) { e.beat += at; dst.rack.push_back(e); }
+    for (Marker m : src.markers) { m.beat += at; dst.markers.push_back(m); }
+    for (const auto& r : src.rootShifts) dst.rootShifts.push_back({ at + r.first, r.second + rootOffset });
+    for (const auto& r : src.scaleShifts) dst.scaleShifts.push_back({ at + r.first, r.second });
+    for (RowShape r : src.rowShapes) {
+        // src's transposer lies in dst's bank: a display shows it there from dst's end.
+        r.from = mixing && r.transposer ? std::max(r.from + at, end) : r.from + at;
+        dst.rowShapes.push_back(r);
+    }
+    std::stable_sort(dst.rowShapes.begin(), dst.rowShapes.end(), [](const RowShape& a, const RowShape& b) { return a.from < b.from; });
+    dst.lengthBeats = at + src.lengthBeats;
+    dst.sort();
+}
+
+} // namespace
+
 void appendScore(Score& dst, const Score& src, int rootOffset)
 {
-    const double off = dst.lengthBeats;
-    for (const TempoPoint& tp : src.tempo.points()) dst.tempo.add(off + tp.beat, tp.bpm, tp.rampToNext);
-    for (NoteEvent n : src.notes) { n.beat += off; dst.notes.push_back(n); }
-    for (Gesture g : src.gestures) { g.beat += off; dst.gestures.push_back(g); }
-    for (RackEvent e : src.rack) { e.beat += off; dst.rack.push_back(e); }
-    for (Marker m : src.markers) { m.beat += off; dst.markers.push_back(m); }
-    for (const auto& r : src.rootShifts) dst.rootShifts.push_back({ off + r.first, r.second + rootOffset });
-    for (const auto& r : src.scaleShifts) dst.scaleShifts.push_back({ off + r.first, r.second });
-    for (RowShape r : src.rowShapes) { r.from += off; dst.rowShapes.push_back(r); }
-    dst.lengthBeats = off + src.lengthBeats;
-    dst.sort();
+    mixInto(dst, src, 0.0, rootOffset, -1);
 }
 
 Score composeConcert(const ParamStore& p, uint64_t seed, double minutes, const Curation* curation)
 {
+    if (p.getBool(p.id(Module::Compose, 0, compose::NightSet))) return composeNightSet(p, seed, minutes, curation);
     const int styleId = p.id(Module::Compose, 0, compose::Style);
     const Style from = static_cast<Style>(p.getInt(styleId));
     const int morph = p.getInt(p.id(Module::Compose, 0, compose::MorphTo)) - 1;
@@ -967,6 +1217,91 @@ Score composeConcert(const ParamStore& p, uint64_t seed, double minutes, const C
         const int moves[5] = { 5, -5, 3, -2, 2 };
         shift += moves[r.below(5)];
         shift = pitchClass(shift + 6) - 6;
+    }
+    return out;
+}
+
+Score composeNightSet(const ParamStore& p, uint64_t seed, double minutes, const Curation* curation)
+{
+    const int styleId = p.id(Module::Compose, 0, compose::Style);
+    const int bpmId = p.id(Module::Compose, 0, compose::Bpm);
+    const int tempoId = p.id(Module::Compose, 0, compose::StyleTempo);
+    // The styles from the calmest to the most driving (tempo, pulse, density): the ladder the night climbs and
+    // descends, a rung at a time, so that two neighbours are near in tempo and in energy.
+    static const Style kLadder[5] = { Style::Drift, Style::Doom, Style::Cosmic, Style::Modern, Style::Melodic };
+    const Style first = static_cast<Style>(std::clamp(p.getInt(styleId), 0, 4));
+    int rung = 0;
+    for (int k = 0; k < 5; ++k) if (kLadder[k] == first) rung = k;
+    Rng r;
+    r.seed(mixSeed(seed, 0x4e5u + 131u * static_cast<uint64_t>(curation != nullptr ? curation->count("night") : 0)));
+    const double total = std::max(30.0, minutes) * 60.0;
+    // The waves of the style guide's 6.3: the energy rises and falls over 80 to 120 minutes, on the night's own arc.
+    const double period = (80.0 + 40.0 * static_cast<double>(r.uniform())) * 60.0;
+    Score out;
+    int shift = 0, overlapIn = 0, introIn = 0, entryIn = 0, run = 1;
+    double elapsed = 0.0, endBpm = 120.0;
+    for (int i = 0; i < 160 && elapsed < total - 60.0; ++i) {
+        const float t = static_cast<float>(elapsed / total);
+        if (i > 0) {
+            const double wave = 0.5 - 0.5 * std::cos(6.283185307179586 * elapsed / period);
+            const double target = 4.0 * (0.55 * static_cast<double>(concertArc(t)) + 0.45 * wave) + static_cast<double>(r.uniform()) - 0.5;
+            const int want = std::clamp(static_cast<int>(std::lround(target)), 0, 4);
+            int step = std::clamp(want - rung, -1, 1);
+            // Never a third piece of one style in a row.
+            if (step == 0 && run >= 2) step = rung == 0 ? 1 : (rung == 4 ? -1 : (r.uniform() < 0.5f ? 1 : -1));
+            run = step == 0 ? run + 1 : 1;
+            rung += step;
+        }
+        // The length: eight to fifteen minutes; no short piece at the end, the last one takes the rest.
+        const double inSeconds = overlapIn * kBeatsPerBar * 60.0 / endBpm;
+        const double left = (total - elapsed + inSeconds) / 60.0;
+        double m = 8.0 + 7.0 * static_cast<double>(r.uniform());
+        if (left - m < 6.0) m = left;
+        m = std::max(6.0, m);
+        const bool last = m >= left - 1e-9;
+        // The mix into the next piece: its intro of 8, 12 or 16 bars, its bass alone for 8, then its main sequence
+        // filling up for 16 more over this one's outro -- 32 to 40 bars together.
+        const int introNext = 8 + 4 * r.below(3), entryNext = 8;
+        const int overlapOut = last ? 0 : introNext + entryNext + 16;
+        const Style style = kLadder[rung];
+        StyleProfile prof = arcProfile(styleProfile(style), concertArc(t) - 0.5f, 0.5f);
+        prof.peakRows = std::min(prof.peakRows, kRows / 2);   // one bank of rows: the neighbour plays on the other
+        // The DJ's gain: Doom and Drift, measured 2.3 dB under the others, half of that nearer to them.
+        if (style == Style::Doom || style == Style::Drift) prof.levelDb += 1.2f;
+        prof.introBars = introIn;                            // over the last one's outro
+        prof.entryBars = introIn > 0 ? entryIn : 0;
+        prof.codaBars = overlapOut;
+        prof.djOutro = overlapOut > 0;
+        prof.bassHandover = introNext;
+        prof.mainHandover = introNext + entryNext;
+        ParamStore q;
+        q.copyValuesFrom(p);
+        q.set(styleId, static_cast<float>(style));
+        if (i > 0) {
+            // The tempo the last piece ended in, a little faster or slower, within the style's range: the mix is
+            // beat-matched, and a style of another range ramps there after the handover.
+            q.set(tempoId, 0.0f);
+            q.set(bpmId, static_cast<float>(std::clamp(std::round(endBpm - 2.0 + 6.0 * static_cast<double>(r.uniform())),
+                                                       static_cast<double>(prof.bpmLow) - 6.0, static_cast<double>(prof.bpmHigh) + 6.0)));
+        }
+        const int bank = i % 2;
+        if (bank == 1) swapBanks(q);
+        Score piece = composePiece(q, mixSeed(seed, 1000 + static_cast<uint64_t>(i)), m, shift, curation,
+                                   "piece" + std::to_string(i + 1) + ".", &prof);
+        if (bank == 1) toOtherBank(piece);
+        for (Marker& mk : piece.markers) mk.text = "Stueck " + std::to_string(i + 1) + " (" + prof.name + "): " + mk.text;
+        if (i == 0) { out = piece; out.rootShifts.clear(); out.scaleShifts.clear(); out.lengthBeats = 0.0; out.notes.clear(); out.gestures.clear();
+                      out.rack.clear(); out.markers.clear(); out.rowShapes.clear(); }
+        mixInto(out, piece, overlapIn * kBeatsPerBar, shift, bank);
+        elapsed = out.tempo.secondsAt(out.lengthBeats);
+        endBpm = out.tempo.bpmAt(out.lengthBeats);
+        overlapIn = overlapOut;
+        introIn = introNext;
+        entryIn = entryNext;
+        if (last) break;
+        // The next key, as a DJ mixes harmonically: a fourth or a fifth, now and then a minor third.
+        const int moves[6] = { 5, -5, 5, -5, 3, -3 };
+        shift = pitchClass(shift + moves[r.below(6)] + 6) - 6;
     }
     return out;
 }

@@ -74,6 +74,7 @@ quality=quest              quest (default: 3 singers per choir key) or desktop (
 osc_host=192.168.1.20      the score cues to a visualiser (Cue.h: /eph/beat, /eph/phase, /eph/key, /eph/conjunction)
 osc_port=9000
 set=compose.key=D;compose.scale=Dorian     any knobs, repeatable
+night=8                    a night set of 8 hours: the styles mixed, the pieces overlapping as a DJ mixes them
 ```
 
 ## Still open

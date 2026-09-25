@@ -380,6 +380,11 @@ EphemerisEditor::EphemerisEditor(EphemerisProcessor& p) : juce::AudioProcessorEd
     };
     slider(minutes_, minutesLabel_, "Piece min", s.id(Module::Compose, 0, compose::PieceMinutes));
     slider(concert_, concertLabel_, "Concert min", s.id(Module::Compose, 0, compose::ConcertMinutes));
+    nightAttach_ = std::make_unique<juce::ButtonParameterAttachment>(*proc_.parameter(s.id(Module::Compose, 0, compose::NightSet)), night_);
+    night_.setColour(juce::ToggleButton::textColourId, kDim);
+    night_.setTooltip("Night set: the concert's pieces in mixed styles along waves of energy, each mixed into the next "
+                      "as a DJ does it (up to 12 hours)");
+    addAndMakeVisible(night_);
 
     compose_.onClick = [this] { proc_.compose(); };
     seed_.onClick = [this] { proc_.newSeed(); };
@@ -476,14 +481,15 @@ void EphemerisEditor::resized()
 {
     auto area = getLocalBounds().reduced(10);
     auto top = area.removeFromTop(34);
-    title_.setBounds(top.removeFromLeft(150));
+    title_.setBounds(top.removeFromLeft(130));
     style_.setBounds(top.removeFromLeft(110).reduced(3));
     key_.setBounds(top.removeFromLeft(64).reduced(3));
-    scale_.setBounds(top.removeFromLeft(150).reduced(3));
-    minutesLabel_.setBounds(top.removeFromLeft(70));
-    minutes_.setBounds(top.removeFromLeft(150).reduced(2));
-    concertLabel_.setBounds(top.removeFromLeft(80));
-    concert_.setBounds(top.removeFromLeft(140).reduced(2));
+    scale_.setBounds(top.removeFromLeft(120).reduced(3));
+    minutesLabel_.setBounds(top.removeFromLeft(66));
+    minutes_.setBounds(top.removeFromLeft(120).reduced(2));
+    concertLabel_.setBounds(top.removeFromLeft(84));
+    concert_.setBounds(top.removeFromLeft(120).reduced(2));
+    night_.setBounds(top.removeFromLeft(58).reduced(2));
     play_.setBounds(top.removeFromRight(80).reduced(3));
     seed_.setBounds(top.removeFromRight(90).reduced(3));
     compose_.setBounds(top.removeFromRight(100).reduced(3));

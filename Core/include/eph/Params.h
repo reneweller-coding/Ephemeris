@@ -98,7 +98,10 @@ enum : int { Bpm, Key, Scale, Style, PieceMinutes,
              // strength of the arc of tension over a whole concert (0: none).
              MorphTo, ConcertArc,
              // 25.09.2026: a concert as an album (the style guide's 6.5): interludes, the darkest piece in the middle.
-             Album, Count };
+             Album,
+             // 25.09.2026: a concert as a night set (composeNightSet): the styles mixed along waves of energy, the
+             // pieces overlapping as a DJ mixes them.
+             NightSet, Count };
 }
 /** @brief Parameters of one row of the sequencer rack (module Row, "row1" .. "row8"). */
 namespace row {
