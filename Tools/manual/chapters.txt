@@ -36,7 +36,9 @@ standalone (in a host the host's transport plays).
 The reroll buttons draw one part of the piece again and leave everything else as it was, to the note:
 the form, the tempo, the rows' shapes, the rack's patterns, the layers, the lead, the chords and pads,
 and the hands on the knobs. Save set and Load set keep a piece as a small text file; Export writes the
-piece offline as a 24-bit WAV and a MIDI file beside it, with the gestures as controllers.
+piece offline as a 24-bit WAV and a MIDI file beside it, with the gestures as controllers -- and, if you
+choose so, the stems: a WAV per channel strip and one for the rooms in a folder beside the mix, whose sum
+is the mix before the master.
 
 Below, the arrange view shows the sections of the piece -- the atmosphere at the start, the entry of the
 rows, the builds, the lead, the peak, the bridges, the fade -- with the playhead. Click to jump.
@@ -172,3 +174,13 @@ machine named by the environment variable EPH_CUE_HOST (this machine without it)
 tempo (/eph/beat), every section with its phase (/eph/phase), every new root (/eph/key) and every
 conjunction of the rows with the share of the running rows that meet (/eph/conjunction). Each cue leaves
 when its sound is heard, not when it is composed.
+
+== Style | | 14 ==
+
+The five style profiles side by side, the chosen one lit. A style is not a sound but a set of ranges and
+chances the composer draws from: the tempo, the length and the number of sequence phases, how much of the
+piece is atmosphere before the rows and after them, how often a later phase changes tempo or key, how many
+rows play at the peak and which lengths they are drawn from, how often a row mutates, how slowly the
+transposer moves, how often each layer comes in, how dense the lead is, how fast the hands move, how dark
+the voices are, how long the hall rings and how loud the piece is. Two pieces of one style share these,
+not their notes. The tempi and the levels were set after measuring reference recordings.

@@ -96,8 +96,12 @@ public:
     // Files.
     bool saveSet(const juce::File& file);            ///< writes seed, lengths, rerolls and parameters as an .ephset
     bool loadSet(const juce::File& file);            ///< reads an .ephset and composes it
-    /** @brief Renders the current score offline to WAV and MIDI beside each other, on a thread; returns at once. */
-    void exportTo(const juce::File& wav);
+    /**
+     * @brief Renders the current score offline to WAV and MIDI beside each other, on a thread; returns at once.
+     *        With @p stems also a 24-bit WAV per channel strip and one for the rooms (Engine::setStems) into the
+     *        folder "<name>_stems" beside them: their sum is the mix before the master.
+     */
+    void exportTo(const juce::File& wav, bool stems = false);
     juce::String status() const;                     ///< one line for the panel
     /**
      * @brief The test mode (EPH_SEED, EPH_PLAY = seconds, EPH_RECORD = a WAV file): a fixed seed, play at once,

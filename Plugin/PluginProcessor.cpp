@@ -384,7 +384,7 @@ bool EphemerisProcessor::loadSet(const juce::File& file)
     return true;
 }
 
-void EphemerisProcessor::exportTo(const juce::File& wav)
+void EphemerisProcessor::exportTo(const juce::File& wav, bool stems)
 {
     if (exporting_.exchange(true)) return;
     if (exporter_ && exporter_->joinable()) exporter_->join();
@@ -396,25 +396,45 @@ void EphemerisProcessor::exportTo(const juce::File& wav)
     auto params = std::make_shared<ParamStore>();
     params->copyValuesFrom(store());
     const juce::File mid = wav.withFileExtension(".mid");
-    exporter_ = std::make_unique<std::thread>([this, score, params, wav, mid]() {
+    exporter_ = std::make_unique<std::thread>([this, score, params, wav, mid, stems]() {
         Engine e;
         e.params().copyValuesFrom(*params);
         e.prepare(48000.0, 512);
         e.load(score);
         WavWriter w;
-        const bool ok = w.open(wav.getFullPathName().toRawUTF8(), 48000, 2, WavFormat::Pcm24);
+        bool ok = w.open(wav.getFullPathName().toRawUTF8(), 48000, 2, WavFormat::Pcm24);
+        // The stems: a WAV per channel strip and one for the rooms, in a folder beside the mix.
+        constexpr int kStems = Engine::kChannels + 1;
+        std::vector<std::vector<float>> stemBuf(stems ? 2 * kStems : 0, std::vector<float>(512));
+        std::vector<float*> stemL(kStems), stemR(kStems);
+        std::vector<WavWriter> stemWav(stems ? kStems : 0);
+        if (stems && ok) {
+            const juce::File dir = wav.getParentDirectory().getChildFile(wav.getFileNameWithoutExtension() + "_stems");
+            dir.createDirectory();
+            for (int c = 0; c < kStems; ++c) {
+                stemL[static_cast<size_t>(c)] = stemBuf[static_cast<size_t>(2 * c)].data();
+                stemR[static_cast<size_t>(c)] = stemBuf[static_cast<size_t>(2 * c + 1)].data();
+                const juce::String name = juce::String(c + 1).paddedLeft('0', 2) + "_"
+                                        + juce::String(c < Engine::kChannels ? Engine::channelName(c) : "Rooms").replaceCharacter(' ', '_') + ".wav";
+                ok = ok && stemWav[static_cast<size_t>(c)].open(dir.getChildFile(name).getFullPathName().toRawUTF8(), 48000, 2, WavFormat::Pcm24);
+            }
+            e.setStems(stemL.data(), stemR.data());
+        }
         const int64_t total = static_cast<int64_t>((e.lengthSeconds() + 8.0) * 48000.0);
         std::vector<float> L(512), R(512);
         for (int64_t done = 0; ok && done < total; done += 512) {
             const int n = static_cast<int>(std::min<int64_t>(512, total - done));
             e.process(L.data(), R.data(), n);
             w.write(L.data(), R.data(), n);
+            for (size_t c = 0; c < stemWav.size(); ++c) stemWav[c].write(stemL[c], stemR[c], n);
         }
         w.close();
+        for (WavWriter& sw : stemWav) sw.close();
         writeMidiFile(score, mid.getFullPathName().toRawUTF8(), "Ephemeris", params.get());
         {
             std::lock_guard<std::mutex> g(lock_);
-            lastExport_ = ok ? "exported " + wav.getFileName() + " and " + mid.getFileName() : "could not write " + wav.getFileName();
+            lastExport_ = ok ? "exported " + wav.getFileName() + " and " + mid.getFileName() + (stems ? " with stems" : "")
+                             : "could not write " + wav.getFileName();
         }
         exporting_ = false;
     });

@@ -266,10 +266,20 @@ EphemerisEditor::EphemerisEditor(EphemerisProcessor& p) : juce::AudioProcessorEd
                               [this](const juce::FileChooser& fc) { if (fc.getResult().existsAsFile()) proc_.loadSet(fc.getResult()); });
     };
     export_.onClick = [this, documents] {
-        documents.createDirectory();
-        chooser_ = std::make_unique<juce::FileChooser>("Export", documents.getChildFile("ephemeris.wav"), "*.wav");
-        chooser_->launchAsync(juce::FileBrowserComponent::saveMode | juce::FileBrowserComponent::canSelectFiles,
-                              [this](const juce::FileChooser& fc) { if (fc.getResult() != juce::File()) proc_.exportTo(fc.getResult().withFileExtension(".wav")); });
+        // The mix and its MIDI, or with the stems as well (a WAV per channel strip and the rooms: large files).
+        juce::PopupMenu menu;
+        menu.addItem(1, "WAV + MIDI");
+        menu.addItem(2, "WAV + MIDI + stems (a WAV per channel strip)");
+        menu.showMenuAsync(juce::PopupMenu::Options().withTargetComponent(&export_), [this, documents](int choice) {
+            if (choice == 0) return;
+            const bool stems = choice == 2;
+            documents.createDirectory();
+            chooser_ = std::make_unique<juce::FileChooser>("Export", documents.getChildFile("ephemeris.wav"), "*.wav");
+            chooser_->launchAsync(juce::FileBrowserComponent::saveMode | juce::FileBrowserComponent::canSelectFiles,
+                                  [this, stems](const juce::FileChooser& fc) {
+                                      if (fc.getResult() != juce::File()) proc_.exportTo(fc.getResult().withFileExtension(".wav"), stems);
+                                  });
+        });
     };
 
     addAndMakeVisible(arrange_);
