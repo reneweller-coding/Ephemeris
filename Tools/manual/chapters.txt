@@ -168,14 +168,25 @@ the peak a few steps are ratcheted into quick triggers, at some peaks the eighth
 and in the breakdown and the coda the bass loses its steps one by one.
 
 What makes a sequence hypnotic is less its notes than its timbre moving against them. Every row carries
-a modulation sequencer beside its notes: a lane of 3, 5, 7 or 12 steps -- never the row's own length --
-that opens the filter on a few notes and closes it on others, so the accents of timbre wander through the
-pattern and meet it again only after many rounds (Modern the deepest, Drift the shallowest). Over that,
+two modulation sequencers beside its notes: a lane of 3, 5, 7 or 12 steps -- never the row's own length --
+that opens the filter on a few notes and closes it on others, and a second one of 3 to 12 steps that
+lengthens the filter's decay on some notes and plucks others short. The accents of timbre wander through
+the pattern and meet it again only after many rounds (Modern the deepest, Drift the shallowest). Over that,
 Filter Sweep turns the row's cutoff slowly up and down, a sine of its own period between 39 and 79 seconds
 for every row, never in step with the bars or with each other: the long openings and closings of the
 Berlin School. The composer gives the main sequence the widest sweep and a squelchy voice -- more
 resonance, a short deep filter envelope, strong accents -- the bass a round one and the other rows
 something between; Motion on the Master page scales every sweep with the other slow movements.
+
+No sequence runs more than sixteen bars unchanged. The composer plans the variations the way a player at
+the sequencer makes them, one at a time, every eight to sixteen bars: a step switched off or on, a step
+thrown an octave up, the row shortened by a step or two for four or eight bars (the sequencer skipping),
+its direction turned backwards or into a pendulum for as long, or the row taken back to its theme once
+two things have changed -- mostly on the main sequence, now and then on another counter row or the bass.
+Before some peaks there is a break: every row and the drums stop for two or four bars, the echoes' tails,
+the pads and the lead go on with the echo's feedback raised, and everything comes back together on the
+peak's downbeat (Melodic and Modern in three pieces of five, Drift in one). One to three times a piece
+the tape echo switches from its dotted eighths to eighths or quarter triplets for a section.
 
 == Gestures | | 3 ==
 

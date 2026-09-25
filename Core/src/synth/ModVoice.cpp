@@ -61,7 +61,7 @@ void ModVoiceBank::set(int v, const VoiceSettings& s)
 {
     Control& c = ctl_[v];
     c.s = s;
-    c.filt.setTimes(0.0015f, s.decayMs * 0.001f, 0.0f, s.decayMs * 0.001f);
+    c.filt.setTimes(0.0015f, s.decayMs * 0.001f * c.decayMul, 0.0f, s.decayMs * 0.001f * c.decayMul);
     c.amp.setTimes(0.002f, 0.05f, 1.0f, s.releaseMs * 0.001f);
     c.glideCoef = 1.0 - std::exp(-1.0 / (std::max(1.0, static_cast<double>(s.glideMs)) * 0.001 * sr_ / 3.0));
     c.vibCoef = 1.0 - std::exp(-1.0 / (0.4 * sr_ / 3.0));
@@ -74,7 +74,7 @@ void ModVoiceBank::set(int v, const VoiceSettings& s)
     lanes_.k[v] = 4.0f * std::clamp(s.resonance, 0.0f, 1.0f) * 0.985f;
 }
 
-void ModVoiceBank::noteOn(int v, int pitch, float velocity, bool accent, bool legato, int id, float bright)
+void ModVoiceBank::noteOn(int v, int pitch, float velocity, bool accent, bool legato, int id, float bright, float decay)
 {
     Control& c = ctl_[v];
     c.target = pitch;
@@ -85,6 +85,8 @@ void ModVoiceBank::noteOn(int v, int pitch, float velocity, bool accent, bool le
         c.velocity = velocity;
         c.accentAmt = accent ? c.s.accent : 0.0f;
         c.noteOct = bright;
+        c.decayMul = std::exp2(decay);
+        c.filt.setTimes(0.0015f, c.s.decayMs * 0.001f * c.decayMul, 0.0f, c.s.decayMs * 0.001f * c.decayMul);
         c.noteCents = 0.15 * static_cast<double>(c.s.driftCents) * static_cast<double>(c.rng.bipolar());
         c.vibLevel = 0.0;
         c.fresh = true;

@@ -1906,6 +1906,77 @@ void testNightSet()
 }
 
 /**
+ * The variation planner (the style guide's 4.3 and 6.4): inside a phase no sixteen bars pass without a planned
+ * variation of a row; a break before the peak silences the rows and the drums; the decay lane lengthens a note's
+ * filter envelope.
+ */
+void testVariations()
+{
+    section("variations and breaks");
+    size_t events = 0;
+    int gaps = 0, tooLong = 0, breaks = 0, loud = 0;
+    for (const char* st : { "Melodic", "Modern", "Cosmic" }) {
+        for (uint64_t seed : { 3u, 4u, 5u }) {
+            ParamStore p;
+            p.parseText(std::string("compose.style=") + st);
+            const Score s = composePiece(p, seed, 10.0);
+            std::vector<double> at, entries;
+            for (const RackEvent& e : s.rack) {
+                if (e.op == RackOp::Gate || e.op == RackOp::OctaveStep || e.op == RackOp::Direction || e.op == RackOp::Theme
+                    || e.op == RackOp::SetLength) at.push_back(e.beat);
+                if (e.op == RackOp::Start && e.row == 0) entries.push_back(e.beat);
+            }
+            std::sort(at.begin(), at.end());
+            events += at.size();
+            for (size_t i = 1; i < at.size(); ++i) {
+                if (at[i] - at[i - 1] <= 1e-9) continue;
+                ++gaps;
+                bool newPhase = false;
+                for (double b : entries) newPhase = newPhase || (b > at[i - 1] && b <= at[i]);
+                if (at[i] - at[i - 1] > 16.0 * kBeatsPerBar + 1e-6 && !newPhase) ++tooLong;
+            }
+            // A break: the same rows stop at one beat and start again two or four bars later.
+            for (const RackEvent& e : s.rack) {
+                if (e.op != RackOp::Stop || e.row != 0) continue;
+                for (const RackEvent& f : s.rack) {
+                    if (f.op != RackOp::Start || f.row != 0) continue;
+                    const double len = f.beat - e.beat;
+                    if (std::fabs(len - 2 * kBeatsPerBar) > 1e-6 && std::fabs(len - 4 * kBeatsPerBar) > 1e-6) continue;
+                    ++breaks;
+                    for (const NoteEvent& n : s.notes) {
+                        const int r = static_cast<int>(n.part) - static_cast<int>(Part::Row1);
+                        if (((r >= 0 && r < kRows) || n.part == Part::Drums) && n.beat >= e.beat - 1e-6 && n.beat < f.beat - 1e-6) ++loud;
+                    }
+                }
+            }
+        }
+    }
+    check(events > 0 && tooLong == 0, "no sixteen bars of a phase without a planned variation",
+          fmt("%zu events, %d of %d gaps too long", events, tooLong, gaps));
+    check(breaks > 0 && loud == 0, "breaks before the peak: the rows and the drums silent", fmt("%d breaks, %d notes in them", breaks, loud));
+
+    // The decay lane: the same note with its decay lengthened is brighter a fifth of a second later.
+    Score one;
+    one.clear(120.0);
+    one.notes.push_back({ 0.0, 1.0, Part::Row2, 45, 0.9f, false, false, 0.0f, -1.0f });
+    one.notes.push_back({ 2.0, 1.0, Part::Row2, 45, 0.9f, false, false, 0.0f, 1.5f });
+    one.lengthBeats = 4.0;
+    Engine e;
+    e.params().parseText("master.level=0 master.motion=0 row2.echo=0 row2.reverb=0 voice2.cutoff=250 voice2.env_amount=4 voice2.decay=100");
+    e.prepare(48000.0, 256);
+    e.load(one);
+    std::vector<float> out, l(256), rr(256);
+    for (int done = 0; done < 96000; done += 256) { e.process(l.data(), rr.data(), 256); out.insert(out.end(), l.begin(), l.end()); }
+    auto brightness = [&](size_t a, size_t b) {
+        double d = 0.0, en = 0.0;
+        for (size_t i = a + 1; i < b; ++i) { d += double(out[i] - out[i - 1]) * (out[i] - out[i - 1]); en += double(out[i]) * out[i]; }
+        return d / std::max(1e-30, en);
+    };
+    const double shortTail = brightness(1440, 5760), longTail = brightness(49440, 53760);   // 0.03..0.12 s after each onset
+    check(longTail > 1.5 * shortTail, "the decay lane: a longer filter decay keeps the note open longer", fmt("%.5f against %.5f", longTail, shortTail));
+}
+
+/**
  * The offline render is the oracle only if a host's block size cannot change a sample: the study
  * rendered with blocks of 1, 37 and 512 must agree bit for bit (Engine.h).
  */
@@ -2063,6 +2134,7 @@ const TestSection kSections[] = {
     { "testSendsAD", testSendsAD },
     { "testModLane", testModLane },
     { "testNightSet", testNightSet },
+    { "testVariations", testVariations },
     { "testBlockSizes", testBlockSizes },
     { "testEcho", testEcho },
     { "testDrift", testDrift },

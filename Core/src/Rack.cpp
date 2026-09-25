@@ -74,6 +74,7 @@ void Rack::setup(const ParamStore& p, uint64_t seed)
         r.mutations = 0;
         r.rng.seed(mixSeed(seed, static_cast<uint64_t>(i) + 1));
         r.dice.seed(mixSeed(seed, static_cast<uint64_t>(i) + 101));
+        r.lanes.seed(mixSeed(seed, static_cast<uint64_t>(i) + 201));
         r.figure = Figure::Classic;
         for (Step& s : r.steps) s = Step{};
     }
@@ -182,6 +183,18 @@ void Rack::generate(int row, RowRole role)
         for (int i = 0; i < kMaxSteps; ++i) {
             const float u = r.rng.uniform();
             r.mod[i] = i >= len ? 0.0f : depth * (u < 0.3f ? 0.9f + 0.6f * r.rng.uniform() : (u < 0.6f ? 0.0f : -0.5f + 0.3f * r.rng.uniform()));
+        }
+        // The decay lane: long open notes, plucked short ones, a length against both (Boddy's "the shape of the AR
+        // envelopes" as the main control). From its own stream, so the patterns stay as drawn.
+        static const int dLengths[5] = { 3, 5, 7, 9, 12 };
+        int dl = dLengths[r.lanes.below(5)];
+        for (int tries = 0; (dl == r.length || dl == len) && tries < 5; ++tries) dl = dLengths[(tries + 1 + r.lanes.below(4)) % 5];
+        r.decayLength = dl;
+        r.decayPos = 0;
+        for (int i = 0; i < kMaxSteps; ++i) {
+            const float u = r.lanes.uniform();
+            r.decay[i] = i >= dl || role == RowRole::Transposer ? 0.0f
+                       : (u < 0.35f ? 0.6f + 0.6f * r.lanes.uniform() : (u < 0.7f ? 0.0f : -0.8f + 0.4f * r.lanes.uniform()));
         }
     }
     Rng& g = r.rng;
@@ -306,6 +319,7 @@ void Rack::generate(int row, RowRole role)
             if (i != 0 && g.uniform() < randomly && loose) s.random = true;
         }
     }
+    std::copy(r.steps, r.steps + kMaxSteps, r.theme);
 }
 
 int Rack::rootNote(const Row& r) const
@@ -354,6 +368,7 @@ void Rack::advance(Row& r, int index, double beat, std::vector<RackEvent>& log)
     }
     ++r.step;
     r.modPos = (r.modPos + 1) % std::max(1, r.modLength);
+    r.decayPos = (r.decayPos + 1) % std::max(1, r.decayLength);
     // A cycle ends every `length` steps, whatever the direction: that is when the register shifts.
     // Hypnosis (25.09.2026): a row changes only where a 16-bar block begins -- at the first end of its cycle on or
     // after the mark -- so a pattern holds for sixteen bars and one thing changes at a time; the chance is the
@@ -385,6 +400,7 @@ void Rack::playStep(int index, Row& r, Score& score, std::vector<RackEvent>& log
             e.pitch = std::clamp(rootNote(r) + r.transpose + shift_ + scaleSemitones(scale_, degree + r.chord) + 12 * s.octave, 0, 127);
             e.accent = s.accent && k == 0;
             e.bright = r.mod[r.modPos];
+            e.decay = r.decay[r.decayPos];
             e.velocity = std::min(1.0f, s.velocity + (e.accent ? 0.15f : 0.0f) - 0.06f * static_cast<float>(k));
             e.slide = s.slide && sub == 1;
             // A slide holds into the next step so the voice glides instead of retriggering.
@@ -486,6 +502,42 @@ void Rack::run(Score& score, double endBeat)
                 case RackOp::SetLength:
                     r.length = std::clamp(e.value, 1, kMaxSteps);
                     r.pos %= r.length;
+                    break;
+                case RackOp::Gate:
+                    // A step switched: never step 0, never a thinned one (a Fill brings those), and half the row keeps
+                    // sounding.
+                    for (int k = 0, tries = 0; k < e.value && tries < 32 && r.length > 2; ++tries) {
+                        const int at = 1 + r.dice.below(r.length - 1);
+                        if (r.thinned[at]) continue;
+                        int sounding = 0;
+                        for (int j = 0; j < r.length; ++j) sounding += r.steps[j].gate ? 1 : 0;
+                        Step& st = r.steps[at];
+                        if (st.gate && 2 * (sounding - 1) < r.length) continue;
+                        st.gate = !st.gate;
+                        ++k;
+                    }
+                    break;
+                case RackOp::OctaveStep:
+                    // A sounding step an octave off (up mostly, the bass only up), or one that was back where it was.
+                    for (int k = 0, tries = 0; k < e.value && tries < 32 && r.length > 1; ++tries) {
+                        Step& st = r.steps[1 + r.dice.below(r.length - 1)];
+                        if (!st.gate) continue;
+                        st.octave = st.octave != 0 ? 0 : (i == 0 || r.dice.uniform() < 0.7f ? 1 : -1);
+                        ++k;
+                    }
+                    break;
+                case RackOp::Direction:
+                    r.direction = static_cast<RowDirection>(std::clamp(e.value, 0, static_cast<int>(RowDirection::Count) - 1));
+                    r.dir = 1;
+                    break;
+                case RackOp::Theme:
+                    // Back to the pattern as drawn; the ratchets of the moment stay, and the thinned steps stay silent.
+                    for (int j = 0; j < kMaxSteps; ++j) {
+                        const int ratchet = r.steps[j].ratchet;
+                        r.steps[j] = r.theme[j];
+                        r.steps[j].ratchet = ratchet;
+                        if (r.thinned[j]) r.steps[j].gate = false;
+                    }
                     break;
                 default: break;
                 }

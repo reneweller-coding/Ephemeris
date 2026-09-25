@@ -127,6 +127,7 @@ struct Piece {
     std::vector<std::pair<double, int>> chords;   ///< the chord track: degrees of the mode over time (Harmony.h)
     std::vector<std::pair<double, int>> keys = { { 0.0, 0 } };   ///< the phases' keys over time, for the drone
     std::vector<std::pair<double, double>> doubled;   ///< spans where row 2 plays sixteenths (the pulse doubled)
+    std::vector<std::pair<double, double>> breaks;    ///< spans where the rows stop before a peak (the style guide's 6.4)
     std::function<uint64_t(Stream)> seedOf;   ///< the seed of a stream, rerolls counted
     /** @brief A fresh generator on stream @p k. */
     Rng stream(Stream k) const { Rng r; r.seed(seedOf(k)); return r; }
@@ -308,6 +309,75 @@ void writeRack(Piece& c)
         if (breakdown != nullptr)
             for (double b = breakdown->beat + 2 * kBeatsPerBar; b < breakdown->beat + breakdown->length; b += 4 * kBeatsPerBar)
                 ev.push_back({ b, 0, RackOp::Thin, 1 });
+        // Whether row r plays at beat b in this phase, by the events written so far.
+        auto running = [&](int r, double b) {
+            double on = -1.0;
+            for (const RackEvent& e : ev) if (e.row == r && e.op == RackOp::Start && e.beat <= b) on = std::max(on, e.beat);
+            if (on < 0.0) return false;
+            for (const RackEvent& e : ev) if (e.row == r && e.op == RackOp::Stop && e.beat > on && e.beat <= b) return false;
+            return true;
+        };
+        // The variations (the style guide's 4.3: no sequence runs more than sixteen bars unchanged): every 8 to 16
+        // bars one planned event -- a step gated, a step an octave off, the row a step or two shorter for four or
+        // eight bars (skip), its direction turned for as long, or the row back to its theme -- on the main sequence
+        // mostly, now and then on another counter row or the bass. Their own stream on the rack's unit.
+        {
+            Rng var;
+            var.seed(mixSeed(c.seedOf(sRack), 0x766172u + static_cast<uint64_t>(ph)));
+            int changes[kRows] = {};
+            const double from = (build0 != nullptr ? build0->beat : entry->beat) + 4.0 * kBeatsPerBar;
+            for (double t = from; t < chordsEnd - 4.0 * kBeatsPerBar;) {
+                const float u = var.uniform();
+                int target = u < 0.6f ? lead : (u < 0.9f && counters > 1 ? 2 + var.below(counters - 1) : 0);
+                if (!running(target, t)) target = running(lead, t) ? lead : 0;
+                if (running(target, t)) {
+                    const int len = std::clamp(static_cast<int>(p.get(p.id(Module::Row, target, row::Length))), 1, kMaxSteps);
+                    const double hold = (var.uniform() < 0.5f ? 4.0 : 8.0) * kBeatsPerBar;
+                    const bool bass = target == 0, room = t + hold < chordsEnd - 1e-9;
+                    const float w[5] = { 3.0f, 2.0f, bass || !room || len < 4 ? 0.0f : 1.5f, bass || !room ? 0.0f : 1.0f,
+                                         changes[target] >= 2 ? 1.5f : 0.0f };
+                    float x = var.uniform() * (w[0] + w[1] + w[2] + w[3] + w[4]);
+                    int k = 0;
+                    while (k < 4 && (x -= w[k]) > 0.0f) ++k;
+                    if (w[k] <= 0.0f) k = 0;
+                    switch (k) {
+                    case 0: ev.push_back({ t, target, RackOp::Gate, 1 }); ++changes[target]; break;
+                    case 1: ev.push_back({ t, target, RackOp::OctaveStep, 1 }); ++changes[target]; break;
+                    case 2:
+                        ev.push_back({ t, target, RackOp::SetLength, len - 1 - (len >= 8 ? var.below(2) : 0) });
+                        ev.push_back({ t + hold, target, RackOp::SetLength, len });
+                        break;
+                    case 3:
+                        ev.push_back({ t, target, RackOp::Direction, static_cast<int>(var.uniform() < 0.5f ? RowDirection::Backward : RowDirection::Pendulum) });
+                        ev.push_back({ t + hold, target, RackOp::Direction, static_cast<int>(RowDirection::Forward) });
+                        break;
+                    default: ev.push_back({ t, target, RackOp::Theme, 0 }); changes[target] = 0; break;
+                    }
+                }
+                static const double kGap[4] = { 8.0, 8.0, 12.0, 16.0 };
+                t += kGap[var.below(4)] * kBeatsPerBar;
+            }
+        }
+        // A break before the peak (the style guide's 6.4): the rows stop for two or four bars -- the echoes' tails,
+        // the pads and the lead go on, the drums stop too -- and all come back together on the peak's downbeat.
+        if (peak != nullptr) {
+            static const float kBreak[] = { 0.4f, 0.3f, 0.6f, 0.6f, 0.2f };   // Cosmic, Doom, Melodic, Modern, Drift
+            Rng br;
+            br.seed(mixSeed(c.seedOf(sRack), 0x62726bu + static_cast<uint64_t>(ph)));
+            if (br.uniform() < kBreak[si]) {
+                const double b0 = peak->beat - (br.uniform() < 0.6f ? 2.0 : 4.0) * kBeatsPerBar;
+                if (b0 >= (build0 != nullptr ? build0->beat : entry->beat) + 8.0 * kBeatsPerBar) {
+                    bool any = false;
+                    for (int r = 0; r <= counters; ++r) {
+                        if (!running(r, b0 - 1e-6)) continue;
+                        ev.push_back({ b0, r, RackOp::Stop, 0 });
+                        ev.push_back({ peak->beat, r, RackOp::Start, 0 });
+                        any = true;
+                    }
+                    if (any) c.breaks.push_back({ b0, peak->beat });
+                }
+            }
+        }
         auto chordSpan = [&](double b0, double b1, int scale) {
             if (b1 <= b0) return;
             for (const auto& ch : drawChordTrack(c.style, scale, b0, b1, harm)) {
@@ -454,6 +524,11 @@ void writeLayers(Piece& c)
     }
     // The granular cloud: the layers' last draw, so every draw above stays as it was.
     c.grainsOn = layers.uniform() < prof.grainChance;
+    // The breaks are silent for the drums as well.
+    for (const auto& b : c.breaks)
+        s.notes.erase(std::remove_if(s.notes.begin(), s.notes.end(), [&](const NoteEvent& n) {
+            return n.part == Part::Drums && n.beat >= b.first - 1e-9 && n.beat < b.second - 1e-9;
+        }), s.notes.end());
 }
 
 /** @brief Step 4, the atmosphere: wind and sweeps where no rows play, bleeps in the builds. */
@@ -633,6 +708,31 @@ void writeSettings(Piece& c)
             }
         } else if (third > 0.0) {
             c.s.gestures.push_back({ dist, coda->beat, third, near, far, G::MinimumJerk, 3 });
+        }
+    }
+    // In a break the echo's repeats carry on longer (its feedback up, back over a bar at the peak).
+    const int feedback = p.id(Module::Echo, 0, echo::Feedback);
+    for (const auto& b : c.breaks) {
+        c.s.gestures.push_back({ feedback, b.first, b.second - b.first, 0.0f, 0.2f, G::EaseOut, 3 });
+        c.s.gestures.push_back({ feedback, b.second, kBeatsPerBar, 0.2f, 0.0f, G::MinimumJerk, 3 });
+    }
+    // The delay switched now and then (the style guide's 4.3: one to three times a piece): the tape echo on the
+    // main sequence from its dotted eighths to eighths or quarter triplets for a section, and back. Its own stream.
+    {
+        Rng dl;
+        dl.seed(mixSeed(c.seedOf(sRack), 0x646c79u));
+        const int echoTime = p.id(Module::Echo, 0, echo::Time);
+        int left = 1 + dl.below(3);
+        for (const Section& sec : c.form.sections) {
+            if (left == 0) break;
+            if (!(sec.type == SectionType::Lead || sec.type == SectionType::Peak || (sec.type == SectionType::Build && sec.index > 0))) continue;
+            if (dl.uniform() >= 0.45f) continue;
+            const float to = static_cast<float>(dl.uniform() < 0.5f ? EchoTime::Eighth : EchoTime::QuarterT);
+            if (static_cast<int>(to) == p.getInt(echoTime)) continue;
+            const float off = offsetTo(p, echoTime, to);
+            c.s.gestures.push_back({ echoTime, sec.beat, 0.0, 0.0f, off, G::Step, 3 });
+            c.s.gestures.push_back({ echoTime, sec.beat + sec.length, 0.0, off, 0.0f, G::Step, 3 });
+            --left;
         }
     }
     // The rooms per layer (the addon's 4, the production guide's 5.2): the second layer -- the counter rows, the lead,

@@ -169,6 +169,12 @@ private:
         // unterschiedlichen Laengen"): a lane of cutoff offsets with a length of its own, stepping with the row.
         float mod[kMaxSteps] = {};
         int modLength = 1, modPos = 0;
+        // The second lane (25.09.2026, the style guide's 4.3 "Hüllkurven-Modulation"): the filter envelope's decay
+        // per step, in octaves of its time, a length of its own again.
+        float decay[kMaxSteps] = {};
+        int decayLength = 1, decayPos = 0;
+        Step theme[kMaxSteps];    ///< the pattern as drawn (RackOp::Theme brings it back)
+        Rng lanes;                ///< the second lane's stream, apart from the patterns and the dice
         Figure figure = Figure::Classic;
         Rng rng;
         Rng dice;                 ///< probability gates, ratchets and thinning: apart from the patterns' stream

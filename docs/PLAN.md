@@ -10,7 +10,33 @@ verschiedener Länge um einen gemeinsamen Grundton, die nur selten wieder zusamm
 
 ## Stand der Umsetzung
 
-**In Arbeit (25.09.2026, abends): Hypnose und Groove, Nacht-Sets mit DJ-Überblendung.**
+**In Arbeit (25.09.2026, nachts): Gegen die Langeweile, Teil 2 -- Variationsplaner, Presets, Flächen-Synth, Wavetables.**
+Auftrag des Nutzers nach der Literaturfrage ("Ja, bitte mache das so"; Wavetables aus dem AmbientSynth weiterverwenden,
+"gerne auch Samples"). Befund gegen Stilguide 4.3/5.2/6.4/7.1, Garcia (MTO 11.4, 2005), 0zk und Stürtzers Waldorf-Seite:
+Bass und Hauptsequenz laufen minutenlang identisch (Mutation nur mit 10-30 % je 16-Takt-Block), acht der 14
+Variationstechniken fehlen, kein Break, jedes Stück mit denselben Grundklängen (der Komponist wählt keine Presets),
+keine Polysynth-/Wavetable-Fläche (`Part::Pad` spielt niemand), keine langsame Klangfarben-Drift auf Flächen.
+Schritte:
+A. Variationsplaner je Phase: alle 8-16 Takte ein Ereignis auf Hauptsequenz (60 %), Gegenreihen (30 %) oder Bass (10 %):
+   Step-Gate, Oktavversatz eines Steps, Skip/Reset (Länge L-1/L-2 für 4-8 Takte), Richtungswechsel für 4-8 Takte,
+   Rückkehr zum Thema ("Grip"); Delay-Umschaltung 1-3x je Stück; ein Break vor dem Höhepunkt (2-4 Takte alle Reihen
+   still, Echo-Feedback hoch, Schlagzeug still) mit Stilchance; zweite Modulationsspur je Reihe für den Decay
+   (eigene Länge, `NoteEvent::decay`). Neue RackOps Gate, OctaveStep, Direction, Theme.
+B. Der Komponist wählt je Stück und Synth ein Preset aus stil- und rollengerechten Gruppen (als Gesten, Knöpfe bleiben
+   des Nutzers), eigener Stream und Reroll "sounds"; angezeigt auf den Synth-Seiten und im Mixer.
+C. Flächen-Synth "Poly" auf `Part::Pad`: polyphon, Oszillator analog (Saw/Puls mit PWM, Verstimmung) oder Wavetable,
+   Attack 1-4 s, Release 3-8 s, Ensemble-Chorus, langsame Positions-/PWM-Drift; 1024 Presets; der Komponist setzt ihn in
+   Räume und Aufbauten, höchstens zwei Flächen zugleich, Oktavtrennung zu Chor und Solina (Produktionsguide).
+   Wavetables: `CycleTable` (10 bandbegrenzte Stufen, Catmull-Rom) und Fft aus dem AmbientSynth übernommen; Tabellen
+   aus Formeln (Classic, PWM, Sync, Formant, Vocal, Organ, Glass, Metal) plus rund 30 gesampelte aus dessen Bibliothek
+   (AKWF/WaveEdit CC0, eigene Ambient-Tabellen), auf 32 Frames zu 256 Samples ausgedünnt und in den Kern kompiliert.
+D. Wavetable als Oszillator-Option der Reihenstimmen; die Modulationsspur schaltet die Tabellenposition je Note
+   (Stürtzers Iridium-Sequenzen).
+E. Klangfarben-Drift: langsame Gesten auf Wellenform-Mix, Pulsbreite, Verstimmung und Tabellenposition.
+Jeder Schritt mit Selbsttest, Referenz-Hashes, Handbuch und Commit.
+Stand: A in Arbeit.
+
+**Erledigt (25.09.2026, abends): Hypnose und Groove, Nacht-Sets mit DJ-Überblendung.**
 Auftrag des Nutzers: Ephemeris klingt "unfassbar langweilig", groovt nicht und wirkt nicht hypnotisch (Vergleich:
 Martin Stürtzer); außerdem wie bei Phosphene ganze Sets, die eine Nacht durchlaufen, mit wechselnden Stilen und
 guter DJ-Überblendung. Keine Agenten, alles im Vordergrund.

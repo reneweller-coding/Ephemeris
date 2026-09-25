@@ -102,7 +102,7 @@ public:
      * @param legato   glide from the sounding pitch without retriggering the envelopes
      * @param id       pairs the note with its noteOff()
      */
-    void noteOn(int v, int pitch, float velocity, bool accent, bool legato, int id, float bright = 0.0f);
+    void noteOn(int v, int pitch, float velocity, bool accent, bool legato, int id, float bright = 0.0f, float decay = 0.0f);
     /**
      * @brief Releases the note @p id on voice @p v if it is the one held. A mono voice ignores the off
      *        of a note a later one has already taken over -- by id, not by pitch, because two slides on
@@ -137,6 +137,7 @@ private:
         float velocity = 0.8f;       ///< of the current note
         float accentAmt = 0.0f;      ///< accent of the current note
         float noteOct = 0.0f;       ///< the note's cutoff offset (the modulation sequencer), octaves
+        float decayMul = 1.0f;      ///< the note's filter decay factor (the second lane), 2^decay
         double vibPhase = 0.0;       ///< vibrato phase in cycles
         double vibLevel = 0.0;       ///< 0..1, rises while a note is held
         double vibCoef = 0.0;        ///< vibrato fade-in per sample

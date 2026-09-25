@@ -43,6 +43,7 @@ struct NoteEvent {
     bool accent = false;      ///< accented step (filter envelope and level up)
     bool slide = false;       ///< glide into the next note
     float bright = 0.0f;      ///< the modulation sequencer's step: octaves on the filter's cutoff for this note (25.09.2026)
+    float decay = 0.0f;       ///< the second lane's step: the filter envelope's decay times 2^decay for this note
 };
 
 /** @brief How a gesture moves between its two values. */
@@ -84,6 +85,11 @@ enum class RackOp : uint8_t {
     Thin,         ///< @p value more steps of the row fall silent: the sequence loses its pieces
     Division,     ///< the row's division becomes @p value (RowDivision) on its next step: the pulse doubled or halved
     Fill,         ///< @p value of the row's thinned steps sound again (a row that came in with rests fills up)
+    // The variations of the style guide's 4.3 (25.09.2026, the variation planner):
+    Gate,         ///< @p value steps of the row switch: a sounding one falls silent or a silent one sounds (half keep sounding)
+    OctaveStep,   ///< @p value sounding steps move an octave (up mostly; back where they were moved)
+    Direction,    ///< the row's direction becomes @p value (RowDirection) from its next step
+    Theme,        ///< the row goes back to its pattern as drawn: what gates, octaves and mutations changed is undone
 };
 
 /** @brief One change to the rack. */
