@@ -6,7 +6,7 @@
     After Phosphene's Deploy\build_release.ps1, without its data download (Ephemeris has no data files).
 
       1. configure and build build-release (Release, static MSVC runtime, AVX2)
-      2. run the tests (ctest), unless -SkipTests
+      2. run the tests (ctest), unless -SkipTests; pluginval at strictness 10 where it is unpacked
       3. the manual: Tools\manual\make_manual.py with the release's eph_render
       4. stage what is installed under Deploy\stage, and nothing else
       5. check the stage: every file there, the binaries without a DLL dependency on the MSVC runtime
@@ -44,6 +44,18 @@ if (-not $SkipTests) {
     $env:EPH_MUTE = "1"
     & ctest --test-dir $build -C Release -j 6 --output-on-failure
     if ($LASTEXITCODE -ne 0) { throw "tests failed" }
+}
+# 2b. pluginval (Tracktion) at strictness 10 on the release VST3, where it is unpacked (ThirdParty\pluginval).
+#     A GUI program: Start-Process waits for it, and its exit code is the verdict.
+$pluginval = Join-Path $root "ThirdParty\pluginval\pluginval.exe"
+if (Test-Path $pluginval) {
+    $env:EPH_MUTE = "1"
+    $vst3 = Join-Path $build "Plugin\Ephemeris_artefacts\Release\VST3\Ephemeris.vst3"
+    $p = Start-Process -FilePath $pluginval -ArgumentList @("--strictness-level", "10", "--timeout-ms", "900000", "--validate", "`"$vst3`"") -Wait -PassThru -NoNewWindow
+    if ($p.ExitCode -ne 0) { throw "pluginval failed ($($p.ExitCode))" }
+    Write-Host "pluginval: strictness 10 passed"
+} else {
+    Write-Host "pluginval not in ThirdParty\pluginval: skipped"
 }
 
 # 3. The manual, from this build's eph_render (the screenshots in docs\screenshots are committed).

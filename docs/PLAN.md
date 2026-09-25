@@ -19,8 +19,10 @@ umgesetzt (die Einträge darunter); offen ist, was einen Menschen, eine Installa
 2. **Quest auf dem Gerät**: `adb install -r build-quest\EphemerisQuest.apk`, mit `eph.cfg` (`mute=1` zum
    Prüfen); messen, ob zwei Kerne reichen, dann die Qualitätsstufe festlegen; `eph_vectest` und
    `eph_selftest` über adb auf dem echten NEON.
-3. **pluginval** (braucht einen Download von Tracktion) und **Inno Setup** (braucht eine Installation, z. B.
-   `winget install JRSoftware.InnoSetup`): dann `Deployuild_release.ps1` ohne `-NoSetup`.
+3. ~~pluginval und Inno Setup~~ erledigt am 25.09.2026: pluginval 1.0.4 (nach `ThirdParty\pluginval` geladen)
+   besteht mit Strenge 10 (Scan, Öffnen, Editor, Verarbeitung bei 44,1/48/96 kHz und Blöcken von 64 bis 1024,
+   Zustand, Automation, Thread-Sicherheit, Parameter-Fuzzing); als ctest `pluginval` und im Release-Skript.
+   Inno Setup 7.1 baut `Deploy\out\Ephemeris-0.1.0-Setup.exe` (8,6 MB).
 4. **Kalibrierung der Tape Keys** an Mellotron-Aufnahmen (dafür fehlen Aufnahmen).
 5. Kleinere Ideen aus 8.1, die eine Entscheidung brauchen: Stilprofile im Style-Tab editierbar machen,
    Platte und BBD als weitere Räume, Granular in der Atmosphäre, ein Spannungsbogen über ein ganzes Konzert.

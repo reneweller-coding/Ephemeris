@@ -91,5 +91,13 @@ if(EPH_BUILD_PLUGIN)
         add_test(NAME vst3test COMMAND eph_vst3test "$<TARGET_FILE:Ephemeris_VST3>")
         # It checks that the plugin sounds (offline, nothing reaches a speaker), so it must not be muted.
         set_tests_properties(vst3test PROPERTIES LABELS "audio;slow" PROCESSORS 3 ENVIRONMENT_MODIFICATION "EPH_MUTE=unset:")
+        # Tracktion's pluginval (v1.0.4, unpacked into ThirdParty/pluginval, not in the repository) at its highest
+        # strictness, where it is there. Muted: it plays the plugin through its own tests only.
+        set(EPH_PLUGINVAL "${CMAKE_CURRENT_SOURCE_DIR}/ThirdParty/pluginval/pluginval.exe")
+        if(EXISTS "${EPH_PLUGINVAL}")
+            add_test(NAME pluginval COMMAND "${EPH_PLUGINVAL}" --strictness-level 10 --timeout-ms 900000
+                     --validate "$<TARGET_FILE_DIR:Ephemeris_VST3>/../..")
+            set_tests_properties(pluginval PROPERTIES LABELS "audio;slow" PROCESSORS 3 ENVIRONMENT "EPH_MUTE=1")
+        endif()
     endif()
 endif()
