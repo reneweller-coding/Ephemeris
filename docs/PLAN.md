@@ -52,7 +52,27 @@ Leistung (ein Modul, eine Minute bei 48 kHz, vorher → nachher): Tape Keys mit 
 `exp`; der Oszillator rechnet den Puls nur, wenn er gemischt wird), String Machine mit vier Tasten
 0,39 → 0,17 s (Teiler je Taste beim Anschlag, Bruchteil mit `floor` statt `fmod`, beides exakt, also
 bitidentisch), Modularstimme 0,32 → 0,21 s (Tonhöhe und Cutoff alle 4 Samples). Der ganze Render von
-fünf Minuten: 14,6 → 10,1 s (Melodic). Offen für die Quest: die Reihen als Vektor-Lanes (Abschnitt 9).
+fünf Minuten: 14,6 → 10,1 s (Melodic).
+
+Danach die Modularstimmen in SIMD-Lanes (`ModVoiceBank`, `VoiceKernel.h`): die acht Reihen, Lead und
+Drone als eine Bank, zwei AVX2-Register (drei NEON-Register) nebeneinander durch jede Stufe, damit
+sich die Abhängigkeitsketten überlappen. Skalar pro Stimme bleiben Glide, Vibrato, Hüllkurven, Drift
+und der Kontrollschritt (Tonhöhe per `exp2`, Cutoff per `tan`). Zwei Umstellungen, damit Lanes
+bitgleich zum Skalarpfad bleiben und die Divisionseinheit entlastet wird: Die Sättigung des Mixers
+ist die algebraische Sigmoide x/√(1+x²) (wie in der Leiter) statt tanh, ihre ADAA-Form ist
+(x+x₁)/(√(1+x²)+√(1+x₁²)) ohne Sonderfall; die Leiter rechnet dieselbe Gleichung mit vier statt zehn
+Divisionen, und die Division der Sättigung geht in ihre letzte ein. Der VCA sitzt jetzt hinter dem
+DC-Blocker. Vektortest: Kernel auf AVX2, NEON-Shim und skalar bitgleich zur float-Instanz.
+
+| Stimmen spielen | skalar vorher | Bank |
+|---|---|---|
+| 1 | 0,21 s/min | 0,44 s/min |
+| 10 | 2,1 s/min | 0,89 s/min |
+
+Im Render laufen im Mittel drei Stimmen (Melodic, 5 min): Stimmen 2,7 s statt etwa 3,3 s, der ganze
+Render 9,3 s. Die übrigen Posten dort: Hall 1,6 s, Federn 1,5 s, `updateCell` 1,1 s, Kompressor und
+Limiter 0,9 s, Echo 0,7 s, die anderen Klangerzeuger 1,7 s. Hörprüfung offen: Die Sigmoide biegt etwas
+früher als tanh, die Stimmen sind dadurch rund 0,5 dB leiser (RMS des Mixes −19,5 statt −19,0 dBFS).
 
 **24.09.2026: Phase 5, erster Teil fertig: das Plugin.** VST3 und Standalone
 (`build/Plugin/Ephemeris_artefacts/Release/`), Bild des Panels in `docs/screenshot.png`.
@@ -811,6 +831,8 @@ OSC `/eph/beat`, `/eph/phase`, `/eph/conjunction`, `/eph/key` aus `Cue.h`.
   Orakel, bitgleiche Tests.
 - **Natürliche Lane-Gruppen:** acht Reihen-Stimmen (Leiter, Hüllkurven, VCA in einem AVX-Register),
   Sänger eines Mellotron-Chors, Stimmen der String-Machine, FDN.
+- **Umgesetzt (25.09.2026):** die Modularstimmen (Reihen, Lead, Drone) als `ModVoiceBank` mit dem
+  Lane-Kernel `VoiceKernel.h`; siehe "Stand der Umsetzung".
 - **Grober CPU-Rahmen** (Desktop, ein Kern, 48 kHz, in Phase 1 bis 3 zu prüfen):
 
 | Modul | Ziel |

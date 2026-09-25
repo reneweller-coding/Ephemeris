@@ -137,7 +137,7 @@ private:
     std::vector<Track> tracks_;
     std::vector<int> trackOf_;   ///< parameter id -> index into tracks_, or -1
 
-    ModVoice voices_[kModVoices];
+    ModVoiceBank voices_;   ///< the sources below kModVoices, in lanes
     Strip strips_[kSources];
     TapeKeys tape_;
     StringMachine strings_;

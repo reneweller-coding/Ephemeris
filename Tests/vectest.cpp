@@ -3,14 +3,16 @@
  * @brief Lane paths against the scalar reference, bit for bit.
  *
  * Built once per vector path (Tests/CMakeLists.txt): AVX2, NEON through the x86 shim, and scalar.
- * Every lane of every vector operation, and of the ladder and the half-band filters run as lane
- * templates, must equal the float instantiation exactly -- not within a tolerance. If this ever
+ * Every lane of every vector operation, and of the ladder, the half-band filters and the modular
+ * voices' kernel run as lane templates, must equal the float instantiation exactly -- not within a
+ * tolerance. If this ever
  * needs a tolerance, an operation has crept in that is not a single IEEE operation per lane.
  * @note Copied from Phosphene `Tests/vectest.cpp` at 9a2f615 (24.09.2026): the operations, the ladder and
  *       the half-band; the sections of the psytrance voices are left out.
  */
 #include "eph/Halfband.h"
 #include "eph/synth/Ladder.h"
+#include "eph/synth/VoiceKernel.h"
 #include "eph/Vec.h"
 #include "TestSupport.h"
 #include <algorithm>
@@ -127,6 +129,59 @@ void testHalfband()
     check(bad == 0, "decimator and interpolator identical to scalar", fmt("%d differing samples", bad));
 }
 
+void testVoiceKernel()
+{
+    section("modular voice kernel lanes against scalar");
+    // Every lane its own voice: pitch, cutoff sweep, resonance, drive and wave; the scalar reference
+    // runs the same kernel with float, one lane per call, on a copy of the same state.
+    VoiceLanes vec{}, sca{};
+    const HalfbandDesign d = designHalfband(96.0, 0.1);
+    vec.clearFilters();
+    for (int l = 0; l < kBankLanes; ++l) {
+        vec.ph1[l] = 0.05f * static_cast<float>(l);
+        vec.ph2[l] = 0.5f;
+        vec.wave[l] = l % 3 == 0 ? 0.0f : 0.3f * static_cast<float>(l % 4);
+        vec.pw[l] = 0.2f + 0.04f * static_cast<float>(l);
+        vec.drive[l] = 1.0f + 0.5f * static_cast<float>(l);
+        vec.norm[l] = 1.0f / std::sqrt(vec.drive[l]);
+        vec.k[l] = 0.25f * static_cast<float>(l % 16);
+        vec.dcR[l] = 0.999f;
+    }
+    sca = vec;
+    alignas(32) float outV[kBankSpan * kBankLanes], outS[kBankSpan * kBankLanes];
+    constexpr int regs = kBankLanes / W;
+    int bad = 0;
+    float maxAbs = 0.0f;
+    for (uint32_t span = 0; span < 600; ++span) {
+        for (int i = 0; i < kBankSpan; ++i) {
+            for (int l = 0; l < kBankLanes; ++l) {
+                const int j = i * kBankLanes + l;
+                const float t = static_cast<float>(span * kBankSpan + static_cast<uint32_t>(i));
+                const float hz = 40.0f * static_cast<float>(l + 1) * (1.0f + 0.1f * std::sin(0.0003f * t));
+                vec.dt1[j] = hz / 96000.0f;
+                vec.dt2[j] = hz * 1.004f / 96000.0f;
+                vec.inv1[j] = 1.0f / vec.dt1[j];
+                vec.inv2[j] = 1.0f / vec.dt2[j];
+                vec.g[j] = 0.02f + 0.7f * (0.5f + 0.5f * std::sin(0.0007f * t * static_cast<float>(l + 1)));
+                vec.gain[j] = 0.5f + 0.5f * std::sin(0.001f * t);
+            }
+        }
+        std::copy(std::begin(vec.dt1), std::end(vec.dt1), std::begin(sca.dt1));
+        std::copy(std::begin(vec.dt2), std::end(vec.dt2), std::begin(sca.dt2));
+        std::copy(std::begin(vec.inv1), std::end(vec.inv1), std::begin(sca.inv1));
+        std::copy(std::begin(vec.inv2), std::end(vec.inv2), std::begin(sca.inv2));
+        std::copy(std::begin(vec.g), std::end(vec.g), std::begin(sca.g));
+        std::copy(std::begin(vec.gain), std::end(vec.gain), std::begin(sca.gain));
+        voiceKernel<VecF, regs>(vec, d, 0, kBankSpan, true, outV);
+        for (int l = 0; l < kBankLanes; ++l) voiceKernel<float, 1>(sca, d, l, kBankSpan, true, outS);
+        for (int j = 0; j < kBankSpan * kBankLanes; ++j) {
+            if (!sameBits(outV[j], outS[j])) ++bad;
+            maxAbs = std::max(maxAbs, std::fabs(outS[j]));
+        }
+    }
+    check(bad == 0, "voice kernel output identical to scalar", fmt("%d differing samples", bad));
+    check(std::isfinite(maxAbs) && maxAbs > 0.01f && maxAbs < 20.0f, "voice kernel sounds and stays bounded", fmt("max |y| = %.3f", static_cast<double>(maxAbs)));
+}
 
 } // namespace
 
@@ -139,5 +194,6 @@ int main()
     testOps();
     testLadder();
     testHalfband();
+    testVoiceKernel();
     return finish();
 }

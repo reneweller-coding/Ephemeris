@@ -1,14 +1,21 @@
 /**
  * @file ModVoice.h
- * @brief The modular voice of a sequencer row (PLAN 5.2): two drifting VCOs, an overdriven mixer,
- *        the ladder, two envelopes, glide.
+ * @brief The modular voices of the sequencer rows, the lead and the drone (PLAN 5.2): two drifting
+ *        VCOs, an overdriven mixer, the ladder, two envelopes, glide -- as one bank whose audio runs in
+ *        SIMD lanes.
  *
- * **Signal path**, at twice the sample rate and decimated through a half-band filter at the end (as
- * Phosphene's bass): VCO 1 and VCO 2 (PolyBLEP saw blended into a pulse, VCO 2 detuned) -> mixer with
- * drive into an antiderivative-antialiased tanh (the Minimoog mixer was overdriven on purpose) -> the
- * four-pole ZDF ladder (Ladder.h) -> VCA -> a DC blocker at 8 Hz. The blocker is the AC coupling of a
- * modular's output: a pulse of 30 % duty has a mean of 0.4, and the ladder, being a low pass, passes it
+ * **Signal path**, at twice the sample rate and decimated through a half-band filter (as Phosphene's
+ * bass): VCO 1 and VCO 2 (PolyBLEP saw blended into a pulse, VCO 2 detuned) -> mixer with drive into
+ * an antiderivative-antialiased sigmoid (the Minimoog mixer was overdriven on purpose) -> the four-pole
+ * ZDF ladder (Ladder.h) -> a DC blocker at 8 Hz -> VCA. The blocker is the AC coupling of a modular's
+ * output: a pulse of 30 % duty has a mean of 0.4, and the ladder, being a low pass, passes it
  * (measured on the first study: 0.029 of full scale left, 0.014 right before the blocker).
+ *
+ * **The bank.** The ten voices run side by side, one per lane (VoiceKernel.h): two AVX2 registers,
+ * three NEON registers, run through each stage together. The bank is rendered when any voice runs; a
+ * silent voice keeps its oscillators and filters going with its VCA at zero, which costs nothing on a
+ * register that is computed anyway. What cannot run in lanes runs per voice here: glide, vibrato, the
+ * envelopes, the drift, and the control step below.
  *
  * **Free-running oscillators.** Unlike the psytrance bass, the oscillators are not reset on a note:
  * a modular's VCOs run on, so every note of a sequence starts at another phase and the line breathes
@@ -25,17 +32,14 @@
  * amount, decay -- come in already offset by the gestures (Engine.cpp).
  *
  * **Control rate.** Glide, vibrato and the envelopes run every sample; the oscillators' frequencies
- * and the ladder's cutoff follow them every 4 samples (12 kHz at 48 kHz) on the voice's absolute
+ * and the ladder's cutoff follow them every 4 samples (12 kHz at 48 kHz) on the bank's absolute
  * sample raster, which saves two exponentials, an exp2 and a tan on three of four samples. The
  * ladder's zero-delay form takes the steps of its coefficient without clicks; the fastest thing it
  * follows, the 1.5 ms attack of the filter envelope, still gets 18 steps.
  */
 #pragma once
-#include "eph/Adaa.h"
 #include "eph/Dsp.h"
-#include "eph/Halfband.h"
-#include "eph/synth/Ladder.h"
-#include "eph/synth/Oscillator.h"
+#include "eph/synth/VoiceKernel.h"
 #include <cstdint>
 
 namespace eph {
@@ -76,61 +80,78 @@ struct OuProcess {
     }
 };
 
-/** @brief One monophonic modular voice. */
-class ModVoice {
+/** @brief The modular voices, their audio in lanes (see the file comment). */
+class ModVoiceBank {
 public:
-    /** @brief Sets the output sample rate (the voice runs at twice it) and the voice's own seed. */
-    void prepare(double sampleRate, uint64_t seed);
-    /** @brief Silences and clears every state except the drift. */
-    void reset();
     /**
-     * @brief Starts a note.
+     * @brief Sets the output sample rate (the audio path runs at twice it) and each voice's own seed.
+     * @param sampleRate output rate
+     * @param seeds      one seed per voice, kBankVoices of them
+     */
+    void prepare(double sampleRate, const uint64_t* seeds);
+    /** @brief Silences every voice and clears every state except the drift and the oscillators' phases. */
+    void reset();
+    /** @brief Takes voice @p v's settings for the following samples; call at every 32-sample cell. */
+    void set(int v, const VoiceSettings& s);
+    /**
+     * @brief Starts a note on voice @p v.
+     * @param v        the voice
      * @param pitch    MIDI note
      * @param velocity 0..1
      * @param accent   accented step
      * @param legato   glide from the sounding pitch without retriggering the envelopes
      * @param id       pairs the note with its noteOff()
      */
-    void noteOn(int pitch, float velocity, bool accent, bool legato, int id);
+    void noteOn(int v, int pitch, float velocity, bool accent, bool legato, int id);
     /**
-     * @brief Releases the note @p id if it is the one held. A mono voice ignores the off of a note a
-     *        later one has already taken over -- by id, not by pitch, because two slides on the same
-     *        pitch overlap.
+     * @brief Releases the note @p id on voice @p v if it is the one held. A mono voice ignores the off
+     *        of a note a later one has already taken over -- by id, not by pitch, because two slides on
+     *        the same pitch overlap.
      */
-    void noteOff(int id);
-    /** @brief Whether the voice makes sound or is about to. */
-    bool active() const { return amp_.isActive(); }
-    /** @brief Whether a key is held (a note is on and not yet released). */
-    bool held() const { return held_ >= 0; }
-    /** @brief Takes the settings for the following samples; call at every 32-sample cell. */
-    void set(const VoiceSettings& s);
-    /** @brief Renders @p n samples into @p out (overwritten). */
-    void process(float* out, int n);
+    void noteOff(int v, int id);
+    /** @brief Whether voice @p v makes sound or is about to. */
+    bool active(int v) const { return ctl_[v].amp.isActive(); }
+    /** @brief Whether a key is held on voice @p v (a note is on and not yet released). */
+    bool held(int v) const { return ctl_[v].held >= 0; }
+    /**
+     * @brief Renders @p n samples (at most kBankSpan) of every voice with @p run set; afterwards
+     *        output(v) holds them. The whole bank runs when any voice does, a decision taken from
+     *        @p run alone, so it is the same on every vector path and for every host block size.
+     */
+    void process(const bool* run, int n);
+    /** @brief Voice @p v's last rendered samples (valid for the voices that ran). */
+    const float* output(int v) const { return out_[v]; }
 
 private:
-    double sr_ = 48000.0, sr2_ = 96000.0;
-    VoiceSettings s_;
-    VaOscillator osc1_, osc2_;
-    LadderT<float> ladder_;
-    HalfbandDown<float> down_;
-    TanhAdaa sat_;
-    DcBlocker dc_;
-    Envelope filt_, amp_;
-    OuProcess drift1_, drift2_;
-    Rng rng_;
-    int64_t sampleCount_ = 0;   ///< samples rendered, for the 32-sample drift raster
-    double pitch_ = 45.0;       ///< sounding pitch (glides towards target_)
-    double target_ = 45.0;
-    double glideCoef_ = 1.0;
-    double noteCents_ = 0.0;    ///< small offset drawn per note
-    int held_ = -1;             ///< id of the held note, -1 if none
-    float velocity_ = 0.8f;
-    float accentAmt_ = 0.0f;
-    float driveGain_ = 2.0f, driveNorm_ = 0.5f;
-    double vibPhase_ = 0.0;     ///< vibrato phase in cycles
-    double vibLevel_ = 0.0;     ///< 0..1, rises while a note is held
-    double vibCoef_ = 0.0;
-    float g_ = 0.1f;            ///< the ladder's integrator gain of the current control step
+    /** @brief What runs per voice on the scalar side. */
+    struct Control {
+        VoiceSettings s;             ///< current settings
+        Envelope filt, amp;          ///< filter and amplitude envelopes
+        OuProcess drift1, drift2;    ///< the VCOs' wandering, in cents
+        Rng rng;                     ///< the voice's own stream
+        double pitch = 45.0;         ///< sounding pitch (glides towards target)
+        double target = 45.0;        ///< pitch of the held note
+        double glideCoef = 1.0;      ///< glide per sample
+        double noteCents = 0.0;      ///< small offset drawn per note
+        int held = -1;               ///< id of the held note, -1 if none
+        float velocity = 0.8f;       ///< of the current note
+        float accentAmt = 0.0f;      ///< accent of the current note
+        double vibPhase = 0.0;       ///< vibrato phase in cycles
+        double vibLevel = 0.0;       ///< 0..1, rises while a note is held
+        double vibCoef = 0.0;        ///< vibrato fade-in per sample
+        float dt1 = 0.001f, inv1 = 1000.0f, dt2 = 0.001f, inv2 = 1000.0f, g = 0.1f;   ///< coefficients of the current control step
+        bool fresh = true;           ///< a control step is due at the next sample whatever the raster (a new note)
+    };
+    /** @brief Voice @p v's scalar side for sample @p i of the span, written into the lanes. */
+    void control(int v, int i);
+
+    double sr_ = 48000.0;
+    double stepBase_ = 0.0;      ///< log2 of the phase step at 2x of MIDI note 0
+    int64_t count_ = 0;          ///< samples rendered, for the drift and control rasters
+    Control ctl_[kBankLanes];
+    VoiceLanes lanes_;
+    alignas(32) float mixed_[kBankSpan * kBankLanes] = {};   ///< the kernel's output, per sample and lane
+    float out_[kBankLanes][kBankSpan] = {};                  ///< the same per voice
 };
 
 } // namespace eph

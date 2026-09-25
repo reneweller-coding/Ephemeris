@@ -65,7 +65,10 @@ void Engine::load(const Score& score)
     for (Track& t : tracks_) t.cursor = t.gestures.size();
 
     // Every source and room from its own seed branch.
-    for (int r = 0; r < kModVoices; ++r) voices_[r].prepare(sampleRate_, mixSeed(score_.seed, 100 + static_cast<uint64_t>(r)));
+    uint64_t voiceSeeds[kModVoices];
+    for (int r = 0; r < kModVoices; ++r) voiceSeeds[r] = mixSeed(score_.seed, 100 + static_cast<uint64_t>(r));
+    static_assert(kModVoices == kBankVoices, "the voice bank holds the rows, the lead and the drone");
+    voices_.prepare(sampleRate_, voiceSeeds);
     echo_.prepare(sampleRate_, 2.5, mixSeed(score_.seed, 200));
     reverb_.prepare(sampleRate_);
     tape_.prepare(sampleRate_, mixSeed(score_.seed, 500));
@@ -147,8 +150,8 @@ void Engine::updateCell()
         const bool row = r < kRows;
         const Module m = row ? Module::Voice : (r == kSrcLead ? Module::Lead : Module::Drone);
         const int inst = row ? r : 0;
-        voices_[r].set(voiceSettings(m, inst, !row));
-        strips_[r].running = voices_[r].active() || voices_[r].held();
+        voices_.set(r, voiceSettings(m, inst, !row));
+        strips_[r].running = voices_.active(r) || voices_.held(r);
         auto s = [&](int rowIndex, int leadIndex) {
             return row ? played(params_.id(Module::Row, r, rowIndex)) : played(params_.id(m, 0, leadIndex));
         };
@@ -262,11 +265,11 @@ void Engine::renderSpan(float* L, float* R, int n)
     const Buses b{ L, R, echoL, echoR, hallInL, hallInR };
 
     // The sources, each through its strip, in a fixed order (the order of the sums is part of the result).
-    for (int r = 0; r < kModVoices; ++r) {
-        if (!strips_[r].running) continue;
-        voices_[r].process(bufL, n);
-        mix(strips_[r], bufL, bufL, n, b);
-    }
+    bool run[kModVoices];
+    for (int r = 0; r < kModVoices; ++r) run[r] = strips_[r].running;
+    voices_.process(run, n);
+    for (int r = 0; r < kModVoices; ++r)
+        if (run[r]) mix(strips_[r], voices_.output(r), voices_.output(r), n, b);
     if (strips_[kSrcDrums].running) {
         drums_.process(bufL, bufR, n);
         mix(strips_[kSrcDrums], bufL, bufR, n, b);
@@ -321,7 +324,7 @@ void Engine::seek(double beat)
     sample_ = std::llround(score_.tempo.secondsAt(std::max(0.0, beat)) * sampleRate_);
     evCursor_ = static_cast<size_t>(std::lower_bound(events_.begin(), events_.end(), sample_,
         [](const Ev& e, int64_t s) { return e.sample < s; }) - events_.begin());
-    for (ModVoice& v : voices_) v.reset();
+    voices_.reset();
     for (Strip& s : strips_) s.running = false;
     tape_.reset();
     strings_.silence();
@@ -353,8 +356,8 @@ bool Engine::process(float* L, float* R, int n)
                 if (e.on) tape_.noteOn(e.pitch, e.velocity, e.id); else tape_.noteOff(e.id);
                 break;
             default:
-                if (e.on) voices_[e.source].noteOn(e.pitch, e.velocity, e.accent, e.legato, e.id);
-                else voices_[e.source].noteOff(e.id);
+                if (e.on) voices_.noteOn(e.source, e.pitch, e.velocity, e.accent, e.legato, e.id);
+                else voices_.noteOff(e.source, e.id);
                 break;
             }
             if (e.on) strips_[e.source].running = true;
