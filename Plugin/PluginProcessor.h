@@ -130,6 +130,8 @@ public:
 
     eph::ParamStore& store() { return engine_.params(); }   ///< the engine's parameters
     /** @brief The host parameter of store id @p id, or null. */
+    /** @brief Applies factory preset @p index of @p module (Presets.h) to instance @p instance, through the host's parameters. */
+    void applyPreset(eph::Module module, int instance, int index);
     StoreParameter* parameter(int id) { return id >= 0 && id < static_cast<int>(params_.size()) ? params_[static_cast<size_t>(id)] : nullptr; }
 
     // juce::AudioProcessor: a stereo instrument without MIDI, one program, the state as XML.

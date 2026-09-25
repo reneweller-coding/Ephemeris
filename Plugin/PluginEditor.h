@@ -35,10 +35,17 @@ public:
 
 private:
     void build();
+    /** @brief Applies factory preset @p index to the page's synth (the instance shown). */
+    void choosePreset(int index);
     EphemerisProcessor& proc_;
     std::vector<std::pair<eph::Module, int>> groups_;
     int instances_;
     juce::ComboBox instance_;
+    // The factory presets of the page's synth (Presets.h): a list in groups, and a step back and forth.
+    eph::Module presetModule_ = eph::Module::Count;
+    int presetCount_ = 0, presetIndex_ = -1;
+    juce::ComboBox preset_;
+    juce::TextButton prev_ { "<" }, next_ { ">" };
     juce::OwnedArray<juce::Component> controls_;
     juce::OwnedArray<juce::Label> labels_;
     std::vector<std::unique_ptr<juce::SliderParameterAttachment>> sliders_;

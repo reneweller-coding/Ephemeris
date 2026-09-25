@@ -34,6 +34,8 @@ The plan, the musical specification and the literature behind each building bloc
   ducking rows -> pads -> atmosphere, a foundation in pure intervals, an all-pass spread for the tape keys,
   slow movements with irrational periods, near events where no sequence plays, export fades, an archive
   master without a limiter.
+- 1024 factory presets for each synth (voices, lead, drone, tape keys, strings, drums, atmosphere), in
+  sixteen groups each, with names from dark to bright; they set the sound, never the mix or the tuning.
 - Score cues over OSC for a visualiser (Kaleidoscope); stems; a gestures page and a style page.
 - The Quest app (built, not yet run on a headset), the release build with installer and pluginval, and the
   manual generator.

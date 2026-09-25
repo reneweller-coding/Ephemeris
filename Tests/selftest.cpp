@@ -10,6 +10,7 @@
 #include "eph/compose/Composer.h"
 #include "eph/Engine.h"
 #include "eph/Loudness.h"
+#include "eph/Presets.h"
 #include "eph/Cue.h"
 #include "eph/fx/Plate.h"
 #include "eph/synth/Atmos.h"
@@ -1598,6 +1599,53 @@ void testAddon()
 }
 
 /**
+ * The factory presets (Presets.h): 1024 per synth, every name unique within its synth, every value inside its knob's
+ * range, the mix and the composer's amounts left alone, and the tuning kept: the foundation's detune under 3 cents,
+ * elsewhere at most 12, the drift at most 7, the vibrato at most 40 cents, the tapes' wobble inside its defaults'.
+ */
+void testPresets()
+{
+    section("factory presets");
+    ParamStore store;
+    int total = 0, badCount = 0, dupes = 0, outside = 0, leaves = 0, detuned = 0;
+    for (Module m : { Module::Voice, Module::Lead, Module::Drone, Module::Tape, Module::Strings, Module::Drums, Module::Atmos }) {
+        const std::vector<SoundPreset>& list = factoryPresets(m);
+        total += static_cast<int>(list.size());
+        badCount += list.size() == 1024 ? 0 : 1;
+        std::set<std::string> names;
+        for (const SoundPreset& pr : list) {
+            dupes += names.insert(pr.name).second ? 0 : 1;
+            for (const auto& e : pr.values) {
+                const ParamDesc& d = store.desc(store.id(m, 0, e.first));
+                outside += e.second < d.minValue || e.second > d.maxValue ? 1 : 0;
+                leaves += presetLeaves(m, e.first) ? 1 : 0;
+                const bool voiceLike = m == Module::Voice || m == Module::Lead || m == Module::Drone;
+                if (voiceLike && e.first == voice::Detune && e.second > (m == Module::Drone ? 3.0f : 12.0f)) ++detuned;
+                if (voiceLike && e.first == voice::Drift && e.second > 7.0f) ++detuned;
+                if ((m == Module::Lead || m == Module::Drone) && e.first == lead::Vibrato && e.second > 40.0f) ++detuned;
+                if (m == Module::Tape && ((e.first == tape::Wow && e.second > 12.0f) || (e.first == tape::Flutter && e.second > 4.0f)
+                                          || (e.first == tape::Sag && e.second > 2.5f))) ++detuned;
+            }
+        }
+    }
+    check(total == 7 * 1024 && badCount == 0 && dupes == 0, "1024 presets for each of the seven synths, every name its own",
+          fmt("%d presets, %d duplicate names", total, dupes));
+    check(outside == 0 && leaves == 0, "every value inside its knob's range; the mix and the composer's amounts untouched",
+          fmt("%d outside, %d on a knob a preset leaves", outside, leaves));
+    check(detuned == 0, "the tuning kept: detune, drift, vibrato and the tapes' wobble in their bounds", fmt("%d too far", detuned));
+    // A preset sets the whole sound: applied twice from different starting points it gives the same knobs.
+    ParamStore a, b;
+    b.parseText("voice3.cutoff=9000 voice3.resonance=0.9 voice3.detune=25 row3.level=-20");
+    const SoundPreset& pr = factoryPresets(Module::Voice)[300];
+    applyPreset(a, Module::Voice, 2, pr);
+    applyPreset(b, Module::Voice, 2, pr);
+    bool same = true;
+    for (int k = 0; k < ParamStore::moduleCount(Module::Voice); ++k) same = same && a.get(a.id(Module::Voice, 2, k)) == b.get(b.id(Module::Voice, 2, k));
+    check(same && b.get(b.id(Module::Row, 2, row::Level)) == -20.0f, "a preset sets the whole sound and leaves the mix",
+          fmt("%s: %s", pr.group.c_str(), pr.name.c_str()));
+}
+
+/**
  * The offline render is the oracle only if a host's block size cannot change a sample: the study
  * rendered with blocks of 1, 37 and 512 must agree bit for bit (Engine.h).
  */
@@ -1750,6 +1798,7 @@ const TestSection kSections[] = {
     { "testLoudness", testLoudness },
     { "testMixBus", testMixBus },
     { "testAddon", testAddon },
+    { "testPresets", testPresets },
     { "testBlockSizes", testBlockSizes },
     { "testEcho", testEcho },
     { "testDrift", testDrift },

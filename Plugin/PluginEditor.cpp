@@ -9,6 +9,8 @@
 #include "EditorGestures.h"
 #include "EditorStyle.h"
 #include "eph/compose/Composer.h"
+#include "eph/Presets.h"
+#include <map>
 #include <cstdlib>
 
 using namespace eph;
@@ -44,7 +46,38 @@ ParamPage::ParamPage(EphemerisProcessor& p, std::vector<std::pair<Module, int>> 
         instance_.onChange = [this] { build(); resized(); };
         addAndMakeVisible(instance_);
     }
+    // The synth's factory presets, in their groups (a submenu each), where the page is a synth's.
+    const Module m = groups_.empty() ? Module::Count : groups_.front().first;
+    const std::vector<SoundPreset>& list = factoryPresets(m);
+    if (!list.empty()) {
+        presetModule_ = m;
+        presetCount_ = static_cast<int>(list.size());
+        std::vector<std::string> order;
+        std::map<std::string, juce::PopupMenu> menus;
+        for (size_t i = 0; i < list.size(); ++i) {
+            if (menus.find(list[i].group) == menus.end()) order.push_back(list[i].group);
+            menus[list[i].group].addItem(static_cast<int>(i) + 1, list[i].name);
+        }
+        for (const std::string& g : order) preset_.getRootMenu()->addSubMenu(g, menus[g]);
+        preset_.setTextWhenNothingSelected(juce::String(presetCount_) + " presets");
+        preset_.onChange = [this] { if (preset_.getSelectedId() > 0) choosePreset(preset_.getSelectedId() - 1); };
+        prev_.onClick = [this] { choosePreset(((presetIndex_ < 0 ? 0 : presetIndex_) - 1 + presetCount_) % presetCount_); };
+        next_.onClick = [this] { choosePreset((presetIndex_ + 1) % presetCount_); };
+        prev_.setTooltip("the preset before");
+        next_.setTooltip("the next preset");
+        addAndMakeVisible(preset_);
+        addAndMakeVisible(prev_);
+        addAndMakeVisible(next_);
+    }
     build();
+}
+
+void ParamPage::choosePreset(int index)
+{
+    if (presetCount_ == 0 || index < 0 || index >= presetCount_) return;
+    presetIndex_ = index;
+    preset_.setSelectedId(index + 1, juce::dontSendNotification);
+    proc_.applyPreset(presetModule_, instances_ > 1 ? instance_.getSelectedId() - 1 : 0, index);
 }
 
 void ParamPage::build()
@@ -95,13 +128,23 @@ int ParamPage::heightFor(int width) const
 {
     const int perRow = std::max(1, (width - 20) / 104);
     const int rows = (controls_.size() + perRow - 1) / perRow;
-    return 20 + (instances_ > 1 ? 32 : 6) + rows * 96;
+    return 20 + (instances_ > 1 || presetCount_ > 0 ? 32 : 6) + rows * 96;
 }
 
 void ParamPage::resized()
 {
     auto area = getLocalBounds().reduced(10);
-    if (instances_ > 1) instance_.setBounds(area.removeFromTop(26).removeFromLeft(90));
+    if (instances_ > 1 || presetCount_ > 0) {
+        auto top = area.removeFromTop(26);
+        if (instances_ > 1) { instance_.setBounds(top.removeFromLeft(90)); top.removeFromLeft(12); }
+        if (presetCount_ > 0) {
+            prev_.setBounds(top.removeFromLeft(28));
+            top.removeFromLeft(4);
+            preset_.setBounds(top.removeFromLeft(300));
+            top.removeFromLeft(4);
+            next_.setBounds(top.removeFromLeft(28));
+        }
+    }
     area.removeFromTop(6);
     const int w = 104, h = 96;
     const int perRow = std::max(1, area.getWidth() / w);

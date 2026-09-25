@@ -62,6 +62,12 @@ Gemessen (10 min, Seed 7): Cosmic/Melodic/Modern -15,4 bis -15,6 LUFS, Doom -17,
 Crest 17-20 dB, PSR 11-14. Nicht umgesetzt: der serielle Fernraum (es gibt nur einen Hall), der Sub als
 eigenes Instrument mit eigenem Clipper und Multiband-Limiter, spektrales Ducking in 6-8 Bändern (hier ein
 Band), Abhörpraxis und Mute-Test (Arbeitsweise, nicht Programm).
+Danach Werks-Presets (`Presets.h`): je 1024 für Stimme, Lead, Bordun, Tape Keys, Streicher, Drums und Atmosphäre
+(16 Gruppen zu 8 x 8, Namen Adjektiv dunkel -> hell plus Nomen der Gruppe, eindeutig je Synth), auf jeder
+Synth-Seite als Liste mit Untermenüs und Pfeilen; ein Preset setzt den ganzen Klang und lässt den Mix
+(Pegel, Pan, Sends, Low Cut, Distance, Auto Pan, Spread) und die Mengen der Atmosphäre in Ruhe. Stimmung:
+Bordun-Detune 0-1 ct, Bass-Gruppen 0-3, sonst höchstens 12, Drift höchstens 7, Vibrato höchstens 40 ct,
+Tape-Wow/Flutter/Motorlast im Bereich der Standardwerte; keine Transposition. Selbsttest `testPresets`.
 Auftrag des Nutzers: die String Machine mehr wie Waldorfs Streichfett (Ensemble, Mischung der Register, langsames
 Animieren der Mischung) und den "Harmonie- und Stilguide Moderne Berlin School" (Downloads des Nutzers, Stand
 25.09.2026) umsetzen, soweit sinnvoll. Reihenfolge und Stand:

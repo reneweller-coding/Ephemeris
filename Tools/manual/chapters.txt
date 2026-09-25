@@ -163,6 +163,17 @@ second detuned), a mixer driven into a soft saturation, a four-pole transistor l
 sample rate, two envelopes and glide. The oscillators run freely and are never reset on a note, and
 each wanders slowly in pitch, as analogue oscillators do; the Drift knob sets how far.
 
+Presets. Every synth page -- the voices, the lead, the drone, the tape keys, the strings, the drums and the
+atmosphere -- has 1024 factory presets above its knobs, in sixteen groups of sixty-four ("Ladder Bass",
+"Glass Arp", "Cathedral Choir", "Slow Swell", "Solar Wind" ...); the arrows step through them. Each name is
+two words: the first runs from dark to bright ("Umbral" ... "Radiant"), the second is the group's own, so
+"Umbral Keel" is the darkest and "Radiant Piston" the brightest of the ladder basses. On the voices page a
+preset goes to the row chosen on the left. A preset sets the sound, never the mix: level, pan, the sends,
+the low cut, the distance and the drone's auto pan stay, and so do the atmosphere's amounts, which the
+composer moves. Nor does it put a synth out of tune with the rest: the drone and the bass groups keep their
+oscillators within a cent or three of each other (the pure foundation), the others within twelve, the lead's
+vibrato and the tapes' wobble stay inside their usual bounds, and no preset transposes anything.
+
 The knobs the player's hands move during a piece -- cutoff, resonance, envelope amount, decay -- are
 moved by the composer's gestures as offsets from where you set them, so the ranges you choose keep
 their meaning.

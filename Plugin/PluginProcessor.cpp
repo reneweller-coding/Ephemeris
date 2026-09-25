@@ -5,6 +5,7 @@
 #include "PluginProcessor.h"
 #include "PluginEditor.h"
 #include "eph/Loudness.h"
+#include "eph/Presets.h"
 #include "eph/compose/Composer.h"
 #include "eph/Midi.h"
 #include "eph/WavWriter.h"
@@ -493,6 +494,20 @@ void EphemerisProcessor::setFromMidi(int id, float value)
     p->beginChangeGesture();
     p->setValueNotifyingHost(norm);
     p->endChangeGesture();
+}
+
+void EphemerisProcessor::applyPreset(Module module, int instance, int index)
+{
+    const std::vector<SoundPreset>& list = factoryPresets(module);
+    if (index < 0 || index >= static_cast<int>(list.size())) return;
+    for (const auto& e : presetKnobs(module, list[static_cast<size_t>(index)])) {
+        const int id = store().id(module, instance, e.first);
+        StoreParameter* p = parameter(id);
+        if (p == nullptr) continue;
+        p->beginChangeGesture();
+        p->setValueNotifyingHost(store().toNormalised(id, e.second));
+        p->endChangeGesture();
+    }
 }
 
 void EphemerisProcessor::perform(const juce::MidiBuffer& midi)
