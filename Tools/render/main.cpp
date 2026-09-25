@@ -11,7 +11,7 @@
  *   eph_render [--minutes M | --bars N] [--bpm B] [--seed S] [--set "k=v ..."] [--tail S]
  *              [--rate 48000] [--block 512] [--out file.wav] [--midi file.mid] [--study]
  *              [--frame [--ramp-to B]]
- *              [--list] [--version]
+ *              [--list] [--dump-params FILE] [--version]
  */
 #include "eph/Engine.h"
 #include "eph/compose/Composer.h"
@@ -56,6 +56,7 @@ void usage()
                 "  --out FILE       write a 24-bit WAV\n"
                 "  --midi FILE      write a Standard MIDI File\n"
                 "  --list           print every parameter and exit\n"
+                "  --dump-params F  write every parameter's description as JSON (for the manual) and exit\n"
                 "  --version        print the version and exit\n", EPH_VERSION);
 }
 
@@ -68,6 +69,7 @@ int main(int argc, char** argv)
     int block = 512;
     std::string out, midi, set;
     bool list = false, frame = false, study = false, sketch = false;
+    std::string dump;
     double concert = 0.0;
     std::string setIn, setOut;
     Curation curation;
@@ -89,6 +91,7 @@ int main(int argc, char** argv)
         else if (a == "--out") out = next("--out");
         else if (a == "--midi") midi = next("--midi");
         else if (a == "--list") list = true;
+        else if (a == "--dump-params") dump = next("--dump-params");
         else if (a == "--frame") frame = true;
         else if (a == "--study") study = true;
         else if (a == "--sketch") sketch = true;
@@ -122,6 +125,34 @@ int main(int argc, char** argv)
     }
     const int bpmId = p.id(Module::Compose, 0, compose::Bpm);
     if (bpmArg > 0.0) p.set(bpmId, static_cast<float>(bpmArg));
+    if (!dump.empty()) {
+        // One object per parameter: the key, the descriptor, the default of this instance (Tools/manual).
+        FILE* f = std::fopen(dump.c_str(), "wb");
+        if (f == nullptr) { std::fprintf(stderr, "cannot write %s\n", dump.c_str()); return 1; }
+        auto quoted = [](const char* s) {
+            std::string o = "\"";
+            for (const char* c = s != nullptr ? s : ""; *c != 0; ++c) { if (*c == '"' || *c == '\\') o += '\\'; o += *c; }
+            return o + "\"";
+        };
+        static const char* const curves[] = { "linear", "log", "int", "choice", "toggle" };
+        std::fprintf(f, "[\n");
+        for (int id = 0; id < p.count(); ++id) {
+            const ParamDesc& d = p.desc(id);
+            std::string choices = "[]";
+            if (d.curve == Curve::Choice && d.choices != nullptr) {
+                choices = "[";
+                for (int c = 0; c <= static_cast<int>(d.maxValue); ++c) choices += (c ? ", " : "") + quoted(d.choices[c]);
+                choices += "]";
+            }
+            std::fprintf(f, "  {\"key\": %s, \"name\": %s, \"unit\": %s, \"min\": %g, \"max\": %g, \"default\": %g, \"curve\": \"%s\", \"choices\": %s}%s\n",
+                         quoted(p.key(id).c_str()).c_str(), quoted(d.name).c_str(), quoted(d.unit).c_str(),
+                         static_cast<double>(d.minValue), static_cast<double>(d.maxValue), static_cast<double>(p.defaultValue(id)),
+                         curves[static_cast<int>(d.curve)], choices.c_str(), id + 1 < p.count() ? "," : "");
+        }
+        std::fprintf(f, "]\n");
+        std::fclose(f);
+        return 0;
+    }
     if (list) {
         for (int id = 0; id < p.count(); ++id) std::printf("%-24s %s\n", p.key(id).c_str(), p.format(id).c_str());
         return 0;

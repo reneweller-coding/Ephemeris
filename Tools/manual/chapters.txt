@@ -1,0 +1,155 @@
+# The prose of the Ephemeris manual, one block per chapter.
+#
+# Everything else in the manual -- the parameter tables and the pictures -- comes from the program itself:
+# `eph_render --dump-params` writes every parameter's description, and the standalone's screenshot mode
+# (EPH_SHOT, EPH_TAB) one picture per tab. Only the text that explains *why* lives here.
+#
+# Format: "== Title | module prefixes | screenshot ==" starts a chapter. The module prefixes (space
+# separated, may be empty) are the parameter tables printed under the chapter; the screenshot is the
+# tab's index (docs/screenshots/tab_NN.png) or "-". Every module must belong to a chapter, or the
+# generator refuses to print (a parameter on no page cannot be reached). Blank lines separate
+# paragraphs; a line indented by four spaces is printed as it stands; lines starting with '#' are comments.
+
+== About | | - ==
+
+Ephemeris composes and plays long pieces in the manner of the modern Berlin School: sequencer lines of
+different lengths turning against each other over a common root, a bass that holds the ground, tape
+choirs and string machines, a lead that sings over the peak, the room of a tape echo and a long hall.
+There are no samples. Every sound is synthesised by the engine, and every note is decided by the composer.
+
+The same seed always gives the same piece. A piece is a seed, a style, a length and a handful of
+rerolls, which is what a set file stores and what you can hand to someone else. The standalone and the
+plugin play what the offline renderer plays, sample for sample.
+
+An ephemeris is the table that gives the positions of the heavenly bodies for every date. A sequencer
+is such a table, and the music here is made of orbits of different lengths around one root that meet
+again only now and then. The Rack page draws them that way.
+
+== The top bar | | - ==
+
+Style, key and scale choose the piece's character: Cosmic, Doom, Melodic, Modern and Drift are five
+style profiles with their own tempi, forms, layers and spaces. Piece min is the length of one piece;
+Concert min above zero strings pieces together into a concert that travels through related keys.
+Compose writes a piece with the current seed, New seed draws another one, Play starts and stops the
+standalone (in a host the host's transport plays).
+
+The reroll buttons draw one part of the piece again and leave everything else as it was, to the note:
+the form, the tempo, the rows' shapes, the rack's patterns, the layers, the lead, the chords and pads,
+and the hands on the knobs. Save set and Load set keep a piece as a small text file; Export writes the
+piece offline as a 24-bit WAV and a MIDI file beside it, with the gestures as controllers.
+
+Below, the arrange view shows the sections of the piece -- the atmosphere at the start, the entry of the
+rows, the builds, the lead, the peak, the bridges, the fade -- with the playhead. Click to jump.
+
+== Mixer | | 0 ==
+
+A channel strip per source, in the order the engine mixes them: the eight rows, the lead, the drone,
+the tape keys, the string machine, the drums and the atmosphere. Each strip has its pan (where the
+source has one), its sends to the tape echo and to the hall, its fader and its meter. The controls are
+the same parameters the sources' own pages show.
+
+The meter reads what the source puts into the mix after its fader and pan: a green bar for the RMS
+level with a release of 300 ms, turning amber above -6 dBFS and red above 0, and a peak line that holds
+for a second and a half before it falls at 20 dB per second. The figure under the meter is the held
+peak. A strip that shows -inf is not playing at the moment.
+
+== Perform | perform | 1 ==
+
+The performer's controls act on the piece as it plays, and at their defaults they do nothing at all:
+the piece is then exactly as composed. Filter moves the rows' filters up to two octaves either way, as
+a hand on the cutoff knobs of a modular would. Transpose is the transposition key: every note that
+starts after a change comes in transposed; notes that sound keep their pitch. Hold Hands lets go of the
+knobs: the gestures the composer wrote stand where they are until you release it. Echo Throw sends
+every source into the tape echo and raises the echo's feedback with it, for a dub throw at the end of
+a phrase.
+
+A MIDI keyboard plays the transposition key directly: a key transposes by its distance from middle C
+and holds until the next key, as the transposer of a sequencer did. The mod wheel grabs the filters,
+the expression pedal throws the echo, the sustain pedal holds the hands. Learn binds any controller to
+any of the four; the bindings are saved with the plugin's state.
+
+A row cannot be mutated live: the piece is composed before it plays. To hear the rack with other
+patterns, reroll the rack.
+
+== Rack | row | 2 ==
+
+On the left, the orrery. Every row that plays notes is a planet on an orbit, the bass innermost; one
+turn is one cycle of the row, its length in steps times its step. The top of every orbit is the row's
+first step. When running rows stand there together, a line of light rises from the centre: a
+conjunction, the moment the patterns come round together. Under the orbits, each row's cycle and the
+time until all running rows meet again. The sun in the middle is the transposer: its letter is the root
+the rows play on at the moment, and it moves when the transposer does.
+
+The composer uses the conjunctions: a build, which brings in a new counter row, ends where that row and
+the bass row begin their cycles together again, if such a bar is near.
+
+On the right, the rows' parameters: length and step, direction, octave and transposition, the chance
+of a mutation at the end of each cycle (a Turing machine's shift register), the gate, level, pan and
+sends, and the mode -- notes, or the transposer that moves the others. The composer sets the rows for
+each piece; the values here are what a piece starts from.
+
+== Voices | voice | 3 ==
+
+Each row plays its own modular voice: two drifting oscillators (a sawtooth blended into a pulse, the
+second detuned), a mixer driven into a soft saturation, a four-pole transistor ladder at twice the
+sample rate, two envelopes and glide. The oscillators run freely and are never reset on a note, and
+each wanders slowly in pitch, as analogue oscillators do; the Drift knob sets how far.
+
+The knobs the player's hands move during a piece -- cutoff, resonance, envelope amount, decay -- are
+moved by the composer's gestures as offsets from where you set them, so the ranges you choose keep
+their meaning.
+
+== Lead | lead | 4 ==
+
+The lead is the same voice as a row's, with vibrato that comes in over the first half second of a held
+note, as a hand reaches the wheel. It plays in its own section and over the peak: phrases on the
+pentatonic of the moment, chord tones on the strong beats, glides from the tone below, and repeats of
+its own phrases.
+
+== Drone | drone | 5 ==
+
+The drone is the ground under the whole piece: the root, low, held from the start to the fading coda,
+following the key when a phase changes it. It is a modular voice as well and has the lead's table.
+
+== Tape Keys | tape | 6 ==
+
+A tape keyboard, synthesised: every key has its own strip of tape, with its own small detune, level
+and onset lag, played by one capstan whose speed wanders (wow and flutter) and sags a little under
+many keys. A tape runs out after eight seconds, as the instrument's did. Three sets: a choir of
+several singers through the formants of a sung vowel, strings, and flute. Age puts more of the
+machine's character into the sound; the tape set can change between pieces.
+
+== Strings | strings | 7 ==
+
+A string machine of the seventies: top-octave generators divided down into sawtooths at 8' and 4',
+through an ensemble of three bucket-brigade delays swept by a slow and a fast modulation. Keys glide
+from where they were when a chord is stolen, as the machine's did.
+
+== Atmosphere | atmos | 8 ==
+
+Wind (filtered noise in a moving band), slow sweeps, and bursts of sample-and-hold bleeps on the notes
+of the scale: the space at the start of a piece and in the bridges, and the stars over the builds.
+
+== Echo + Spring | echo spring | 9 ==
+
+A tape echo with a moving read head -- wow, flutter, saturation and loss of highs in the feedback --
+synchronised to the tempo, with a ping-pong option; its feedback can run into self-oscillation, which
+the echo throw uses. Springs are built into it, as in the tape echoes of the time: they take the echo's
+send and return beside it.
+
+== Hall | reverb | 10 ==
+
+A long, dark hall (an eight-line feedback delay network) with its size, decay, damping, pre-delay and
+the band it returns.
+
+== Drums | drums | 11 ==
+
+A small analogue kit for the styles that have drums: kick, snare, hats, toms tuned to the root, rim and
+shaker, with patterns per style. The drums come late in a piece, from the second build to the end of
+the peak.
+
+== Master | master compose | 12 ==
+
+The master: its level, a gentle bus compressor that keeps the music's dynamics, and a true-peak limiter
+as protection. Below, the composer's settings -- the style, key, scale, tempo, lengths and whether the
+style chooses the tempo -- which the top bar also shows.
