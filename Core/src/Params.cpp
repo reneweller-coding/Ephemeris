@@ -86,6 +86,7 @@ const ParamDesc kRowParams[row::Count] = {
     { "blend",    "Blend Send", "",  0.0f,   1.0f,   0.0f, Curve::Linear },   // into the blend room (the addon's send B)
     { "punch",    "Punch",    "",    0.0f,   1.0f,   0.0f, Curve::Linear },   // the attacks lifted (a transient shaper)
     { "early",    "Early Send", "",  0.0f,   1.0f,   0.0f, Curve::Linear },   // into the early reflections (send A)
+    { "sweep",    "Filter Sweep", "oct", 0.0f, 2.0f, 0.0f, Curve::Linear },   // the slow Berlin-School sweep of the cutoff
 };
 
 /**

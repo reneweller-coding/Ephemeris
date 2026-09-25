@@ -278,7 +278,15 @@ void Engine::updateCell()
         const bool row = r < kRows;
         const Module m = row ? Module::Voice : (r == kSrcLead ? Module::Lead : Module::Drone);
         const int inst = row ? r : 0;
-        const VoiceSettings vs = voiceSettings(m, inst, !row);
+        VoiceSettings vs = voiceSettings(m, inst, !row);
+        if (row) {
+            // The filter sweep (25.09.2026): the Berlin School's slow opening and closing of a sequence, a sine on the
+            // cutoff with a period of its own per row (39 .. 79 s, irrational against the bars and each other), on
+            // the piece's clock, over whatever the hands do; master.motion scales it with the other slow movements.
+            static const double kPeriod[kRows] = { 53.1, 41.7, 67.3, 38.9, 79.1, 47.9, 61.3, 71.7 };
+            const float depth = played(params_.id(Module::Row, r, row::Sweep)) * knob(Module::Master, master::Motion);
+            if (depth > 0.0f) vs.cutoffHz *= std::exp2(depth * static_cast<float>(std::sin(6.283185307179586 * seconds() / kPeriod[r] + r)));
+        }
         if (changed(cache_.voice[r], vs, cache_.valid)) voices_.set(r, vs);
         strips_[r].running = voices_.active(r) || voices_.held(r);
         auto s = [&](int rowIndex, int leadIndex) {

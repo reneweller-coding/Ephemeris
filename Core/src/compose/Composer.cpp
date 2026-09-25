@@ -591,6 +591,22 @@ void writeSettings(Piece& c)
         const float at = p.get(id), wet = amount;
         alongForm(id, at, [&, at, wet](SectionType t) { return spaces(t) ? std::min(1.0f, at + wet) : at; });
     }
+    // The sound of the sequences (25.09.2026, hypnosis): the main sequence squelchy -- more resonance, a deep and short
+    // filter envelope, strong accents -- the bass round, the counter rows between; and their filter sweeps, slow sines
+    // of their own period (the main sequence the widest), the Berlin School's long openings and closings.
+    auto voiceTo = [&](int r, int index, float v) { setTo(p.id(Module::Voice, r, index), v); };
+    voiceTo(0, voice::Resonance, 0.3f); voiceTo(0, voice::EnvAmount, 2.5f); voiceTo(0, voice::Decay, 260.0f); voiceTo(0, voice::Cutoff, 320.0f);
+    voiceTo(0, voice::Accent, 0.6f);
+    setTo(p.id(Module::Row, 0, row::Sweep), 0.3f);
+    for (int k = 0; k < c.counters; ++k) {
+        const int r = k + 1;
+        voiceTo(r, voice::Resonance, k == 0 ? 0.52f : 0.42f);
+        voiceTo(r, voice::EnvAmount, k == 0 ? 3.6f : 3.0f);
+        voiceTo(r, voice::Decay, k == 0 ? 190.0f : 150.0f);
+        voiceTo(r, voice::Cutoff, k == 0 ? 450.0f : 700.0f);
+        voiceTo(r, voice::Accent, k == 0 ? 0.75f : 0.55f);
+        setTo(p.id(Module::Row, r, row::Sweep), k == 0 ? 0.9f : 0.6f);
+    }
     // The main sequence's attacks lifted, so it stays in front (the production guide's 7.5).
     if (c.counters > 0) setTo(p.id(Module::Row, 1, row::Punch), 0.5f);
     // The serial feed into the hall down to 5 % at the peak, where energy would pile up in the far room (the addon's 4).

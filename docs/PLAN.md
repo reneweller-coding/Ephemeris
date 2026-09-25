@@ -46,7 +46,7 @@ Schritte:
    Parallele), Bass-Übergabe über das Distanz-Makro und den Low Cut (A entfernt sich, B nähert sich), der Bordun
    gleitet in die neue Tonart. Offline (`eph_render --set`), Plugin und Quest.
 Jeder Schritt mit Selbsttest, neuen Referenz-Hashes, Handbuch und Commit.
-Stand: Schritte 1 (f66c57a), 4 (8cc3d07) und 2 (Modulationsspur je Reihe, NoteEvent::bright) erledigt; weiter mit 3.
+Stand: Schritte 1, 2, 3 (Filterfahrten row.sweep, Rollenklang), 4 erledigt; weiter mit 5 (Puls), 6 (Pegel), 7 (Nacht-Sets).
 
 **Nächste Schritte (Stand 25.09.2026, nachmittags).** Die Programmieraufgaben der Phasen 4 bis 7 sind
 umgesetzt (die Einträge darunter); offen ist, was einen Menschen, eine Installation oder ein Gerät braucht:

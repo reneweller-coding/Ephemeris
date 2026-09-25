@@ -114,7 +114,9 @@ enum : int { Active, Length, Division, Direction, Octave, Transpose, Mutation, G
              // 25.09.2026 (the addon's distance macro): 0 near .. 1 the horizon, level, highs and hall together.
              Distance,
              // 25.09.2026: the send into the blend room; the transient punch (the production guide's 7.5).
-             BlendSend, Punch, EarlySend, Count };
+             BlendSend, Punch, EarlySend,
+             // 25.09.2026: the row's filter sweep, a slow sine on its cutoff (octaves; its own period of 39 .. 79 s).
+             Sweep, Count };
 }
 /** @brief Parameters of the master section. */
 namespace master {
