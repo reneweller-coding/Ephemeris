@@ -175,6 +175,14 @@ EphemerisEditor::EphemerisEditor(EphemerisProcessor& p) : juce::AudioProcessorEd
     seed_.onClick = [this] { proc_.newSeed(); };
     play_.onClick = [this] { proc_.setPlaying(!proc_.isPlaying()); };
     for (auto* b : { &compose_, &seed_, &play_, &save_, &load_, &export_ }) addAndMakeVisible(b);
+    // Mute, as in Phosphene: silence at the output; EPH_MUTE (or the screenshot mode) holds it on.
+    mute_.setClickingTogglesState(true);
+    mute_.setToggleState(proc_.muted(), juce::dontSendNotification);
+    mute_.setEnabled(!proc_.muteForced());
+    mute_.setColour(juce::TextButton::buttonOnColourId, juce::Colour(0xffb04a4a));
+    mute_.setTooltip(proc_.muteForced() ? "Muted by EPH_MUTE: an automated run makes no sound" : "Silence the output");
+    mute_.onClick = [this] { proc_.setMuted(mute_.getToggleState()); };
+    addAndMakeVisible(mute_);
     play_.setColour(juce::TextButton::buttonColourId, juce::Colour(0xff3a4a36));
 
     for (const char* unit : kUnitNames) {
@@ -263,6 +271,8 @@ void EphemerisEditor::resized()
     export_.setBounds(second.removeFromRight(140).reduced(2));
     load_.setBounds(second.removeFromRight(80).reduced(2));
     save_.setBounds(second.removeFromRight(80).reduced(2));
+    second.removeFromRight(8);
+    mute_.setBounds(second.removeFromRight(proc_.muteForced() ? 100 : 70).reduced(2));
     area.removeFromTop(4);
     auto third = area.removeFromTop(20);
     status_.setBounds(third.removeFromLeft(third.getWidth() / 2));
@@ -278,6 +288,8 @@ void EphemerisEditor::timerCallback()
     status_.setText(proc_.status(), juce::dontSendNotification);
     rerolls_.setText(proc_.curationText(), juce::dontSendNotification);
     play_.setButtonText(proc_.isPlaying() ? "Stop" : "Play");
+    mute_.setToggleState(proc_.muted(), juce::dontSendNotification);
+    mute_.setButtonText(proc_.muted() ? (proc_.muteForced() ? "Muted (env)" : "Muted") : "Mute");
     compose_.setEnabled(!proc_.isComposing());
     arrange_.repaint();
     // The test mode: the recording, when full, is written and the standalone quits.

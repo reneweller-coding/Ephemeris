@@ -70,7 +70,7 @@ private:
     juce::ComboBox style_, key_, scale_;
     juce::Slider minutes_, concert_;
     juce::Label minutesLabel_, concertLabel_;
-    juce::TextButton compose_{ "Compose" }, seed_{ "New seed" }, play_{ "Play" };
+    juce::TextButton compose_{ "Compose" }, seed_{ "New seed" }, play_{ "Play" }, mute_{ "Mute" };
     juce::OwnedArray<juce::TextButton> rerollButtons_;
     juce::TextButton save_{ "Save set" }, load_{ "Load set" }, export_{ "Export WAV + MIDI" };
     std::vector<std::unique_ptr<juce::ComboBoxParameterAttachment>> combos_;

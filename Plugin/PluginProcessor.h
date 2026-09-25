@@ -23,6 +23,10 @@
  * they are bound to -- the mod wheel the filter, the expression pedal the echo throw, the sustain pedal
  * the hold -- and any controller can be learned for any of them (learn()). The bindings are part of the
  * state.
+ *
+ * **Mute** (after Phosphene). The output can be muted: silence at the very end of processBlock, after the
+ * meters and the test recording have read the block. `EPH_MUTE=1` -- and the screenshot mode `EPH_SHOT`
+ * -- start the plugin muted, and then it never unmutes itself: an automated run makes no sound.
  */
 #pragma once
 #include "eph/Engine.h"
@@ -104,6 +108,12 @@ public:
      */
     void takeChannelMeters(float* peak, float* rms);
 
+    // Muting.
+    bool muted() const { return mute_.load(std::memory_order_relaxed); }   ///< the output is silenced
+    /** @brief Mutes or unmutes; does nothing while `EPH_MUTE` forces it. */
+    void setMuted(bool on) { if (!forceMute_) mute_.store(on, std::memory_order_relaxed); }
+    bool muteForced() const { return forceMute_; }   ///< `EPH_MUTE` (or `EPH_SHOT`) was set: the switch is stuck on
+
     // Performing.
     /** @brief Binds the next MIDI controller that arrives to store id @p id; -1 cancels. */
     void learn(int id) { learn_ = id; }
@@ -172,6 +182,8 @@ private:
     std::atomic<int> scoreVersion_{ 0 };     ///< scoreVersion()
     std::array<std::atomic<int>, 128> ccMap_{};   ///< controller number -> store id, -1 unbound
     std::atomic<int> learn_{ -1 };                ///< learn()
+    std::atomic<bool> mute_{ false };             ///< muted()
+    bool forceMute_ = false;                      ///< muteForced()
     std::atomic<double> hostBpm_{ 0.0 };     ///< the host's tempo as the audio thread last saw it, 0 outside a host
     std::atomic<double> playedBpm_{ 0.0 };   ///< the tempo the engine's score was loaded with (forPlayback), 0 as composed
 };

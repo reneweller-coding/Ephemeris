@@ -89,6 +89,7 @@ if(EPH_BUILD_PLUGIN)
             target_link_options(eph_vst3test PRIVATE "LINKER:/STACK:16777216")
         endif()
         add_test(NAME vst3test COMMAND eph_vst3test "$<TARGET_FILE:Ephemeris_VST3>")
-        set_tests_properties(vst3test PROPERTIES LABELS "audio;slow" PROCESSORS 3)
+        # It checks that the plugin sounds (offline, nothing reaches a speaker), so it must not be muted.
+        set_tests_properties(vst3test PROPERTIES LABELS "audio;slow" PROCESSORS 3 ENVIRONMENT_MODIFICATION "EPH_MUTE=unset:")
     endif()
 endif()

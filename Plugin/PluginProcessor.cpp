@@ -94,6 +94,10 @@ EphemerisProcessor::EphemerisProcessor()
     seed_ = static_cast<uint64_t>(juce::Time::currentTimeMillis() % 100000);
     if (const char* env = std::getenv("EPH_SEED")) seed_ = std::strtoull(env, nullptr, 10);
     autoPlay_ = std::getenv("EPH_PLAY") != nullptr;
+    // EPH_MUTE=1 (and the screenshot mode): silent from the first sample, never unmuted from inside. The house
+    // rule for every automated run -- tests, screenshots, the manual -- is that nothing makes a sound.
+    forceMute_ = std::getenv("EPH_MUTE") != nullptr || std::getenv("EPH_SHOT") != nullptr;
+    mute_ = forceMute_;
     // The performer's controllers as a keyboard has them: mod wheel, expression pedal, sustain pedal.
     for (auto& c : ccMap_) c = -1;
     ccMap_[1] = s.id(Module::Perform, 0, perform::Filter);
@@ -324,6 +328,7 @@ void EphemerisProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::Mi
         for (int i = 0; i < n && pos + 1 < recordTarget_; ++i) { record_[pos++] = l[i]; record_[pos++] = r[i]; }
         recordPos_ = pos + 1 >= recordTarget_ ? recordTarget_ : pos;
     }
+    if (mute_.load(std::memory_order_relaxed)) buffer.clear();   // after the meters and the recording
     // The standalone stops at the end of the piece, with the rooms rung out.
     if (wrapperType == wrapperType_Standalone && engine_.seconds() > engine_.lengthSeconds() + 8.0) playing_ = false;
 }
