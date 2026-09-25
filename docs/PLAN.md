@@ -34,7 +34,7 @@ D. Wavetable als Oszillator-Option der Reihenstimmen; die Modulationsspur schalt
    (Stürtzers Iridium-Sequenzen).
 E. Klangfarben-Drift: langsame Gesten auf Wellenform-Mix, Pulsbreite, Verstimmung und Tabellenposition.
 Jeder Schritt mit Selbsttest, Referenz-Hashes, Handbuch und Commit.
-Stand: A und B erledigt (B: Hand-Fix -- die Hände setzten zu Beginn jeden Regler auf ihre Ruhelage um den Knopf und überschrieben Cutoff/Decay/Resonanz der Einstellungen; jetzt um den Wert der Einstellungen). Offen nach C: Stilpegel an 10-min-Stücken neu kalibrieren (5-min-Referenzen: LRA 17-20 statt 13-14 LU, Cosmic -18.4 statt -17.3 LUFS). Weiter mit C.
+Stand: A, B und C erledigt (C: Poly auf Part::Pad, 46 Tabellen -- 8 Formeln, 38 gesampelt -- in ~10 MB; Stem gemessen -29 dBFS neben den Strings, 10 dB unter der Hauptsequenz; B: Hand-Fix -- die Hände setzten zu Beginn jeden Regler auf ihre Ruhelage um den Knopf und überschrieben Cutoff/Decay/Resonanz der Einstellungen; jetzt um den Wert der Einstellungen). Offen nach C: Stilpegel an 10-min-Stücken neu kalibrieren (5-min-Referenzen: LRA 17-20 statt 13-14 LU, Cosmic -18.4 statt -17.3 LUFS). Weiter mit D.
 
 **Erledigt (25.09.2026, abends): Hypnose und Groove, Nacht-Sets mit DJ-Überblendung.**
 Auftrag des Nutzers: Ephemeris klingt "unfassbar langweilig", groovt nicht und wirkt nicht hypnotisch (Vergleich:

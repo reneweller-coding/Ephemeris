@@ -125,6 +125,7 @@ struct Piece {
     bool bleepsOn = false;                ///< the layers' draw for the atmosphere's bleeps
     bool grainsOn = false;                ///< the layers' last draw: the granular cloud
     double stringsFrom = -1.0;            ///< first beat of the string machine, -1 if the piece has none
+    double polyFrom = -1.0;               ///< first beat of the pad synth, -1 if the piece has none
     std::vector<std::pair<double, int>> chords;   ///< the chord track: degrees of the mode over time (Harmony.h)
     std::vector<std::pair<double, int>> keys = { { 0.0, 0 } };   ///< the phases' keys over time, for the drone
     std::vector<std::pair<double, double>> doubled;   ///< spans where row 2 plays sixteenths (the pulse doubled)
@@ -525,6 +526,56 @@ void writeLayers(Piece& c)
     }
     // The granular cloud: the layers' last draw, so every draw above stays as it was.
     c.grainsOn = layers.uniform() < prof.grainChance;
+    // The pad synth (25.09.2026, the style guide's 7.1: the polysynth plane of Stürtzer's, Quaeschning's and Redshift's
+    // pads): in the atmosphere under the drone, from the first build to where the tape keys come in (or the peak), in
+    // the breakdowns and the bridges -- wherever fewer than two other planes play (the production guide: never more
+    // than two pads at once), an octave under the strings where they play. Its chance by style; its own streams, so
+    // every draw above stays as it was.
+    {
+        static const float kPoly[] = { 0.6f, 0.45f, 0.55f, 0.7f, 0.8f };   // Cosmic, Doom, Melodic, Modern, Drift
+        const int si = std::clamp(static_cast<int>(c.style), 0, 4);
+        Rng on;
+        on.seed(mixSeed(c.seedOf(sLayers), 0x706f6c79u));
+        if (on.uniform() < kPoly[si]) {
+            Rng voicing;
+            voicing.seed(mixSeed(c.seedOf(sPads), 0x706f6c79u));
+            PadPlan pl = pp;
+            pl.part = Part::Pad;
+            pl.restrikeSeconds = 1e6;
+            pl.choir = false;
+            auto span = [&](double b0, double b1) {
+                if (b1 - b0 < 8.0 * kBeatsPerBar) return;
+                bool tape = false, strings = false;
+                for (const NoteEvent& n : s.notes) {
+                    if (n.beat >= b1 || n.beat + n.length <= b0) continue;
+                    tape = tape || n.part == Part::TapeKeys;
+                    strings = strings || n.part == Part::Strings;
+                }
+                if (tape && strings) return;
+                pl.low = strings ? 41 : 48;
+                pl.high = strings ? 60 : 70;
+                writeChords(s, pl, b0, b1, voicing);
+                if (c.polyFrom < 0.0) c.polyFrom = b0;
+            };
+            const Section& atmo = form.sections.front();
+            if (atmo.type == SectionType::Atmo) span(atmo.beat + std::floor(0.25 * atmo.length / kBeatsPerBar) * kBeatsPerBar, atmo.beat + atmo.length);
+            for (int ph = 0; ph < c.phases; ++ph) {
+                const Section* build0 = form.find(SectionType::Build, ph);
+                const Section* peak = form.find(SectionType::Peak, ph);
+                const Section* breakdown = form.find(SectionType::Breakdown, ph);
+                const Section* bridge = form.find(SectionType::Bridge, ph + 1);
+                if (build0 != nullptr) {
+                    const Section* b1 = nullptr;
+                    for (const Section& sec : form.sections)
+                        if (sec.phase == ph && sec.type == SectionType::Build && sec.index == 1) b1 = &sec;
+                    const double end = tapeOn && b1 != nullptr ? b1->beat : (peak != nullptr ? peak->beat : build0->beat + build0->length);
+                    span(build0->beat, end);
+                }
+                if (breakdown != nullptr) span(breakdown->beat, breakdown->beat + breakdown->length);
+                if (bridge != nullptr) span(bridge->beat, bridge->beat + bridge->length);
+            }
+        }
+    }
     // The breaks are silent for the drums as well.
     for (const auto& b : c.breaks)
         s.notes.erase(std::remove_if(s.notes.begin(), s.notes.end(), [&](const NoteEvent& n) {
@@ -670,6 +721,15 @@ void writeSounds(Piece& c, const std::function<void(int, float)>& setTo)
     default: pick(Module::Drums, 0, { "Deep Kit", "Warm Analog", "Round Kit", "Soft Kit", "Sub Kit" }, nullptr, nullptr); break;
     }
     pick(Module::Atmos, 0, {}, nullptr, nullptr);
+    // The pad synth by style: analog and PPG planes in Cosmic, dark tubes and drones in Doom, the analog pad, Juno
+    // strings and Oberheim brass in Melodic, the PPG and sync sweeps in Modern, air and overtones in Drift.
+    switch (c.style) {
+    case Style::Cosmic: pick(Module::Poly, 0, { "Analog Pad", "PPG Choir", "Formant Pad", "Sync Sweep", "Glass Pad", "Overtone Pad" }, nullptr, nullptr); break;
+    case Style::Doom: pick(Module::Poly, 0, { "Dark Drone Pad", "Tube Pad", "Bowed Pad", "Analog Pad", "Vocal Pad" }, nullptr, nullptr); break;
+    case Style::Melodic: pick(Module::Poly, 0, { "Analog Pad", "Juno Strings", "Oberheim Brass", "Vocal Pad", "PPG Choir" }, nullptr, nullptr); break;
+    case Style::Modern: pick(Module::Poly, 0, { "PPG Choir", "PPG Upper", "Sync Sweep", "Morph Pad", "Glass Pad", "Formant Pad" }, nullptr, nullptr); break;
+    default: pick(Module::Poly, 0, { "Sampled Air", "Overtone Pad", "Morph Pad", "Glass Pad", "Bowed Pad", "Single Cycle Pad" }, nullptr, nullptr); break;
+    }
 }
 
 /** @brief Step 5, the settings of the piece as steps at its start: tape set, hall, loudness. */
@@ -880,7 +940,7 @@ void writeSettings(Piece& c)
         if (lead == nullptr) continue;
         const Section* peak = c.form.find(SectionType::Peak, ph);
         const double from = lead->beat, to = peak != nullptr ? peak->beat + peak->length : lead->beat + lead->length;
-        for (int id : { p.id(Module::Tape, 0, tape::Level), p.id(Module::Strings, 0, strings::Level) }) {
+        for (int id : { p.id(Module::Tape, 0, tape::Level), p.id(Module::Strings, 0, strings::Level), p.id(Module::Poly, 0, poly::Level) }) {
             const float at = offsetTo(p, id, p.get(id)), down = offsetTo(p, id, p.get(id) - 3.0f);
             c.s.gestures.push_back({ id, from, 2.0 * kBeatsPerBar, at, down, G::MinimumJerk, 3 });
             c.s.gestures.push_back({ id, std::max(from + 2.0 * kBeatsPerBar, to - 2.0 * kBeatsPerBar), 2.0 * kBeatsPerBar, down, at, G::MinimumJerk, 3 });

@@ -85,6 +85,8 @@ enum class Module : int { Compose = 0, Row, Master,
                           Blend,
                           /** 25.09.2026: the early reflections (send A) and the effect hall (send D) of the production guide. */
                           Early, Shimmer,
+                          /** 25.09.2026: the pad synth, a polyphonic wavetable synth (Poly.h). */
+                          Poly,
                           Count };
 
 constexpr int kRows = 8;   ///< instances of the row module (the rows of the rack) and of the voice module
@@ -161,6 +163,11 @@ enum : int { Wave, Detune, PulseWidth, Drift, Drive, Cutoff, Resonance, EnvAmoun
              ReverbSend,
              // 25.09.2026: a slow sine (0.05 Hz) on the pan, the wandering drone of the style guide's 7.3.
              AutoPan, LowCut, Distance, BlendSend, EarlySend, ShimmerSend, Count };
+}
+/** @brief Parameters of the pad synth (module Poly, 25.09.2026; Poly.h, Wavetable.h). */
+namespace poly {
+enum : int { Table, Position, Scan, ScanRate, Detune, Spread, Drift, Cutoff, Resonance, EnvAmount, Attack, Release, Chorus,
+             Level, Pan, EchoSend, ReverbSend, LowCut, Distance, BlendSend, EarlySend, ShimmerSend, Count };
 }
 /** @brief Parameters of the tape keyboard (module Tape; PLAN 5.4, TapeKeys.h). */
 namespace tape {

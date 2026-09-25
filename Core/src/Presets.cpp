@@ -3,6 +3,7 @@
  * @brief The factory presets: sixteen groups per synth, sixty-four presets per group (Presets.h).
  */
 #include "eph/Presets.h"
+#include "eph/synth/Wavetable.h"
 #include "eph/Dsp.h"
 #include <algorithm>
 #include <cmath>
@@ -421,6 +422,82 @@ const Synth& atmosSynth()
     return s;
 }
 
+// --- The pad synth: analog pads on the PWM table, the Oberheim's brass, the PPG's and Waldorf's planes -----------------
+namespace po = poly;
+/** @brief The index of a wavetable by name (Wavetable.h), as a knob value. */
+float tableOf(const char* name)
+{
+    for (int i = 0; i < kWavetableCount; ++i) if (std::string(kWavetableNames[i]) == name) return static_cast<float>(i);
+    return 1.0f;
+}
+const Synth& polySynth()
+{
+    // Every group: a slow envelope and the ensemble unless it says otherwise; the detune within 14 cents.
+    auto base = [](const char* first, const char* last, std::vector<Axis> a) {
+        a.insert(a.begin(), { po::Table, tableOf(first), tableOf(last), 'R' });
+        auto has = [&](int k) { for (const Axis& x : a) if (x.k == k) return true; return false; };
+        if (!has(po::Attack)) a.push_back({ po::Attack, 0.8f, 2.5f, 'R' });
+        if (!has(po::Release)) a.push_back({ po::Release, 2.5f, 6.0f, 'R' });
+        if (!has(po::Chorus)) a.push_back({ po::Chorus, 0.3f, 0.7f, 'R' });
+        if (!has(po::Detune)) a.push_back({ po::Detune, 4.0f, 12.0f, 'R' });
+        if (!has(po::Scan)) a.push_back({ po::Scan, 0.2f, 0.6f, 'R' });
+        if (!has(po::ScanRate)) a.push_back({ po::ScanRate, 0.02f, 0.1f, 'R' });
+        return a;
+    };
+    static const Synth s{
+        { { "Umbral", "Dusky", "Velvet", "Hazy", "Amber", "Golden", "Silver", "Radiant" },
+          { "Nocturnal", "Shadowed", "Misty", "Soft", "Warm", "Luminous", "Crystal", "Solar" },
+          { "Deep", "Sombre", "Muted", "Mellow", "Clear", "Bright", "Gleaming", "Blazing" },
+          { "Abyssal", "Distant", "Veiled", "Drifting", "Floating", "Shining", "Starlit", "Celestial" } },
+        {
+            { "Analog Pad", 0, { "Horizon", "Plateau", "Tundra", "Steppe", "Prairie", "Savanna", "Mesa", "Delta" },
+              base("PWM", "PWM", { { po::Position, 0.05f, 0.5f, 'B' }, { po::Scan, 0.3f, 0.7f, 'R' }, { po::Cutoff, 700.0f, 4000.0f, 'A' },
+                                   { po::Resonance, 0.05f, 0.25f, 'R' }, { po::EnvAmount, 0.3f, 1.2f, 'R' }, { po::Spread, 0.4f, 0.8f, 'R' } }) },
+            { "Juno Strings", 1, { "Ribbon", "Silk", "Satin", "Gossamer", "Chiffon", "Velour", "Tulle", "Organza" },
+              base("PWM", "PWM", { { po::Position, 0.2f, 0.6f, 'R' }, { po::Scan, 0.4f, 0.8f, 'R' }, { po::ScanRate, 0.3f, 0.6f, 'R' },
+                                   { po::Cutoff, 1500.0f, 7000.0f, 'A' }, { po::Attack, 0.2f, 1.0f, 'B' }, { po::Release, 1.5f, 4.0f, 'R' },
+                                   { po::Chorus, 0.7f, 1.0f, 'R' }, { po::Detune, 4.0f, 10.0f, 'R' } }) },
+            { "Oberheim Brass", 2, { "Fanfare", "Herald", "Clarion", "Bugle", "Signal", "Summons", "Tattoo", "Reveille" },
+              base("Classic", "Classic", { { po::Position, 0.45f, 0.55f, 'R' }, { po::Scan, 0.0f, 0.15f, 'R' }, { po::Cutoff, 400.0f, 2500.0f, 'A' },
+                                           { po::Resonance, 0.1f, 0.3f, 'R' }, { po::EnvAmount, 1.5f, 3.0f, 'B' }, { po::Attack, 0.15f, 0.8f, 'R' },
+                                           { po::Release, 1.0f, 3.0f, 'R' }, { po::Chorus, 0.2f, 0.5f, 'R' }, { po::Detune, 5.0f, 12.0f, 'R' } }) },
+            { "Sync Sweep", 3, { "Comet", "Meteor", "Bolide", "Streak", "Tracer", "Flare", "Arc", "Trail" },
+              base("Sync", "Sync", { { po::Position, 0.0f, 0.4f, 'B' }, { po::Scan, 0.3f, 0.8f, 'R' }, { po::Cutoff, 1500.0f, 8000.0f, 'A' },
+                                     { po::Resonance, 0.1f, 0.3f, 'R' }, { po::Detune, 3.0f, 8.0f, 'R' } }) },
+            { "Formant Pad", 0, { "Throat", "Larynx", "Palate", "Vowel", "Chant", "Mantra", "Intonation", "Cantor" },
+              base("Formant", "Formant", { { po::Position, 0.1f, 0.7f, 'B' }, { po::Scan, 0.4f, 0.9f, 'R' }, { po::Cutoff, 1500.0f, 6000.0f, 'A' },
+                                           { po::Resonance, 0.05f, 0.2f, 'R' } }) },
+            { "Vocal Pad", 1, { "Chorale", "Anthem", "Canticle", "Motet", "Hymn", "Madrigal", "Oratorio", "Cantata" },
+              base("Alto", "Basso", { { po::Position, 0.2f, 0.8f, 'B' }, { po::Cutoff, 1200.0f, 5000.0f, 'A' }, { po::Attack, 1.0f, 3.0f, 'R' },
+                                      { po::Chorus, 0.4f, 0.7f, 'R' } }) },
+            { "Glass Pad", 2, { "Prism", "Lens", "Crystal", "Quartz", "Facet", "Mirror", "Pane", "Icicle" },
+              base("Glass", "Glass", { { po::Position, 0.3f, 1.0f, 'B' }, { po::Cutoff, 3000.0f, 10000.0f, 'A' }, { po::Attack, 0.5f, 2.0f, 'R' },
+                                       { po::Release, 3.0f, 7.0f, 'R' } }) },
+            { "Single Cycle Pad", 3, { "Relic", "Cameo", "Locket", "Token", "Charm", "Amulet", "Talisman", "Keepsake" },
+              base("FM Synth", "Theremin", { { po::Position, 0.0f, 1.0f, 'B' }, { po::Cutoff, 1000.0f, 5000.0f, 'A' }, { po::Resonance, 0.05f, 0.2f, 'R' } }) },
+            { "Bowed Pad", 0, { "Bow", "Rosin", "Gut", "Bridge", "Scroll", "Fingerboard", "Soundpost", "Purfling" },
+              base("Bowed 1", "Bowed 3", { { po::Position, 0.0f, 1.0f, 'B' }, { po::Cutoff, 800.0f, 4000.0f, 'A' }, { po::Attack, 1.0f, 3.0f, 'R' },
+                                           { po::Release, 3.0f, 7.0f, 'R' } }) },
+            { "Tube Pad", 1, { "Valve", "Filament", "Cathode", "Anode", "Glow", "Triode", "Pentode", "Heater" },
+              base("Tube 1", "Tube 3", { { po::Position, 0.0f, 1.0f, 'B' }, { po::Cutoff, 600.0f, 3500.0f, 'A' }, { po::Resonance, 0.05f, 0.25f, 'R' } }) },
+            { "PPG Choir", 2, { "Wave", "Table", "Palette", "Spectrum", "Index", "Slot", "Bank", "Matrix" },
+              base("PPG 00", "PPG 25", { { po::Position, 0.0f, 1.0f, 'B' }, { po::Cutoff, 1500.0f, 7000.0f, 'A' }, { po::Resonance, 0.1f, 0.35f, 'R' },
+                                         { po::Chorus, 0.2f, 0.5f, 'R' }, { po::Attack, 0.5f, 2.0f, 'R' }, { po::Release, 2.0f, 5.0f, 'R' } }) },
+            { "PPG Upper", 3, { "Cirrus", "Stratus", "Nimbus", "Cumulus", "Altostratus", "Contrail", "Halo", "Corona" },
+              base("PPG 22", "PPG Upper", { { po::Position, 0.0f, 1.0f, 'B' }, { po::Cutoff, 3000.0f, 10000.0f, 'A' }, { po::Chorus, 0.3f, 0.6f, 'R' } }) },
+            { "Overtone Pad", 0, { "Partial", "Harmonic", "Series", "Octave", "Twelfth", "Fifteenth", "Seventeenth", "Nineteenth" },
+              base("Overtones 1", "Overtones 3", { { po::Position, 0.0f, 1.0f, 'B' }, { po::Cutoff, 1500.0f, 8000.0f, 'A' } }) },
+            { "Morph Pad", 1, { "Chimera", "Hybrid", "Mutation", "Metamorph", "Shapeshift", "Transit", "Alloy", "Amalgam" },
+              base("Consonant 1", "Morph 3", { { po::Position, 0.0f, 1.0f, 'B' }, { po::Scan, 0.4f, 0.9f, 'R' }, { po::Cutoff, 1000.0f, 6000.0f, 'A' } }) },
+            { "Sampled Air", 2, { "Breeze", "Draught", "Gust", "Zephyr", "Current", "Updraft", "Thermal", "Jetstream" },
+              base("Sampled 1", "Sampled 3", { { po::Position, 0.0f, 1.0f, 'B' }, { po::Cutoff, 1000.0f, 6000.0f, 'A' }, { po::Attack, 1.5f, 4.0f, 'R' } }) },
+            { "Dark Drone Pad", 3, { "Undercroft", "Catacomb", "Ossuary", "Vault", "Barrow", "Tomb", "Sepulchre", "Mausoleum" },
+              base("Drone Bank", "Vox Synth", { { po::Position, 0.0f, 1.0f, 'B' }, { po::Cutoff, 300.0f, 1500.0f, 'A' }, { po::Attack, 2.0f, 6.0f, 'R' },
+                                               { po::Release, 4.0f, 9.0f, 'R' }, { po::Resonance, 0.1f, 0.3f, 'R' } }) },
+        } };
+    return s;
+}
+
 const Synth* synthOf(Module m)
 {
     switch (m) {
@@ -431,6 +508,7 @@ const Synth* synthOf(Module m)
     case Module::Strings: return &stringsSynth();
     case Module::Drums: return &drumsSynth();
     case Module::Atmos: return &atmosSynth();
+    case Module::Poly: return &polySynth();
     default: return nullptr;
     }
 }
@@ -499,6 +577,9 @@ bool presetLeaves(Module module, int k)
             || k == strings::ShimmerSend;
     case Module::Drums:
         return k == drums::Level || k == drums::EchoSend || k == drums::ReverbSend || k == drums::LowCut || k == drums::BlendSend || k == drums::EarlySend;
+    case Module::Poly:
+        return k == poly::Level || k == poly::Pan || k == poly::EchoSend || k == poly::ReverbSend || k == poly::LowCut
+            || k == poly::Distance || k == poly::BlendSend || k == poly::EarlySend || k == poly::ShimmerSend;
     case Module::Atmos:
         return k == atmos::Wind || k == atmos::Sweeps || k == atmos::Bleeps || k == atmos::Grains || k == atmos::Level
             || k == atmos::EchoSend || k == atmos::ReverbSend || k == atmos::LowCut || k == atmos::ShimmerSend;

@@ -15,7 +15,8 @@
 Ephemeris composes and plays long pieces in the manner of the modern Berlin School: sequencer lines of
 different lengths turning against each other over a common root, a bass that holds the ground, tape
 choirs and string machines, a lead that sings over the peak, the room of a tape echo and a long hall.
-There are no samples. Every sound is synthesised by the engine, and every note is decided by the composer.
+Nothing is played back from a recording: every sound is synthesised by the engine -- the only recorded material
+are the single cycles some of the pad synth's wavetables are made of -- and every note is decided by the composer.
 
 The same seed always gives the same piece. A piece is a seed, a style, a length and a handful of
 rerolls, which is what a set file stores and what you can hand to someone else. The standalone and the
@@ -285,7 +286,36 @@ Octave Balance tilts the footages towards the low or the high ones. Ensemble Typ
 spread wider). Phaser sends the machine through four swept all-passes, the classic swirl of strings
 through a phase shifter.
 
-== Atmosphere | atmos | 9 ==
+== Poly | poly | 9 ==
+
+The pad synth: the polysynth plane of the modern Berlin School -- the Oberheim and Juno pads under Stürtzer's,
+Quaeschning's and Redshift's sequences, and the glassy planes of the PPG Wave and the Waldorf wavetable synths.
+Eight keys, each with two oscillators a few cents apart and spread across the stereo field, reading one
+wavetable; a 12 dB state-variable low pass (the Oberheim SEM's kind) that follows the key by half and the
+envelope by Env Amount; a slow envelope (the guide's attack of one to four seconds, release of three to eight);
+and an ensemble after it, one chorus line read on either side with its sweep turned against itself -- width that
+keeps its middle.
+
+A wavetable is a stack of single cycles; Position chooses where in the stack the oscillators read, and Scan
+moves the position with a slow sine at Scan Rate, each key a little apart in its phase -- the one slow modulation
+a pad needs. On the PWM table (the default) the position is the pulse width, so the scan is the pulse width
+modulation of an analog pad; on a PPG or Waldorf table the timbre walks through its frames. The tables are read
+band-limited at eight resolutions, so a high note never aliases. Forty-six tables: eight from formulas --
+Classic (sine, triangle, saw, square, pulse), PWM, Sync (a saw hard-synced to one to five times its master),
+Formant (a resonant peak climbing through a saw), Vocal, Organ, Glass and Metal -- and thirty-eight sampled
+single cycles from the AmbientSynth's library: its own bowed, tube, vocal, consonant, overtone, morph and
+sampled tables, nine of the PPG Wave's tables as the users of WaveEdit Online rebuilt them, and a few of the
+Adventure Kid waveforms (AKWF, by Kristoffer Ekstrand; WaveEdit Online and AKWF are CC0).
+
+The composer brings the pads in where the other planes leave room: in the atmosphere under the drone, from the
+first build until the tape keys come in, in the breakdowns and the bridges -- never as a third plane beside the
+tape keys and the strings, and an octave under the strings where they play (the production guide's rule). Four
+pieces in five of Drift have them, fewer than half of Doom. Its 1024 presets come in sixteen groups -- Analog Pad,
+Juno Strings, Oberheim Brass, Sync Sweep, Formant Pad, Vocal Pad, Glass Pad, Single Cycle Pad, Bowed Pad, Tube Pad,
+PPG Choir, PPG Upper, Overtone Pad, Morph Pad, Sampled Air, Dark Drone Pad -- and the composer's sounds choose
+among them by style.
+
+== Atmosphere | atmos | 10 ==
 
 Wind (filtered noise in a moving band), slow sweeps, and bursts of sample-and-hold bleeps on the notes
 of the scale: the space at the start of a piece and in the bridges, and the stars over the builds.
@@ -296,7 +326,7 @@ many per second as Grain Density says. A piece has the cloud with the style's ch
 the hands then raise it in the atmosphere, the bridges and the coda, and take it away when the rows come
 in.
 
-== Echo + Spring | echo spring delay | 10 ==
+== Echo + Spring | echo spring delay | 11 ==
 
 A tape echo with a moving read head -- wow, flutter, saturation and loss of highs in the feedback --
 synchronised to the tempo, with a ping-pong option; its feedback can run into self-oscillation, which
@@ -320,7 +350,7 @@ layer of the sequence have its own delay: the main sequence on the first echo's 
 counter rows on the second in eighths or quarter triplets (1/4T, which both echoes offer), as the composer
 draws it for each piece.
 
-== Hall | reverb blend early shimmer | 11 ==
+== Hall | reverb blend early shimmer | 12 ==
 
 A long, dark hall (an eight-line feedback delay network) with its size, decay, damping, pre-delay and
 the band it returns -- by default 250 Hz to 6.5 kHz, so the hall adds space without mud or glare. The
@@ -351,7 +381,7 @@ decay -- denser and brighter than the hall and without a room's early reflection
 plates on the records of the seventies. Decay, damping, pre-delay and the band work on it as well; its
 return is matched to the hall's level, so the switch changes the room, not the loudness.
 
-== Drums | drums | 12 ==
+== Drums | drums | 13 ==
 
 A small analogue kit for the styles that have drums: kick, snare, hats, toms tuned to the root, rim and
 shaker, with patterns per style. The kit comes late in a piece, from the second build to the end of the
@@ -363,7 +393,7 @@ Modern, a heartbeat in Cosmic, a slow beat on one and three in Drift, a low tom 
 comes with the second build (not before a fifth of the piece) and makes way for the kit or the breakdown;
 Melodic has it in four pieces out of five, Drift in one out of three.
 
-== Master | master compose cue | 13 ==
+== Master | master compose cue | 14 ==
 
 The master: its level, a gentle bus compressor that keeps the music's dynamics (a ratio of at most 1.5),
 and a true-peak limiter as protection at -1 dBTP. Before them the mix bus removes DC and subsonics under
@@ -414,7 +444,7 @@ tempo (/eph/beat), every section with its phase (/eph/phase), every new root (/e
 conjunction of the rows with the share of the running rows that meet (/eph/conjunction). Each cue leaves
 when its sound is heard, not when it is composed.
 
-== Style | custom | 14 ==
+== Style | custom | 15 ==
 
 The five style profiles side by side, the chosen one lit. A style is not a sound but a set of ranges and
 chances the composer draws from: the tempo, the length and the number of sequence phases, how much of the

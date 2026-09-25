@@ -186,6 +186,9 @@ MixerConsole::MixerConsole(EphemerisProcessor& proc) : proc_(proc)
             m = M::Strings; level = strings::Level; pan = strings::Pan; echoSend = strings::EchoSend; reverbSend = strings::ReverbSend;
             colour = juce::Colour(0xff8fbf7f);
         } else if (c == kRows + 4) {
+            m = M::Poly; level = poly::Level; pan = poly::Pan; echoSend = poly::EchoSend; reverbSend = poly::ReverbSend;
+            colour = juce::Colour(0xff7fa8c9);
+        } else if (c == kRows + 5) {
             m = M::Drums; level = drums::Level; echoSend = drums::EchoSend; reverbSend = drums::ReverbSend;
             colour = juce::Colour(0xffc76b6b);
         } else {
@@ -202,6 +205,7 @@ MixerConsole::MixerConsole(EphemerisProcessor& proc) : proc_(proc)
         else if (m == M::Lead || m == M::Drone) blendSend = lead::BlendSend;
         else if (m == M::Tape) blendSend = tape::BlendSend;
         else if (m == M::Strings) blendSend = strings::BlendSend;
+        else if (m == M::Poly) blendSend = poly::BlendSend;
         else if (m == M::Drums) blendSend = drums::BlendSend;
         // Send A, the early reflections, where the source has one; then the blend room, the hall, send D.
         int earlySend = -1, shimmerSend = -1;
@@ -209,6 +213,7 @@ MixerConsole::MixerConsole(EphemerisProcessor& proc) : proc_(proc)
         else if (m == M::Lead || m == M::Drone) { earlySend = lead::EarlySend; shimmerSend = lead::ShimmerSend; }
         else if (m == M::Tape) { earlySend = tape::EarlySend; shimmerSend = tape::ShimmerSend; }
         else if (m == M::Strings) { earlySend = strings::EarlySend; shimmerSend = strings::ShimmerSend; }
+        else if (m == M::Poly) { earlySend = poly::EarlySend; shimmerSend = poly::ShimmerSend; }
         else if (m == M::Drums) earlySend = drums::EarlySend;
         else if (m == M::Atmos) shimmerSend = atmos::ShimmerSend;
         if (earlySend >= 0) knobs.emplace_back(p.id(m, inst, earlySend), "Early");

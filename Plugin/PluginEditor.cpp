@@ -346,7 +346,7 @@ void ArrangeView::paint(juce::Graphics& g)
                 g.fillRect(bw * static_cast<float>(b), y + 1.0f, bw + 0.5f, laneH - 2.0f);
             }
         }
-        static const char* const names[kLanes] = { "rows", "lead", "tape", "strings", "drone", "drums" };
+        static const char* const names[kLanes] = { "rows", "lead", "tape", "str+poly", "drone", "drums" };
         g.setFont(juce::FontOptions(9.0f));
         for (int l = 0; l < kLanes; ++l) {
             const juce::Rectangle<float> r(2.0f, top + laneH * static_cast<float>(l), 44.0f, laneH);
@@ -473,6 +473,7 @@ EphemerisEditor::EphemerisEditor(EphemerisProcessor& p) : juce::AudioProcessorEd
     page("Drone", { { M::Drone, 0 } }, 1);
     page("Tape Keys", { { M::Tape, 0 } }, 1);
     page("Strings", { { M::Strings, 0 } }, 1);
+    page("Poly", { { M::Poly, 0 } }, 1);
     page("Atmosphere", { { M::Atmos, 0 } }, 1);
     page("Echo + Spring", { { M::Echo, 0 }, { M::Spring, 0 }, { M::Echo2, 0 } }, 1);
     page("Hall", { { M::Reverb, 0 }, { M::Blend, 0 }, { M::Early, 0 }, { M::Shimmer, 0 } }, 1);

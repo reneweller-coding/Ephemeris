@@ -40,7 +40,7 @@ struct SoundPreset {
  * @brief The factory presets of a synth: Module::Voice, Lead, Drone, Tape, Strings, Drums or Atmos; empty for
  *        any other module. Built once, thread-safe.
  */
-const std::vector<SoundPreset>& factoryPresets(Module module);
+const std::vector<SoundPreset>& factoryPresets(Module module);   // (and Module::Poly, the pad synth, since 25.09.2026)
 
 /** @brief Whether a preset leaves knob @p k of @p module alone (the mix, the composer's amounts). */
 bool presetLeaves(Module module, int k);

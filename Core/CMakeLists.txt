@@ -29,6 +29,9 @@ add_library(EphemerisCore STATIC
     src/Presets.cpp
     src/fx/Plate.cpp
     src/fx/Bbd.cpp
+    src/synth/Wavetable.cpp
+    src/synth/WavetableData.cpp
+    src/synth/Poly.cpp
 )
 target_include_directories(EphemerisCore PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
 if(WIN32)

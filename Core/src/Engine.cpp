@@ -54,6 +54,7 @@ void Engine::load(const Score& score)
         case Part::Drone:    src = kSrcDrone; break;
         case Part::TapeKeys: src = kSrcTape; break;
         case Part::Strings:  src = kSrcStrings; break;
+        case Part::Pad:      src = kSrcPoly; break;
         case Part::Drums:    src = kSrcDrums; break;
         default: if (src < 0 || src >= kRows) continue;
         }
@@ -155,6 +156,7 @@ void Engine::load(const Score& score)
     tape_.setSingers(tapeSingers_);
     atmos_.prepare(sampleRate_, mixSeed(score_.seed, 600));
     strings_.prepare(sampleRate_, mixSeed(score_.seed, 700));
+    poly_.prepare(sampleRate_, mixSeed(score_.seed, 900));
     drums_.prepare(sampleRate_, mixSeed(score_.seed, 800));
     spring_.prepare(sampleRate_);
     comp_.prepare(sampleRate_);
@@ -357,6 +359,30 @@ void Engine::updateCell()
     strips_[kSrcStrings].early = knob(Module::Strings, strings::EarlySend);
     strips_[kSrcStrings].shimmer = knob(Module::Strings, strings::ShimmerSend);
 
+    PolySettings ps;
+    ps.table = static_cast<int>(std::lround(knob(Module::Poly, poly::Table)));
+    ps.position = knob(Module::Poly, poly::Position);
+    ps.scan = knob(Module::Poly, poly::Scan);
+    ps.scanHz = knob(Module::Poly, poly::ScanRate);
+    ps.detuneCents = knob(Module::Poly, poly::Detune);
+    ps.spread = knob(Module::Poly, poly::Spread);
+    ps.driftCents = knob(Module::Poly, poly::Drift);
+    ps.cutoffHz = knob(Module::Poly, poly::Cutoff) * std::pow(2.0f, 0.4f * wave(19.7));
+    ps.resonance = knob(Module::Poly, poly::Resonance);
+    ps.envOctaves = knob(Module::Poly, poly::EnvAmount);
+    ps.attackS = knob(Module::Poly, poly::Attack);
+    ps.releaseS = knob(Module::Poly, poly::Release);
+    ps.chorus = knob(Module::Poly, poly::Chorus);
+    if (changed(cache_.poly, ps, cache_.valid)) poly_.set(ps);
+    strips_[kSrcPoly].running = poly_.active();
+    setStrip(kSrcPoly, knob(Module::Poly, poly::Level) + 0.3f * wave(1.37) + 0.2f * wave(1.13), knob(Module::Poly, poly::Pan),
+             knob(Module::Poly, poly::EchoSend), std::clamp(knob(Module::Poly, poly::ReverbSend) + 0.08f * wave(23.3), 0.0f, 1.0f),
+             1.41421356f, 0.0f, knob(Module::Poly, poly::Distance));
+    setLowCut(kSrcPoly, knob(Module::Poly, poly::LowCut));
+    strips_[kSrcPoly].blend = knob(Module::Poly, poly::BlendSend);
+    strips_[kSrcPoly].early = knob(Module::Poly, poly::EarlySend);
+    strips_[kSrcPoly].shimmer = knob(Module::Poly, poly::ShimmerSend);
+
     DrumSettings ds;
     ds.kickHz = knob(Module::Drums, drums::KickHz);
     ds.decay = knob(Module::Drums, drums::Decay);
@@ -493,7 +519,7 @@ const char* Engine::channelName(int c)
 {
     static_assert(kChannels == kSources, "a meter per source");
     static const char* const names[kChannels] = { "Row 1", "Row 2", "Row 3", "Row 4", "Row 5", "Row 6", "Row 7", "Row 8",
-                                                  "Lead", "Drone", "Tape Keys", "Strings", "Drums", "Atmosphere" };
+                                                  "Lead", "Drone", "Tape Keys", "Strings", "Poly", "Drums", "Atmosphere" };
     return c >= 0 && c < kChannels ? names[c] : "";
 }
 
@@ -580,7 +606,7 @@ void Engine::mix(int source, const float* xl, const float* xr, int n, const Buse
         b.echo2L[i] += l * strip.echo2;
         b.echo2R[i] += r * strip.echo2;
         if (source < kRows) { b.rowsL[i] += l; b.rowsR[i] += r; }
-        if (source == kSrcStrings || source == kSrcTape) { b.padsL[i] += l; b.padsR[i] += r; }
+        if (source == kSrcStrings || source == kSrcTape || source == kSrcPoly) { b.padsL[i] += l; b.padsR[i] += r; }
         b.blendL[i] += l * strip.blend;
         b.blendR[i] += r * strip.blend;
         b.earlyL[i] += l * strip.early;
@@ -665,6 +691,10 @@ void Engine::renderSpan(float* L, float* R, int n)
     if (strips_[kSrcStrings].running) {
         strings_.process(bufL, bufR, n);
         mix(kSrcStrings, bufL, bufR, n, b, true, rowGain);
+    }
+    if (strips_[kSrcPoly].running) {
+        poly_.process(bufL, bufR, n);
+        mix(kSrcPoly, bufL, bufR, n, b, true, rowGain);
     }
     if (strips_[kSrcTape].running) {
         tape_.process(bufL, n);
@@ -866,6 +896,7 @@ void Engine::seek(double beat)
     for (Strip& s : strips_) s.running = false;
     tape_.reset();
     strings_.silence();
+    poly_.silence();
     drums_.prepare(sampleRate_, mixSeed(score_.seed, 800));
     cache_.valid = false;   // the components were reset: every setter runs again
     for (Track& t : tracks_) t.cursor = t.gestures.size();
@@ -892,6 +923,9 @@ bool Engine::process(float* L, float* R, int n)
                 break;
             case kSrcStrings:
                 if (e.on) strings_.noteOn(std::clamp(e.pitch + transpose_, 0, 127), e.velocity, e.id); else strings_.noteOff(e.id);
+                break;
+            case kSrcPoly:
+                if (e.on) poly_.noteOn(std::clamp(e.pitch + transpose_, 0, 127), e.velocity, e.id); else poly_.noteOff(e.id);
                 break;
             case kSrcTape:
                 if (e.on) tape_.noteOn(std::clamp(e.pitch + transpose_, 0, 127), e.velocity, e.id); else tape_.noteOff(e.id);

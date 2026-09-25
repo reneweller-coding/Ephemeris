@@ -34,6 +34,7 @@
 #include "eph/Score.h"
 #include "eph/fx/Spring.h"
 #include "eph/synth/StringMachine.h"
+#include "eph/synth/Poly.h"
 #include "eph/fx/TapeEcho.h"
 #include "eph/fx/Rooms.h"
 #include "eph/synth/TapeKeys.h"
@@ -89,7 +90,7 @@ public:
 
     /** @brief The channel strips, in the order they are mixed: the eight rows, the lead, the drone, the tape
      *         keys, the string machine, the drums, the atmosphere. */
-    static constexpr int kChannels = kRows + 6;
+    static constexpr int kChannels = kRows + 7;
     /** @brief Name of channel @p c, for a display. */
     static const char* channelName(int c);
     /**
@@ -122,7 +123,7 @@ private:
      * @brief The sources, in the order they are mixed: the rows' voices, the lead and the drone (all
      *        ModVoices), then the tape keys, the string machine, the drums and the atmosphere.
      */
-    enum Source : int { kSrcLead = kRows, kSrcDrone, kSrcTape, kSrcStrings, kSrcDrums, kSrcAtmos, kSources };
+    enum Source : int { kSrcLead = kRows, kSrcDrone, kSrcTape, kSrcStrings, kSrcPoly, kSrcDrums, kSrcAtmos, kSources };
     static constexpr int kModVoices = kSrcTape;   ///< sources that are a ModVoice
 
     /** @brief A note event on the sample grid. */
@@ -210,6 +211,7 @@ private:
     Strip strips_[kSources];
     TapeKeys tape_;
     StringMachine strings_;
+    PolySynth poly_;                      ///< the pad synth (Part::Pad)
     DrumKit drums_;
     Atmos atmos_;
     TapeEcho echo_;
@@ -272,6 +274,7 @@ private:
         float lowCut[kSources] = {};          ///< setLowCut
         TapeSettings tape;                    ///< TapeKeys::set
         StringSettings strings;               ///< StringMachine::set
+        PolySettings poly;                    ///< PolySynth::set
         DrumSettings drums;                   ///< DrumKit::set
         AtmosSettings atmos;                  ///< Atmos::set
         EchoSettings echo;                    ///< TapeEcho::set, BbdEcho::set

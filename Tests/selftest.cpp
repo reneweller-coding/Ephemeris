@@ -41,6 +41,8 @@
 #include "eph/synth/ModVoice.h"
 #include "eph/compose/Pads.h"
 #include "eph/Params.h"
+#include "eph/synth/Wavetable.h"
+#include "eph/synth/Poly.h"
 #include "eph/Rack.h"
 #include "eph/Score.h"
 #include "eph/SetFile.h"
@@ -2037,6 +2039,101 @@ void testSounds()
 }
 
 /**
+ * The wavetables and the pad synth (Wavetable.h, Poly.h): every table built; a high note reads a poorer level; the
+ * synth sounds, scans its table, fades after the key and does not care how the blocks are cut; 1024 presets with
+ * names of their own; the composer's pads never make a third plane.
+ */
+void testPoly()
+{
+    section("wavetables and the pad synth");
+    int built = 0, frames = 0;
+    for (int i = 0; i < kWavetableCount; ++i) { built += !wavetable(i).empty(); frames += wavetable(i).frames; }
+    const int hi = cycleLevelFor(4000.0, 48000.0, -1), lo = cycleLevelFor(100.0, 48000.0, -1);
+    check(built == kWavetableCount && CycleTable::levelHarmonics(hi) * 4000 < 24000 && lo == 0,
+          "every table built; a high note reads a level below Nyquist", fmt("%d tables, %d frames; level %d at 4 kHz", built, frames, hi));
+
+    auto render = [](const PolySettings& ps, int block, int samples, int releaseAt) {
+        PolySynth p;
+        p.prepare(48000.0, 7);
+        p.set(ps);
+        p.noteOn(57, 0.8f, 1);
+        p.noteOn(64, 0.8f, 2);
+        p.noteOn(69, 0.8f, 3);
+        std::vector<float> out;
+        std::vector<float> l(static_cast<size_t>(block)), r(static_cast<size_t>(block));
+        for (int done = 0; done < samples; done += block) {
+            if (done >= releaseAt && done - block < releaseAt) { p.noteOff(1); p.noteOff(2); p.noteOff(3); }
+            const int n = std::min(block, samples - done);
+            p.set(ps);
+            p.process(l.data(), r.data(), n);
+            for (int i = 0; i < n; ++i) { out.push_back(l[static_cast<size_t>(i)]); out.push_back(r[static_cast<size_t>(i)]); }
+        }
+        return out;
+    };
+    PolySettings ps;
+    ps.attackS = 0.1f;
+    ps.releaseS = 0.3f;
+    const auto a = render(ps, 256, 48000 * 3, 48000), b = render(ps, 97, 48000 * 3, 48000);
+    double loud = 0.0, tail = 0.0;
+    for (size_t i = 48000; i < 96000; ++i) loud += double(a[i]) * a[i];
+    for (size_t i = a.size() - 9600; i < a.size(); ++i) tail += double(a[i]) * a[i];
+    check(loud > 1.0 && tail < 1e-6 * loud, "a chord sounds and fades after the keys", fmt("energy %.1f, tail %.2g", loud, tail));
+    // Bit for bit whatever the blocks (the note-offs fall on different samples: compare the first second only).
+    bool same = true;
+    for (size_t i = 0; i < 2 * 47000 && same; ++i) same = a[i] == b[i];
+    check(same, "the same sound however the blocks are cut", "");
+    // The scan moves the timbre: the brightness of successive tenths of a second varies with it, hardly without.
+    auto spread = [](const std::vector<float>& v) {
+        double lo2 = 1e30, hi2 = 0.0;
+        for (size_t w = 1; w + 1 < 10; ++w) {
+            double d = 0.0, e = 0.0;
+            for (size_t i = w * 9600 + 2; i < (w + 1) * 9600; i += 2) { d += double(v[i] - v[i - 2]) * (v[i] - v[i - 2]); e += double(v[i]) * v[i]; }
+            lo2 = std::min(lo2, d / e); hi2 = std::max(hi2, d / e);
+        }
+        return hi2 / lo2;
+    };
+    PolySettings still = ps, moving = ps;
+    still.scan = 0.0f;
+    moving.scan = 1.0f; moving.scanHz = 1.0f;
+    still.table = moving.table = 3;   // Formant: the peak climbs
+    still.cutoffHz = moving.cutoffHz = 12000.0f;
+    still.chorus = moving.chorus = 0.0f;
+    still.driftCents = moving.driftCents = 0.0f;
+    const double sStill = spread(render(still, 256, 48000, 96000)), sMove = spread(render(moving, 256, 48000, 96000));
+    check(sMove > 1.3 * sStill, "the scan walks through the table", fmt("brightness varies %.2fx against %.2fx", sMove, sStill));
+
+    const std::vector<SoundPreset>& list = factoryPresets(Module::Poly);
+    std::vector<std::string> names;
+    for (const SoundPreset& pr : list) names.push_back(pr.name);
+    std::sort(names.begin(), names.end());
+    check(list.size() == 1024 && std::unique(names.begin(), names.end()) == names.end(), "1024 pad presets, every name its own",
+          fmt("%zu", list.size()));
+
+    int pieces = 0, third = 0;
+    for (const char* st : { "Cosmic", "Doom", "Melodic", "Modern", "Drift" }) {
+        for (uint64_t seed : { 1u, 2u, 3u }) {
+            ParamStore q;
+            q.parseText(std::string("compose.style=") + st);
+            const Score sc = composePiece(q, seed, 8.0);
+            bool any = false;
+            for (const NoteEvent& n : sc.notes) {
+                if (n.part != Part::Pad) continue;
+                any = true;
+                bool tape = false, strings = false;
+                for (const NoteEvent& m : sc.notes) {
+                    if (m.beat >= n.beat + n.length || m.beat + m.length <= n.beat) continue;
+                    tape = tape || m.part == Part::TapeKeys;
+                    strings = strings || m.part == Part::Strings;
+                }
+                third += tape && strings;
+            }
+            pieces += any;
+        }
+    }
+    check(pieces >= 5 && third == 0, "the composer's pads: in many pieces, never a third plane", fmt("%d of 15 pieces, %d notes over two planes", pieces, third));
+}
+
+/**
  * The offline render is the oracle only if a host's block size cannot change a sample: the study
  * rendered with blocks of 1, 37 and 512 must agree bit for bit (Engine.h).
  */
@@ -2196,6 +2293,7 @@ const TestSection kSections[] = {
     { "testNightSet", testNightSet },
     { "testVariations", testVariations },
     { "testSounds", testSounds },
+    { "testPoly", testPoly },
     { "testBlockSizes", testBlockSizes },
     { "testEcho", testEcho },
     { "testDrift", testDrift },

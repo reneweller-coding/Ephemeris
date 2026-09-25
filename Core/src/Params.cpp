@@ -4,6 +4,7 @@
  * @note The store below the tables is copied from Phosphene `Core/src/Params.cpp` at 9a2f615
  *       (24.09.2026); the tables are Ephemeris's own.
  */
+#include "eph/synth/Wavetable.h"
 #include "eph/Params.h"
 #include <algorithm>
 #include <cmath>
@@ -403,6 +404,33 @@ const ParamDesc kShimmerParams[shimmer::Count] = {
     { "return",    "Shimmer Return",  "dB",  -60.0f,     6.0f,   -8.0f, Curve::Linear },
 };
 
+/** The pad synth (Poly.h): a wavetable (PWM by default: the analog pad), its slow scan, two detuned oscillators spread
+ *  across the field, a 12 dB low pass, a slow envelope and the ensemble. */
+const ParamDesc kPolyParams[poly::Count] = {
+    { "table",      "Wavetable",    "",      0.0f, static_cast<float>(kWavetableCount - 1), 1.0f, Curve::Choice, kWavetableNames },
+    { "position",   "Position",     "",      0.0f,     1.0f,   0.3f, Curve::Linear },   // across the table's frames
+    { "scan",       "Scan",         "",      0.0f,     1.0f,   0.35f, Curve::Linear },  // the slow sine on the position
+    { "scan_rate",  "Scan Rate",    "Hz",    0.005f,   1.0f,   0.06f, Curve::Log },
+    { "detune",     "Detune",       "ct",    0.0f,    30.0f,   8.0f, Curve::Linear },   // the two oscillators apart
+    { "spread",     "Spread",       "",      0.0f,     1.0f,   0.6f, Curve::Linear },   // ... and across the field
+    { "drift",      "Drift",        "ct",    0.0f,    12.0f,   3.0f, Curve::Linear },
+    { "cutoff",     "Cutoff",       "Hz",  100.0f, 12000.0f, 2200.0f, Curve::Log },
+    { "resonance",  "Resonance",    "",      0.0f,     1.0f,   0.15f, Curve::Linear },
+    { "env_amount", "Env Amount",   "oct",   0.0f,     4.0f,   1.0f, Curve::Linear },
+    { "attack",     "Attack",       "s",     0.01f,    8.0f,   1.5f, Curve::Log },
+    { "release",    "Release",      "s",     0.1f,    10.0f,   4.0f, Curve::Log },
+    { "chorus",     "Ensemble",     "",      0.0f,     1.0f,   0.5f, Curve::Linear },
+    { "level",      "Level",        "dB",  -60.0f,     6.0f,  -4.0f, Curve::Linear },   // measured: its stem 8-10 dB under the main sequence, beside the strings
+    { "pan",        "Pan",          "",     -1.0f,     1.0f,  -0.1f, Curve::Linear },
+    { "echo",       "Echo Send",    "",      0.0f,     1.0f,   0.0f, Curve::Linear },
+    { "reverb",     "Reverb Send",  "",      0.0f,     1.0f,   0.5f, Curve::Linear },
+    { "low_cut",    "Low Cut",      "Hz",   10.0f,   500.0f, 180.0f, Curve::Log },    // the production guide's 4.2: pads from 120-200 Hz
+    { "distance",   "Distance",     "",      0.0f,     1.0f,   0.0f, Curve::Linear },
+    { "blend",      "Blend Send",   "",      0.0f,     1.0f,   0.0f, Curve::Linear },
+    { "early",      "Early Send",   "",      0.0f,     1.0f,   0.0f, Curve::Linear },
+    { "shimmer",    "Shimmer Send", "",      0.0f,     1.0f,   0.1f, Curve::Linear },
+};
+
 const ModuleSpec kModules[static_cast<int>(Module::Count)] = {
     { "compose", kComposeParams, compose::Count, 1 },
     { "row",     kRowParams,     row::Count,     kRows },
@@ -423,7 +451,8 @@ const ModuleSpec kModules[static_cast<int>(Module::Count)] = {
     { "delay",   kEcho2Params,   echo2::Count,   1 },
     { "blend",   kBlendParams,   blend::Count,   1 },   // the blend room
     { "early",   kEarlyParams,   early::Count,   1 },   // send A
-    { "shimmer", kShimmerParams, shimmer::Count, 1 },   // send D   // the second echo (a prefix without a digit: "row1" is an instance)
+    { "shimmer", kShimmerParams, shimmer::Count, 1 },
+    { "poly",    kPolyParams,    poly::Count,    1 },   // the pad synth   // send D   // the second echo (a prefix without a digit: "row1" is an instance)
 };
 
 bool isDiscrete(Curve c) { return c == Curve::Int || c == Curve::Choice || c == Curve::Toggle; }
