@@ -49,6 +49,19 @@ Drift +3,5 dB). Gemessen, 10 Minuten, Seed 7: Cosmic/Melodic/Modern -15,3 bis -1
 Drift -19,0; Kurzzeit-Maximum um -12 LUFS, True Peak -1,0 dBTP, PSR 11-14, LRA 8-13 LU, tiefste Sekunde
 um 0 (nur im Ausklang der Atmosphäre). Nicht umgesetzt: die drei getrennten Hall-Instanzen (Early, Plate,
 großer Hall als eigene Sends), dynamische EQs, Resonanzunterdrücker, Transient-Designer, weicher Clipper.
+Danach das Addon "Lehren aus dem Dark-Ambient/Drone-Guide" (Downloads, 25.09.2026): `distance` je Quelle
+(Distanz-Makro: Pegel 0/-4/-10/-24 dB, Tiefpass offen/10/5/2,5 kHz, Hall-Send +0/0,2/0,6/1 bei 0/0,3/0,6/1; der
+Bass nähert sich an jedem Einsatz über 45 s von 0,7 und entfernt sich im Abbau und im Ausklang), kaskadiertes
+Ducking im Band 300 Hz bis 5 kHz (Reihen -> Pads -> Atmosphäre, `master.cascade` 2,5 dB), reine Intervalle im
+Fundament (Detune von Bordun und Bassreihe 0), Allpass-Spreizung der Tape Keys (`tape.spread` 0,7, Side =
+Allpass-Kette der Mitte, Korrelation um 0,35, Mono-Summe unverändert), Bewegung auf Mikro- und Meso-Zeitskalen
+mit irrationalen Perioden (`master.motion`), Ereignisse in den sequenzlosen Teilen (Lead-Fragmente alle 20-90 s),
+`master.sub_solo`, Export-Fades (2 s ein, 10 s aus, S-Kurve; 20 s Nachlauf), `eph_render --archive` (ohne
+Limiter, -3 dBTP, 24 Bit), Crest-Faktor und Korrelation je Stem im Bericht, Doom und Drift auf -18 LUFS.
+Gemessen (10 min, Seed 7): Cosmic/Melodic/Modern -15,4 bis -15,6 LUFS, Doom -17,9, Drift -18,1; LRA 10-15 LU,
+Crest 17-20 dB, PSR 11-14. Nicht umgesetzt: der serielle Fernraum (es gibt nur einen Hall), der Sub als
+eigenes Instrument mit eigenem Clipper und Multiband-Limiter, spektrales Ducking in 6-8 Bändern (hier ein
+Band), Abhörpraxis und Mute-Test (Arbeitsweise, nicht Programm).
 Auftrag des Nutzers: die String Machine mehr wie Waldorfs Streichfett (Ensemble, Mischung der Register, langsames
 Animieren der Mischung) und den "Harmonie- und Stilguide Moderne Berlin School" (Downloads des Nutzers, Stand
 25.09.2026) umsetzen, soweit sinnvoll. Reihenfolge und Stand:

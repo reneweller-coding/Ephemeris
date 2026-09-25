@@ -41,7 +41,8 @@ void usage()
                 "  --minutes M      length in minutes\n"
                 "  --bpm B          tempo (sets compose.bpm)\n"
                 "  --seed S         seed of everything drawn (default 1)\n"
-                "  --tail S         seconds rendered after the end, for the echo (default 6)\n"
+                "  --tail S         seconds rendered after the end, for the rooms (default 20; the last 10 fade out)\n"
+                "  --archive        an archive master: no limiter, 24 bit, scaled to -3 dBTP (renders twice)\n"
                 "  --concert M      a concert of pieces, M minutes long (default: one piece)\n"
                 "  --reroll UNIT    draw a unit again (form, tempo, rows, rack, layers, lead, pads, hands;\n"
                 "                   in a concert pieceN.UNIT or concert); may be repeated\n"
@@ -79,7 +80,8 @@ int main(int argc, char** argv)
     double concert = 0.0;
     std::string setIn, setOut;
     Curation curation;
-    double bpmArg = 0.0, tail = 6.0;
+    double bpmArg = 0.0, tail = 20.0;
+    bool archive = false;
     uint64_t seed = 1;
     for (int i = 1; i < argc; ++i) {
         const std::string a = argv[i];
@@ -110,6 +112,7 @@ int main(int argc, char** argv)
         else if (a == "--save-set") setOut = next("--save-set");
         else if (a == "--seed") seed = std::strtoull(next("--seed"), nullptr, 10);
         else if (a == "--tail") tail = std::atof(next("--tail"));
+        else if (a == "--archive") archive = true;
         else if (a == "--version") { std::printf("%s\n", EPH_VERSION); return 0; }
         else if (a == "--help" || a == "-h") { usage(); return 0; }
         else { std::fprintf(stderr, "unknown argument %s\n", a.c_str()); usage(); return 2; }
@@ -245,13 +248,46 @@ int main(int argc, char** argv)
     const auto t0 = std::chrono::steady_clock::now();
     const int64_t total = static_cast<int64_t>(std::llround((engine.lengthSeconds() + tail) * rate));
     std::vector<float> L(static_cast<size_t>(block)), R(static_cast<size_t>(block));
+    // The archive master (the addon's 9): no limiter, the whole scaled so its true peak sits at -3 dBTP -- which takes a
+    // first pass that only measures.
+    float archiveGain = 1.0f;
+    if (archive) {
+        Engine probe;
+        probe.params().copyValuesFrom(engine.params());
+        probe.prepare(rate, block);
+        probe.load(score);
+        probe.setLimiter(false);
+        LoudnessMeter pm;
+        pm.prepare(rate);
+        for (int64_t done = 0; done < total;) {
+            const int n = static_cast<int>(std::min<int64_t>(block, total - done));
+            probe.process(L.data(), R.data(), n);
+            for (int i = 0; i < n; ++i) { const float g = exportFade(done + i, total, rate); L[static_cast<size_t>(i)] *= g; R[static_cast<size_t>(i)] *= g; }
+            pm.process(L.data(), R.data(), n);
+            done += n;
+        }
+        archiveGain = static_cast<float>(std::pow(10.0, (-3.0 - pm.report().truePeak) / 20.0));
+        engine.setLimiter(false);
+    }
+    // The stems' correlation, each read on its own (the addon's 6: a target per layer, not one for the sum).
+    std::vector<double> stemLR(stems.size(), 0.0), stemLL(stems.size(), 0.0), stemRR(stems.size(), 0.0);
     double peak = 0.0, sumSq = 0.0;
     LoudnessMeter meter;   // the production guide's figures (Loudness.h)
     meter.prepare(rate);
     for (int64_t done = 0; done < total;) {
         const int n = static_cast<int>(std::min<int64_t>(block, total - done));
         engine.process(L.data(), R.data(), n);
+        for (int i = 0; i < n; ++i) {
+            const float g = exportFade(done + i, total, rate) * archiveGain;
+            L[static_cast<size_t>(i)] *= g;
+            R[static_cast<size_t>(i)] *= g;
+        }
         meter.process(L.data(), R.data(), n);
+        for (size_t c = 0; c < stems.size(); ++c)
+            for (int i = 0; i < n; ++i) {
+                const double l = stemL[c][i], r = stemR[c][i];
+                stemLR[c] += l * r; stemLL[c] += l * l; stemRR[c] += r * r;
+            }
         for (int i = 0; i < n; ++i) {
             peak = std::max(peak, static_cast<double>(std::max(std::fabs(L[static_cast<size_t>(i)]), std::fabs(R[static_cast<size_t>(i)]))));
             sumSq += 0.5 * (static_cast<double>(L[static_cast<size_t>(i)]) * L[static_cast<size_t>(i)] + static_cast<double>(R[static_cast<size_t>(i)]) * R[static_cast<size_t>(i)]);
@@ -275,7 +311,12 @@ int main(int argc, char** argv)
     const LoudnessReport lr = meter.report();
     std::printf("  loudness %.1f LUFS integrated, %.1f LUFS short-term max, range %.1f LU; true peak %.1f dBTP, PSR %.1f dB, PLR %.1f dB\n",
                 lr.integrated, lr.shortTermMax, lr.range, lr.truePeak, lr.psr, lr.plr);
-    std::printf("  stereo: correlation %.2f (lowest second %.2f at %.0f s), side %.1f dB under mid\n", lr.correlation, lr.correlationLow, lr.correlationLowAt, lr.sideUnderMid);
+    std::printf("  stereo: correlation %.2f (lowest second %.2f at %.0f s), side %.1f dB under mid; crest factor %.1f dB%s\n", lr.correlation,
+                lr.correlationLow, lr.correlationLowAt, lr.sideUnderMid, lr.crest, archive ? " (archive: no limiter, -3 dBTP)" : "");
+    for (size_t c = 0; c < stems.size(); ++c)
+        if (stemLL[c] > 1e-6 && stemRR[c] > 1e-6)
+            std::printf("  stem %-12s correlation %.2f\n", static_cast<int>(c) < Engine::kChannels ? Engine::channelName(static_cast<int>(c)) : "Rooms",
+                        stemLR[c] / std::sqrt(stemLL[c] * stemRR[c]));
     std::printf("  %.3f s to render: %.0fx real time, %.2f %% of a core\n", took, secs / std::max(took, 1e-9), 100.0 * took / secs);
     for (const TempoPoint& tp : score.tempo.points())
         std::printf("  tempo point: beat %.1f, %.2f BPM%s, at %.3f s\n", tp.beat, tp.bpm, tp.rampToNext ? ", ramps" : "",

@@ -1505,6 +1505,99 @@ void testMixBus()
 }
 
 /**
+ * The addon from the dark-ambient practice (Engine.h, Composer.cpp): the distance macro, the cascaded duck, the tape
+ * keys' allpass spread, the sub solo, the export fades; in a piece the approach and the events.
+ */
+void testAddon()
+{
+    section("the addon: distance, cascade, spread, events");
+    // Renders a score with the given settings; returns the mix and, per source, the stems' sums of squares.
+    struct Out { std::vector<float> L, R; double stem[Engine::kChannels + 1] = {}; double stemLR[Engine::kChannels + 1] = {}; double stemLL[Engine::kChannels + 1] = {}, stemRR[Engine::kChannels + 1] = {}; };
+    auto render = [](const Score& sc, const char* setting, double seconds) {
+        Out o;
+        Engine e;
+        e.params().parseText("master.level=0 master.motion=0");
+        e.params().parseText(setting);
+        e.prepare(48000.0, 256);
+        e.load(sc);
+        constexpr int kStems = Engine::kChannels + 1;
+        std::vector<std::vector<float>> buf(2 * kStems, std::vector<float>(256));
+        std::vector<float*> sl(kStems), sr(kStems);
+        for (int c = 0; c < kStems; ++c) { sl[static_cast<size_t>(c)] = buf[static_cast<size_t>(2 * c)].data(); sr[static_cast<size_t>(c)] = buf[static_cast<size_t>(2 * c + 1)].data(); }
+        e.setStems(sl.data(), sr.data());
+        std::vector<float> l(256), r(256);
+        for (int done = 0; done < static_cast<int>(48000 * seconds); done += 256) {
+            e.process(l.data(), r.data(), 256);
+            if (done < 48000) continue;
+            o.L.insert(o.L.end(), l.begin(), l.end());
+            o.R.insert(o.R.end(), r.begin(), r.end());
+            for (int c = 0; c < kStems; ++c)
+                for (int i = 0; i < 256; ++i) {
+                    const double a = sl[static_cast<size_t>(c)][i], b = sr[static_cast<size_t>(c)][i];
+                    o.stem[c] += a * a + b * b; o.stemLR[c] += a * b; o.stemLL[c] += a * a; o.stemRR[c] += b * b;
+                }
+        }
+        return o;
+    };
+    auto energy = [](const Out& o) { double e = 0.0; for (size_t i = 0; i < o.L.size(); ++i) e += double(o.L[i]) * o.L[i] + double(o.R[i]) * o.R[i]; return e; };
+    // The distance macro: a row at 0.6 is about 10 dB quieter and darker than at 0.
+    Score one;
+    one.clear(120.0);
+    for (double b = 0.0; b < 8.0; b += 0.5) one.notes.push_back({ b, 0.4, Part::Row2, 57, 0.9f, false, false });
+    one.lengthBeats = 8.0;
+    const Out nearRow = render(one, "row2.reverb=0 row2.echo=0 row2.distance=0", 3.0), farRow = render(one, "row2.reverb=0 row2.echo=0 row2.distance=0.6", 3.0);
+    const double nearStem = nearRow.stem[1], farStem = farRow.stem[1];
+    check(10.0 * std::log10(nearStem / std::max(1e-30, farStem)) > 8.0, "the distance macro: a row at 0.6 lies about 10 dB further back",
+          fmt("%.1f dB quieter in its strip", 10.0 * std::log10(nearStem / std::max(1e-30, farStem))));
+    // The cascaded duck: the strings step back a little in their middle band while a row plays loud.
+    Score pads = one;
+    pads.notes.clear();
+    for (int k : { 57, 60, 64 }) pads.notes.push_back({ 0.0, 8.0, Part::Strings, k, 0.8f, false, false });
+    Score both = pads;
+    for (double b = 0.0; b < 8.0; b += 0.25) both.notes.push_back({ b, 0.2, Part::Row2, 45, 1.0f, false, false });
+    const Out alone = render(pads, "row2.level=6", 3.0), under = render(both, "row2.level=6", 3.0);
+    const double drop = 10.0 * std::log10(alone.stem[kRows + 3] / std::max(1e-30, under.stem[kRows + 3]));
+    check(drop > 0.5 && drop < 3.0, "the rows duck the pads' middle band a little (the cascade)", fmt("strings %.2f dB lower", drop));
+    // The tape keys' spread: correlation between 0.2 and 0.5, their mono sum unchanged in level.
+    Score keys = pads;
+    for (NoteEvent& nte : keys.notes) nte.part = Part::TapeKeys;
+    const Out spread = render(keys, "tape.spread=0.7", 3.0), flat = render(keys, "tape.spread=0", 3.0);
+    const int t = kRows + 2;   // the tape keys' channel (Engine::channelName)
+    const double corr = spread.stemLR[t] / std::sqrt(spread.stemLL[t] * spread.stemRR[t]);
+    double sumSpread = 0.0, sumFlat = 0.0;
+    for (size_t i = 0; i < spread.L.size(); ++i) {
+        sumSpread += (double(spread.L[i]) + spread.R[i]) * (double(spread.L[i]) + spread.R[i]);
+        sumFlat += (double(flat.L[i]) + flat.R[i]) * (double(flat.L[i]) + flat.R[i]);
+    }
+    check(corr > 0.2 && corr < 0.5, "the tape keys' allpass spread: wide, but not apart", fmt("correlation %.2f; mono sum %.1f dB against the unspread",
+          corr, 10.0 * std::log10(sumSpread / std::max(1e-30, sumFlat))));
+    // The sub solo: little left above 200 Hz.
+    const Out sub = render(one, "row2.reverb=0 row2.echo=0 master.sub_solo=1", 3.0);
+    check(energy(sub) < 0.1 * energy(nearRow), "the sub solo leaves only the lows", fmt("%.1f dB under the full mix", 10.0 * std::log10(energy(nearRow) / std::max(1e-30, energy(sub)))));
+    // The export fades: silent at both ends, whole in the middle.
+    check(exportFade(0, 2880000, 48000.0) == 0.0f && exportFade(2880000, 2880000, 48000.0) == 0.0f && exportFade(1440000, 2880000, 48000.0) == 1.0f
+          && exportFade(48000, 2880000, 48000.0) > 0.4f && exportFade(48000, 2880000, 48000.0) < 0.6f, "the export fades in over 2 s and out over 10 s", "");
+
+    // In a piece: the bass comes in from afar, and events sound in the stages without a sequence.
+    ParamStore p;
+    p.parseText("compose.style=Cosmic");
+    const Score sc = composePiece(p, 21, 14.0);
+    double entry = -1.0, atmoEnd = -1.0;
+    for (size_t m = 0; m + 1 < sc.markers.size(); ++m) {
+        if (sc.markers[m].text.rfind("Einsatz", 0) == 0 && entry < 0.0) entry = sc.markers[m].beat;
+        if (sc.markers[m].text.rfind("Atmo", 0) == 0) atmoEnd = sc.markers[m + 1].beat;
+    }
+    const int dist = p.id(Module::Row, 0, row::Distance);
+    auto distAt = [&](double b) { return p.fromNormalised(dist, p.toNormalised(dist, p.get(dist)) + sc.gestureOffset(dist, b)); };
+    const double later = entry + 45.0 * sc.tempo.bpmAt(entry) / 60.0 + 1.0;
+    check(distAt(entry + 0.01) > 0.6f && distAt(later) < 0.05f, "the bass comes in from afar (the approach)",
+          fmt("distance %.2f at the entry, %.2f 45 s later", distAt(entry + 0.01), distAt(later)));
+    int events = 0;
+    for (const NoteEvent& n : sc.notes) events += n.part == Part::Lead && n.beat < atmoEnd ? 1 : 0;
+    check(events > 0, "near events in the atmosphere before the sequence", fmt("%d lead notes", events));
+}
+
+/**
  * The offline render is the oracle only if a host's block size cannot change a sample: the study
  * rendered with blocks of 1, 37 and 512 must agree bit for bit (Engine.h).
  */
@@ -1656,6 +1749,7 @@ const TestSection kSections[] = {
     { "testGuideExtras", testGuideExtras },
     { "testLoudness", testLoudness },
     { "testMixBus", testMixBus },
+    { "testAddon", testAddon },
     { "testBlockSizes", testBlockSizes },
     { "testEcho", testEcho },
     { "testDrift", testDrift },

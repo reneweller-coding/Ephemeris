@@ -147,6 +147,13 @@ LoudnessReport LoudnessMeter::report() const
         r.shortTermMax = r.integrated;
     }
     r.plr = r.truePeak - r.integrated;
+    {
+        double ms = 0.0;
+        int samples = 0;
+        for (const Hop& h : hops_) { ms += h.ll + h.rr; samples += h.samples; }
+        ms /= std::max(1, 2 * samples);
+        r.crest = r.truePeak - (ms > 0.0 ? 10.0 * std::log10(ms) : -120.0);
+    }
     // Stereo: the correlation over the whole and over each second, the side under the mid.
     double lr = 0.0, ll = 0.0, rr = 0.0, mid = 0.0, side = 0.0;
     for (const Hop& h : hops_) { lr += h.lr; ll += h.ll; rr += h.rr; mid += h.mid; side += h.side; }

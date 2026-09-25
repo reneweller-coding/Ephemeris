@@ -30,6 +30,10 @@ The plan, the musical specification and the literature behind each building bloc
   100 Hz, a guarded width, ducked echo and hall returns, level and width automated along the form, the
   styles levelled to about -15.5 LUFS (Doom and Drift -19); eph_render reports loudness (EBU R128), true
   peak, PSR, loudness range and the stereo correlation of every render.
+- From the dark-ambient practice: a distance macro per source (the bass approaches and recedes), cascaded
+  ducking rows -> pads -> atmosphere, a foundation in pure intervals, an all-pass spread for the tape keys,
+  slow movements with irrational periods, near events where no sequence plays, export fades, an archive
+  master without a limiter.
 - Score cues over OSC for a visualiser (Kaleidoscope); stems; a gestures page and a style page.
 - The Quest app (built, not yet run on a headset), the release build with installer and pluginval, and the
   manual generator.

@@ -106,7 +106,9 @@ enum : int { Active, Length, Division, Direction, Octave, Transpose, Mutation, G
              // Phase 3: the send into the hall.
              ReverbSend,
              // 25.09.2026: the send into the second echo; the strip's low cut (the production guide's 4.2).
-             Echo2Send, LowCut, Count };
+             Echo2Send, LowCut,
+             // 25.09.2026 (the addon's distance macro): 0 near .. 1 the horizon, level, highs and hall together.
+             Distance, Count };
 }
 /** @brief Parameters of the master section. */
 namespace master {
@@ -115,7 +117,10 @@ enum : int { Level,
              Compress, Ceiling,
              // 25.09.2026 (the production guide's 6.3, 6.4): the side above 300 Hz in dB (under 100 Hz it is always
              // mono), and a mono switch for listening.
-             Width, Mono, Count };
+             Width, Mono,
+             // 25.09.2026 (the addon): the rows duck the pads, the pads the atmosphere, in the band 300 Hz .. 5 kHz (dB);
+             // the slow movements of pads, rooms and atmosphere (0 still .. 1); a sub solo (80 Hz low pass) for listening.
+             Cascade, Motion, SubSolo, Count };
 }
 /**
  * @brief Parameters of one modular voice (module Voice, "voice1" .. "voice8", one per row; PLAN 5.2).
@@ -137,13 +142,13 @@ enum : int { Wave, Detune, PulseWidth, Drift, Drive, Cutoff, Resonance, EnvAmoun
              // Phase 3: the send into the hall.
              ReverbSend,
              // 25.09.2026: a slow sine (0.05 Hz) on the pan, the wandering drone of the style guide's 7.3.
-             AutoPan, LowCut, Count };
+             AutoPan, LowCut, Distance, Count };
 }
 /** @brief Parameters of the tape keyboard (module Tape; PLAN 5.4, TapeKeys.h). */
 namespace tape {
 enum : int { Set, Vowel, Wow, Flutter, Sag, Tone, Age, Level, Pan, EchoSend, ReverbSend,
-             // 25.09.2026: the strip's low cut.
-             LowCut, Count };
+             // 25.09.2026: the strip's low cut; the distance macro; the allpass spread of the mono keyboard.
+             LowCut, Distance, Spread, Count };
 }
 extern const char* const kTapeSetNames[];       ///< names of tape.set
 /** @brief The drone's parameters are the lead's table with other defaults (module Drone). */
@@ -153,8 +158,8 @@ namespace strings {
 enum : int { Attack, Release, Feet, Tone, Ensemble, Level, Pan, EchoSend, ReverbSend,
              // 25.09.2026, after Waldorf's Streichfett: the registration, its animation, the ensemble's type, the phaser.
              Registration, Animate, AnimateRate, EnsembleType, Phaser,
-             // the strip's low cut
-             LowCut, Count };
+             // the strip's low cut, the distance macro
+             LowCut, Distance, Count };
 }
 /** @brief Parameters of the springs (module Spring; Spring.h): fed from the echo's send. */
 namespace spring {

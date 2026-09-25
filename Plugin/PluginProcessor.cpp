@@ -4,6 +4,7 @@
  */
 #include "PluginProcessor.h"
 #include "PluginEditor.h"
+#include "eph/Loudness.h"
 #include "eph/compose/Composer.h"
 #include "eph/Midi.h"
 #include "eph/WavWriter.h"
@@ -424,11 +425,17 @@ void EphemerisProcessor::exportTo(const juce::File& wav, bool stems)
             }
             e.setStems(stemL.data(), stemR.data());
         }
-        const int64_t total = static_cast<int64_t>((e.lengthSeconds() + 8.0) * 48000.0);
+        // Twenty seconds of the rooms after the end, faded in over two seconds and out over the last ten (Loudness.h).
+        const int64_t total = static_cast<int64_t>((e.lengthSeconds() + 20.0) * 48000.0);
         std::vector<float> L(512), R(512);
         for (int64_t done = 0; ok && done < total; done += 512) {
             const int n = static_cast<int>(std::min<int64_t>(512, total - done));
             e.process(L.data(), R.data(), n);
+            for (int i = 0; i < n; ++i) {
+                const float g = exportFade(done + i, total, 48000.0);
+                L[static_cast<size_t>(i)] *= g;
+                R[static_cast<size_t>(i)] *= g;
+            }
             w.write(L.data(), R.data(), n);
             for (size_t c = 0; c < stemWav.size(); ++c) stemWav[c].write(stemL[c], stemR[c], n);
         }

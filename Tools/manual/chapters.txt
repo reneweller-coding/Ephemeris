@@ -80,6 +80,17 @@ keys start at 150 Hz, the strings at 200 Hz, the atmosphere at 120 Hz, the drone
 is at 82 Hz), the drums at 25 Hz. Mud between 200 and 500 Hz and a crowded bass are what make a long
 piece tiring; this is where they are kept away.
 
+Distance (on the rows, the lead, the drone, the tape keys and the strings) places a source between near (0)
+and the horizon (1) with every cue at once, so nothing is near in its level and far in the hall: at 0.3 it
+is 4 dB quieter, its highs end at 10 kHz and it sends a little more to the hall; at 0.6 it is 10 dB back,
+dark from 5 kHz and well in the hall; at 1 it is 24 dB back, 2.5 kHz and almost only hall. The composer
+moves the bass with it: at each entry it comes in from 0.7 over 45 seconds, in the breakdown it recedes over
+up to two minutes, and in the coda before it stops -- an approach and a leaving instead of a fader ride.
+
+The rows also make room for themselves: while they play, the pads (strings and tape keys) step back in their
+middle band, 300 Hz to 5 kHz, by up to Cascade Duck (Master page, 2.5 dB), and the pads in turn push the
+atmosphere back in the same band -- the pads stay full while the sequence rests.
+
 The meter reads what the source puts into the mix after its fader and pan: a green bar for the RMS
 level with a release of 300 ms, turning amber above -6 dBFS and red above 0, and a peak line that holds
 for a second and a half before it falls at 20 dB per second. The figure under the meter is the held
@@ -170,7 +181,10 @@ beat, as a player over a machine does.
 The drone is the ground under the whole piece: the root, low, held from the start to the fading coda,
 following the key when a phase changes it. It is a modular voice as well and has the lead's table.
 Auto Pan lets it wander slowly across the stereo field, on a sine of 0.05 Hz (twenty seconds from one
-side to the other and back); the lead has the knob as well, at zero.
+side to the other and back); the lead has the knob as well, at zero. The drone's two oscillators are not
+detuned against each other, nor are the bass row's: the foundation of a piece stays in pure octaves and
+fifths, without a slow cloud of beating in the middle over the minutes; the detune belongs to the counter
+rows, the lead and the pads.
 
 == Tape Keys | tape | 7 ==
 
@@ -179,6 +193,11 @@ and onset lag, played by one capstan whose speed wanders (wow and flutter) and s
 many keys. A tape runs out after eight seconds, as the instrument's did. Three sets: a choir of
 several singers through the formants of a sung vowel, strings, and flute. Age puts more of the
 machine's character into the sound; the tape set can change between pieces.
+
+Spread widens the mono keyboard without colouring it: the side is the keyboard through a chain of all-passes
+whose phase turns at corners spread over the band, added on one side and taken away on the other, so the
+two sides differ in phase, not in tone, and their sum -- what a mono speaker plays -- is the keyboard alone.
+At the default 0.7 the correlation of the two sides is about 0.35: wide, with a middle the chords stand on.
 
 == Strings | strings | 8 ==
 
@@ -278,6 +297,22 @@ rows, only the drone, a slow chord every 16 to 32 bars on the strings or the tap
 its grains, a longer hall and the open fifth at the end -- the piece where the concert's middle falls the
 darkest (Phrygian, darker voices, a row more at the peak), and the last one ethereal (Dorian, a longer hall,
 a row fewer, no drums, a quieter lead). Without it a concert is what it was.
+
+Motion keeps the depth awake: a spectrum that does not change for twenty seconds loses its depth to the ear.
+The pads' levels move by a few tenths of a dB within a second or two; their hall sends, the strings' tone
+and the echo's feedback over 13 to 30 seconds; the atmosphere swells by 6 dB over 41 seconds -- periods that
+never lock into the sequence's cycles, so foreground and background do not breathe together. In the
+atmosphere, the bridges and the coda, where no sequence plays, a near event sounds now and then: a lead
+fragment of one to three notes, 20 to 90 seconds apart. Sub Solo leaves only what lies under 80 Hz, for
+checking the bottom of the mix; Mono and Sub Solo are for listening and change nothing that is exported
+unless they are on.
+
+Exports (the plugin's and eph_render's) end with twenty seconds of the rooms after the last note, faded in
+over two seconds and out over the last ten, never linearly, so the last tail never breaks off. eph_render
+--archive writes an archive master besides: no limiter, 24 bit, the whole scaled to a true peak of -3 dBTP
+(it renders twice). The report adds the crest factor (true peak over RMS, 17 to 20 dB for the styles; 12 is
+the least that keeps the transients) and, with --stems, the correlation of each stem: the rows are mono
+points (1.0), the tape keys spread by all-pass decorrelation (about 0.35), the rooms enveloping (about 0.2).
 
 OSC Cues sends what the score knows to a visualiser such as Kaleidoscope, over UDP at the OSC Port, to the
 machine named by the environment variable EPH_CUE_HOST (this machine without it): every beat with the

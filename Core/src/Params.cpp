@@ -82,6 +82,7 @@ const ParamDesc kRowParams[row::Count] = {
     { "reverb",    "Reverb Send", "",     0.0f,  1.0f,  0.3f, Curve::Linear },
     { "echo2",     "Echo 2 Send", "",     0.0f,  1.0f,  0.0f, Curve::Linear },
     { "low_cut",  "Low Cut", "Hz", 10.0f, 500.0f, 30.0f, Curve::Log },   // the strip's high pass (production guide 4.2)
+    { "distance", "Distance", "",   0.0f,   1.0f,   0.0f, Curve::Linear },   // 0 near .. 1 the horizon (the addon's macro)
 };
 
 /**
@@ -137,6 +138,7 @@ const ParamDesc kLeadParams[lead::Count] = {
     { "reverb",       "Reverb Send",   "",       0.0f,     1.0f,    0.4f, Curve::Linear },
     { "auto_pan",     "Auto Pan",      "",       0.0f,     1.0f,    0.0f, Curve::Linear },   // depth of a 0.05 Hz sine on the pan
     { "low_cut",  "Low Cut", "Hz", 10.0f, 500.0f, 150.0f, Curve::Log },   // the strip's high pass (production guide 4.2)
+    { "distance", "Distance", "",   0.0f,   1.0f,   0.0f, Curve::Linear },   // 0 near .. 1 the horizon (the addon's macro)
 };
 
 /** The tape keyboard: a first setting of the machine (PLAN 5.4 wants it measured on recordings). */
@@ -153,12 +155,14 @@ const ParamDesc kTapeParams[tape::Count] = {
     { "echo",    "Echo Send",    "",      0.0f,     1.0f,    0.1f, Curve::Linear },
     { "reverb",  "Reverb Send",  "",      0.0f,     1.0f,    0.5f, Curve::Linear },
     { "low_cut",  "Low Cut", "Hz", 10.0f, 500.0f, 150.0f, Curve::Log },   // the strip's high pass (production guide 4.2)
+    { "distance", "Distance", "",   0.0f,   1.0f,   0.0f, Curve::Linear },   // 0 near .. 1 the horizon (the addon's macro)
+    { "spread",   "Spread",   "",   0.0f,   1.0f,   0.7f, Curve::Linear },   // allpass decorrelation of the mono keyboard
 };
 
 /** The drone: the lead's table, set dark and slow, with a two-second release and much hall. */
 const ParamDesc kDroneParams[lead::Count] = {
     { "wave",         "Wave",          "",       0.0f,     1.0f,    0.0f, Curve::Linear },
-    { "detune",       "Detune",        "ct",     0.0f,    30.0f,    9.0f, Curve::Linear },
+    { "detune",       "Detune",        "ct",     0.0f,    30.0f,    0.0f, Curve::Linear },   // the foundation beats not (the addon's 3)
     { "pw",           "Pulse Width",   "",       0.05f,    0.5f,    0.5f, Curve::Linear },
     { "drift",        "Drift",         "ct",     0.0f,    15.0f,    4.0f, Curve::Linear },
     { "drive",        "Drive",         "dB",     0.0f,    24.0f,    4.0f, Curve::Linear },
@@ -178,6 +182,7 @@ const ParamDesc kDroneParams[lead::Count] = {
     { "reverb",       "Reverb Send",   "",       0.0f,     1.0f,    0.55f, Curve::Linear },
     { "auto_pan",     "Auto Pan",      "",       0.0f,     1.0f,    0.35f, Curve::Linear },   // the drone wanders (7.3)
     { "low_cut",  "Low Cut", "Hz", 10.0f, 500.0f, 40.0f, Curve::Log },   // the strip's high pass (production guide 4.2)
+    { "distance", "Distance", "",   0.0f,   1.0f,   0.0f, Curve::Linear },   // 0 near .. 1 the horizon (the addon's macro)
 };
 
 /** The atmosphere: all layers off until a piece or a hand brings them in. */
@@ -214,6 +219,7 @@ const ParamDesc kStringsParams[strings::Count] = {
     { "ensemble_type", "Ensemble Type", "",   0.0f,  2.0f,  0.0f, Curve::Choice, kEnsembleTypeNames },
     { "phaser",        "Phaser",        "",   0.0f,  1.0f,  0.0f, Curve::Linear },
     { "low_cut",  "Low Cut", "Hz", 10.0f, 500.0f, 200.0f, Curve::Log },   // the strip's high pass (production guide 4.2)
+    { "distance", "Distance", "",   0.0f,   1.0f,   0.0f, Curve::Linear },   // 0 near .. 1 the horizon (the addon's macro)
 };
 
 /** The springs: a short, bright-ish tank under the echo, quiet by default. */
@@ -323,6 +329,9 @@ const ParamDesc kMasterParams[master::Count] = {
     { "ceiling",  "Ceiling",  "dBTP", -6.0f, 0.0f, -1.0f, Curve::Linear },
     { "width",    "Width",    "dB",   -6.0f, 6.0f,  4.5f, Curve::Linear },   // the side above 300 Hz; under 100 Hz mono
     { "mono",     "Mono",     "",      0.0f, 1.0f,  0.0f, Curve::Toggle },   // a mono check for listening
+    { "cascade",  "Cascade Duck", "dB", 0.0f, 6.0f, 2.5f, Curve::Linear },   // rows -> pads -> atmosphere, 300 Hz .. 5 kHz
+    { "motion",   "Motion",   "",      0.0f, 1.0f,  1.0f, Curve::Linear },   // slow movements with irrational periods
+    { "sub_solo", "Sub Solo", "",      0.0f, 1.0f,  0.0f, Curve::Toggle },   // an 80 Hz low pass on the sum, for listening
 };
 
 /** @brief One module: its prefix, table, how many instances exist, and optionally their names. */

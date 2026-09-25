@@ -547,6 +547,23 @@ void writeSettings(Piece& c)
         default: return w0;
         }
     });
+    // The approach (the addon's 2): the bass comes in from afar over 45 s at each entry and recedes in the breakdown
+    // over up to two minutes, and in the coda before it stops -- level, highs and hall together (row.distance).
+    const int dist = p.id(Module::Row, 0, row::Distance);
+    const float far = offsetTo(p, dist, 0.7f), near = offsetTo(p, dist, 0.0f);
+    for (int ph = 0; ph < c.phases; ++ph) {
+        const double bpm = c.form.phaseBpm[static_cast<size_t>(ph)];
+        if (const Section* entry = c.form.find(SectionType::Entry, ph))
+            c.s.gestures.push_back({ dist, entry->beat, std::min(entry->length, 45.0 * bpm / 60.0), far, near, G::MinimumJerk, 3 });
+        if (const Section* bd = c.form.find(SectionType::Breakdown, ph))
+            c.s.gestures.push_back({ dist, bd->beat, std::min(bd->length, 120.0 * bpm / 60.0), near, far, G::MinimumJerk, 3 });
+    }
+    if (const Section* coda = c.form.find(SectionType::Coda, c.phases - 1)) {
+        const double third = std::floor(coda->length / 3.0 / kBeatsPerBar) * kBeatsPerBar;
+        if (third > 0.0) c.s.gestures.push_back({ dist, coda->beat, third, near, far, G::MinimumJerk, 3 });
+    }
+    // The foundation in pure intervals (the addon's 3): the bass row's two oscillators without detune.
+    setTo(p.id(Module::Voice, 0, voice::Detune), 0.0f);
     // The pads step back 3 dB while the lead plays (7.2): its section and the peak after it.
     for (int ph = 0; ph < c.phases; ++ph) {
         const Section* lead = c.form.find(SectionType::Lead, ph);
@@ -557,6 +574,38 @@ void writeSettings(Piece& c)
             const float at = offsetTo(p, id, p.get(id)), down = offsetTo(p, id, p.get(id) - 3.0f);
             c.s.gestures.push_back({ id, from, 2.0 * kBeatsPerBar, at, down, G::MinimumJerk, 3 });
             c.s.gestures.push_back({ id, std::max(from + 2.0 * kBeatsPerBar, to - 2.0 * kBeatsPerBar), 2.0 * kBeatsPerBar, down, at, G::MinimumJerk, 3 });
+        }
+    }
+}
+
+/**
+ * @brief The events of the addon's 7: in the stages without a sequence -- the atmosphere, the bridges, the coda --
+ *        now and then a near event, a lead fragment of one to three notes (root, fifth, third, octave of the scale
+ *        at its beat), 20 to 90 s apart. It sets the ear's sense of depth anew; once the sequence runs, it is the
+ *        reference. Their own stream, on the lead's unit.
+ */
+void writeEvents(Piece& c)
+{
+    Rng ev;
+    ev.seed(mixSeed(c.seedOf(sLead), 0x65u));
+    for (const Section& sec : c.form.sections) {
+        if (sec.type != SectionType::Atmo && sec.type != SectionType::Bridge && sec.type != SectionType::Coda) continue;
+        const double bpm = c.s.tempo.bpmAt(sec.beat), secs = bpm / 60.0;
+        const double to = sec.beat + (sec.type == SectionType::Coda ? 0.7 : 0.9) * sec.length;
+        for (double t = sec.beat + 0.1 * sec.length + (20.0 + 30.0 * ev.uniform()) * secs; t < to - 4.0; t += (20.0 + 70.0 * ev.uniform()) * secs) {
+            const int root = pitchClass(c.key + c.s.rootAt(t));
+            const int scale = c.s.scaleAt(t, c.scale);
+            const int notes = 1 + ev.below(3);
+            double b = std::floor(t);
+            for (int k = 0; k < notes && b < to; ++k) {
+                static const int kDegrees[4] = { 0, 4, 2, 7 };
+                int pitch = 60 + root + scaleSemitones(scale, kDegrees[ev.below(4)]);
+                while (pitch < 64) pitch += 12;
+                while (pitch > 84) pitch -= 12;
+                const double len = 1.5 + 1.5 * ev.uniform();
+                c.s.notes.push_back({ b, len, Part::Lead, pitch, 0.6f + 0.12f * ev.uniform(), false, false });
+                b += len + 0.5;
+            }
         }
     }
 }
@@ -648,6 +697,7 @@ Score composePiece(const ParamStore& params, uint64_t seed, double minutes, int 
     writeRack(c);         // step 2b
     writeLayers(c);       // step 3
     writeAtmosphere(c);   // step 4
+    writeEvents(c);       // (the addon's events in the stages without a sequence)
     writeSettings(c);     // step 5
     writeHands(c);        // step 6
     s.sort();
@@ -717,6 +767,7 @@ Score composeInterlude(const ParamStore& params, uint64_t seed, double minutes, 
     writeChords(s, fifth, coda.beat, coda.beat + coda.length * 0.85, pads);
     c.grainsOn = true;
     writeAtmosphere(c);
+    writeEvents(c);
     writeSettings(c);
     writeHands(c);
     s.sort();

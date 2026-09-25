@@ -101,7 +101,26 @@ void Engine::load(const Score& score)
         envAttack_ = std::exp(-1.0f / (0.005f * sr));
         envRelease_ = std::exp(-1.0f / (0.25f * sr));
         duckEnv_ = 0.0f;
-        for (Strip& st : strips_) { st.hpL.reset(); st.hpR.reset(); }
+        for (Strip& st : strips_) {
+            st.hpL.reset(); st.hpR.reset(); st.lpL.reset(); st.lpR.reset();
+            for (int c = 0; c < 2; ++c) {
+                st.splitLo[c].setQ(300.0f, 0.70710678f, sr); st.splitLo[c].reset();
+                st.splitHi[c].setQ(5000.0f, 0.70710678f, sr); st.splitHi[c].reset();
+            }
+        }
+        subL_.setQ(80.0f, 0.70710678f, sr); subR_.copyCoefficients(subL_); subL_.reset(); subR_.reset();
+        for (int k = 0; k < 4; ++k) apL_[k] = apR_[k] = 0.0f;
+        // The spread's all-passes turn their phase at corners spread over the band, different on each side:
+        // a = (tan(pi f / fs) - 1) / (tan(pi f / fs) + 1).
+        {
+            static const float kFL[4] = { 250.0f, 700.0f, 1800.0f, 4500.0f }, kFR[4] = { 350.0f, 1000.0f, 2600.0f, 6500.0f };
+            for (int k = 0; k < 4; ++k) {
+                const float tl = std::tan(3.14159265f * kFL[k] / sr), tr = std::tan(3.14159265f * kFR[k] / sr);
+                apCoefL_[k] = (tl - 1.0f) / (tl + 1.0f);
+                apCoefR_[k] = (tr - 1.0f) / (tr + 1.0f);
+            }
+        }
+        padEnv_ = 0.0f;
     }
     reverb_.prepare(sampleRate_);
     plate_.prepare(sampleRate_);
@@ -163,11 +182,29 @@ VoiceSettings Engine::voiceSettings(Module m, int instance, bool vibrato) const
     return s;
 }
 
-void Engine::setStrip(int s, float levelDb, float pan, float echo, float reverb, float width, float echo2)
+void Engine::setStrip(int s, float levelDb, float pan, float echo, float reverb, float width, float echo2, float distance)
 {
-    const float in[6] = { levelDb, pan, echo, reverb, width, echo2 };
+    const float in[7] = { levelDb, pan, echo, reverb, width, echo2, distance };
     if (!changed(cache_.strip[s], in, cache_.valid)) return;
     Strip& st = strips_[s];
+    // The distance macro (the addon's 2): level, highs and the hall's share move together, so nothing is near in
+    // its level and far in the hall. From a table at 0, 0.3, 0.6 and 1: 0, -4, -10, -24 dB; open, 10, 5, 2.5 kHz;
+    // the hall send up by 0, 0.2, 0.6, 1.
+    {
+        static const float kD[4] = { 0.0f, 0.3f, 0.6f, 1.0f }, kLevel[4] = { 0.0f, -4.0f, -10.0f, -24.0f };
+        static const float kLp[4] = { 20000.0f, 10000.0f, 5000.0f, 2500.0f }, kSend[4] = { 0.0f, 0.2f, 0.6f, 1.0f };
+        const float d = std::clamp(distance, 0.0f, 1.0f);
+        int k = 0;
+        while (k < 2 && d > kD[k + 1]) ++k;
+        const float t = (d - kD[k]) / (kD[k + 1] - kD[k]);
+        levelDb += kLevel[k] + t * (kLevel[k + 1] - kLevel[k]);
+        reverb = std::min(1.0f, reverb + kSend[k] + t * (kSend[k + 1] - kSend[k]));
+        st.lpHz = d > 0.001f ? kLp[k] * std::pow(kLp[k + 1] / kLp[k], t) : 0.0f;
+        if (st.lpHz > 0.0f) {
+            st.lpL.setQ(st.lpHz, 0.70710678f, static_cast<float>(sampleRate_));
+            st.lpR.copyCoefficients(st.lpL);
+        }
+    }
     const float level = dbToGain(levelDb);
     const float a = (std::clamp(pan, -1.0f, 1.0f) + 1.0f) * 0.25f * kPi;
     st.gainL = level * std::cos(a) * width;
@@ -228,10 +265,17 @@ void Engine::updateCell()
             if (depth > 0.0f) pan += depth * static_cast<float>(std::sin(2.0 * 3.14159265358979 * 0.05 * seconds()));
         }
         setStrip(r, s(row::Level, lead::Level), pan, s(row::EchoSend, lead::EchoSend), s(row::ReverbSend, lead::ReverbSend), 1.0f,
-                 row ? played(params_.id(Module::Row, r, row::Echo2Send)) : 0.0f);
+                 row ? played(params_.id(Module::Row, r, row::Echo2Send)) : 0.0f, s(row::Distance, lead::Distance));
         setLowCut(r, s(row::LowCut, lead::LowCut));
     }
 
+    // The slow movements (the addon's 7): micro (under 2 s, a few tenths of a dB on the pads' levels) and meso
+    // (13 to 41 s: the pads' hall sends, the strings' tone, the echo's feedback, the atmosphere's level), with
+    // irrational periods that never lock into the sequence's 8- and 16-bar cycles; foreground and background never
+    // breathe together. On the piece's clock, so the same everywhere; master.motion scales them (0 still).
+    const float motion = knob(Module::Master, master::Motion);
+    const double clock = seconds();
+    auto wave = [&](double period) { return motion * static_cast<float>(std::sin(6.283185307179586 * clock / period)); };
     // The tape keys, the string machine, the drums, the atmosphere.
     TapeSettings ts;
     ts.set = static_cast<TapeSet>(std::clamp(static_cast<int>(std::lround(knob(Module::Tape, tape::Set))), 0, 2));
@@ -243,14 +287,17 @@ void Engine::updateCell()
     ts.age = knob(Module::Tape, tape::Age);
     if (changed(cache_.tape, ts, cache_.valid)) tape_.set(ts);
     strips_[kSrcTape].running = tape_.active();
-    setStrip(kSrcTape, knob(Module::Tape, tape::Level), knob(Module::Tape, tape::Pan), knob(Module::Tape, tape::EchoSend), knob(Module::Tape, tape::ReverbSend));
+    setStrip(kSrcTape, knob(Module::Tape, tape::Level) + 0.3f * wave(1.37) + 0.2f * wave(0.83), knob(Module::Tape, tape::Pan),
+             knob(Module::Tape, tape::EchoSend), std::clamp(knob(Module::Tape, tape::ReverbSend) + 0.08f * wave(13.7), 0.0f, 1.0f),
+             1.0f, 0.0f, knob(Module::Tape, tape::Distance));
+    tapeSpread_ = knob(Module::Tape, tape::Spread);
     setLowCut(kSrcTape, knob(Module::Tape, tape::LowCut));
 
     StringSettings ss;
     ss.attackS = knob(Module::Strings, strings::Attack);
     ss.releaseS = knob(Module::Strings, strings::Release);
     ss.feet = knob(Module::Strings, strings::Feet);
-    ss.toneHz = knob(Module::Strings, strings::Tone);
+    ss.toneHz = knob(Module::Strings, strings::Tone) * std::pow(2.0f, 0.5f * wave(17.3));
     ss.ensemble = knob(Module::Strings, strings::Ensemble);
     ss.registration = knob(Module::Strings, strings::Registration);
     ss.animate = knob(Module::Strings, strings::Animate);
@@ -260,8 +307,9 @@ void Engine::updateCell()
     if (changed(cache_.strings, ss, cache_.valid)) strings_.set(ss);
     strips_[kSrcStrings].running = strings_.active();
     // The ensemble spreads the machine over both sides; the pan law's 3 dB come back with sqrt 2.
-    setStrip(kSrcStrings, knob(Module::Strings, strings::Level), knob(Module::Strings, strings::Pan),
-             knob(Module::Strings, strings::EchoSend), knob(Module::Strings, strings::ReverbSend), 1.41421356f);
+    setStrip(kSrcStrings, knob(Module::Strings, strings::Level) + 0.3f * wave(1.61) + 0.2f * wave(0.97), knob(Module::Strings, strings::Pan),
+             knob(Module::Strings, strings::EchoSend), std::clamp(knob(Module::Strings, strings::ReverbSend) + 0.08f * wave(21.1), 0.0f, 1.0f),
+             1.41421356f, 0.0f, knob(Module::Strings, strings::Distance));
     setLowCut(kSrcStrings, knob(Module::Strings, strings::LowCut));
 
     DrumSettings ds;
@@ -298,7 +346,7 @@ void Engine::updateCell()
         // Stereo already: the strip only sets the level; the echo takes the bleeps (renderSpan).
         Strip& at = strips_[kSrcAtmos];
         at.running = atmos_.active();
-        at.gainL = at.gainR = dbToGain(knob(Module::Atmos, atmos::Level));
+        at.gainL = at.gainR = dbToGain(knob(Module::Atmos, atmos::Level) + 3.0f * wave(41.3));   // a far layer swells by 6 dB
         at.echo = knob(Module::Atmos, atmos::EchoSend);
         at.reverb = knob(Module::Atmos, atmos::ReverbSend);
     }
@@ -311,7 +359,7 @@ void Engine::updateCell()
     EchoSettings es;
     const double bpm = score_.tempo.bpmAt(beat);
     es.delaySeconds = echoTimeBeats(static_cast<EchoTime>(static_cast<int>(knob(Module::Echo, echo::Time)))) * 60.0 / bpm;
-    es.feedback = knob(Module::Echo, echo::Feedback);
+    es.feedback = knob(Module::Echo, echo::Feedback) + 0.04f * wave(29.9);
     if (throwAmount > 0.0f) es.feedback += (0.9f - es.feedback) * throwAmount;
     es.toneHz = knob(Module::Echo, echo::Tone);
     es.wowMs = knob(Module::Echo, echo::Wow);
@@ -350,6 +398,8 @@ void Engine::updateCell()
     hallDuckDb_ = knob(Module::Reverb, reverb::Duck);
     width_ = dbToGain(knob(Module::Master, master::Width));
     mono_ = knob(Module::Master, master::Mono) >= 0.5f;
+    subSolo_ = knob(Module::Master, master::SubSolo) >= 0.5f;
+    cascadeDb_ = knob(Module::Master, master::Cascade);
     plateOn_ = knob(Module::Reverb, reverb::Type) >= 0.5f;
     const float hall[7] = { knob(Module::Reverb, reverb::Size), knob(Module::Reverb, reverb::Decay), knob(Module::Reverb, reverb::Damping),
                             knob(Module::Reverb, reverb::PreDelay) * 0.001f * static_cast<float>(sampleRate_),
@@ -390,9 +440,10 @@ int Engine::takeMeters(float* peak, double* sumSq)
     return n;
 }
 
-void Engine::mix(int source, const float* xl, const float* xr, int n, const Buses& b, bool echoSend)
+void Engine::mix(int source, const float* xl, const float* xr, int n, const Buses& b, bool echoSend, const float* midGain)
 {
     Strip& strip = strips_[source];
+    const bool mono = xl == xr;
     // The strip's low cut first (the production guide's 4.2): every role keeps out of the bands below its own.
     float fl[kCell], fr[kCell];
     if (strip.lowCut > 0.0f) {
@@ -400,6 +451,31 @@ void Engine::mix(int source, const float* xl, const float* xr, int n, const Buse
         for (int i = 0; i < n; ++i) { strip.hpL.tick(xl[i], lo, bo, hp); fl[i] = hp; }
         if (xr == xl) std::copy(fl, fl + n, fr);
         else for (int i = 0; i < n; ++i) { strip.hpR.tick(xr[i], lo, bo, hp); fr[i] = hp; }
+        xl = fl;
+        xr = fr;
+    }
+    // The distance's high loss (the addon's 2).
+    if (strip.lpHz > 0.0f) {
+        for (int i = 0; i < n; ++i) fl[i] = strip.lpL.lp(xl[i]);
+        if (mono) std::copy(fl, fl + n, fr);
+        else for (int i = 0; i < n; ++i) fr[i] = strip.lpR.lp(xr[i]);
+        xl = fl;
+        xr = fr;
+    }
+    // The cascaded duck (the addon's 4): only the band 300 Hz .. 5 kHz steps back, the body and the air stay.
+    if (midGain != nullptr) {
+        float* out[2] = { fl, fr };
+        const float* in[2] = { xl, xr };
+        for (int c = 0; c < (mono ? 1 : 2); ++c) {
+            for (int i = 0; i < n; ++i) {
+                float lo, bp, hp, l2, b2, high;
+                strip.splitLo[c].tick(in[c][i], lo, bp, hp);
+                strip.splitHi[c].tick(in[c][i], l2, b2, high);
+                const float mid = in[c][i] - lo - high;
+                out[c][i] = in[c][i] - (1.0f - midGain[i]) * mid;
+            }
+        }
+        if (mono) std::copy(fl, fl + n, fr);
         xl = fl;
         xr = fr;
     }
@@ -414,6 +490,7 @@ void Engine::mix(int source, const float* xl, const float* xr, int n, const Buse
         b.echo2L[i] += l * strip.echo2;
         b.echo2R[i] += r * strip.echo2;
         if (source < kRows) { b.rowsL[i] += l; b.rowsR[i] += r; }
+        if (source == kSrcStrings || source == kSrcTape) { b.padsL[i] += l; b.padsR[i] += r; }
     }
     if (metering_) {
         // What the strip put into the mix, read again: the sums above are not touched.
@@ -437,7 +514,7 @@ void Engine::mix(int source, const float* xl, const float* xr, int n, const Buse
 void Engine::renderSpan(float* L, float* R, int n)
 {
     float bufL[kCell], bufR[kCell], echoL[kCell], echoR[kCell], hallInL[kCell], hallInR[kCell], echo2L[kCell], echo2R[kCell];
-    float rowsL[kCell] = {}, rowsR[kCell] = {};
+    float rowsL[kCell] = {}, rowsR[kCell] = {}, padsL[kCell] = {}, padsR[kCell] = {};
     std::fill(L, L + n, 0.0f);
     std::fill(R, R + n, 0.0f);
     std::fill(echoL, echoL + n, 0.0f);
@@ -446,7 +523,7 @@ void Engine::renderSpan(float* L, float* R, int n)
     std::fill(hallInR, hallInR + n, 0.0f);
     std::fill(echo2L, echo2L + n, 0.0f);
     std::fill(echo2R, echo2R + n, 0.0f);
-    const Buses b{ L, R, echoL, echoR, hallInL, hallInR, echo2L, echo2R, rowsL, rowsR };
+    const Buses b{ L, R, echoL, echoR, hallInL, hallInR, echo2L, echo2R, rowsL, rowsR, padsL, padsR };
     if (metering_) meterCount_ += n;
 
     // The sources, each through its strip, in a fixed order (the order of the sums is part of the result).
@@ -455,13 +532,52 @@ void Engine::renderSpan(float* L, float* R, int n)
     voices_.process(run, n);
     for (int r = 0; r < kModVoices; ++r)
         if (run[r]) mix(r, voices_.output(r), voices_.output(r), n, b);
+    // The rows' envelope, sample by sample (so the result does not depend on how a block is cut into spans): it ducks
+    // the rooms' returns (the production guide's 5.2, 5.4) and, in their middle band, the pads (the addon's 4). From
+    // -30 dBFS on, fully at -12.
+    float duckAmount[kCell], rowGain[kCell], padGain[kCell];
+    const float casK = -cascadeDb_ * 0.11512925f;   // ln 10 / 20
+    for (int i = 0; i < n; ++i) {
+        const float x = std::max(std::fabs(rowsL[i]), std::fabs(rowsR[i]));
+        duckEnv_ = x + (x > duckEnv_ ? envAttack_ : envRelease_) * (duckEnv_ - x);
+        duckAmount[i] = std::clamp((duckEnv_ - 0.0316f) / (0.2512f - 0.0316f), 0.0f, 1.0f);
+        rowGain[i] = std::exp(casK * duckAmount[i]);
+    }
     if (strips_[kSrcDrums].running) {
         drums_.process(bufL, bufR, n);
         mix(kSrcDrums, bufL, bufR, n, b);
     }
     if (strips_[kSrcStrings].running) {
         strings_.process(bufL, bufR, n);
-        mix(kSrcStrings, bufL, bufR, n, b);
+        mix(kSrcStrings, bufL, bufR, n, b, true, rowGain);
+    }
+    if (strips_[kSrcTape].running) {
+        tape_.process(bufL, n);
+        if (tapeSpread_ > 0.0f) {
+            // The mono keyboard widened by allpass decorrelation (the addon's 6): the side is the direct sound through
+            // a chain of eight first-order all-passes whose phase turns at corners spread over the band, so left and
+            // right differ in phase, not in colour. Their sum is the direct sound alone: nothing changes in mono.
+            // The correlation is about (1 - g^2) / (1 + g^2): 0.34 at the default 0.7, never under 0.
+            const float g = std::clamp(tapeSpread_, 0.0f, 1.0f), norm = 1.0f / std::sqrt(1.0f + g * g);
+            for (int i = 0; i < n; ++i) {
+                float a = bufL[i];
+                for (int s = 0; s < 4; ++s) {
+                    const float ya = apCoefL_[s] * a + apL_[s]; apL_[s] = a - apCoefL_[s] * ya; a = ya;
+                    const float yb = apCoefR_[s] * a + apR_[s]; apR_[s] = a - apCoefR_[s] * yb; a = yb;
+                }
+                bufR[i] = norm * (bufL[i] - g * a);
+                bufL[i] = norm * (bufL[i] + g * a);
+            }
+            mix(kSrcTape, bufL, bufR, n, b, true, rowGain);
+        } else {
+            mix(kSrcTape, bufL, bufL, n, b, true, rowGain);
+        }
+    }
+    // The pads' envelope ducks the atmosphere's middle band in turn.
+    for (int i = 0; i < n; ++i) {
+        const float x = std::max(std::fabs(padsL[i]), std::fabs(padsR[i]));
+        padEnv_ = x + (x > padEnv_ ? envAttack_ : envRelease_) * (padEnv_ - x);
+        padGain[i] = std::exp(casK * std::clamp((padEnv_ - 0.0316f) / (0.2512f - 0.0316f), 0.0f, 1.0f));
     }
     if (strips_[kSrcAtmos].running) {
         // The whole atmosphere goes to the mix and the hall, only its bleeps to the echo.
@@ -470,15 +586,11 @@ void Engine::renderSpan(float* L, float* R, int n)
         std::fill(bufR, bufR + n, 0.0f);
         atmos_.process(bufL, bufR, bleepL, bleepR, n);
         const Strip& at = strips_[kSrcAtmos];
-        mix(kSrcAtmos, bufL, bufR, n, b, false);
+        mix(kSrcAtmos, bufL, bufR, n, b, false, padGain);
         for (int i = 0; i < n; ++i) {
             echoL[i] += bleepL[i] * at.gainL * (0.5f + at.echo + echoThrow_);
             echoR[i] += bleepR[i] * at.gainR * (0.5f + at.echo + echoThrow_);
         }
-    }
-    if (strips_[kSrcTape].running) {
-        tape_.process(bufL, n);
-        mix(kSrcTape, bufL, bufL, n, b);
     }
 
     // The tape echo, its springs, the hall, the master.
@@ -491,15 +603,7 @@ void Engine::renderSpan(float* L, float* R, int n)
         wetL[i] += sprL[i] * springReturn_ / std::max(echoReturn_, 1e-6f);
         wetR[i] += sprR[i] * springReturn_ / std::max(echoReturn_, 1e-6f);
     }
-    // Ducking (the production guide's 5.2, 5.4): the rows' dry signal pushes the echoes' and the hall's returns down
-    // a few dB, so the tails grow in the gaps and step back under the notes: from -30 dBFS on, fully at -12.
-    // Sample by sample, so the result does not depend on how the block is cut into spans.
-    float duckAmount[kCell];
-    for (int i = 0; i < n; ++i) {
-        const float x = std::max(std::fabs(rowsL[i]), std::fabs(rowsR[i]));
-        duckEnv_ = x + (x > duckEnv_ ? envAttack_ : envRelease_) * (duckEnv_ - x);
-        duckAmount[i] = std::clamp((duckEnv_ - 0.0316f) / (0.2512f - 0.0316f), 0.0f, 1.0f);   // -30 .. -12 dBFS
-    }
+    // The rooms' returns ducked by the rows (duckAmount above): the tails grow in the gaps, step back under the notes.
     const float echoK = -echoDuckDb_ * 0.11512925f, hallK = -hallDuckDb_ * 0.11512925f;   // ln 10 / 20
     // The second echo, beside the first.
     float wet2L[kCell] = {}, wet2R[kCell] = {};
@@ -563,7 +667,10 @@ void Engine::renderSpan(float* L, float* R, int n)
         R[i] = m - side;
     }
     comp_.process(L, R, n);
-    limiter_.process(L, R, n);
+    if (limiterOn_) limiter_.process(L, R, n);
+    // Listening: the sub alone (an 80 Hz low pass, the addon's 5), and mono.
+    if (subSolo_)
+        for (int i = 0; i < n; ++i) { L[i] = subL_.lp(L[i]); R[i] = subR_.lp(R[i]); }
     if (mono_)
         for (int i = 0; i < n; ++i) L[i] = R[i] = 0.5f * (L[i] + R[i]);
 }

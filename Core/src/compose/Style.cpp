@@ -80,7 +80,7 @@ const StyleProfile kProfiles[] = {
         .hands = hands(10.0, 16.0),
         .darkness = -0.15f,
         .hallSeconds = 7.5f,
-        .levelDb = 2.0f,
+        .levelDb = 2.8f,
         .grainChance = 0.3f,
     },
     // Melodic: brighter, more rows and chord changes, leads, drums later in the piece, shorter pieces.
@@ -173,7 +173,7 @@ const StyleProfile kProfiles[] = {
         .hands = hands(12.0, 18.0),
         .darkness = -0.08f,
         .hallSeconds = 8.0f,
-        .levelDb = 3.5f,
+        .levelDb = 4.6f,
         .grainChance = 0.7f,
     },
 };

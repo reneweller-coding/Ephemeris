@@ -111,6 +111,8 @@ public:
      *        reading only, the mix is the same to the bit.
      */
     void setStems(float* const* left, float* const* right) { stemL_ = left; stemR_ = right; }
+    /** @brief The true-peak limiter on (default) or off: an archive master without a limiter (the addon's 9). */
+    void setLimiter(bool on) { limiterOn_ = on; }
     /** @brief The score's cue marks (Cue.h), built by load(); the audio thread may read them between loads. */
     const std::vector<CueMark>& cueMarks() const { return cueMarks_; }
 
@@ -150,6 +152,9 @@ private:
         float echo2 = 0.0f;     ///< send into the second echo (the rows)
         float lowCut = 0.0f;    ///< the strip's high pass in Hz, 0 none (the production guide's 4.2)
         Svf hpL, hpR;           ///< its states
+        float lpHz = 0.0f;      ///< the distance's low pass in Hz, 0 none (the addon's distance macro)
+        Svf lpL, lpR;           ///< its states
+        Svf splitLo[2], splitHi[2];   ///< the band 300 Hz .. 5 kHz a cascaded duck works in
     };
     /** @brief The buses of one span: the mix, the echo send, the hall send. */
     struct Buses {
@@ -157,19 +162,22 @@ private:
         float* echoL; float* echoR;     ///< into the tape echo
         float* hallL; float* hallR;     ///< into the hall
         float* echo2L; float* echo2R;   ///< into the second echo
-        float* rowsL; float* rowsR;     ///< the rows' dry sum, which ducks the rooms' returns
+        float* rowsL; float* rowsR;     ///< the rows' dry sum, which ducks the rooms' returns and the pads
+        float* padsL; float* padsR;     ///< the pads' sum (strings, tape keys), which ducks the atmosphere
     };
     void updateCell();
     void renderSpan(float* L, float* R, int n);
     /** @brief A voice's settings from a module laid out like the voice table (voice, lead, drone). */
     VoiceSettings voiceSettings(Module m, int instance, bool vibrato) const;
     /** @brief Level, equal-power pan (times @p width) and sends of strip @p s. */
-    void setStrip(int s, float levelDb, float pan, float echo, float reverb, float width = 1.0f, float echo2 = 0.0f);
+    void setStrip(int s, float levelDb, float pan, float echo, float reverb, float width = 1.0f, float echo2 = 0.0f,
+                  float distance = 0.0f);
     /** @brief The strip's low cut (a second-order Butterworth high pass), @p hz 0 for none. */
     void setLowCut(int s, float hz);
     /** @brief Adds source @p source's output through its strip to the buses (and the meter); @p echoSend false
      *         leaves the echo send alone. */
-    void mix(int source, const float* xl, const float* xr, int n, const Buses& b, bool echoSend = true);
+    void mix(int source, const float* xl, const float* xr, int n, const Buses& b, bool echoSend = true,
+             const float* midGain = nullptr);
 
     ParamStore params_;
     Score score_;
@@ -210,6 +218,11 @@ private:
     bool mono_ = false;
     float duckEnv_ = 0.0f, envAttack_ = 0.0f, envRelease_ = 0.0f;
     float echoDuckDb_ = 0.0f, hallDuckDb_ = 0.0f;
+    // The addon (25.09.2026): the cascaded duck, the tape keys' allpass spread, the sub solo, the limiter switch.
+    float cascadeDb_ = 0.0f, padEnv_ = 0.0f, tapeSpread_ = 0.0f;
+    float apL_[4] = {}, apR_[4] = {}, apCoefL_[4] = {}, apCoefR_[4] = {};
+    bool subSolo_ = false, limiterOn_ = true;
+    Svf subL_, subR_;
     int transpose_ = 0;   ///< perform.transpose at the current cell, for the notes that start
     int tapeSingers_ = kSingers;   ///< setTapeSingers()
     float* const* stemL_ = nullptr;   ///< setStems(), left
@@ -226,7 +239,7 @@ private:
     struct SetCache {
         bool valid = false;                   ///< false: every setter runs at the next cell
         VoiceSettings voice[kModVoices];      ///< ModVoiceBank::set
-        float strip[kSources][6] = {};        ///< setStrip: level, pan, echo, reverb, width, echo 2
+        float strip[kSources][7] = {};        ///< setStrip: level, pan, echo, reverb, width, echo 2, distance
         float lowCut[kSources] = {};          ///< setLowCut
         TapeSettings tape;                    ///< TapeKeys::set
         StringSettings strings;               ///< StringMachine::set

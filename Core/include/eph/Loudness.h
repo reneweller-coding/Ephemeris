@@ -18,6 +18,9 @@
  */
 #pragma once
 #include "eph/fx/Dynamics.h"
+#include <algorithm>
+#include <cmath>
+#include <cstdint>
 #include <vector>
 
 namespace eph {
@@ -34,8 +37,21 @@ struct LoudnessReport {
     double correlationLow = 1.0;    ///< the lowest one-second value (of seconds above -50 dBFS RMS)
     double correlationLowAt = 0.0;  ///< where that second starts, in seconds
     double sideUnderMid = 0.0;      ///< dB the side's energy lies under the mid's
+    double crest = 0.0;             ///< dB: true peak over the RMS (the addon's 9: at least 12 keeps the transients)
     double seconds = 0.0;           ///< how much was measured
 };
+
+/**
+ * @brief The gain of an exported file at sample @p i of @p total (the addon's 9): an S-shaped fade-in over the first
+ *        two seconds and an S-shaped fade-out over the last ten, never linear, so the last tail of the hall fades to
+ *        nothing instead of being cut.
+ */
+inline float exportFade(int64_t i, int64_t total, double sampleRate)
+{
+    const double in = static_cast<double>(i) / (2.0 * sampleRate), out = static_cast<double>(total - i) / (10.0 * sampleRate);
+    const double x = std::min(1.0, std::min(in, out));
+    return static_cast<float>(x >= 1.0 ? 1.0 : 0.5 - 0.5 * std::cos(3.14159265358979 * std::max(0.0, x)));
+}
 
 /** @brief Measures a stereo programme; call process() for every block, then report(). */
 class LoudnessMeter {
