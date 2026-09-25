@@ -84,6 +84,13 @@ Reihen-Bus (`ResonanceTamer`, sechs Bänder Q 2,5, lokale Spitzen 4,5 dB über d
 `master.tame` 0,6). Die Reihen laufen dafür über einen eigenen Bus. Rechenzeit nach Tabelle für die Duck-Gains
 und Leerlauf des Shimmers 7-8 % eines Kerns (vorher 5-6,5). Nicht umgesetzt: der Sub als eigenes Instrument
 (mit dem Nutzer so beschlossen). Selbsttest `testSendsAD`.
+Danach: Sends im Mixer ausklappbar ("Show sends"), Presets für alle Reihen auf einmal, eigene Presets auf den
+Effektseiten (Echo + Spring, Hall; ganze Seite, volle Schlüssel). Harmonik gegen die Referenzaufnahmen gemessen
+(`Tools/analyze_harmony.py`, Ergebnis `Tools/ref_harmony.json`, je Stil sechs Aufnahmen; Grundton des Basses je
+2 s): Cosmic 94 % auf i und 5 von 6 statisch, Melodic Pendel mit III/VI/VII und Akkorden um 3 Takte, Modern,
+Doom und Drift bewegter als angenommen (34 %, 34 %, 25 % auf i; 2-5 Takte je Akkord). Gewichte in `Harmony.cpp`
+halb Guide, halb Messung; Äolisches Pendel mit III gleich häufig wie VI und VII; Melodic ab 2 Takten. Die Modi
+unverändert: die fünfte Harmonische des Basses liest sich als große Terz, dafür ist das Chroma zu grob.
 Auftrag des Nutzers: die String Machine mehr wie Waldorfs Streichfett (Ensemble, Mischung der Register, langsames
 Animieren der Mischung) und den "Harmonie- und Stilguide Moderne Berlin School" (Downloads des Nutzers, Stand
 25.09.2026) umsetzen, soweit sinnvoll. Reihenfolge und Stand:

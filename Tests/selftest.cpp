@@ -955,8 +955,8 @@ void testHarmony()
     }
     check(badDegree == 0 && offBar == 0, "the chord track: from the tonic, on bar lines, no diminished chord",
           fmt("%d bad degrees, %d off the bar", badDegree, offBar));
-    check(statics[static_cast<int>(Style::Drift)] > statics[static_cast<int>(Style::Melodic)] * 2,
-          "Drift stays on one chord far more often than Melodic", fmt("%d against %d of 480", statics[static_cast<int>(Style::Drift)],
+    check(statics[static_cast<int>(Style::Cosmic)] > statics[static_cast<int>(Style::Melodic)] * 3 / 2,
+          "Cosmic stays on one chord far more often than Melodic", fmt("%d against %d of 480", statics[static_cast<int>(Style::Cosmic)],
           statics[static_cast<int>(Style::Melodic)]));
     // The transposer's moves leave the centre inside the moved scale (no fifth up in Lydian).
     bool lydianFifth = false;

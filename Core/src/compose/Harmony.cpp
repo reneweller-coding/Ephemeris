@@ -41,11 +41,13 @@ struct StyleChords {
 const StyleChords& chordsOf(Style style)
 {
     static const StyleChords kStyles[] = {
-        { { 0.35f, 0.30f, 0.20f, 0.15f }, 8, 16, 0.55f },    // Cosmic
-        { { 0.50f, 0.35f, 0.10f, 0.05f }, 8, 32, 0.65f },    // Doom
-        { { 0.15f, 0.25f, 0.40f, 0.20f }, 4, 8, 0.35f },     // Melodic
-        { { 0.55f, 0.30f, 0.10f, 0.05f }, 8, 16, 0.75f },    // Modern
-        { { 0.70f, 0.25f, 0.05f, 0.00f }, 16, 32, 0.80f },   // Drift
+        // Calibrated 25.09.2026: half the style guide's values, half the reference measurement (Tools/analyze_harmony.py,
+        // Tools/ref_harmony.json; six recordings a style, so the measurement is rough and weighs no more than the guide).
+        { { 0.60f, 0.22f, 0.10f, 0.08f }, 8, 16, 0.75f },    // Cosmic: 94 % of the time on i, 5 of 6 static
+        { { 0.25f, 0.43f, 0.27f, 0.05f }, 4, 16, 0.50f },    // Doom: pendulums and loops, chords of about 4.5 bars
+        { { 0.15f, 0.37f, 0.30f, 0.18f }, 2, 8, 0.45f },     // Melodic: mostly pendulums, chords of about 3 bars
+        { { 0.37f, 0.35f, 0.15f, 0.13f }, 4, 16, 0.55f },    // Modern: a third of the time on i, chords of 2 to 4 bars
+        { { 0.35f, 0.45f, 0.20f, 0.00f }, 8, 32, 0.55f },    // Drift: pendulums, chords of about 4 bars
     };
     return kStyles[styleIndex(style)];
 }
@@ -56,7 +58,7 @@ struct Weighted { std::vector<int> degrees; float weight; };
 const std::vector<Weighted>& pendulumsOf(int scale)
 {
     static const std::vector<Weighted> kModes[kScales] = {
-        { { { 6 }, 0.30f }, { { 5 }, 0.25f }, { { 3 }, 0.20f }, { { 4 }, 0.10f }, { { 2 }, 0.15f } },   // Aeolian
+        { { { 6 }, 0.25f }, { { 5 }, 0.25f }, { { 3 }, 0.15f }, { { 4 }, 0.10f }, { { 2 }, 0.25f } },   // Aeolian (III measured as often as VI, VII)
         { { { 3 }, 0.35f }, { { 6 }, 0.30f }, { { 4 }, 0.15f }, { { 2 }, 0.10f }, { { 1 }, 0.10f } },   // Dorian: IV major
         { { { 1 }, 0.50f }, { { 3 }, 0.25f }, { { 6 }, 0.15f }, { { 5 }, 0.10f } },                     // Phrygian: bII
         { { { 5 }, 0.50f }, { { 3 }, 0.50f } },                                                         // Harmonic minor
@@ -206,7 +208,7 @@ std::vector<std::pair<double, int>> drawChordTrack(Style style, int scale, doubl
     if (drawn != nullptr) *drawn = cls;
     // The harmonic rhythm: 4, 8, 16 or 32 bars, inside the style's range.
     std::vector<int> choices;
-    for (int b : { 4, 8, 16, 32 }) if (b >= sc.barsLow && b <= sc.barsHigh) choices.push_back(b);
+    for (int b : { 2, 4, 8, 16, 32 }) if (b >= sc.barsLow && b <= sc.barsHigh) choices.push_back(b);
     const double span = static_cast<double>(choices[static_cast<size_t>(rng.below(static_cast<int>(choices.size())))]) * kBeatsPerBar;
     if (cls == ChordClass::Static || to - from < 2.0 * span) return out;
 

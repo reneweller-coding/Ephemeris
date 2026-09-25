@@ -15,11 +15,17 @@
  *
  * | Style   | Static | Pendulum | Loop | Walk | bars per chord | stays (3.6) |
  * |---------|--------|----------|------|------|----------------|-------------|
- * | Cosmic  | 35 %   | 30 %     | 20 % | 15 % | 8 .. 16        | 55 %        |
- * | Doom    | 50 %   | 35 %     | 10 % |  5 % | 8 .. 32        | 65 %        |
- * | Melodic | 15 %   | 25 %     | 40 % | 20 % | 4 .. 8         | 35 %        |
- * | Modern  | 55 %   | 30 %     | 10 % |  5 % | 8 .. 16        | 75 %        |
- * | Drift   | 70 %   | 25 %     |  5 % |  0 % | 16 .. 32       | 80 %        |
+ * | Cosmic  | 60 %   | 22 %     | 10 % |  8 % | 8 .. 16        | 75 %        |
+ * | Doom    | 25 %   | 43 %     | 27 % |  5 % | 4 .. 16        | 50 %        |
+ * | Melodic | 15 %   | 37 %     | 30 % | 18 % | 2 .. 8         | 45 %        |
+ * | Modern  | 37 %   | 35 %     | 15 % | 13 % | 4 .. 16        | 55 %        |
+ * | Drift   | 35 %   | 45 %     | 20 % |  0 % | 8 .. 32        | 55 %        |
+ *
+ * Calibrated on 25.09.2026 against the reference recordings (Tools/analyze_harmony.py; the bass's pitch class per
+ * two seconds): half the guide's first values, half the measurement -- Cosmic sits 94 % of the time on i, Melodic
+ * swings in pendulums (III, VI, VII after the tonic) with chords of about three bars, Modern, Doom and Drift move
+ * more than the guide assumed. The modes were not changed: the bass's fifth harmonic reads as a major third, so a
+ * chroma this simple cannot tell the minor modes apart.
  *
  * Only degrees whose fifth is perfect are drawn (no diminished chord; the tonic of Locrian excepted), and
  * nothing chromatic: bII exists in Phrygian, where it is a degree of the mode. The composer plays the track

@@ -1,0 +1,215 @@
+{
+ "Cosmic": {
+  "tracks": 6,
+  "tonic_share": 0.9388839484215207,
+  "chord_bars": 5.195,
+  "changes_per_min": 0.8545131169408626,
+  "degrees": {
+   "ii": 0.545,
+   "III": 0.145,
+   "iv": 0.097,
+   "tritone": 0.073,
+   "vii": 0.061,
+   "VII": 0.042,
+   "III+": 0.012,
+   "bII": 0.012,
+   "VI": 0.012
+  },
+  "moves": {
+   "i>ii": 21,
+   "ii>i": 20,
+   "i>III": 8,
+   "III>i": 7,
+   "i>iv": 3,
+   "iv>i": 3,
+   "i>tritone": 3,
+   "vii>i": 2,
+   "tritone>i": 2,
+   "i>vii": 2,
+   "VII>i": 1,
+   "III>III+": 1
+  },
+  "modes": {
+   "Aeolian": 1,
+   "Mixolydian": 1,
+   "Dorian": 1,
+   "Harmonic Minor": 1,
+   "Phrygian": 2
+  },
+  "classes": {
+   "Static": 5,
+   "Pendulum": 1
+  }
+ },
+ "Doom": {
+  "tracks": 6,
+  "tonic_share": 0.34202420068242134,
+  "chord_bars": 4.4625,
+  "changes_per_min": 3.548984771573604,
+  "degrees": {
+   "VII": 0.225,
+   "v": 0.165,
+   "vii": 0.165,
+   "tritone": 0.1,
+   "iv": 0.092,
+   "vi": 0.074,
+   "ii": 0.065,
+   "III": 0.047,
+   "VI": 0.034,
+   "III+": 0.025,
+   "bII": 0.007
+  },
+  "moves": {
+   "v>i": 14,
+   "III>iv": 14,
+   "i>III": 14,
+   "iv>v": 11,
+   "iv>i": 9,
+   "vii>vi": 8,
+   "i>tritone": 7,
+   "vi>vii": 7,
+   "i>VII": 7,
+   "VII>i": 7,
+   "i>v": 7,
+   "tritone>i": 6
+  },
+  "modes": {
+   "Mixolydian": 3,
+   "Lydian": 1,
+   "Dorian": 1,
+   "Phrygian": 1
+  },
+  "classes": {
+   "Loop": 3,
+   "Pendulum": 3
+  }
+ },
+ "Melodic": {
+  "tracks": 6,
+  "tonic_share": 0.666827509142625,
+  "chord_bars": 3.17,
+  "changes_per_min": 4.478362454286875,
+  "degrees": {
+   "III": 0.274,
+   "VI": 0.161,
+   "ii": 0.149,
+   "VII": 0.138,
+   "v": 0.119,
+   "iv": 0.086,
+   "vii": 0.031,
+   "tritone": 0.023,
+   "III+": 0.019
+  },
+  "moves": {
+   "i>VII": 20,
+   "ii>i": 17,
+   "VII>ii": 14,
+   "III>i": 11,
+   "VI>ii": 11,
+   "i>v": 10,
+   "ii>III": 10,
+   "i>VI": 10,
+   "VI>i": 9,
+   "v>i": 8,
+   "i>III": 8,
+   "III>VI": 8
+  },
+  "modes": {
+   "Harmonic Minor": 1,
+   "Mixolydian": 2,
+   "Aeolian": 3
+  },
+  "classes": {
+   "Pendulum": 3,
+   "Loop": 1,
+   "Static": 1,
+   "Walk": 1
+  }
+ },
+ "Modern": {
+  "tracks": 5,
+  "tonic_share": 0.33962264150943394,
+  "chord_bars": 2.3225,
+  "changes_per_min": 5.27027027027027,
+  "degrees": {
+   "ii": 0.189,
+   "III+": 0.167,
+   "III": 0.135,
+   "VII": 0.128,
+   "iv": 0.117,
+   "vi": 0.078,
+   "v": 0.064,
+   "tritone": 0.057,
+   "VI": 0.05,
+   "bII": 0.014
+  },
+  "moves": {
+   "VII>i": 10,
+   "i>ii": 9,
+   "iv>i": 9,
+   "i>iv": 7,
+   "v>VII": 6,
+   "i>v": 5,
+   "i>vi": 5,
+   "tritone>III+": 4,
+   "vi>i": 4,
+   "III>i": 3,
+   "VII>ii": 3,
+   "III+>ii": 3
+  },
+  "modes": {
+   "Aeolian": 3,
+   "Locrian": 1,
+   "Mixolydian": 1
+  },
+  "classes": {
+   "Static": 1,
+   "Pendulum": 2,
+   "Walk": 1,
+   "Loop": 1
+  }
+ },
+ "Drift": {
+  "tracks": 6,
+  "tonic_share": 0.2458804844153266,
+  "chord_bars": 3.9712500000000004,
+  "changes_per_min": 4.583400483481064,
+  "degrees": {
+   "iv": 0.167,
+   "ii": 0.153,
+   "v": 0.149,
+   "vii": 0.148,
+   "III+": 0.111,
+   "VI": 0.097,
+   "bII": 0.076,
+   "vi": 0.043,
+   "tritone": 0.028,
+   "VII": 0.024,
+   "III": 0.003
+  },
+  "moves": {
+   "iv>i": 16,
+   "i>iv": 15,
+   "i>v": 8,
+   "VI>ii": 8,
+   "ii>VI": 6,
+   "i>vii": 5,
+   "v>i": 4,
+   "III+>i": 4,
+   "v>iv": 4,
+   "vi>v": 3,
+   "v>vi": 3,
+   "ii>v": 3
+  },
+  "modes": {
+   "Mixolydian": 2,
+   "Aeolian": 2,
+   "Locrian": 1,
+   "Harmonic Minor": 1
+  },
+  "classes": {
+   "Loop": 2,
+   "Pendulum": 4
+  }
+ }
+}
