@@ -88,7 +88,20 @@ of a mutation at the end of each cycle (a Turing machine's shift register), the 
 sends, and the mode -- notes, or the transposer that moves the others. The composer sets the rows for
 each piece; the values here are what a piece starts from.
 
-== Voices | voice | 3 ==
+== Gestures | | 3 ==
+
+What the player's two hands do to the knobs over the whole piece. Every knob the composer moves has a lane:
+its offset from where you set the knob, as a curve over the piece, from -1 to +1 of the knob's range --
+the filter of the bass row opening towards the peak and closing in the coda, the counter rows' filters,
+the lead's, the echo's feedback thrown now and then, the wind rising and falling in the atmosphere. The
+colour is the hand that moves the knob.
+
+Above the lanes, a bar per hand shows where it is busy. A player has two hands, and the composer keeps to
+that: never more than two knobs move at once, and a hand finishes one move before it starts the next. The
+sections of the piece lie behind the lanes, the playhead runs over them, and a click jumps there. The hands
+can be let go on the Perform page (Hold Hands): every knob then stays where the curve has it.
+
+== Voices | voice | 4 ==
 
 Each row plays its own modular voice: two drifting oscillators (a sawtooth blended into a pulse, the
 second detuned), a mixer driven into a soft saturation, a four-pole transistor ladder at twice the
@@ -99,19 +112,19 @@ The knobs the player's hands move during a piece -- cutoff, resonance, envelope 
 moved by the composer's gestures as offsets from where you set them, so the ranges you choose keep
 their meaning.
 
-== Lead | lead | 4 ==
+== Lead | lead | 5 ==
 
 The lead is the same voice as a row's, with vibrato that comes in over the first half second of a held
 note, as a hand reaches the wheel. It plays in its own section and over the peak: phrases on the
 pentatonic of the moment, chord tones on the strong beats, glides from the tone below, and repeats of
 its own phrases.
 
-== Drone | drone | 5 ==
+== Drone | drone | 6 ==
 
 The drone is the ground under the whole piece: the root, low, held from the start to the fading coda,
 following the key when a phase changes it. It is a modular voice as well and has the lead's table.
 
-== Tape Keys | tape | 6 ==
+== Tape Keys | tape | 7 ==
 
 A tape keyboard, synthesised: every key has its own strip of tape, with its own small detune, level
 and onset lag, played by one capstan whose speed wanders (wow and flutter) and sags a little under
@@ -119,36 +132,36 @@ many keys. A tape runs out after eight seconds, as the instrument's did. Three s
 several singers through the formants of a sung vowel, strings, and flute. Age puts more of the
 machine's character into the sound; the tape set can change between pieces.
 
-== Strings | strings | 7 ==
+== Strings | strings | 8 ==
 
 A string machine of the seventies: top-octave generators divided down into sawtooths at 8' and 4',
 through an ensemble of three bucket-brigade delays swept by a slow and a fast modulation. Keys glide
 from where they were when a chord is stolen, as the machine's did.
 
-== Atmosphere | atmos | 8 ==
+== Atmosphere | atmos | 9 ==
 
 Wind (filtered noise in a moving band), slow sweeps, and bursts of sample-and-hold bleeps on the notes
 of the scale: the space at the start of a piece and in the bridges, and the stars over the builds.
 
-== Echo + Spring | echo spring | 9 ==
+== Echo + Spring | echo spring | 10 ==
 
 A tape echo with a moving read head -- wow, flutter, saturation and loss of highs in the feedback --
 synchronised to the tempo, with a ping-pong option; its feedback can run into self-oscillation, which
 the echo throw uses. Springs are built into it, as in the tape echoes of the time: they take the echo's
 send and return beside it.
 
-== Hall | reverb | 10 ==
+== Hall | reverb | 11 ==
 
 A long, dark hall (an eight-line feedback delay network) with its size, decay, damping, pre-delay and
 the band it returns.
 
-== Drums | drums | 11 ==
+== Drums | drums | 12 ==
 
 A small analogue kit for the styles that have drums: kick, snare, hats, toms tuned to the root, rim and
 shaker, with patterns per style. The drums come late in a piece, from the second build to the end of
 the peak.
 
-== Master | master compose | 12 ==
+== Master | master compose | 13 ==
 
 The master: its level, a gentle bus compressor that keeps the music's dynamics, and a true-peak limiter
 as protection. Below, the composer's settings -- the style, key, scale, tempo, lengths and whether the
