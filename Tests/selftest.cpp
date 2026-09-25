@@ -461,6 +461,40 @@ void testForm()
     check(bad == 0, "every form follows the grammar", fmt("%d of %d bad %s", bad, pieces, why.c_str()));
 }
 
+/** Conjunctions as form boundaries (Form.h): builds end where their row meets the bass row, the grammar holds. */
+void testConjunctions()
+{
+    section("conjunctions as form boundaries");
+    const double bass = 4.0;
+    const std::vector<double> rows = { 13 * 0.25, 7 * 0.5, 9 * 0.25 };   // 13 sixteenths, 7 eighths, 9 sixteenths
+    int bad = 0, builds = 0, onConjunction = 0, moved = 0;
+    for (int st = 0; st < static_cast<int>(Style::Count); ++st) {
+        for (uint64_t seed = 1; seed <= 6; ++seed) {
+            Rng rng;
+            rng.seed(seed);
+            PieceForm f = drawForm(styleProfile(static_cast<Style>(st)), 14.0, 110.0, rng);
+            const double length = f.lengthBeats;
+            moved += snapToConjunctions(f, bass, rows);
+            double at = 0.0;
+            for (const Section& sec : f.sections) {
+                if (std::fabs(sec.beat - at) > 1e-9 || sec.length < 4 * kBeatsPerBar - 1e-9) ++bad;
+                if (std::fmod(sec.beat, kBeatsPerBar) > 1e-9) ++bad;
+                at = sec.beat + sec.length;
+                if (sec.type == SectionType::Build && sec.index < static_cast<int>(rows.size())) {
+                    ++builds;
+                    const double period = sec.index == 0 ? 52.0 : sec.index == 1 ? 28.0 : 36.0;   // lcm with the bass
+                    const double q = sec.length / period;
+                    if (std::fabs(q - std::round(q)) < 1e-9) ++onConjunction;
+                }
+            }
+            if (std::fabs(at - length) > 1e-9) ++bad;
+        }
+    }
+    check(bad == 0, "the form stays whole: no gaps, bars, floors, the same length", fmt("%d problems", bad));
+    check(onConjunction * 2 > builds, "most builds end on a conjunction of their row with the bass",
+          fmt("%d of %d (%d moved)", onConjunction, builds, moved));
+}
+
 /**
  * The composer (Composer.h): the same seed writes the same piece; a piece is as long as asked (to the
  * bar rounding); every note of the rows, the lead, the chords and the drone is in the scale of the root
@@ -689,6 +723,7 @@ const TestSection kSections[] = {
     { "testTapeKeys", testTapeKeys },
     { "testChords", testChords },
     { "testForm", testForm },
+    { "testConjunctions", testConjunctions },
     { "testComposer", testComposer },
     { "testCuration", testCuration },
     { "testBlockSizes", testBlockSizes },

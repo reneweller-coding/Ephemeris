@@ -5,6 +5,7 @@
 #include "eph/compose/Form.h"
 #include <algorithm>
 #include <cmath>
+#include <numeric>
 
 namespace eph {
 
@@ -128,6 +129,38 @@ PieceForm drawForm(const StyleProfile& prof, double minutes, double bpm, Rng& rn
     }
     add(SectionType::Coda, phases - 1, 0, coda, f.phaseBpm.back(), 0.3f, 0.0f);
     return f;
+}
+
+int snapToConjunctions(PieceForm& form, double bassBeats, const std::vector<double>& rowBeats)
+{
+    // Cycles as whole 48ths of a beat: every step length a row can have (down to a sixteenth triplet) is one.
+    auto ticks = [](double beats) { return static_cast<int64_t>(std::llround(beats * 48.0)); };
+    int moved = 0;
+    for (size_t i = 0; i + 1 < form.sections.size(); ++i) {
+        Section& s = form.sections[i];
+        Section& next = form.sections[i + 1];
+        if (s.type != SectionType::Build || s.index >= static_cast<int>(rowBeats.size())) continue;
+        const int64_t a = ticks(bassBeats), b = ticks(rowBeats[static_cast<size_t>(s.index)]);
+        if (a <= 0 || b <= 0) continue;
+        const double period = static_cast<double>(std::lcm(a, b)) / 48.0;
+        const double end = s.beat + s.length;
+        double best = -1.0;
+        for (double k = std::max(1.0, std::floor(s.length / period)); k <= std::ceil(s.length / period); k += 1.0) {
+            const double cand = s.beat + k * period;
+            if (best < 0.0 || std::fabs(cand - end) < std::fabs(best - end)) best = cand;
+        }
+        if (best < 0.0 || std::fabs(best - end) < 1e-9) continue;
+        const double onBar = best / kBeatsPerBar;
+        if (std::fabs(onBar - std::round(onBar)) > 1e-9) continue;   // a section starts on a bar
+        if (std::fabs(best - end) > std::max(2.0 * kBeatsPerBar, 0.25 * s.length)) continue;
+        const double len = best - s.beat, nextLen = next.beat + next.length - best;
+        if (len < minBars(s.type) * kBeatsPerBar || nextLen < minBars(next.type) * kBeatsPerBar) continue;
+        s.length = len;
+        next.beat = best;
+        next.length = nextLen;
+        ++moved;
+    }
+    return moved;
 }
 
 } // namespace eph

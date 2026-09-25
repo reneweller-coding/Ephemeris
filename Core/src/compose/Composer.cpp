@@ -106,16 +106,10 @@ void writeMarkers(Piece& c)
     }
 }
 
-/**
- * @brief Step 2, the rack: a bass row, the profile's counter rows, a transposer on row 8; new patterns
- *        in every phase; rows in through the builds, all at the peak, the counters out in the breakdown,
- *        everything out at the bridge or the coda (the bass a third into the coda).
- */
-void writeRack(Piece& c)
+/** @brief Step 2a, the rows: a bass row, the profile's counter rows, a transposer on row 8. */
+void setUpRows(Piece& c)
 {
     ParamStore& p = c.p;
-    Score& s = c.s;
-    const PieceForm& form = c.form;
     Rng cfg = c.stream(sRows);
     const int counters = c.counters = std::clamp(c.prof.peakRows - 1, 0, kRows - 2);
     std::vector<int> lengths = c.prof.counterLengths;
@@ -138,7 +132,26 @@ void writeRack(Piece& c)
     rowSet(tr, row::Division, static_cast<float>(c.prof.transposerDivision));
     rowSet(tr, row::Length, static_cast<float>(c.prof.transposerLength));
     rowSet(tr, row::Mutation, 0.3f);
+}
 
+/** @brief The cycle of row @p r in beats, as set up. */
+double cycleBeats(const ParamStore& p, int r)
+{
+    return std::clamp(static_cast<int>(p.get(p.id(Module::Row, r, row::Length))), 1, kMaxSteps)
+         * rowDivisionBeats(static_cast<RowDivision>(static_cast<int>(p.get(p.id(Module::Row, r, row::Division)))));
+}
+
+/**
+ * @brief Step 2b, the rack: new patterns in every phase; rows in through the builds, all at the peak, the
+ *        counters out in the breakdown, everything out at the bridge or the coda (the bass a third into the coda).
+ */
+void writeRack(Piece& c)
+{
+    ParamStore& p = c.p;
+    Score& s = c.s;
+    const PieceForm& form = c.form;
+    const int counters = c.counters;
+    const int tr = kRows - 1;
     Rack rack;
     rack.setup(p, c.seedOf(sRack));
     std::vector<double>& rowFrom = c.rowFrom;
@@ -381,7 +394,7 @@ Score composePiece(const ParamStore& params, uint64_t seed, double minutes, int 
         bpm = std::round(prof.bpmLow + (prof.bpmHigh - prof.bpmLow) * t.uniform());
     }
     Rng formRng = stream(sForm);
-    const PieceForm form = drawForm(prof, minutes, bpm, formRng);
+    PieceForm form = drawForm(prof, minutes, bpm, formRng);
 
     Score s;
     s.clear(form.phaseBpm[0]);
@@ -392,8 +405,13 @@ Score composePiece(const ParamStore& params, uint64_t seed, double minutes, int 
     c.key = key;
     c.phases = static_cast<int>(form.phaseBpm.size());
     c.seedOf = seedOf;
+    setUpRows(c);         // step 2a
+    // The builds end where the row they bring in meets the bass row again (Form.h).
+    std::vector<double> cycles;
+    for (int k = 0; k < c.counters; ++k) cycles.push_back(cycleBeats(p, k + 1));
+    snapToConjunctions(form, cycleBeats(p, 0), cycles);
     writeMarkers(c);
-    writeRack(c);         // step 2
+    writeRack(c);         // step 2b
     writeLayers(c);       // step 3
     writeAtmosphere(c);   // step 4
     writeSettings(c);     // step 5

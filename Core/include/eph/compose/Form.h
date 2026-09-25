@@ -15,6 +15,10 @@
  *
  * Every section carries the energy at its start and its end (0..1): the arc the hands, the layers and
  * the lead follow (PLAN 6.8).
+ *
+ * **Conjunctions** (PLAN 6.2, snapToConjunctions()): once the rows are set up, a build -- which brings
+ * in a counter row -- ends where that row and the bass row begin their cycles together again, if such
+ * a bar is near its drawn end. The change then falls where the ear hears the pattern come round.
  */
 #pragma once
 #include "eph/Dsp.h"
@@ -60,5 +64,20 @@ struct PieceForm {
  * @param rng     the form's stream
  */
 PieceForm drawForm(const StyleProfile& profile, double minutes, double bpm, Rng& rng);
+
+/**
+ * @brief Moves the end of every build onto a conjunction of the counter row it brings in with the bass row.
+ *
+ * The k-th build of a phase starts the k-th counter row (Composer.cpp); both then begin their cycles
+ * together every lcm(bass cycle, row cycle) beats from the build's start. The build's end moves to the
+ * nearest such beat if it lies within a quarter of the build (at least two bars) of the drawn end, and
+ * the section after it gives or takes the difference; a section never falls under its floor, and every
+ * other boundary stays where it was.
+ * @param form      the form
+ * @param bassBeats the bass row's cycle in beats
+ * @param rowBeats  the counter rows' cycles in beats, in the order they come in
+ * @return the number of builds moved
+ */
+int snapToConjunctions(PieceForm& form, double bassBeats, const std::vector<double>& rowBeats);
 
 } // namespace eph

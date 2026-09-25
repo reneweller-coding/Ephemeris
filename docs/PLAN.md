@@ -156,8 +156,12 @@ Gebaut:
 Noch offen aus Phase 4:
 - **Composer-Thread und Ereignisring**: Die Engine bekommt die Partitur weiter als Ganzes; im Plugin wird
   sie außerhalb des Audio-Threads geladen (Phase 5).
-- **Konjunktionen als Formgrenzen** (6.2): Abschnittsgrenzen liegen auf Takten, noch nicht bevorzugt dort,
-  wo die Reihen wieder zusammenfallen.
+- ~~**Konjunktionen als Formgrenzen** (6.2)~~ erledigt am 25.09.2026: Ein Aufbau endet dort, wo die
+  Gegenreihe, die er hereinbringt, und die Bassreihe ihren Zyklus wieder gemeinsam beginnen (kgV der
+  Zyklen, bei 13 Sechzehnteln gegen 16 alle 13 Takte), wenn das nahe am gezogenen Ende liegt (ein Viertel
+  des Aufbaus, mindestens zwei Takte); der folgende Abschnitt gleicht aus (`snapToConjunctions`, Form.h).
+  Selbsttest: 107 von 112 Aufbauten (fünf Stile, sechs Seeds) enden auf einer Konjunktion, die Form bleibt
+  lückenlos, auf Takten, über ihren Mindestlängen und gleich lang.
 - **Kalibrierung**: Tempo und Reihenlängen der Referenzen brauchen ein besseres Messverfahren
   (Tempogramm); die Schichtwahrscheinlichkeiten und Längen sind Setzungen.
 
