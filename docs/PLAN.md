@@ -27,6 +27,33 @@ umgesetzt (die Einträge darunter); offen ist, was einen Menschen, eine Installa
 5. ~~Kleinere Ideen aus 8.1~~ erledigt am 25.09.2026 (siehe unten): eigener Stil, Platte und BBD, Granular,
    Spannungsbogen über ein Konzert.
 
+**In Arbeit (25.09.2026, nachmittags): String Machine nach dem Vorbild Streichfett, Stilguide umsetzen.**
+Auftrag des Nutzers: die String Machine mehr wie Waldorfs Streichfett (Ensemble, Mischung der Register, langsames
+Animieren der Mischung) und den "Harmonie- und Stilguide Moderne Berlin School" (Downloads des Nutzers, Stand
+25.09.2026) umsetzen, soweit sinnvoll. Reihenfolge und Stand:
+1. **String Machine**: Register 16' Säge, 8' Säge, 4' Säge, 8' Rechteck, 4' Rechteck je Taste (Divide-down);
+   `strings.registration` 0..7 morpht stufenlos durch acht Registrierungen (Violins, Violas, Cellos, Basses,
+   Full, Hollow, Brass, Organ; je Mischung und Klangfarbe); `strings.animate` und `strings.animate_rate`: ein
+   langsamer LFO bewegt die Registrierung (die "animierte Mischung"); `strings.ensemble_type` (Solina, Chorus,
+   Wide); `strings.phaser` (vierstufig, langsamer LFO, stereo versetzt); `strings.feet` wird zur Balance der
+   Fußlagen. Die Hände des Komponisten dürfen die Registrierung langsam bewegen.
+2. **Harmonik nach Guide 3.x**: Akkordspur über dem Zentrum (Klassen A Statik, B Pendel, C Schleife, D
+   Bass-Umdeutung; Markov-Tabelle 3.6; harmonischer Rhythmus 8-32 Takte, je Stil); die Bassreihe folgt der
+   Akkordstufe diatonisch, die Gegenreihen bleiben (Bass-Umdeutung), der Bordun bleibt auf dem Zentrum;
+   Akkordvokabular 3.4 (Quinte, Moll, sus2/4, madd9, Quartschichtung, VI/VII/III Dur; keine Dur-Tonika, kein
+   Leitton-V7) mit Stimmführung 3.9; der Transposer nur noch als Sequenzer-Transposition +7/+5/-3 in Plateau
+   und Höhepunkt (Kette Tonika-Quinte-Tonika-Quarte-Tonika, 4-16 Takte); paralleler Moduswechsel im
+   Höhepunkt (Äolisch -> Dorisch); Schluss auf offener Quinte; weitere Modi (Mixolydisch, Lydisch, Lokrisch).
+3. **Sequencing nach Guide 4.x**: Archetypen (Oktavpendel, Quintanker, Treppe auf/ab, Kanon, 3+1, dorischer
+   Farbtupfer, phrygischer Stoß, Arpeggio-Spirale), 3-5 Tonhöhen, Schritt 1 Grundton oder Quinte, 1-3 Pausen
+   je 8, Akzente 1 und 5, Schrittzahlen 8/16/12/ungerade; Ratchets (nur Plateau und Höhepunkt), Puls-
+   Verdopplung im Höhepunkt, Wahrscheinlichkeits-Gates, im Abbau verliert die Sequenz Schritte.
+4. **Form, Raum, Lead**: Intro-Anteile (Melodic mindestens 12 %), Schlagzeug nach 45 % und vor 90 %, Echo-
+   Rückkopplung u-förmig (hoch in Atmosphäre und Ausklang, niedrig im Höhepunkt), Bass trocken, Pads mit Hall
+   ohne Echo; Lead-Phrasen 4-8 Takte, Pausen 2-4, enden auf Quinte oder kleiner Terz, dorische Sexte als
+   Farbe, leicht hinter dem Schlag.
+Jeder Schritt mit Selbsttest, neuen Referenz-Hashes und Commit.
+
 **25.09.2026: Eigener Stil, Platte und BBD, Granular, Konzertbogen.**
 - **Eigener Stil** (Modul `custom`, Style-Tab): alle Zahlen eines Profils als Parameter, "Copy <Stil> into
   Custom" als Ausgangspunkt, "Use Custom Style" schaltet ihn ein; Reihenlängen, Transposer, Tape-Satz und
