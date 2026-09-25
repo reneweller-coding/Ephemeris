@@ -443,6 +443,8 @@ Score composeConcert(const ParamStore& p, uint64_t seed, double minutes, const C
     const Style from = static_cast<Style>(p.getInt(styleId));
     const int morph = p.getInt(p.id(Module::Compose, 0, compose::MorphTo)) - 1;
     const bool morphing = morph >= 0 && morph < static_cast<int>(Style::Count) && morph != static_cast<int>(from);
+    const float arc = p.get(p.id(Module::Compose, 0, compose::ConcertArc));
+    const bool shaped = morphing || arc > 0.0f;
     ParamStore q;   // the concert's own copy: a morphing concert changes compose.style from piece to piece
     q.copyValuesFrom(p);
     StyleProfile prof = styleProfile(from);
@@ -452,18 +454,20 @@ Score composeConcert(const ParamStore& p, uint64_t seed, double minutes, const C
     double elapsed = 0.0;
     int shift = 0;
     for (int i = 0; elapsed < minutes * 60.0 - 90.0 && i < 64; ++i) {
-        if (morphing) {
-            // The profile at the share of the concert already played; the nearer style for the drums.
+        if (shaped) {
+            // The profile at the share of the concert already played: between the two styles (the nearer one's
+            // drums), then along the arc of tension.
             const float t = static_cast<float>(elapsed / (minutes * 60.0));
-            prof = morphProfile(styleProfile(from), styleProfile(static_cast<Style>(morph)), t);
-            q.set(styleId, static_cast<float>(t < 0.5f ? static_cast<int>(from) : morph));
+            prof = morphing ? morphProfile(styleProfile(from), styleProfile(static_cast<Style>(morph)), t) : styleProfile(from);
+            if (morphing) q.set(styleId, static_cast<float>(t < 0.5f ? static_cast<int>(from) : morph));
+            prof = arcProfile(prof, concertArc(t) - 0.5f, arc);
         }
         const double left = minutes - elapsed / 60.0;
         double m = prof.minutesLow + (prof.minutesHigh - prof.minutesLow) * r.uniform();
         if (left - m < prof.minutesLow * 0.6) m = left;   // no short piece at the end: the last takes the rest
         m = std::max(4.0, m);
         Score piece = composePiece(q, mixSeed(seed, 1000 + static_cast<uint64_t>(i)), m, shift, curation,
-                                   "piece" + std::to_string(i + 1) + ".", morphing ? &prof : nullptr);
+                                   "piece" + std::to_string(i + 1) + ".", shaped ? &prof : nullptr);
         for (Marker& mk : piece.markers) mk.text = "Stueck " + std::to_string(i + 1) + ": " + mk.text;
         if (i == 0) { out = piece; out.rootShifts.clear(); out.lengthBeats = 0.0; out.notes.clear(); out.gestures.clear();
                       out.rack.clear(); out.markers.clear(); out.rowShapes.clear(); }

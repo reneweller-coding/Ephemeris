@@ -55,6 +55,7 @@ const ParamDesc kComposeParams[compose::Count] = {
     { "style_tempo",   "Style Tempo",   "",      0.0f,   1.0f,   1.0f, Curve::Toggle },
     { "concert_minutes", "Concert Length", "min", 0.0f, 240.0f,  0.0f, Curve::Linear },
     { "morph_to",      "Morph To",      "",      0.0f,   5.0f,   0.0f, Curve::Choice, kMorphNames },
+    { "concert_arc",   "Concert Arc",   "",      0.0f,   1.0f,   0.0f, Curve::Linear },
 };
 
 const ParamDesc kRowParams[row::Count] = {

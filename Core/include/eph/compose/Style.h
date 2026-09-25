@@ -63,4 +63,15 @@ const StyleProfile& styleProfile(Style style);
  */
 StyleProfile morphProfile(const StyleProfile& a, const StyleProfile& b, float t);
 
+/** @brief Where a concert's arc of tension stands at @p t (0..1 of the concert): 0 at the ends, 1 at 60 %. */
+float concertArc(float t);
+
+/**
+ * @brief A profile moved along a concert's arc of tension (compose.concert_arc): @p tension from -0.5 (the
+ *        quiet ends) to +0.5 (the height), times @p strength (0..1). Towards the height: more rows at the peak,
+ *        the layers and the lead more likely and denser, faster hands, a brighter sound, a few per cent more
+ *        tempo; towards the ends the other way. At tension or strength 0 the profile itself.
+ */
+StyleProfile arcProfile(const StyleProfile& p, float tension, float strength);
+
 } // namespace eph

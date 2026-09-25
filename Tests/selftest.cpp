@@ -525,6 +525,12 @@ void testMorph()
     auto between = [](float x, float lo, float hi) { return x >= std::min(lo, hi) && x <= std::max(lo, hi); };
     const bool middle = between(mh.bpmLow, a.bpmLow, b.bpmLow) && between(mh.hallSeconds, a.hallSeconds, b.hallSeconds)
                      && between(mh.drumsChance, a.drumsChance, b.drumsChance) && mh.phasesHigh >= mh.phasesLow;
+    const StyleProfile flat = arcProfile(a, 0.3f, 0.0f), high = arcProfile(a, 0.5f, 1.0f), low = arcProfile(a, -0.5f, 1.0f);
+    const bool arc = flat.peakRows == a.peakRows && flat.leadChance == a.leadChance
+                  && high.peakRows > low.peakRows && high.leadChance > low.leadChance && high.bpmHigh > low.bpmHigh
+                  && concertArc(0.0f) < 0.01f && concertArc(1.0f) < 0.01f && concertArc(0.6f) > 0.99f;
+    check(arc, "the concert's arc: nothing at strength 0, denser at the height than at the ends, its peak at 60 %",
+          fmt("rows %d / %d, lead %.2f / %.2f", low.peakRows, high.peakRows, static_cast<double>(low.leadChance), static_cast<double>(high.leadChance)));
     check(ends && middle, "the ends are the two profiles, the middle lies between them",
           fmt("bpm %.0f-%.0f / %.0f-%.0f / %.0f-%.0f", static_cast<double>(m0.bpmLow), static_cast<double>(m0.bpmHigh),
               static_cast<double>(mh.bpmLow), static_cast<double>(mh.bpmHigh), static_cast<double>(m1.bpmLow), static_cast<double>(m1.bpmHigh)));

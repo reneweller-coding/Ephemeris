@@ -31,7 +31,9 @@ Style, key and scale choose the piece's character: Cosmic, Doom, Melodic, Modern
 style profiles with their own tempi, forms, layers and spaces. Piece min is the length of one piece;
 Concert min above zero strings pieces together into a concert that travels through related keys. With
 Morph To (on the Master page) a concert also wanders from its style to another: each piece is composed
-between the two, the further into the concert the nearer the second.
+between the two, the further into the concert the nearer the second. Concert Arc gives a concert an arc
+of tension: its first and last pieces quieter -- fewer rows at the peak, the lead and the drums rarer, the
+hands slower, the sound a little darker -- and the pieces around 60 % of the way the densest.
 Compose writes a piece with the current seed, New seed draws another one, Play starts and stops the
 standalone (in a host the host's transport plays).
 

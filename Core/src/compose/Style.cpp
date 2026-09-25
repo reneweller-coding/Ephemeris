@@ -218,4 +218,34 @@ StyleProfile morphProfile(const StyleProfile& a, const StyleProfile& b, float t)
     return m;
 }
 
+float concertArc(float t)
+{
+    // A raised sine whose peak is moved from the middle to 60 %: sin(pi t^e) with 0.6^e = 0.5.
+    t = std::clamp(t, 0.0f, 1.0f);
+    const float e = std::log(0.5f) / std::log(0.6f);
+    return std::sin(3.14159265f * std::pow(t, e));
+}
+
+StyleProfile arcProfile(const StyleProfile& p, float tension, float strength)
+{
+    const float x = std::clamp(tension, -0.5f, 0.5f) * std::clamp(strength, 0.0f, 1.0f);
+    if (x == 0.0f) return p;
+    StyleProfile m = p;
+    auto chance = [x](float c, float amount) { return std::clamp(c + amount * x, 0.0f, 1.0f); };
+    m.peakRows = std::clamp(p.peakRows + static_cast<int>(std::lround(2.0f * x)), 1, kRows - 1);
+    m.bpmLow = p.bpmLow * (1.0f + 0.06f * x);
+    m.bpmHigh = p.bpmHigh * (1.0f + 0.06f * x);
+    m.tapeChance = chance(p.tapeChance, 0.3f);
+    m.stringsChance = chance(p.stringsChance, 0.3f);
+    m.leadChance = chance(p.leadChance, 0.4f);
+    m.bleepChance = chance(p.bleepChance, 0.3f);
+    m.drumsChance = p.drumsChance > 0.0f ? chance(p.drumsChance, 0.4f) : 0.0f;   // a style without drums stays without
+    m.leadIntensity = std::clamp(p.leadIntensity + 0.3f * x, 0.1f, 1.0f);
+    m.mutation = std::clamp(p.mutation + 0.1f * x, 0.0f, 1.0f);
+    m.darkness = p.darkness + 0.15f * x;
+    m.hands.medianSeconds = p.hands.medianSeconds * (1.0 - 0.3 * static_cast<double>(x));
+    m.hands.restSeconds = p.hands.restSeconds * (1.0 - 0.3 * static_cast<double>(x));
+    return m;
+}
+
 } // namespace eph

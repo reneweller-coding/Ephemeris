@@ -82,8 +82,9 @@ namespace compose {
 enum : int { Bpm, Key, Scale, Style, PieceMinutes,
              // Phase 4: the profile draws the tempo (off: compose.bpm), and a concert's length (0: one piece).
              StyleTempo, ConcertMinutes,
-             // Phase 5: a concert that wanders from its style to another (0: none, else the style + 1).
-             MorphTo, Count };
+             // Phase 5: a concert that wanders from its style to another (0: none, else the style + 1), and the
+             // strength of the arc of tension over a whole concert (0: none).
+             MorphTo, ConcertArc, Count };
 }
 /** @brief Parameters of one row of the sequencer rack (module Row, "row1" .. "row8"). */
 namespace row {

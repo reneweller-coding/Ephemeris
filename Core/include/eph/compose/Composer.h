@@ -52,7 +52,8 @@ Score composePiece(const ParamStore& p, uint64_t seed, double minutes, int keySh
 /**
  * @brief Writes a concert of pieces, @p minutes long in all. With compose.morph_to it wanders from compose.style
  *        to that style: each piece is composed with the profile at the share of the concert already played
- *        (morphProfile), and takes the nearer style's drum patterns.
+ *        (morphProfile), and takes the nearer style's drum patterns. With compose.concert_arc the pieces follow an
+ *        arc of tension over the whole concert (concertArc, arcProfile): quiet at the ends, densest at 60 %.
  */
 Score composeConcert(const ParamStore& p, uint64_t seed, double minutes, const Curation* curation = nullptr);
 
