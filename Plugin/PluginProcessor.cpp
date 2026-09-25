@@ -204,11 +204,23 @@ void EphemerisProcessor::arrangement(std::vector<Marker>& markers, double& lengt
     seconds = current_.tempo.secondsAt(current_.lengthBeats);
 }
 
+void EphemerisProcessor::takeChannelMeters(float* peak, float* rms)
+{
+    const int n = meterCount_.exchange(0, std::memory_order_acquire);
+    for (int c = 0; c < eph::Engine::kChannels; ++c) {
+        const size_t k = static_cast<size_t>(c);
+        peak[c] = meterPeak_[k].exchange(0.0f, std::memory_order_relaxed);
+        const double s = meterSum_[k].exchange(0.0, std::memory_order_relaxed);
+        rms[c] = n > 0 ? static_cast<float>(std::sqrt(s / n)) : 0.0f;
+    }
+}
+
 void EphemerisProcessor::prepareToPlay(double sampleRate, int samplesPerBlock)
 {
     sampleRate_ = sampleRate;
     blockSize_ = samplesPerBlock;
     engine_.prepare(sampleRate, samplesPerBlock);
+    engine_.setMetering(true);   // reading only: the mix is the same to the bit (Engine.h)
     if (const char* secs = std::getenv("EPH_PLAY"); secs != nullptr && std::getenv("EPH_RECORD") != nullptr) {
         recordTarget_ = static_cast<size_t>(std::atof(secs) * sampleRate) * 2;
         record_.assign(recordTarget_, 0.0f);
@@ -251,6 +263,21 @@ void EphemerisProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::Mi
     }
     engine_.process(buffer.getWritePointer(0), buffer.getWritePointer(1), n);
     position_ = engine_.beat();
+    {
+        // The channel meters: raised here, taken by the mixer page (takeChannelMeters). One writer, so a load and a
+        // store will do; a block the editor takes in between is at worst counted in the next reading.
+        float pk[eph::Engine::kChannels];
+        double ss[eph::Engine::kChannels];
+        const int got = engine_.takeMeters(pk, ss);
+        if (got > 0) {
+            for (int c = 0; c < eph::Engine::kChannels; ++c) {
+                const size_t k = static_cast<size_t>(c);
+                if (pk[c] > meterPeak_[k].load(std::memory_order_relaxed)) meterPeak_[k].store(pk[c], std::memory_order_relaxed);
+                meterSum_[k].store(meterSum_[k].load(std::memory_order_relaxed) + ss[c], std::memory_order_relaxed);
+            }
+            meterCount_.fetch_add(got, std::memory_order_release);
+        }
+    }
     if (recordTarget_ > 0) {
         const float* l = buffer.getReadPointer(0);
         const float* r = buffer.getReadPointer(1);

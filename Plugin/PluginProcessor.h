@@ -20,6 +20,7 @@
 #include "eph/SetFile.h"
 #include <juce_audio_processors/juce_audio_processors.h>
 #include <juce_audio_utils/juce_audio_utils.h>
+#include <array>
 #include <atomic>
 #include <memory>
 #include <mutex>
@@ -84,6 +85,11 @@ public:
      */
     bool recordingDone() const { return recordTarget_ > 0 && recordPos_.load() >= recordTarget_; }
     void writeRecording();                            ///< writes the recording (message thread)
+    /**
+     * @brief The channel meters since the last call (message thread): per eph::Engine channel the peak and the RMS
+     *        of what it put into the mix, 0 where nothing was played.
+     */
+    void takeChannelMeters(float* peak, float* rms);
 
     eph::ParamStore& store() { return engine_.params(); }   ///< the engine's parameters
     /** @brief The host parameter of store id @p id, or null. */
@@ -131,4 +137,7 @@ private:
     size_t recordTarget_ = 0;
     std::atomic<size_t> recordPos_{ 0 };
     bool autoPlay_ = false;
+    std::array<std::atomic<float>, eph::Engine::kChannels> meterPeak_{};   ///< audio thread raises, the editor takes (exchange 0)
+    std::array<std::atomic<double>, eph::Engine::kChannels> meterSum_{};   ///< sums of squares since the editor last took them
+    std::atomic<int> meterCount_{ 0 };                                      ///< samples in those sums
 };

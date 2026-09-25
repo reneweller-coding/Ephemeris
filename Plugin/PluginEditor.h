@@ -4,12 +4,14 @@
  *
  * Top: style, key, scale, lengths, compose, a new seed, play; a row of rerolls (one per unit of
  * SetFile.h) and the files; the arrange view -- the sections of the piece as blocks, the playhead,
- * click to jump. Below: a tab per part of the instrument, generated from the parameter tables (the
- * rows and the voices with a selector for the instance), as in Noctuary and Phosphene, so a parameter
- * that exists is on the panel without anyone writing it there.
+ * click to jump. Below: the mixer (EditorMixer.h: a strip per source with its meter), then a tab per
+ * part of the instrument, generated from the parameter tables (the rows and the voices with a selector
+ * for the instance), as in Noctuary and Phosphene, so a parameter that exists is on the panel without
+ * anyone writing it there.
  *
  * `EPH_SHOT` (a PNG file) and `EPH_TAB` (a tab index) render the panel into a picture after the first piece is
- * composed and quit the standalone -- how the layout is checked without a person looking.
+ * composed and quit the standalone -- how the layout is checked without a person looking. `EPH_SHOT_AT` (a beat)
+ * jumps there first; with `EPH_PLAY` set, the mixer's meters then show that place of the piece.
  */
 #pragma once
 #include "PluginProcessor.h"

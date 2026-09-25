@@ -3,6 +3,7 @@
  * @brief The plugin's panel.
  */
 #include "PluginEditor.h"
+#include "EditorMixer.h"
 #include "eph/compose/Composer.h"
 #include <cstdlib>
 
@@ -209,6 +210,7 @@ EphemerisEditor::EphemerisEditor(EphemerisProcessor& p) : juce::AudioProcessorEd
     auto page = [&](const char* name, std::vector<std::pair<M, int>> groups, int instances) {
         tabs_.addTab(name, kPanel, new ParamPage(proc_, std::move(groups), instances), true);
     };
+    tabs_.addTab("Mixer", kPanel, new MixerConsole(proc_), true);
     page("Rows", { { M::Row, 0 } }, kRows);
     page("Voices", { { M::Voice, 0 } }, kRows);
     page("Lead", { { M::Lead, 0 } }, 1);
@@ -282,6 +284,9 @@ void EphemerisEditor::timerCallback()
         return;
     }
     // The screenshot mode: wait for the first piece, then draw the panel into a file and quit.
+    // EPH_SHOT_AT (a beat) moves the playhead there first, so the picture can show the middle of a piece.
+    if (shotPath_.isNotEmpty() && !proc_.isComposing() && shotTicks_ == 0)
+        if (const char* at = std::getenv("EPH_SHOT_AT")) proc_.seekTo(std::atof(at));
     if (shotPath_.isNotEmpty() && !proc_.isComposing() && ++shotTicks_ > 20) {
         const juce::Image img = createComponentSnapshot(getLocalBounds());
         juce::File f(shotPath_);

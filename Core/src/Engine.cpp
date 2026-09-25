@@ -241,8 +241,30 @@ void Engine::updateCell()
     limiter_.set(knob(Module::Master, master::Ceiling), 150.0f);
 }
 
-void Engine::mix(const Strip& strip, const float* xl, const float* xr, int n, const Buses& b, bool echoSend)
+const char* Engine::channelName(int c)
 {
+    static_assert(kChannels == kSources, "a meter per source");
+    static const char* const names[kChannels] = { "Row 1", "Row 2", "Row 3", "Row 4", "Row 5", "Row 6", "Row 7", "Row 8",
+                                                  "Lead", "Drone", "Tape Keys", "Strings", "Drums", "Atmosphere" };
+    return c >= 0 && c < kChannels ? names[c] : "";
+}
+
+int Engine::takeMeters(float* peak, double* sumSq)
+{
+    for (int c = 0; c < kChannels; ++c) {
+        peak[c] = meterPeak_[c];
+        sumSq[c] = meterSum_[c];
+        meterPeak_[c] = 0.0f;
+        meterSum_[c] = 0.0;
+    }
+    const int n = meterCount_;
+    meterCount_ = 0;
+    return n;
+}
+
+void Engine::mix(int source, const float* xl, const float* xr, int n, const Buses& b, bool echoSend)
+{
+    const Strip& strip = strips_[source];
     for (int i = 0; i < n; ++i) {
         const float l = xl[i] * strip.gainL, r = xr[i] * strip.gainR;
         b.L[i] += l;
@@ -250,6 +272,18 @@ void Engine::mix(const Strip& strip, const float* xl, const float* xr, int n, co
         if (echoSend) { b.echoL[i] += l * strip.echo; b.echoR[i] += r * strip.echo; }
         b.hallL[i] += l * strip.reverb;
         b.hallR[i] += r * strip.reverb;
+    }
+    if (metering_) {
+        // What the strip put into the mix, read again: the sums above are not touched.
+        float peak = meterPeak_[source];
+        double sum = meterSum_[source];
+        for (int i = 0; i < n; ++i) {
+            const float l = xl[i] * strip.gainL, r = xr[i] * strip.gainR;
+            peak = std::max(peak, std::max(std::fabs(l), std::fabs(r)));
+            sum += 0.5 * (static_cast<double>(l) * l + static_cast<double>(r) * r);
+        }
+        meterPeak_[source] = peak;
+        meterSum_[source] = sum;
     }
 }
 
@@ -263,20 +297,21 @@ void Engine::renderSpan(float* L, float* R, int n)
     std::fill(hallInL, hallInL + n, 0.0f);
     std::fill(hallInR, hallInR + n, 0.0f);
     const Buses b{ L, R, echoL, echoR, hallInL, hallInR };
+    if (metering_) meterCount_ += n;
 
     // The sources, each through its strip, in a fixed order (the order of the sums is part of the result).
     bool run[kModVoices];
     for (int r = 0; r < kModVoices; ++r) run[r] = strips_[r].running;
     voices_.process(run, n);
     for (int r = 0; r < kModVoices; ++r)
-        if (run[r]) mix(strips_[r], voices_.output(r), voices_.output(r), n, b);
+        if (run[r]) mix(r, voices_.output(r), voices_.output(r), n, b);
     if (strips_[kSrcDrums].running) {
         drums_.process(bufL, bufR, n);
-        mix(strips_[kSrcDrums], bufL, bufR, n, b);
+        mix(kSrcDrums, bufL, bufR, n, b);
     }
     if (strips_[kSrcStrings].running) {
         strings_.process(bufL, bufR, n);
-        mix(strips_[kSrcStrings], bufL, bufR, n, b);
+        mix(kSrcStrings, bufL, bufR, n, b);
     }
     if (strips_[kSrcAtmos].running) {
         // The whole atmosphere goes to the mix and the hall, only its bleeps to the echo.
@@ -285,7 +320,7 @@ void Engine::renderSpan(float* L, float* R, int n)
         std::fill(bufR, bufR + n, 0.0f);
         atmos_.process(bufL, bufR, bleepL, bleepR, n);
         const Strip& at = strips_[kSrcAtmos];
-        mix(at, bufL, bufR, n, b, false);
+        mix(kSrcAtmos, bufL, bufR, n, b, false);
         for (int i = 0; i < n; ++i) {
             echoL[i] += bleepL[i] * at.gainL * (0.5f + at.echo);
             echoR[i] += bleepR[i] * at.gainR * (0.5f + at.echo);
@@ -293,7 +328,7 @@ void Engine::renderSpan(float* L, float* R, int n)
     }
     if (strips_[kSrcTape].running) {
         tape_.process(bufL, n);
-        mix(strips_[kSrcTape], bufL, bufL, n, b);
+        mix(kSrcTape, bufL, bufL, n, b);
     }
 
     // The tape echo, its springs, the hall, the master.

@@ -74,6 +74,13 @@ Render 9,3 s. Die übrigen Posten dort: Hall 1,6 s, Federn 1,5 s, `updateCell` 1
 Limiter 0,9 s, Echo 0,7 s, die anderen Klangerzeuger 1,7 s. Hörprüfung offen: Die Sigmoide biegt etwas
 früher als tanh, die Stimmen sind dadurch rund 0,5 dB leiser (RMS des Mixes −19,5 statt −19,0 dBFS).
 
+**25.09.2026: Mixer-Tab mit Metern wie in Phosphene.** Ein Kanalzug je Quelle der Engine (Reihen 1 bis 8,
+Lead, Drone, Tape Keys, Strings, Drums, Atmosphäre) mit Pan, Echo- und Hall-Send, Fader und Meter: RMS-Balken
+mit 300 ms Rückfall, Spitzenlinie, die 1,5 s hält und dann mit 20 dB/s fällt, Spitze in Ziffern
+(`Plugin/EditorMixer.*`, nach Phosphene). Die Engine sammelt Spitze und Quadratsumme je Kanal hinter Fader und
+Pan (`Engine::setMetering`, `takeMeters`), nur lesend: Die Referenz-Renders bleiben bitgleich. Neuer
+Screenshot-Schalter `EPH_SHOT_AT` (Beat), damit das Bild die Mitte eines Stücks zeigt (`docs/screenshot.png`).
+
 **24.09.2026: Phase 5, erster Teil fertig: das Plugin.** VST3 und Standalone
 (`build/Plugin/Ephemeris_artefacts/Release/`), Bild des Panels in `docs/screenshot.png`.
 

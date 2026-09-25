@@ -77,6 +77,24 @@ public:
      */
     float played(int id) const;
 
+    /** @brief The channel strips, in the order they are mixed: the eight rows, the lead, the drone, the tape
+     *         keys, the string machine, the drums, the atmosphere. */
+    static constexpr int kChannels = kRows + 6;
+    /** @brief Name of channel @p c, for a display. */
+    static const char* channelName(int c);
+    /**
+     * @brief Gathers each channel's peak and mean square from now on: what the channel puts into the mix,
+     *        after its fader and pan. Off unless switched on, and reading only: the mix is the same to the bit.
+     */
+    void setMetering(bool on) { metering_ = on; }
+    /**
+     * @brief Hands over and clears what was gathered since the last call.
+     * @param peak  kChannels peaks (linear, the louder side)
+     * @param sumSq kChannels sums of squares (the mean of both sides per sample)
+     * @return the number of samples gathered
+     */
+    int takeMeters(float* peak, double* sumSq);
+
 private:
     /**
      * @brief The sources, in the order they are mixed: the rows' voices, the lead and the drone (all
@@ -123,8 +141,9 @@ private:
     VoiceSettings voiceSettings(Module m, int instance, bool vibrato) const;
     /** @brief Level, equal-power pan (times @p width) and sends of strip @p s. */
     void setStrip(int s, float levelDb, float pan, float echo, float reverb, float width = 1.0f);
-    /** @brief Adds a source's output through its strip to the buses; @p sends false leaves the echo send alone. */
-    static void mix(const Strip& strip, const float* xl, const float* xr, int n, const Buses& b, bool echoSend = true);
+    /** @brief Adds source @p source's output through its strip to the buses (and the meter); @p echoSend false
+     *         leaves the echo send alone. */
+    void mix(int source, const float* xl, const float* xr, int n, const Buses& b, bool echoSend = true);
 
     ParamStore params_;
     Score score_;
@@ -137,6 +156,10 @@ private:
     std::vector<Track> tracks_;
     std::vector<int> trackOf_;   ///< parameter id -> index into tracks_, or -1
 
+    bool metering_ = false;               ///< setMetering()
+    float meterPeak_[kChannels] = {};     ///< takeMeters(): peak per channel
+    double meterSum_[kChannels] = {};     ///< takeMeters(): sum of squares per channel
+    int meterCount_ = 0;                  ///< takeMeters(): samples gathered
     ModVoiceBank voices_;   ///< the sources below kModVoices, in lanes
     Strip strips_[kSources];
     TapeKeys tape_;
