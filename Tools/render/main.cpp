@@ -11,7 +11,7 @@
  *   eph_render [--minutes M | --bars N] [--bpm B] [--seed S] [--set "k=v ..."] [--tail S]
  *              [--rate 48000] [--block 512] [--out file.wav] [--midi file.mid] [--study]
  *              [--frame [--ramp-to B]]
- *              [--list] [--dump-params FILE] [--version]
+ *              [--stems DIR] [--list] [--dump-params FILE] [--version]
  */
 #include "eph/Engine.h"
 #include "eph/compose/Composer.h"
@@ -55,6 +55,8 @@ void usage()
                 "  --block N        block size (default 512)\n"
                 "  --out FILE       write a 24-bit WAV\n"
                 "  --midi FILE      write a Standard MIDI File\n"
+                "  --stems DIR      write a 32-bit float WAV per channel strip and one for the rooms into DIR;\n"
+                "                   their sum is the mix before the master (level, compressor, limiter)\n"
                 "  --list           print every parameter and exit\n"
                 "  --dump-params F  write every parameter's description as JSON (for the manual) and exit\n"
                 "  --quality Q      desktop (default) or quest: the headset's level (3 singers per choir key)\n"
@@ -70,7 +72,7 @@ int main(int argc, char** argv)
     int block = 512;
     std::string out, midi, set;
     bool list = false, frame = false, study = false, sketch = false;
-    std::string dump;
+    std::string dump, stemsDir;
     int singers = 6;
     double concert = 0.0;
     std::string setIn, setOut;
@@ -94,6 +96,7 @@ int main(int argc, char** argv)
         else if (a == "--midi") midi = next("--midi");
         else if (a == "--list") list = true;
         else if (a == "--dump-params") dump = next("--dump-params");
+        else if (a == "--stems") stemsDir = next("--stems");
         else if (a == "--quality") singers = std::string(next("--quality")) == "quest" ? 3 : 6;
         else if (a == "--frame") frame = true;
         else if (a == "--study") study = true;
@@ -207,6 +210,27 @@ int main(int argc, char** argv)
         std::fprintf(stderr, "cannot write %s\n", out.c_str());
         return 1;
     }
+    // The stems: a float WAV per channel strip and one for the rooms (Engine::setStems).
+    constexpr int kStems = Engine::kChannels + 1;
+    std::vector<std::vector<float>> stemBuf(2 * kStems, std::vector<float>(static_cast<size_t>(block)));
+    std::vector<float*> stemL(kStems), stemR(kStems);
+    std::vector<WavWriter> stems(stemsDir.empty() ? 0 : kStems);
+    if (!stemsDir.empty()) {
+        for (int c = 0; c < kStems; ++c) {
+            stemL[static_cast<size_t>(c)] = stemBuf[static_cast<size_t>(2 * c)].data();
+            stemR[static_cast<size_t>(c)] = stemBuf[static_cast<size_t>(2 * c + 1)].data();
+            std::string name = c < Engine::kChannels ? Engine::channelName(c) : "Rooms";
+            for (char& ch : name) ch = ch == ' ' ? '_' : ch;
+            char file[64];
+            std::snprintf(file, sizeof(file), "/%02d_%s.wav", c + 1, name.c_str());
+            const std::string path = stemsDir + file;
+            if (!stems[static_cast<size_t>(c)].open(path.c_str(), static_cast<int>(rate), 2, WavFormat::Float32)) {
+                std::fprintf(stderr, "cannot write %s (does the folder exist?)\n", path.c_str());
+                return 1;
+            }
+        }
+        engine.setStems(stemL.data(), stemR.data());
+    }
     const auto t0 = std::chrono::steady_clock::now();
     const int64_t total = static_cast<int64_t>(std::llround((engine.lengthSeconds() + tail) * rate));
     std::vector<float> L(static_cast<size_t>(block)), R(static_cast<size_t>(block));
@@ -219,10 +243,12 @@ int main(int argc, char** argv)
             sumSq += 0.5 * (static_cast<double>(L[static_cast<size_t>(i)]) * L[static_cast<size_t>(i)] + static_cast<double>(R[static_cast<size_t>(i)]) * R[static_cast<size_t>(i)]);
         }
         if (!out.empty()) wav.write(L.data(), R.data(), n);
+        for (size_t c = 0; c < stems.size(); ++c) stems[c].write(stemL[c], stemR[c], n);
         done += n;
     }
     const double took = std::chrono::duration<double>(std::chrono::steady_clock::now() - t0).count();
     if (!out.empty() && !wav.close()) { std::fprintf(stderr, "error writing %s\n", out.c_str()); return 1; }
+    for (WavWriter& w : stems) if (!w.close()) { std::fprintf(stderr, "error writing a stem in %s\n", stemsDir.c_str()); return 1; }
     if (!midi.empty() && !writeMidiFile(score, midi.c_str(), "Ephemeris", &p)) { std::fprintf(stderr, "cannot write %s\n", midi.c_str()); return 1; }
 
     const double secs = static_cast<double>(total) / rate;

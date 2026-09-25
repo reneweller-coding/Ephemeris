@@ -334,6 +334,11 @@ void Engine::mix(int source, const float* xl, const float* xr, int n, const Buse
         meterPeak_[source] = peak;
         meterSum_[source] = sum;
     }
+    if (stemL_ != nullptr) {
+        float* sl = stemL_[source] + spanAt_;
+        float* sr = stemR_[source] + spanAt_;
+        for (int i = 0; i < n; ++i) { sl[i] = xl[i] * strip.gainL; sr[i] = xr[i] * strip.gainR; }
+    }
 }
 
 void Engine::renderSpan(float* L, float* R, int n)
@@ -396,6 +401,10 @@ void Engine::renderSpan(float* L, float* R, int n)
     }
     reverb_.process(hallInL, hallInR, hallL, hallR, n);
     for (int i = 0; i < n; ++i) {
+        if (stemL_ != nullptr) {
+            stemL_[kChannels][spanAt_ + i] = wetL[i] * echoReturn_ + hallL[i] * reverbReturn_;
+            stemR_[kChannels][spanAt_ + i] = wetR[i] * echoReturn_ + hallR[i] * reverbReturn_;
+        }
         L[i] = (L[i] + wetL[i] * echoReturn_ + hallL[i] * reverbReturn_) * master_;
         R[i] = (R[i] + wetR[i] * echoReturn_ + hallR[i] * reverbReturn_) * master_;
     }
@@ -420,6 +429,8 @@ void Engine::seek(double beat)
 
 bool Engine::process(float* L, float* R, int n)
 {
+    if (stemL_ != nullptr)
+        for (int c = 0; c <= kChannels; ++c) { std::fill(stemL_[c], stemL_[c] + n, 0.0f); std::fill(stemR_[c], stemR_[c] + n, 0.0f); }
     int done = 0;
     while (done < n) {
         if ((sample_ % kCell) == 0 || cellDirty_) { updateCell(); cellDirty_ = false; }
@@ -450,6 +461,7 @@ bool Engine::process(float* L, float* R, int n)
         int64_t end = std::min<int64_t>(sample_ + (n - done), (sample_ / kCell + 1) * kCell);
         if (evCursor_ < events_.size()) end = std::min(end, events_[evCursor_].sample);
         const int len = static_cast<int>(end - sample_);
+        spanAt_ = done;
         renderSpan(L + done, R + done, len);
         sample_ += len;
         done += len;

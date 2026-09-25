@@ -100,6 +100,14 @@ public:
      * @return the number of samples gathered
      */
     int takeMeters(float* peak, double* sumSq);
+    /**
+     * @brief Stems: from now on every process() call also writes, per channel, what it puts into the mix (after
+     *        its fader and pan, as the meters read it) into @p left and @p right, and at index kChannels the
+     *        rooms' return (tape echo, springs, hall). Each buffer holds at least the block of the call. The
+     *        sum of the stems is the mix before the master (level, compressor, limiter). Null switches them off;
+     *        reading only, the mix is the same to the bit.
+     */
+    void setStems(float* const* left, float* const* right) { stemL_ = left; stemR_ = right; }
 
 private:
     /**
@@ -180,6 +188,9 @@ private:
     float echoReturn_ = 0.0f, springReturn_ = 0.0f, reverbReturn_ = 0.0f, master_ = 1.0f;
     int transpose_ = 0;   ///< perform.transpose at the current cell, for the notes that start
     int tapeSingers_ = kSingers;   ///< setTapeSingers()
+    float* const* stemL_ = nullptr;   ///< setStems(), left
+    float* const* stemR_ = nullptr;   ///< setStems(), right
+    int spanAt_ = 0;                  ///< where the span being rendered starts in the block of process()
     float echoThrow_ = 0.0f;   ///< perform.throw's addition to every echo send (mix())
     /**
      * @brief What each setter was last called with (updateCell): a setter runs only when its input has
