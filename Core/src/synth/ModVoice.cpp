@@ -72,6 +72,8 @@ void ModVoiceBank::set(int v, const VoiceSettings& s)
     lanes_.wave[v] = std::clamp(s.wave, 0.0f, 1.0f);
     lanes_.pw[v] = std::clamp(s.pulseWidth, 0.05f, 0.95f);
     lanes_.k[v] = 4.0f * std::clamp(s.resonance, 0.0f, 1.0f) * 0.985f;
+    c.table = s.table > 0 ? &wavetable(s.table - 1) : nullptr;
+    lanes_.tbl[v] = c.table != nullptr ? 1.0f : 0.0f;
 }
 
 void ModVoiceBank::noteOn(int v, int pitch, float velocity, bool accent, bool legato, int id, float bright, float decay)
@@ -85,6 +87,7 @@ void ModVoiceBank::noteOn(int v, int pitch, float velocity, bool accent, bool le
         c.velocity = velocity;
         c.accentAmt = accent ? c.s.accent : 0.0f;
         c.noteOct = bright;
+        c.noteBright = bright;
         c.decayMul = std::exp2(decay);
         c.filt.setTimes(0.0015f, c.s.decayMs * 0.001f * c.decayMul, 0.0f, c.s.decayMs * 0.001f * c.decayMul);
         c.noteCents = 0.15 * static_cast<double>(c.s.driftCents) * static_cast<double>(c.rng.bipolar());
@@ -169,8 +172,32 @@ void ModVoiceBank::process(const bool* run, int n)
                 }
             }
         }
+        // The wavetables (25.09.2026): a voice that reads one gets its two oscillators here, at the lanes' twice the
+        // rate and on their steps, and the kernel takes them instead of its own. The place in the table is the
+        // knob's, moved by the note's modulation step (a bright step further in); the level a little up, so a table
+        // sits where the saw sat.
+        bool table = false;
+        for (int v = 0; v < kBankVoices; ++v) {
+            Control& c = ctl_[v];
+            if (c.table == nullptr) continue;
+            table = true;
+            const double sr2 = 2.0 * sr_;
+            c.wlev1 = cycleLevelFor(static_cast<double>(lanes_.dt1[v]) * sr2, sr2, c.wlev1);
+            c.wlev2 = cycleLevelFor(static_cast<double>(lanes_.dt2[v]) * sr2, sr2, c.wlev2);
+            const float pos = std::clamp(c.s.tablePos + c.s.tableMod * c.noteBright / 1.5f, 0.0f, 1.0f);
+            for (int i = 0; i < n; ++i) {
+                const double d1 = lanes_.dt1[i * kBankLanes + v], d2 = lanes_.dt2[i * kBankLanes + v];
+                for (int h = 0; h < 2; ++h) {
+                    const int w = (2 * i + h) * kBankLanes + v;
+                    lanes_.wt1[w] = 1.6f * c.table->at(c.wlev1, pos, c.wph1);
+                    lanes_.wt2[w] = 1.6f * c.table->at(c.wlev2, pos, c.wph2);
+                    c.wph1 += d1; if (c.wph1 >= 1.0) c.wph1 -= 1.0;
+                    c.wph2 += d2; if (c.wph2 >= 1.0) c.wph2 -= 1.0;
+                }
+            }
+        }
         constexpr int regs = (kBankVoices + kVecWidth - 1) / kVecWidth;
-        voiceKernel<VecF, regs>(lanes_, halfband(), 0, n, pulse, mixed_);
+        voiceKernel<VecF, regs>(lanes_, halfband(), 0, n, pulse, mixed_, table);
         for (int v = 0; v < kBankVoices; ++v)
             if (run[v]) for (int i = 0; i < n; ++i) out_[v][i] = mixed_[i * kBankLanes + v];
     }

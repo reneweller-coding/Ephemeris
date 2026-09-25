@@ -146,6 +146,7 @@ void testVoiceKernel()
         vec.norm[l] = 1.0f / std::sqrt(vec.drive[l]);
         vec.k[l] = 0.25f * static_cast<float>(l % 16);
         vec.dcR[l] = 0.999f;
+        vec.tbl[l] = l % 2 == 0 ? 1.0f : 0.0f;   // every other lane on its wavetable oscillators (25.09.2026)
     }
     sca = vec;
     alignas(32) float outV[kBankSpan * kBankLanes], outS[kBankSpan * kBankLanes];
@@ -172,8 +173,15 @@ void testVoiceKernel()
         std::copy(std::begin(vec.inv2), std::end(vec.inv2), std::begin(sca.inv2));
         std::copy(std::begin(vec.g), std::end(vec.g), std::begin(sca.g));
         std::copy(std::begin(vec.gain), std::end(vec.gain), std::begin(sca.gain));
-        voiceKernel<VecF, regs>(vec, d, 0, kBankSpan, true, outV);
-        for (int l = 0; l < kBankLanes; ++l) voiceKernel<float, 1>(sca, d, l, kBankSpan, true, outS);
+        // The wavetable oscillators (every other span): anything smooth will do for the comparison.
+        for (int w = 0; w < 2 * kBankSpan * kBankLanes; ++w) {
+            const float t = static_cast<float>(span * 2 * kBankSpan * kBankLanes + static_cast<uint32_t>(w));
+            vec.wt1[w] = sca.wt1[w] = 0.8f * std::sin(0.0011f * t);
+            vec.wt2[w] = sca.wt2[w] = 0.7f * std::sin(0.0013f * t + 1.0f);
+        }
+        const bool table = span % 2 == 1;
+        voiceKernel<VecF, regs>(vec, d, 0, kBankSpan, true, outV, table);
+        for (int l = 0; l < kBankLanes; ++l) voiceKernel<float, 1>(sca, d, l, kBankSpan, true, outS, table);
         for (int j = 0; j < kBankSpan * kBankLanes; ++j) {
             if (!sameBits(outV[j], outS[j])) ++bad;
             maxAbs = std::max(maxAbs, std::fabs(outS[j]));

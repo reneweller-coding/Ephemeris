@@ -122,6 +122,8 @@ constexpr int kWavetableCount = kFormulaTableCount + kSampledTableCount;   ///< 
 extern const SampledTable kSampledTables[kSampledTableCount];
 /** @brief The names of all tables, in menu order (poly.table and voice.table read them). */
 extern const char* const kWavetableNames[kWavetableCount];
+/** @brief "Analog", then every table: the row voices' choice (voice.table, 0 = the analog oscillators). */
+extern const char* const kVoiceTableNames[kWavetableCount + 1];
 
 /** @brief Builds every table once (thread-safe); the engine's prepare calls it, so the audio thread never builds. */
 void prepareWavetables();

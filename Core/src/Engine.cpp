@@ -204,6 +204,12 @@ VoiceSettings Engine::voiceSettings(Module m, int instance, bool vibrato) const
     s.accent = v(voice::Accent);
     s.releaseMs = v(voice::AmpDecay);
     s.glideMs = v(voice::Glide);
+    if (m == Module::Voice) {
+        // The rows' wavetables (the lead's and the drone's tables have other knobs from here on).
+        s.table = static_cast<int>(std::lround(v(voice::Table)));
+        s.tablePos = v(voice::TablePos);
+        s.tableMod = v(voice::TableMod);
+    }
     if (vibrato) {
         s.vibratoCents = v(lead::Vibrato);
         s.vibratoHz = v(lead::VibratoRate);

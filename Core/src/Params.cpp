@@ -111,6 +111,9 @@ const ParamDesc kVoiceParams[voice::Count] = {
     { "accent",     "Accent",       "",       0.0f,     1.0f,    0.5f, Curve::Linear },
     { "amp_decay",  "Amp Release",  "ms",     5.0f,  2000.0f,   60.0f, Curve::Log },
     { "glide",      "Glide",        "ms",     1.0f,   500.0f,   60.0f, Curve::Log },
+    { "table",      "Wavetable",    "",       0.0f, static_cast<float>(kWavetableCount), 0.0f, Curve::Choice, kVoiceTableNames },   // 0: analog
+    { "table_pos",  "Table Position", "",     0.0f,     1.0f,    0.0f, Curve::Linear },
+    { "table_mod",  "Table Mod",    "",       0.0f,     1.0f,    0.4f, Curve::Linear },   // the modulation lane on the position
 };
 
 /**

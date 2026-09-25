@@ -150,7 +150,11 @@ enum : int { Level,
  */
 namespace voice {
 enum : int { Wave, Detune, PulseWidth, Drift, Drive, Cutoff, Resonance, EnvAmount, Decay, KeyTrack,
-             Accent, AmpDecay, Glide, Count };
+             Accent, AmpDecay, Glide,
+             // 25.09.2026: a wavetable instead of the analog oscillators (0: analog), where in it, and how far the
+             // row's modulation lane moves that place from note to note (Stürtzer's Iridium sequences). The rows only:
+             // the lead's and the drone's tables go on differently from here.
+             Table, TablePos, TableMod, Count };
 }
 /**
  * @brief Parameters of the lead (module Lead, PLAN 5.3): the voice's table, then its place in the mix

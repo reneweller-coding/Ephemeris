@@ -209,6 +209,14 @@ second detuned), a mixer driven into a soft saturation, a four-pole transistor l
 sample rate, two envelopes and glide. The oscillators run freely and are never reset on a note, and
 each wanders slowly in pitch, as analogue oscillators do; the Drift knob sets how far.
 
+Instead of the two analogue oscillators a row can read a wavetable (Wavetable; Analog is the oscillators): the
+same tables as the pad synth's -- the PPG's, the sync and formant sweeps, the glass, vocal and sampled ones -- read
+band-limited by two oscillators with the row's detune and drift, into the same mixer and ladder. Table Position
+chooses the place in the table, and Table Mod how far the row's modulation sequencer moves it from note to note: a
+bright step reads further into the table, so the timbre wanders against the notes as on Stürtzer's Iridium
+sequences. The composer gives the counter rows after the main sequence a table now and then (Modern in three rows
+of five, Doom in one), and in Modern sometimes the main sequence.
+
 Presets. Every synth page -- the voices, the lead, the drone, the tape keys, the strings, the drums and the
 atmosphere -- has 1024 factory presets above its knobs, in sixteen groups of sixty-four ("Ladder Bass",
 "Glass Arp", "Cathedral Choir", "Slow Swell", "Solar Wind" ...); the arrows step through them. Each name is

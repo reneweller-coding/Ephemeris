@@ -119,7 +119,10 @@ def main():
               'static_assert(sizeof(kSampledTables) / sizeof(kSampledTables[0]) == %d, "the count in Wavetable.h");' % len(tables), '',
               '// The names as literals, so the parameter tables may point at them before any constructor has run.',
               'const char* const kWavetableNames[kWavetableCount] = {',
-              '    "Classic", "PWM", "Sync", "Formant", "Vocal", "Organ", "Glass", "Metal",'] +              ['    "%s",' % name for name, _, _, _ in tables] + ['};',
+              '    "Classic", "PWM", "Sync", "Formant", "Vocal", "Organ", "Glass", "Metal",'] +              ['    "%s",' % name for name, _, _, _ in tables] + ['};', '',
+              '// The same with "Analog" first: the choice of the row voices (voice.table; 0 plays the analog oscillators).',
+              'const char* const kVoiceTableNames[kWavetableCount + 1] = {',
+              '    "Analog", "Classic", "PWM", "Sync", "Formant", "Vocal", "Organ", "Glass", "Metal",'] +              ['    "%s",' % name for name, _, _, _ in tables] + ['};',
               '', '} // namespace eph', '']
     open(OUT, 'w', encoding='utf-8', newline='\n').write('\n'.join(lines))
     print('%d tables -> %s (%d KB)' % (len(tables), os.path.normpath(OUT), os.path.getsize(OUT) // 1024))

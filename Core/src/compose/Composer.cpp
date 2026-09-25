@@ -11,6 +11,7 @@
 #include "eph/Rack.h"
 #include "eph/compose/Style.h"
 #include "eph/Presets.h"
+#include "eph/synth/Wavetable.h"
 #include <algorithm>
 #include <cmath>
 #include <functional>
@@ -721,6 +722,28 @@ void writeSounds(Piece& c, const std::function<void(int, float)>& setTo)
     default: pick(Module::Drums, 0, { "Deep Kit", "Warm Analog", "Round Kit", "Soft Kit", "Sub Kit" }, nullptr, nullptr); break;
     }
     pick(Module::Atmos, 0, {}, nullptr, nullptr);
+    // Wavetables on the counter rows after the main sequence (the style guide's 7.1: the counter sequence "thinner,
+    // PWM, sync or wavetable" -- Stürtzer's and Quaeschning's Waldorfs, Redshift's PPG), the place in the table moved
+    // from note to note by the row's modulation lane; in Modern now and then the main sequence as well. By style,
+    // from draws of their own after all the others.
+    {
+        static const float kTable[] = { 0.4f, 0.2f, 0.3f, 0.6f, 0.3f };   // Cosmic, Doom, Melodic, Modern, Drift
+        static const char* const kChoice[] = { "PPG 00", "PPG 03", "PPG 06", "PPG 07", "PPG 12", "PPG 17", "PPG 22", "PPG 25",
+                                               "PPG Upper", "Sync", "Formant", "Glass", "Vocal", "FM Synth", "Overtones 1", "Morph 1" };
+        const int si = std::clamp(static_cast<int>(c.style), 0, 4);
+        Rng wt;
+        wt.seed(mixSeed(c.seedOf(sSounds), 0x7774u));
+        auto table = [&](int r) {
+            const char* name = kChoice[wt.below(static_cast<int>(sizeof(kChoice) / sizeof(kChoice[0])))];
+            int index = 0;
+            for (int i = 0; i < kWavetableCount; ++i) if (std::string(kWavetableNames[i]) == name) index = i;
+            setTo(p.id(Module::Voice, r, voice::Table), static_cast<float>(index + 1));
+            setTo(p.id(Module::Voice, r, voice::TablePos), 0.1f + 0.6f * wt.uniform());
+            setTo(p.id(Module::Voice, r, voice::TableMod), 0.3f + 0.5f * wt.uniform());
+        };
+        for (int k = 1; k < c.counters; ++k) if (wt.uniform() < kTable[si]) table(k + 1);
+        if (c.counters > 0 && c.style == Style::Modern && wt.uniform() < 0.25f) table(1);
+    }
     // The pad synth by style: analog and PPG planes in Cosmic, dark tubes and drones in Doom, the analog pad, Juno
     // strings and Oberheim brass in Melodic, the PPG and sync sweeps in Modern, air and overtones in Drift.
     switch (c.style) {

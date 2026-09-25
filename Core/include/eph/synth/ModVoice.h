@@ -40,6 +40,7 @@
 #pragma once
 #include "eph/Dsp.h"
 #include "eph/synth/VoiceKernel.h"
+#include "eph/synth/Wavetable.h"
 #include <cstdint>
 
 namespace eph {
@@ -61,6 +62,9 @@ struct VoiceSettings {
     float glideMs = 60.0f;     ///< portamento time on a slide
     float vibratoCents = 0.0f; ///< vibrato depth; it comes in over 0.4 s of a held note, as a hand reaches the wheel
     float vibratoHz = 5.2f;    ///< vibrato rate
+    int table = 0;             ///< a wavetable instead of the analog oscillators: 0 none, else Wavetable.h's index + 1
+    float tablePos = 0.0f;     ///< where in the table, 0..1
+    float tableMod = 0.4f;     ///< how far the note's modulation step moves that place
 };
 
 /**
@@ -138,6 +142,10 @@ private:
         float accentAmt = 0.0f;      ///< accent of the current note
         float noteOct = 0.0f;       ///< the note's cutoff offset (the modulation sequencer), octaves
         float decayMul = 1.0f;      ///< the note's filter decay factor (the second lane), 2^decay
+        float noteBright = 0.0f;    ///< the note's modulation step, which also moves its place in a wavetable
+        const CycleTable* table = nullptr;   ///< the wavetable, if the voice reads one
+        double wph1 = 0.0, wph2 = 0.0;       ///< the table oscillators' phases
+        int wlev1 = -1, wlev2 = -1;          ///< their band-limited levels
         double vibPhase = 0.0;       ///< vibrato phase in cycles
         double vibLevel = 0.0;       ///< 0..1, rises while a note is held
         double vibCoef = 0.0;        ///< vibrato fade-in per sample

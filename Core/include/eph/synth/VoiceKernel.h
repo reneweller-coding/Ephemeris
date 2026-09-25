@@ -76,6 +76,7 @@ struct VoiceLanes {
     alignas(32) float norm[kBankLanes] = {};    ///< level after the saturator
     alignas(32) float k[kBankLanes] = {};       ///< ladder feedback
     alignas(32) float dcR[kBankLanes] = {};     ///< DC blocker pole
+    alignas(32) float tbl[kBankLanes] = {};     ///< 1: the lane plays its wavetable oscillators (wt1, wt2) instead
     /** @} */
     /** @name Per sample of a span (index i * kBankLanes + lane)
      *  @{ */
@@ -83,6 +84,10 @@ struct VoiceLanes {
     alignas(32) float dt2[kBankSpan * kBankLanes] = {}, inv2[kBankSpan * kBankLanes] = {};   ///< VCO 2 step at 2x, 1 / step
     alignas(32) float g[kBankSpan * kBankLanes] = {};      ///< ladder integrator gain tan(pi fc / 2 fs)
     alignas(32) float gain[kBankSpan * kBankLanes] = {};   ///< VCA
+    /** @} */
+    /** @name Per sample at twice the rate (index (2 i + h) * kBankLanes + lane): the wavetable oscillators (ModVoice)
+     *  @{ */
+    alignas(32) float wt1[2 * kBankSpan * kBankLanes] = {}, wt2[2 * kBankSpan * kBankLanes] = {};
     /** @} */
 
     /** @brief Clears the filters' states; the VCO phases run on. */
@@ -144,16 +149,16 @@ EPH_FORCE_INLINE V laneVco(V& ph, V dt, V inv, V wave, V pw, bool pulse)
  * @param out   per sample and lane (index i * kBankLanes + lane)
  */
 template <class V, int R>
-void voiceKernel(VoiceLanes& s, const HalfbandDesign& hbd, int lane, int n, bool pulse, float* out)
+void voiceKernel(VoiceLanes& s, const HalfbandDesign& hbd, int lane, int n, bool pulse, float* out, bool table = false)
 {
     constexpr int width = laneWidth<V>();
     auto at = [lane](const float* a, int r) { return loadLanes<V>(a + lane + r * width); };
     const V one = lanes<V>(1.0f), half = lanes<V>(0.5f), two = lanes<V>(2.0f), comp = lanes<V>(0.5f);
-    V dcr[R], wave[R], pw[R], drive[R], k[R], cin[R];
+    V dcr[R], wave[R], pw[R], drive[R], k[R], cin[R], tb[R];
     V ph1[R], ph2[R], sx[R], ss[R], dcx[R], dcy[R], ls[R][4], ly[R][4], lu[R];
     HalfbandDown<V> hb[R];
     for (int r = 0; r < R; ++r) {
-        dcr[r] = at(s.dcR, r); wave[r] = at(s.wave, r); pw[r] = at(s.pw, r);
+        dcr[r] = at(s.dcR, r); wave[r] = at(s.wave, r); pw[r] = at(s.pw, r); tb[r] = at(s.tbl, r);
         drive[r] = at(s.drive, r); k[r] = at(s.k, r);
         cin[r] = at(s.norm, r) * vfmadd(comp, k[r], one);   // the level after the saturator times the ladder's input gain
         ph1[r] = at(s.ph1, r); ph2[r] = at(s.ph2, r); sx[r] = at(s.satX, r); ss[r] = at(s.satS, r);
@@ -170,8 +175,14 @@ void voiceKernel(VoiceLanes& s, const HalfbandDesign& hbd, int lane, int n, bool
         for (int h = 0; h < 2; ++h) {
             for (int r = 0; r < R; ++r) {
                 // VCOs, drive, and the saturator's fraction A / B.
-                const V o1 = laneVco(ph1[r], at(s.dt1 + row, r), at(s.inv1 + row, r), wave[r], pw[r], pulse);
-                const V o2 = laneVco(ph2[r], at(s.dt2 + row, r), at(s.inv2 + row, r), wave[r], pw[r], pulse);
+                V o1 = laneVco(ph1[r], at(s.dt1 + row, r), at(s.inv1 + row, r), wave[r], pw[r], pulse);
+                V o2 = laneVco(ph2[r], at(s.dt2 + row, r), at(s.inv2 + row, r), wave[r], pw[r], pulse);
+                if (table) {
+                    // A lane with a wavetable takes its own oscillators (ModVoice, Wavetable.h) in place of these.
+                    const int w = (2 * i + h) * kBankLanes;
+                    o1 = o1 + tb[r] * (at(s.wt1 + w, r) - o1);
+                    o2 = o2 + tb[r] * (at(s.wt2 + w, r) - o2);
+                }
                 const V x = half * (o1 + o2) * drive[r];
                 const V sq = vsqrt(vfmadd(x, x, one));
                 const V A = x + sx[r], B = sq + ss[r];

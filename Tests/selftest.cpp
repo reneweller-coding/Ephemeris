@@ -2134,6 +2134,50 @@ void testPoly()
 }
 
 /**
+ * The rows' wavetables (voice.table): a row reads its table, and the note's modulation step moves its place in it --
+ * the formant table's peak climbs with a bright step; the composer gives some counter rows a table.
+ */
+void testRowTables()
+{
+    section("the rows' wavetables");
+    auto render = [](const char* setting, float bright0, float bright1) {
+        Score one;
+        one.clear(120.0);
+        one.notes.push_back({ 0.0, 1.0, Part::Row2, 57, 0.9f, false, false, bright0 });
+        one.notes.push_back({ 2.0, 1.0, Part::Row2, 57, 0.9f, false, false, bright1 });
+        one.lengthBeats = 4.0;
+        Engine e;
+        e.params().parseText(std::string("master.level=0 master.motion=0 row2.echo=0 row2.reverb=0 voice2.cutoff=16000 voice2.env_amount=0 ") + setting);
+        e.prepare(48000.0, 256);
+        e.load(one);
+        std::vector<float> out, l(256), r(256);
+        for (int done = 0; done < 96000; done += 256) { e.process(l.data(), r.data(), 256); out.insert(out.end(), l.begin(), l.end()); }
+        return out;
+    };
+    auto brightness = [](const std::vector<float>& v, size_t a, size_t b) {
+        double d = 0.0, en = 0.0;
+        for (size_t i = a + 1; i < b; ++i) { d += double(v[i] - v[i - 1]) * (v[i] - v[i - 1]); en += double(v[i]) * v[i]; }
+        return d / std::max(1e-30, en);
+    };
+    const auto analog = render("", 0.0f, 0.0f), formant = render("voice2.table=Formant voice2.table_pos=0 voice2.table_mod=1", 0.0f, 1.5f);
+    double diff = 0.0;
+    for (size_t i = 2400; i < 12000; ++i) diff += std::fabs(double(analog[i]) - formant[i]);
+    const double low = brightness(formant, 2400, 12000), high = brightness(formant, 50400, 60000);
+    check(diff > 1.0 && high > 2.0 * low, "a row reads its table; a bright step moves further into it",
+          fmt("brightness %.4f, then %.4f", low, high));
+    int rows = 0;
+    for (uint64_t seed : { 1u, 2u, 3u, 4u, 5u, 6u }) {
+        ParamStore q;
+        q.parseText("compose.style=Modern");
+        const Score sc = composePiece(q, seed, 6.0);
+        for (const Gesture& g : sc.gestures)
+            for (int r = 0; r < kRows; ++r)
+                if (g.param == q.id(Module::Voice, r, voice::Table) && g.to > 0.0f) ++rows;
+    }
+    check(rows > 0, "the composer gives counter rows a wavetable", fmt("%d rows in six Modern pieces", rows));
+}
+
+/**
  * The offline render is the oracle only if a host's block size cannot change a sample: the study
  * rendered with blocks of 1, 37 and 512 must agree bit for bit (Engine.h).
  */
@@ -2294,6 +2338,7 @@ const TestSection kSections[] = {
     { "testVariations", testVariations },
     { "testSounds", testSounds },
     { "testPoly", testPoly },
+    { "testRowTables", testRowTables },
     { "testBlockSizes", testBlockSizes },
     { "testEcho", testEcho },
     { "testDrift", testDrift },
