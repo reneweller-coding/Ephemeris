@@ -63,6 +63,7 @@ juce::String StoreParameter::getText(float normalisedValue, int maximumStringLen
     juce::String t;
     if (d.curve == Curve::Choice && d.choices != nullptr) t = d.choices[juce::jlimit(0, static_cast<int>(d.maxValue), static_cast<int>(std::lround(v)))];
     else if (d.curve == Curve::Toggle) t = v >= 0.5f ? "On" : "Off";
+    else if (d.curve == Curve::Linear && d.choices != nullptr) t = morphText(d, v);
     else if (d.curve == Curve::Int) t = juce::String(static_cast<int>(std::lround(v)));
     else t = juce::String(v, std::fabs(v) >= 100.0f ? 0 : (std::fabs(v) >= 10.0f ? 1 : 2));
     return maximumStringLength > 0 ? t.substring(0, maximumStringLength) : t;
@@ -72,6 +73,9 @@ float StoreParameter::getValueForText(const juce::String& text) const
 {
     const ParamDesc& d = store_.desc(id_);
     if (d.curve == Curve::Choice && d.choices != nullptr)
+        for (int c = 0; c <= static_cast<int>(d.maxValue); ++c)
+            if (text.equalsIgnoreCase(d.choices[c])) return store_.toNormalised(id_, static_cast<float>(c));
+    if (d.curve == Curve::Linear && d.choices != nullptr)
         for (int c = 0; c <= static_cast<int>(d.maxValue); ++c)
             if (text.equalsIgnoreCase(d.choices[c])) return store_.toNormalised(id_, static_cast<float>(c));
     if (d.curve == Curve::Toggle) return text.equalsIgnoreCase("on") ? 1.0f : 0.0f;

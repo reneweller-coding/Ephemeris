@@ -1,6 +1,6 @@
 /**
  * @file StringMachine.cpp
- * @brief Divide-down saws and the ensemble.
+ * @brief Divide-down registers, the registration, the ensemble and the phaser.
  */
 #include "eph/synth/StringMachine.h"
 #include "eph/synth/Oscillator.h"   // polyBlep
@@ -12,13 +12,35 @@ namespace eph {
 namespace {
 constexpr double kTopOctaveMidi = 108.0;   ///< C8: the top-octave generator's C
 constexpr double kModulus = 256.0;         ///< the counter wraps after eight octaves of division
-}
+
+/**
+ * @brief A registration: the weights of saw 16', saw 8', saw 4', square 8', square 4', a tone factor, and a trim
+ *        measured so that every registration plays a held chord as loud as the Violins (selftest "string
+ *        machine"; a saw and a square of one footage are phase-locked and partly cancel, which the plain
+ *        normalisation by the weights cannot know).
+ */
+struct Registration { const char* name; float w[StringMachine::kRegisters]; float tone; float trim; };
+const Registration kRegTable[StringMachine::kRegistrations] = {
+    { "Violins", { 0.00f, 1.00f, 0.55f, 0.00f, 0.00f }, 1.25f, 1.000f },
+    { "Violas",  { 0.00f, 0.85f, 0.20f, 0.45f, 0.00f }, 1.00f, 2.100f },
+    { "Cellos",  { 0.55f, 0.90f, 0.00f, 0.20f, 0.00f }, 0.70f, 1.236f },
+    { "Basses",  { 1.00f, 0.45f, 0.00f, 0.00f, 0.00f }, 0.50f, 1.046f },
+    { "Full",    { 0.60f, 1.00f, 0.60f, 0.00f, 0.00f }, 1.10f, 0.867f },
+    { "Hollow",  { 0.00f, 0.30f, 0.00f, 1.00f, 0.45f }, 0.85f, 0.908f },
+    { "Brass",   { 0.20f, 1.00f, 0.30f, 0.50f, 0.00f }, 1.60f, 1.673f },
+    { "Organ",   { 0.45f, 0.00f, 0.00f, 1.00f, 0.70f }, 0.90f, 0.885f },
+};
+
+float frac(double x) { return static_cast<float>(x - std::floor(x)); }
+} // namespace
+
+const char* StringMachine::registrationName(int i) { return kRegTable[std::clamp(i, 0, kRegistrations - 1)].name; }
 
 void StringMachine::prepare(double sampleRate, uint64_t seed)
 {
     sr_ = sampleRate > 0.0 ? sampleRate : 48000.0;
     size_t n = 4;
-    while (static_cast<double>(n) < 0.03 * sr_) n <<= 1;
+    while (static_cast<double>(n) < 0.04 * sr_) n <<= 1;
     line_.assign(n, 0.0f);
     mask_ = n - 1;
     write_ = 0;
@@ -27,17 +49,36 @@ void StringMachine::prepare(double sampleRate, uint64_t seed)
     rng.seed(seed);
     for (double& c : counter_) c = kModulus * static_cast<double>(rng.uniform());
     for (Key& k : keys_) k = Key{};
-    slow_ = fast_ = 0.0;
+    slow_ = fast_ = animPhase_ = phPhase_ = 0.0;
+    count_ = 0;
     tone_.reset();
     for (Svf& b : bbd_) { b.reset(); b.set(7000.0f, 0.0f, static_cast<float>(sr_)); }
+    for (int c = 0; c < 2; ++c) { for (int i = 0; i < 4; ++i) apX_[c][i] = apY_[c][i] = 0.0f; phFb_[c] = 0.0f; }
     ring_ = 0.0f;
     set(s_);
 }
 
-void StringMachine::set(const StringSettings& s)
+void StringMachine::set(const StringSettings& s) { s_ = s; }
+
+void StringMachine::registrationAt(float position)
 {
-    s_ = s;
-    tone_.set(std::min(s.toneHz, static_cast<float>(0.45 * sr_)), 0.1f, static_cast<float>(sr_));
+    const float x = std::clamp(position, 0.0f, static_cast<float>(kRegistrations - 1));
+    const int i = std::min(static_cast<int>(x), kRegistrations - 2);
+    const float f = x - static_cast<float>(i);
+    const Registration& a = kRegTable[i];
+    const Registration& b = kRegTable[i + 1];
+    // The footage balance tilts the mix: low footages (16') against high ones (4').
+    const float low = 1.5f - s_.feet, high = 0.5f + s_.feet;
+    const float tilt[kRegisters] = { low, 1.0f, high, 1.0f, high };
+    float sumSq = 0.0f;
+    for (int r = 0; r < kRegisters; ++r) {
+        weight_[r] = (a.w[r] + f * (b.w[r] - a.w[r])) * tilt[r];
+        sumSq += weight_[r] * weight_[r];
+    }
+    // The same loudness for every registration: the Violins' 8' and 4' saws at 0.4 are the reference.
+    regGain_ = 1.077f / std::sqrt(std::max(sumSq, 1e-4f)) * (a.trim + f * (b.trim - a.trim));
+    const float tone = std::min(s_.toneHz * (a.tone + f * (b.tone - a.tone)), static_cast<float>(0.45 * sr_));
+    tone_.set(tone, 0.1f, static_cast<float>(sr_));
 }
 
 void StringMachine::noteOn(int pitch, float velocity, int id)
@@ -55,8 +96,9 @@ void StringMachine::noteOn(int pitch, float velocity, int id)
     slot->order = ++order_;
     slot->pc = pitchClass(pitch);
     const int octDown = static_cast<int>(std::lround((kTopOctaveMidi + slot->pc - pitch) / 12.0));   // divisions below the top
-    slot->inv8 = std::ldexp(1.0, -octDown);
-    slot->inv4 = std::ldexp(1.0, -std::max(0, octDown - 1));
+    slot->inv8 = std::ldexp(1.0, -std::clamp(octDown, 0, 8));
+    slot->inv16 = std::ldexp(1.0, -std::clamp(octDown + 1, 0, 8));
+    slot->inv4 = std::ldexp(1.0, -std::clamp(octDown - 1, 0, 8));
     // The envelope is not reset: a stolen key glides from where it was, as the machine's did.
 }
 
@@ -86,7 +128,32 @@ void StringMachine::process(float* L, float* R, int n)
     // Top-octave increments per pitch class (in counter units per sample).
     double inc[12];
     for (int pc = 0; pc < 12; ++pc) inc[pc] = midiToHz(kTopOctaveMidi + pc) * inv;
+    // The ensemble's shape by type: base delay, slow and fast depth (ms), their rates, the taps and the spread.
+    const int type = std::clamp(s_.ensembleType, 0, 2);
+    static const double kBase[3] = { 6.0, 8.0, 10.0 }, kSlowMs[3] = { 2.0, 2.5, 3.5 }, kFastMs[3] = { 0.35, 0.0, 0.5 };
+    static const double kSlowHz[3] = { 0.6, 0.8, 0.25 }, kFastHz[3] = { 6.0, 6.0, 5.0 };
+    static const float kSide[3] = { 0.6f, 1.0f, 0.7f };   // the share of the outer tap on each side
+    const int taps = type == 1 ? 2 : 3;
+    const float e = s_.ensemble;
     for (int i = 0; i < n; ++i) {
+        if ((count_ & 31) == 0) {
+            // The registration, moved by the animation's slow sine, and the phaser's sweep.
+            const double dt = 32.0 * inv;
+            animPhase_ += s_.animateHz * dt;
+            animPhase_ -= std::floor(animPhase_);
+            registrationAt(s_.registration + s_.animate * 3.5f * sin01(animPhase_));
+            if (s_.phaser > 0.0f) {
+                phPhase_ += 0.3 * dt;
+                phPhase_ -= std::floor(phPhase_);
+                for (int c = 0; c < 2; ++c) {
+                    const double sweep = 0.5 + 0.5 * sin01(phPhase_ + 0.25 * c);
+                    const double hz = 200.0 * std::pow(12.5, sweep);                       // 200 Hz .. 2.5 kHz
+                    const double t = std::tan(3.14159265358979 * std::min(hz, 0.45 * sr_) * inv);
+                    apCoef_[c] = static_cast<float>((t - 1.0) / (t + 1.0));
+                }
+            }
+        }
+        ++count_;
         for (int pc = 0; pc < 12; ++pc) {
             counter_[pc] += inc[pc];
             if (counter_[pc] >= kModulus) counter_[pc] -= kModulus;
@@ -96,38 +163,67 @@ void StringMachine::process(float* L, float* R, int n)
             if (!k.on) continue;
             k.env += ((k.held ? 1.0f : 0.0f) - k.env) * (k.held ? att : rel);
             if (!k.held && k.env < 1e-4f) { k.on = false; continue; }
-            // Phase of the 8' and the 4': the counter divided, which keeps every octave in lock. The
-            // dividers are powers of two and the counter is positive, so the products and the fractions
-            // are exact.
-            const double c8 = counter_[k.pc] * k.inv8, c4 = counter_[k.pc] * k.inv4;
-            const double p8 = c8 - std::floor(c8), p4 = c4 - std::floor(c4);
-            const float dt8 = static_cast<float>(inc[k.pc] * k.inv8), dt4 = static_cast<float>(inc[k.pc] * k.inv4);
-            const float s8 = 2.0f * static_cast<float>(p8) - 1.0f - polyBlep(static_cast<float>(p8), dt8);
-            const float s4 = 2.0f * static_cast<float>(p4) - 1.0f - polyBlep(static_cast<float>(p4), dt4);
-            sum += k.env * k.velocity * (s8 + s_.feet * s4);
+            // The phases of the footages: the counter divided, which keeps every octave in lock.
+            const double c = counter_[k.pc];
+            float v = 0.0f;
+            const double invs[3] = { k.inv16, k.inv8, k.inv4 };
+            for (int f = 0; f < 3; ++f) {
+                const float ws = weight_[f];
+                const float wq = f == 0 ? 0.0f : weight_[f + 2];   // squares at 8' and 4'
+                if (ws <= 1e-4f && wq <= 1e-4f) continue;
+                const float p = frac(c * invs[f]);
+                const float dt = static_cast<float>(inc[k.pc] * invs[f]);
+                const float bl = polyBlep(p, dt);
+                if (ws > 1e-4f) v += ws * (2.0f * p - 1.0f - bl);
+                if (wq > 1e-4f) v += wq * ((p < 0.5f ? 1.0f : -1.0f) + bl - polyBlep(frac(p + 0.5), dt));
+            }
+            sum += k.env * k.velocity * v;
         }
-        const float dry = tone_.lp(0.12f * sum);
+        const float dry = tone_.lp(0.12f * regGain_ * sum);
         ring_ = std::max(std::fabs(dry), ring_ * 0.9999f);
-        // The ensemble: three delays swept by a slow and a fast LFO, a third of a cycle apart.
+        // The ensemble: delay lines swept by a slow and a fast LFO, a third (or a half) of a cycle apart.
         line_[write_] = dry;
-        slow_ += 0.6 * inv; if (slow_ >= 1.0) slow_ -= 1.0;
-        fast_ += 6.0 * inv; if (fast_ >= 1.0) fast_ -= 1.0;
-        float tap[3];
-        for (int b = 0; b < 3; ++b) {
-            const double ph = static_cast<double>(b) / 3.0;
-            const double ms = 6.0 + s_.ensemble * (2.0 * sin01(slow_ + ph) + 0.35 * sin01(fast_ + ph));
-            const double d = ms * 0.001 * sr_;
-            const double pos = static_cast<double>(write_) - d;
+        slow_ += kSlowHz[type] * inv; if (slow_ >= 1.0) slow_ -= 1.0;
+        fast_ += kFastHz[type] * inv; if (fast_ >= 1.0) fast_ -= 1.0;
+        float tap[3] = { 0.0f, 0.0f, 0.0f };
+        for (int b = 0; b < taps; ++b) {
+            const double ph = static_cast<double>(b) / taps;
+            const double ms = kBase[type] + e * (kSlowMs[type] * sin01(slow_ + ph) + kFastMs[type] * sin01(fast_ + ph));
+            const double pos = static_cast<double>(write_) - ms * 0.001 * sr_;
             const double fl = std::floor(pos);
             const float t = static_cast<float>(pos - fl);
             const size_t j = static_cast<size_t>(static_cast<int64_t>(fl)) & mask_;
-            const float a = line_[j], c = line_[(j + 1) & mask_];
-            tap[b] = bbd_[b].lp(a + t * (c - a));
+            const float a = line_[j], cc = line_[(j + 1) & mask_];
+            tap[b] = bbd_[b].lp(a + t * (cc - a));
         }
         write_ = (write_ + 1) & mask_;
-        const float e = s_.ensemble;
-        L[i] = (1.0f - 0.5f * e) * dry + e * (0.6f * tap[0] + 0.4f * tap[1]);
-        R[i] = (1.0f - 0.5f * e) * dry + e * (0.6f * tap[2] + 0.4f * tap[1]);
+        float l, r;
+        if (taps == 2) {
+            l = (1.0f - 0.5f * e) * dry + e * tap[0];
+            r = (1.0f - 0.5f * e) * dry + e * tap[1];
+        } else {
+            const float side = kSide[type];
+            l = (1.0f - 0.5f * e) * dry + e * (side * tap[0] + (1.0f - side) * tap[1]);
+            r = (1.0f - 0.5f * e) * dry + e * (side * tap[2] + (1.0f - side) * tap[1]);
+        }
+        // The phaser: four first-order all-passes with feedback, mixed with the direct sound for the notches.
+        if (s_.phaser > 0.0f) {
+            float* out[2] = { &l, &r };
+            for (int ch = 0; ch < 2; ++ch) {
+                float x = *out[ch] + 0.35f * phFb_[ch];
+                const float a = apCoef_[ch];
+                for (int st = 0; st < 4; ++st) {
+                    const float y = a * x + apX_[ch][st] - a * apY_[ch][st];
+                    apX_[ch][st] = x;
+                    apY_[ch][st] = y;
+                    x = y;
+                }
+                phFb_[ch] = x;
+                *out[ch] += s_.phaser * 0.5f * (x - *out[ch]);
+            }
+        }
+        L[i] = l;
+        R[i] = r;
     }
 }
 

@@ -48,8 +48,12 @@ struct ParamDesc {
     float maxValue;                     ///< highest real value
     float defValue;                     ///< default real value
     Curve curve;                        ///< mapping to the knob
-    const char* const* choices = nullptr;   ///< names for Curve::Choice (maxValue + 1 entries)
+    const char* const* choices = nullptr;   ///< names for Curve::Choice (maxValue + 1 entries); on Curve::Linear
+                                            ///< the names of the whole numbers a morph passes (strings.registration)
 };
+
+/** @brief The text of a morph between named whole numbers: the nearest name, or "Violins/Violas" between two. */
+std::string morphText(const ParamDesc& d, float v);
 
 /** @brief The modules that own parameters. Appended to, never reordered. */
 enum class Module : int { Compose = 0, Row, Master,
@@ -133,7 +137,9 @@ extern const char* const kTapeSetNames[];       ///< names of tape.set
 namespace drone = lead;
 /** @brief Parameters of the string machine (module Strings; StringMachine.h). */
 namespace strings {
-enum : int { Attack, Release, Feet, Tone, Ensemble, Level, Pan, EchoSend, ReverbSend, Count };
+enum : int { Attack, Release, Feet, Tone, Ensemble, Level, Pan, EchoSend, ReverbSend,
+             // 25.09.2026, after Waldorf's Streichfett: the registration, its animation, the ensemble's type, the phaser.
+             Registration, Animate, AnimateRate, EnsembleType, Phaser, Count };
 }
 /** @brief Parameters of the springs (module Spring; Spring.h): fed from the echo's send. */
 namespace spring {
@@ -213,6 +219,8 @@ extern const char* const kStyleNames[];         ///< names of compose.style
 extern const char* const kMorphNames[];         ///< names of compose.morph_to: "None", then the styles
 extern const char* const kReverbTypeNames[];    ///< names of reverb.type: "Hall", "Plate"
 extern const char* const kEchoTypeNames[];      ///< names of echo.type: "Tape", "BBD"
+extern const char* const kEnsembleTypeNames[];  ///< names of strings.ensemble_type: "Solina", "Chorus", "Wide"
+extern const char* const kRegistrationNames[];  ///< names of strings.registration's whole numbers: "Violins" .. "Organ"
 extern const char* const kRowDivisionNames[];   ///< names of row.division
 extern const char* const kRowDirectionNames[];  ///< names of row.direction
 extern const char* const kRowModeNames[];       ///< names of row.mode

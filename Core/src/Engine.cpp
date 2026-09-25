@@ -214,6 +214,11 @@ void Engine::updateCell()
     ss.feet = knob(Module::Strings, strings::Feet);
     ss.toneHz = knob(Module::Strings, strings::Tone);
     ss.ensemble = knob(Module::Strings, strings::Ensemble);
+    ss.registration = knob(Module::Strings, strings::Registration);
+    ss.animate = knob(Module::Strings, strings::Animate);
+    ss.animateHz = knob(Module::Strings, strings::AnimateRate);
+    ss.ensembleType = static_cast<int>(std::lround(knob(Module::Strings, strings::EnsembleType)));
+    ss.phaser = knob(Module::Strings, strings::Phaser);
     if (changed(cache_.strings, ss, cache_.valid)) strings_.set(ss);
     strips_[kSrcStrings].running = strings_.active();
     // The ensemble spreads the machine over both sides; the pan law's 3 dB come back with sqrt 2.

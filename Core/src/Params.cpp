@@ -5,6 +5,7 @@
  *       (24.09.2026); the tables are Ephemeris's own.
  */
 #include "eph/Params.h"
+#include <algorithm>
 #include <cmath>
 #include <cstdio>
 #include <cstdlib>
@@ -17,6 +18,8 @@ const char* const kStyleNames[] = { "Cosmic", "Doom", "Melodic", "Modern", "Drif
 const char* const kMorphNames[] = { "None", "Cosmic", "Doom", "Melodic", "Modern", "Drift" };
 const char* const kReverbTypeNames[] = { "Hall", "Plate" };
 const char* const kEchoTypeNames[] = { "Tape", "BBD" };
+const char* const kEnsembleTypeNames[] = { "Solina", "Chorus", "Wide" };
+const char* const kRegistrationNames[] = { "Violins", "Violas", "Cellos", "Basses", "Full", "Hollow", "Brass", "Organ" };
 const char* const kRowDivisionNames[] = { "1/4", "1/8", "1/8 T", "1/16", "1/16 T", "1/32", "1 Bar", "2 Bars", "4 Bars" };
 const char* const kRowDirectionNames[] = { "Forward", "Backward", "Pendulum", "Random Walk" };
 const char* const kRowModeNames[] = { "Notes", "Transposer" };
@@ -187,13 +190,19 @@ const ParamDesc kAtmosParams[atmos::Count] = {
 const ParamDesc kStringsParams[strings::Count] = {
     { "attack",   "Crescendo",    "s",    0.005f,  3.0f,   0.35f, Curve::Log },
     { "release",  "Sustain",      "s",    0.05f,   6.0f,   1.2f, Curve::Log },
-    { "feet",     "4' Mix",       "",     0.0f,    1.0f,   0.4f, Curve::Linear },
+    { "feet",     "Octave Balance", "",   0.0f,    1.0f,   0.4f, Curve::Linear },   // 0 the low footages .. 1 the high ones
     { "tone",     "Tone",         "Hz", 800.0f, 12000.0f, 4500.0f, Curve::Log },
     { "ensemble", "Ensemble",     "",     0.0f,    1.0f,   0.8f, Curve::Linear },
     { "level",    "Level",        "dB", -60.0f,    6.0f, -10.0f, Curve::Linear },
     { "pan",      "Pan",          "",    -1.0f,    1.0f,   0.1f, Curve::Linear },
     { "echo",     "Echo Send",    "",     0.0f,    1.0f,   0.05f, Curve::Linear },
     { "reverb",   "Reverb Send",  "",     0.0f,    1.0f,   0.45f, Curve::Linear },
+    // After Waldorf's Streichfett (StringMachine.h): Violins, Violas, Cellos, Basses, Full, Hollow, Brass, Organ.
+    { "registration",  "Registration",  "",   0.0f,  7.0f,  0.0f, Curve::Linear, kRegistrationNames },
+    { "animate",       "Animate",       "",   0.0f,  1.0f,  0.3f, Curve::Linear },
+    { "animate_rate",  "Animate Rate",  "Hz", 0.01f, 1.0f,  0.05f, Curve::Log },
+    { "ensemble_type", "Ensemble Type", "",   0.0f,  2.0f,  0.0f, Curve::Choice, kEnsembleTypeNames },
+    { "phaser",        "Phaser",        "",   0.0f,  1.0f,  0.0f, Curve::Linear },
 };
 
 /** The springs: a short, bright-ish tank under the echo, quiet by default. */
@@ -496,7 +505,7 @@ bool ParamStore::parseText(std::string_view text, std::string* error)
         }
         const ParamDesc& d = desc(id);
         bool matched = false;
-        if ((d.curve == Curve::Choice && d.choices != nullptr) || d.curve == Curve::Toggle) {
+        if (d.choices != nullptr || d.curve == Curve::Toggle) {
             const std::string fv = foldName(v);
             if (d.curve == Curve::Toggle && (fv == "on" || fv == "off")) { set(id, fv == "on" ? 1.0f : 0.0f); matched = true; }
             for (int c = 0; !matched && d.choices != nullptr && c <= static_cast<int>(d.maxValue); ++c) {
@@ -535,12 +544,24 @@ std::string ParamStore::toText(bool onlyChanged) const
     return out;
 }
 
+std::string morphText(const ParamDesc& d, float v)
+{
+    const int last = static_cast<int>(d.maxValue);
+    const float c = std::clamp(v, d.minValue, d.maxValue);
+    const int lo = std::clamp(static_cast<int>(std::floor(c)), 0, last);
+    const float frac = c - static_cast<float>(lo);
+    if (frac < 0.1f || lo == last) return d.choices[lo];
+    if (frac > 0.9f) return d.choices[lo + 1];
+    return std::string(d.choices[lo]) + "/" + d.choices[lo + 1];
+}
+
 std::string ParamStore::format(int id) const
 {
     const ParamDesc& d = desc(id);
     const float v = get(id);
     if (d.curve == Curve::Choice && d.choices != nullptr) return d.choices[getInt(id)];
     if (d.curve == Curve::Toggle) return v >= 0.5f ? "On" : "Off";
+    if (d.curve == Curve::Linear && d.choices != nullptr) return morphText(d, v);
     char buf[64];
     if (d.curve == Curve::Int) std::snprintf(buf, sizeof(buf), "%d", getInt(id));
     else if (std::fabs(v) >= 100.0f) std::snprintf(buf, sizeof(buf), "%.0f", static_cast<double>(v));

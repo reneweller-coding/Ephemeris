@@ -12,6 +12,7 @@
 #include "eph/Cue.h"
 #include "eph/fx/Plate.h"
 #include "eph/synth/Atmos.h"
+#include "eph/synth/StringMachine.h"
 #include "eph/fx/Bbd.h"
 #if defined(_WIN32)
   #ifndef NOMINMAX
@@ -853,6 +854,75 @@ void testRooms()
     check(off == 0.0 && on > 0.01, "the granular cloud is silent when off and sounds when on", fmt("rms %.4f off, %.4f on", off, on));
 }
 
+/** The string machine after the Streichfett (StringMachine.h): registrations, their loudness, the animation, the phaser. */
+void testStrings()
+{
+    section("string machine: registration, animation, phaser");
+    const int sr = 48000;
+    // A chord held for two seconds; returns the output and, per 100 ms, a brightness (first difference energy / energy).
+    auto play = [&](StringSettings st, std::vector<float>& out, std::vector<double>& bright) {
+        StringMachine m;
+        m.prepare(sr, 7);
+        m.set(st);
+        for (int k : { 57, 60, 64, 69 }) m.noteOn(k, 0.8f, k);
+        const int total = 2 * sr;
+        out.assign(static_cast<size_t>(total), 0.0f);
+        std::vector<float> r(static_cast<size_t>(total), 0.0f);
+        for (int i = 0; i < total; i += 256) m.process(out.data() + i, r.data() + i, std::min(256, total - i));
+        bright.clear();
+        for (int w = sr / 2; w + sr / 10 <= total; w += sr / 10) {
+            double e = 0.0, d = 0.0;
+            for (int i = w + 1; i < w + sr / 10; ++i) {
+                e += double(out[static_cast<size_t>(i)]) * out[static_cast<size_t>(i)];
+                d += double(out[static_cast<size_t>(i)] - out[static_cast<size_t>(i - 1)]) * (out[static_cast<size_t>(i)] - out[static_cast<size_t>(i - 1)]);
+            }
+            bright.push_back(d / std::max(1e-30, e));
+        }
+    };
+    auto rmsDb = [](const std::vector<float>& v) {
+        double e = 0.0;
+        for (size_t i = v.size() / 4; i < v.size(); ++i) e += double(v[i]) * v[i];
+        return 10.0 * std::log10(e / double(v.size() * 3 / 4) + 1e-30);
+    };
+    std::vector<float> out;
+    std::vector<double> bright;
+    StringSettings st;
+    st.animate = 0.0f;
+    double lo = 1e9, hi = -1e9, violins = 0.0, basses = 0.0;
+    for (int r = 0; r < StringMachine::kRegistrations; ++r) {
+        st.registration = static_cast<float>(r);
+        play(st, out, bright);
+        const double db = rmsDb(out);
+        lo = std::min(lo, db);
+        hi = std::max(hi, db);
+        if (r == 0) violins = bright.front();
+        if (r == 3) basses = bright.front();
+    }
+    check(basses < 0.6 * violins, "the registrations differ: the basses are darker than the violins",
+          fmt("brightness %.4f against %.4f", basses, violins));
+    check(hi - lo < 1.5, "the eight registrations are about as loud as each other", fmt("%.1f .. %.1f dB", lo, hi));
+    // The animation moves the mix: the brightness wanders over the two seconds.
+    st.registration = 3.0f;
+    st.animate = 1.0f;
+    st.animateHz = 0.5f;
+    play(st, out, bright);
+    const double bmin = *std::min_element(bright.begin(), bright.end()), bmax = *std::max_element(bright.begin(), bright.end());
+    check(bmax > 1.5 * bmin, "the animation moves the registration by itself", fmt("brightness %.4f .. %.4f", bmin, bmax));
+    // The phaser and the ensemble types change the sound.
+    std::vector<float> plain, phased, chorus;
+    st.animate = 0.0f;
+    st.registration = 0.0f;
+    play(st, plain, bright);
+    st.phaser = 1.0f;
+    play(st, phased, bright);
+    st.phaser = 0.0f;
+    st.ensembleType = 1;
+    play(st, chorus, bright);
+    double dp = 0.0, dc = 0.0;
+    for (size_t i = 0; i < plain.size(); ++i) { dp += std::fabs(plain[i] - phased[i]); dc += std::fabs(plain[i] - chorus[i]); }
+    check(dp > 1.0 && dc > 1.0, "the phaser and the ensemble types change the sound", fmt("differences %.1f and %.1f", dp, dc));
+}
+
 /**
  * The offline render is the oracle only if a host's block size cannot change a sample: the study
  * rendered with blocks of 1, 37 and 512 must agree bit for bit (Engine.h).
@@ -998,6 +1068,7 @@ const TestSection kSections[] = {
     { "testPerform", testPerform },
     { "testCues", testCues },
     { "testRooms", testRooms },
+    { "testStrings", testStrings },
     { "testBlockSizes", testBlockSizes },
     { "testEcho", testEcho },
     { "testDrift", testDrift },

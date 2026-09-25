@@ -140,9 +140,19 @@ machine's character into the sound; the tape set can change between pieces.
 
 == Strings | strings | 8 ==
 
-A string machine of the seventies: top-octave generators divided down into sawtooths at 8' and 4',
-through an ensemble of three bucket-brigade delays swept by a slow and a fast modulation. Keys glide
-from where they were when a chord is stolen, as the machine's did.
+A string machine of the seventies, after the example of Waldorf's Streichfett: top-octave generators
+divided down into five registers per key -- sawtooths at 16', 8' and 4', squares at 8' and 4' -- through an
+ensemble of bucket-brigade delays swept by a slow and a fast modulation. Keys glide from where they were
+when a chord is stolen, as the machine's did.
+
+Registration morphs continuously through eight mixes of the registers: Violins, Violas, Cellos, Basses,
+Full, Hollow, Brass and Organ, each with its own brightness and all equally loud. Animate lets a slow sine
+move the registration by itself, up to three and a half mixes either way at the Animate Rate, so the blend
+of the voices wanders under a held chord; the composer's hands move the registration now and then as well.
+Octave Balance tilts the footages towards the low or the high ones. Ensemble Type chooses the chorus: Solina
+(three lines, a slow and a fast sweep), Chorus (two lines, one sweep) or Wide (three longer, deeper lines,
+spread wider). Phaser sends the machine through four swept all-passes, the classic swirl of strings
+through a phase shifter.
 
 == Atmosphere | atmos | 9 ==
 

@@ -94,6 +94,7 @@ struct Piece {
     double firstLead = -1.0;              ///< first beat of a lead section, -1 if none
     bool bleepsOn = false;                ///< the layers' draw for the atmosphere's bleeps
     bool grainsOn = false;                ///< the layers' last draw: the granular cloud
+    double stringsFrom = -1.0;            ///< first beat of the string machine, -1 if the piece has none
     std::function<uint64_t(Stream)> seedOf;   ///< the seed of a stream, rerolls counted
     /** @brief A fresh generator on stream @p k. */
     Rng stream(Stream k) const { Rng r; r.seed(seedOf(k)); return r; }
@@ -260,8 +261,10 @@ void writeLayers(Piece& c)
         for (const Section& sec : form.sections)
             if (sec.phase == ph && sec.type == SectionType::Build && (b1 == nullptr || sec.index == 1)) b1 = &sec;
         if (tapeOn && b1 != nullptr && peak != nullptr) writeChords(s, pp, b1->beat, peak->beat + peak->length, pads);
-        if (stringsOn && peak != nullptr)
+        if (stringsOn && peak != nullptr) {
             writeChords(s, sp, peak->beat, breakdown != nullptr ? breakdown->beat + breakdown->length : peak->beat + peak->length, pads);
+            if (c.stringsFrom < 0.0) c.stringsFrom = peak->beat;
+        }
         if (lead != nullptr) {
             lp.intensity = prof.leadIntensity;
             writeLead(s, lp, lead->beat, lead->beat + lead->length, leadRng);
@@ -376,6 +379,8 @@ void writeHands(Piece& c)
     if (c.firstLead >= 0.0) knobs.push_back(knob(Module::Lead, 0, lead::Cutoff, -0.30f, 0.30f, -0.10f, 0.20f, 1.0f, c.firstLead));
     knobs.push_back(knob(Module::Drone, 0, drone::Cutoff, -0.20f, 0.30f, -0.10f, 0.15f, 0.8f, 0.0));
     knobs.push_back(knob(Module::Atmos, 0, atmos::WindTone, -0.30f, 0.30f, 0.0f, 0.10f, 0.5f, 0.0));
+    // The string machine's registration, a slow hand through its mixes (StringMachine.h), where it plays.
+    if (c.stringsFrom >= 0.0) knobs.push_back(knob(Module::Strings, 0, strings::Registration, 0.0f, 0.45f, 0.05f, 0.3f, 0.6f, c.stringsFrom));
     HandKnob throwKnob = knob(Module::Echo, 0, echo::Feedback, 0.0f, 0.4f, 0.0f, 0.05f, 0.6f, rowFrom[0]);
     throwKnob.atRest = 0.0f; throwKnob.atPeak = 0.05f;
     throwKnob.throws = true;
