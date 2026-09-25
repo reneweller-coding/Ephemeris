@@ -128,13 +128,14 @@ void setUpRows(Piece& c)
     // The bass ostinato: eight or sixteen steps (the style guide's 4.2), its gate long (4.4).
     rowSet(0, row::Length, cfg.uniform() < 0.5f ? 8.0f : 16.0f); rowSet(0, row::Division, static_cast<float>(RowDivision::Sixteenth));
     rowSet(0, row::Gate, 60.0f + 15.0f * cfg.uniform());
-    rowSet(0, row::Octave, -1); rowSet(0, row::Mutation, c.prof.mutation); rowSet(0, row::Mode, 0);
+    // The bass and the main sequence change at half the style's rate: the ground holds (hypnosis, 25.09.2026).
+    rowSet(0, row::Octave, -1); rowSet(0, row::Mutation, 0.5f * c.prof.mutation); rowSet(0, row::Mode, 0);
     for (int k = 0; k < counters; ++k) {
         const int r = k + 1;
         rowSet(r, row::Length, static_cast<float>(lengths[static_cast<size_t>(k) % lengths.size()]));
         rowSet(r, row::Division, static_cast<float>(k % 2 == 0 ? RowDivision::Sixteenth : RowDivision::Eighth));
         rowSet(r, row::Octave, k % 2 == 0 ? 0.0f : 1.0f);
-        rowSet(r, row::Mutation, c.prof.mutation);
+        rowSet(r, row::Mutation, k == 0 ? 0.5f * c.prof.mutation : c.prof.mutation);
         rowSet(r, row::Gate, 40.0f + 15.0f * cfg.uniform());
         rowSet(r, row::Mode, 0);
     }

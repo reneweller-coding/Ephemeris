@@ -239,8 +239,8 @@ void testRack()
 
     Score m;
     const int mutations = play(3, 1.0f, m);
-    // Row 1 runs 64 beats = 256 sixteenths = 16 cycles; a chance of one mutates at the end of each.
-    check(mutations == 16, "one mutation per cycle at chance 1", fmt("%d mutations", mutations));
+    // Row 1 runs 64 beats = 16 bars: one 16-bar block, so a chance of one mutates once, at its end.
+    check(mutations == 1, "one mutation per 16-bar block at chance 1", fmt("%d mutations", mutations));
     int silentDownbeats = 0;
     for (double beat = 0.0; beat < 64.0; beat += 4.0) {
         bool found = false;
@@ -1116,19 +1116,19 @@ void testSequencing()
     // Probability gates in Modern: a step that sounds on some rounds and not on others.
     {
         ParamStore p;
-        p.parseText("compose.style=Modern row1.active=1 row1.length=16 row1.division=1/16 row1.mutation=0");
+        p.parseText("compose.style=Modern row3.active=1 row3.length=16 row3.division=1/16 row3.mutation=0");
         int chancy = 0, varied = 0;
         for (int seed = 1; seed <= 20; ++seed) {
             Rack r;
             r.setup(p, static_cast<uint64_t>(seed));
-            r.generate(0, RowRole::Counter);
-            for (int i = 0; i < 16; ++i) chancy += r.steps(0)[i].chance < 1.0f && r.steps(0)[i].gate ? 1 : 0;
+            r.generate(2, RowRole::Counter);
+            for (int i = 0; i < 16; ++i) chancy += r.steps(2)[i].chance < 1.0f && r.steps(2)[i].gate ? 1 : 0;
             Score s;
             s.clear(120.0);
             r.run(s, 64.0);
             s.sort();
             int count[16] = {};
-            for (const NoteEvent& e : s.notes) ++count[static_cast<int>(std::lround(e.beat * 4.0)) % 16];
+            for (const NoteEvent& e : s.notes) if (e.part == Part::Row3) ++count[static_cast<int>(std::lround(e.beat * 4.0)) % 16];
             for (int i = 0; i < 16; ++i) varied += count[i] > 0 && count[i] < 16 ? 1 : 0;
         }
         check(chancy > 0 && varied > 0, "probability gates: steps that sound on some rounds only", fmt("%d chance steps, %d varied", chancy, varied));
@@ -1268,12 +1268,12 @@ void testGuideExtras()
     // Random steps: a new note through the quantiser each time round, always in the mode.
     {
         ParamStore p;
-        p.parseText("compose.style=Drift row1.active=1 row1.length=16 row1.division=1/16 row1.mutation=0");
+        p.parseText("compose.style=Drift row3.active=1 row3.length=16 row3.division=1/16 row3.mutation=0");
         int randomSteps = 0, varied = 0, outside = 0;
         for (int seed = 1; seed <= 20; ++seed) {
             Rack r;
             r.setup(p, static_cast<uint64_t>(seed));
-            r.generate(0, RowRole::Counter);
+            r.generate(2, RowRole::Counter);
             std::set<int> pitches[16];
             Score sc;
             sc.clear(120.0);
@@ -1283,7 +1283,7 @@ void testGuideExtras()
                 outside += inScale(e.pitch, 9, 0) ? 0 : 1;
             }
             for (int i = 0; i < 16; ++i) {
-                if (!r.steps(0)[i].random) continue;
+                if (!r.steps(2)[i].random) continue;
                 ++randomSteps;
                 varied += pitches[i].size() > 1 ? 1 : 0;
             }

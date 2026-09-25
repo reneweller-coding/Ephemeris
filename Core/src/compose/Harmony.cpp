@@ -45,7 +45,7 @@ const StyleChords& chordsOf(Style style)
         // Tools/ref_harmony.json; six recordings a style, so the measurement is rough and weighs no more than the guide).
         { { 0.60f, 0.22f, 0.10f, 0.08f }, 8, 16, 0.75f },    // Cosmic: 94 % of the time on i, 5 of 6 static
         { { 0.25f, 0.43f, 0.27f, 0.05f }, 4, 16, 0.50f },    // Doom: pendulums and loops, chords of about 4.5 bars
-        { { 0.15f, 0.37f, 0.30f, 0.18f }, 2, 8, 0.45f },     // Melodic: mostly pendulums, chords of about 3 bars
+        { { 0.15f, 0.37f, 0.30f, 0.18f }, 4, 8, 0.45f },     // Melodic: mostly pendulums (4 bars at least: hypnosis)
         { { 0.37f, 0.35f, 0.15f, 0.13f }, 4, 16, 0.55f },    // Modern: a third of the time on i, chords of 2 to 4 bars
         { { 0.35f, 0.45f, 0.20f, 0.00f }, 8, 32, 0.55f },    // Drift: pendulums, chords of about 4 bars
     };

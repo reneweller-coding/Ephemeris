@@ -283,8 +283,11 @@ void Rack::generate(int row, RowRole role)
             const int k = i - b;
             s.accent = threeThreeTwo ? (k == 0 || k == 3 || k == 6) : (k == 0 || k == 4);
             if (role != RowRole::Bass && !threeThreeTwo && k == 4) s.accent = g.uniform() < 0.5f;
-            if (i % 4 != 0 && g.uniform() < share) s.chance = 0.6f + 0.3f * g.uniform();
-            if (i != 0 && g.uniform() < randomly) s.random = true;
+            // The chance and the random notes only on the counter rows after the first: the bass and the main
+            // sequence stay exactly what they are, the ground the ear locks onto.
+            const bool loose = role != RowRole::Bass && row >= 2;
+            if (i % 4 != 0 && g.uniform() < share && loose) s.chance = 0.6f + 0.3f * g.uniform();
+            if (i != 0 && g.uniform() < randomly && loose) s.random = true;
         }
     }
 }
@@ -335,7 +338,13 @@ void Rack::advance(Row& r, int index, double beat, std::vector<RackEvent>& log)
     }
     ++r.step;
     // A cycle ends every `length` steps, whatever the direction: that is when the register shifts.
-    if (r.step % L == 0 && r.mutation > 0.0f && r.rng.uniform() < r.mutation) mutate(r, index, beat, log);
+    // Hypnosis (25.09.2026): a row changes only where a 16-bar block begins -- at the first end of its cycle on or
+    // after the mark -- so a pattern holds for sixteen bars and one thing changes at a time; the chance is the
+    // row's mutation, doubled for the longer wait.
+    if (r.step % L == 0 && r.mutation > 0.0f && beat + r.divBeats >= r.nextMutation - 1e-9) {
+        while (r.nextMutation <= beat + r.divBeats + 1e-9) r.nextMutation += 64.0;
+        if (r.rng.uniform() < std::min(1.0f, 2.0f * r.mutation)) mutate(r, index, beat, log);
+    }
 }
 
 void Rack::playStep(int index, Row& r, Score& score, std::vector<RackEvent>& log)
@@ -409,6 +418,7 @@ void Rack::run(Score& score, double endBeat)
                 switch (e.op) {
                 case RackOp::Start:
                     r.running = true; r.startBeat = e.beat; r.step = 0; r.pos = 0; r.dir = 1;
+                    r.nextMutation = e.beat + 64.0;
                     break;
                 case RackOp::Stop:
                     r.running = false;
