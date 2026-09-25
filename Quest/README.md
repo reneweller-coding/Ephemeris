@@ -52,7 +52,8 @@ A hand moves its control only while it is **not** pinching. Height is measured a
 works standing or sitting; both controls are smoothed over 0.15 s and centred, so nothing ever jumps. When a
 piece has ended and its rooms have rung out, the next one follows by itself.
 
-The panel is head-locked (yaw only) and drawn as points: the piece and its style, the section, the root and
+The panel is head-locked (yaw only) and drawn as points: a title line with the logo (the icon's orrery, in points of
+light; larger on the start screen while the first piece is composed), the piece and its style, the section, the root and
 the scale, the time and the tempo, the level, both hand controls, four beat lamps — and beside it the
 orrery of the Rack page, every row a planet on its orbit around the root, with a column of light at a
 conjunction.

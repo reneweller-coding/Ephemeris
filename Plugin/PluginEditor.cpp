@@ -375,7 +375,7 @@ EphemerisEditor::EphemerisEditor(EphemerisProcessor& p) : juce::AudioProcessorEd
 {
     ParamStore& s = proc_.store();
     title_.setText("EPHEMERIS", juce::dontSendNotification);
-    title_.setFont(juce::FontOptions(22.0f, juce::Font::bold));
+    title_.setFont(juce::FontOptions(20.0f, juce::Font::bold));
     title_.setColour(juce::Label::textColourId, kAccent);
     addAndMakeVisible(title_);
 
@@ -495,13 +495,49 @@ EphemerisEditor::EphemerisEditor(EphemerisProcessor& p) : juce::AudioProcessorEd
 
 EphemerisEditor::~EphemerisEditor() { stopTimer(); }
 
-void EphemerisEditor::paint(juce::Graphics& g) { g.fillAll(kBack); }
+namespace {
+
+/**
+ * @brief The logo (Deploy/make_icon.py, drawn as vectors): the Rack page's orrery -- a warm sun, orbits and their
+ *        planets on a dark tile; two orbits up to 24 px, three up to 48, five above.
+ */
+void drawLogo(juce::Graphics& g, juce::Rectangle<float> r)
+{
+    const float s = std::min(r.getWidth(), r.getHeight());
+    r = r.withSizeKeepingCentre(s, s);
+    const juce::Point<float> c = r.getCentre();
+    g.setColour(juce::Colour(21, 23, 28));
+    g.fillRoundedRectangle(r, s / 5.0f);
+    const int orbits = s <= 24.0f ? 2 : (s <= 48.0f ? 3 : 5);
+    const float sun = s * (s > 24.0f ? 0.16f : 0.2f), width = std::max(1.0f, s / 64.0f);
+    static const juce::uint32 planets[5] = { 0xffe0a458, 0xffd9825b, 0xff9fbf6f, 0xff6fb8ae, 0xff6f8fb8 };
+    for (int k = 0; k < orbits; ++k) {
+        const float rad = sun + (s * 0.42f - sun) * static_cast<float>(k + 1) / static_cast<float>(orbits);
+        g.setColour(juce::Colour(201, 164, 92).withAlpha(150.0f / 255.0f));
+        g.drawEllipse(c.x - rad, c.y - rad, 2.0f * rad, 2.0f * rad, width);
+        const float a = -juce::MathConstants<float>::halfPi + 2.1f * static_cast<float>(k + 1);
+        const float pr = std::max(s * 0.035f, width * 2.2f);
+        g.setColour(juce::Colour(planets[k % 5]));
+        g.fillEllipse(c.x + rad * std::cos(a) - pr, c.y + rad * std::sin(a) - pr, 2.0f * pr, 2.0f * pr);
+    }
+    g.setColour(juce::Colour(232, 178, 92));
+    g.fillEllipse(c.x - sun, c.y - sun, 2.0f * sun, 2.0f * sun);
+}
+
+} // namespace
+
+void EphemerisEditor::paint(juce::Graphics& g)
+{
+    g.fillAll(kBack);
+    drawLogo(g, logo_);
+}
 
 void EphemerisEditor::resized()
 {
     auto area = getLocalBounds().reduced(10);
     auto top = area.removeFromTop(34);
-    title_.setBounds(top.removeFromLeft(130));
+    logo_ = top.removeFromLeft(34).toFloat().reduced(2.0f);
+    title_.setBounds(top.removeFromLeft(112));
     style_.setBounds(top.removeFromLeft(110).reduced(3));
     key_.setBounds(top.removeFromLeft(64).reduced(3));
     scale_.setBounds(top.removeFromLeft(120).reduced(3));

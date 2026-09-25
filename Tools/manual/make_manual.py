@@ -36,6 +36,8 @@ p { margin: 0 0 3.2mm 0; text-align: justify; hyphens: auto; }
 pre { font: 9.5pt Consolas, monospace; background: #f5f2ec; padding: 2mm 3mm; }
 .cover { page-break-after: always; text-align: center; padding-top: 24mm; }
 .cover img, .shot { width: 100%; border: 1px solid #d8d2c4; border-radius: 3px; }
+.cover img.logo { width: 34mm; border: none; margin: 0 auto 6mm auto; display: block; }
+.cover p { text-align: center; }
 .cover img { margin-top: 10mm; }
 .sub { color: #5b5f68; font-size: 12pt; margin: 0; }
 .facts { margin-top: 7mm; color: #5b5f68; font-size: 9.5pt; }
@@ -182,9 +184,10 @@ def main():
     os.makedirs(out_dir, exist_ok=True)
     shots = os.path.relpath(os.path.join(ROOT, "docs", "screenshots"), out_dir).replace("\\", "/")
     parts = ["<!DOCTYPE html><html><head><meta charset='utf-8'><title>Ephemeris Manual</title><style>%s</style></head><body>" % CSS]
-    parts.append("<div class='cover'><h1>EPHEMERIS</h1><p class='sub'>A generator of Berlin School music</p>"
+    logo = os.path.relpath(os.path.join(ROOT, "Deploy", "ephemeris_512.png"), out_dir).replace("\\", "/")
+    parts.append("<div class='cover'><img class='logo' src='%s'><h1>EPHEMERIS</h1><p class='sub'>A generator of Berlin School music</p>"
                  "<p class='facts'>Version %s &middot; %d parameters &middot; manual built %s</p>"
-                 "<img src='%s/tab_00.png'></div>" % (version(), len(params), time.strftime("%d.%m.%Y"), shots))
+                 "<img src='%s/tab_00.png'></div>" % (logo, version(), len(params), time.strftime("%d.%m.%Y"), shots))
     parts.append("<div class='toc'><h2>Contents</h2><ol>%s</ol></div>"
                  % "".join("<li><a href='#c%d'>%s</a></li>" % (i, html.escape(c["title"])) for i, c in enumerate(chapters)))
     for i, c in enumerate(chapters):

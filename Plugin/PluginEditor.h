@@ -98,6 +98,7 @@ private:
     void timerCallback() override;
     EphemerisProcessor& proc_;
     juce::Label title_, status_, rerolls_;
+    juce::Rectangle<float> logo_;   ///< where the logo is drawn, left of the title
     juce::ComboBox style_, key_, scale_;
     juce::Slider minutes_, concert_;
     juce::Label minutesLabel_, concertLabel_;

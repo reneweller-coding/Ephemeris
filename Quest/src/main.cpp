@@ -1056,6 +1056,28 @@ private:
      * one turn a cycle of the row, step 1 at the top; the sun is the transposer's root. Nothing flashes and
      * nothing steps: the planets move continuously, and a conjunction is a column of points that fades in.
      */
+    /**
+     * @brief The logo (Deploy/make_icon.py) in points of light: the sun, three dotted orbits and their planets, centred
+     *        at (@p u, @p v) on the panel, @p size across.
+     */
+    void addLogo(const Panel& p, float u, float v, float size)
+    {
+        static const float kPlanets[3][3] = { { 0.88f, 0.64f, 0.35f }, { 0.85f, 0.51f, 0.36f }, { 0.62f, 0.75f, 0.44f } };
+        const float sun = 0.16f * size;
+        for (int k = 0; k < 3; ++k) {
+            const float r = sun + (0.42f * size - sun) * static_cast<float>(k + 1) / 3.0f;
+            const int dots = 20 + 8 * k;
+            for (int i = 0; i < dots; ++i) {
+                const float a = 6.2831853f * static_cast<float>(i) / static_cast<float>(dots);
+                scene_.addOn(p, u + r * std::cos(a), v + r * std::sin(a), 0.79f, 0.64f, 0.36f, 0.45f, 18.0f);
+            }
+            // As in the icon: the planets spread round their orbits (the panel's v runs up, the image's y down).
+            const float a = -1.5707963f + 2.1f * static_cast<float>(k + 1);
+            scene_.addOn(p, u + r * std::cos(a), v - r * std::sin(a), kPlanets[k][0], kPlanets[k][1], kPlanets[k][2], 1.0f, 110.0f);
+        }
+        scene_.addOn(p, u, v, 0.91f, 0.70f, 0.36f, 1.0f, 600.0f * size / 0.1f);
+    }
+
     void buildScene()
     {
         // The floor ring: a fixed horizon, never moved by the audio.
@@ -1074,6 +1096,7 @@ private:
         const Panel p = headPanel();
         char line[64];
         if (!player_.ready()) {
+            addLogo(p, 0.08f, 0.10f, 0.12f);
             scene_.addText(p, 0.0f, 0.0f, kCell * 1.8f, "EPHEMERIS", 0.95f, 0.75f, 0.40f, 1.0f);
             scene_.addText(p, 0.0f, -0.08f, kCell, "COMPOSING", 0.6f, 0.7f, 0.9f, 0.8f);
             return;
@@ -1084,6 +1107,9 @@ private:
         const double beat = player_.beat();
         const ParamStore& par = player_.params();
 
+        // The title line above the rest: the logo and the name.
+        addLogo(p, 0.012f, kRow + 0.006f, 0.034f);
+        scene_.addText(p, 0.036f, kRow, kCell, "EPHEMERIS", 0.95f, 0.75f, 0.40f, 0.85f);
         float row = 0.0f;
         auto text = [&](const char* t, float r, float g, float b, float a) {
             scene_.addText(p, 0.0f, row, kCell, t, r, g, b, a);

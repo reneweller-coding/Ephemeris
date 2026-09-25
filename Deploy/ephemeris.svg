@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256">
+<rect x="0" y="0" width="256" height="256" rx="51.2" fill="#15171c"/>
+<circle cx="128" cy="128" r="54.272" fill="none" stroke="#c9a45c" stroke-opacity="0.588" stroke-width="4"/>
+<circle cx="174.848" cy="155.399" r="8.960" fill="#e0a458"/>
+<circle cx="128" cy="128" r="67.584" fill="none" stroke="#c9a45c" stroke-opacity="0.588" stroke-width="4"/>
+<circle cx="69.095" cy="161.134" r="8.960" fill="#d9825b"/>
+<circle cx="128" cy="128" r="80.896" fill="none" stroke="#c9a45c" stroke-opacity="0.588" stroke-width="4"/>
+<circle cx="129.360" cy="47.115" r="8.960" fill="#9fbf6f"/>
+<circle cx="128" cy="128" r="94.208" fill="none" stroke="#c9a45c" stroke-opacity="0.588" stroke-width="4"/>
+<circle cx="208.510" cy="176.921" r="8.960" fill="#6fb8ae"/>
+<circle cx="128" cy="128" r="107.520" fill="none" stroke="#c9a45c" stroke-opacity="0.588" stroke-width="4"/>
+<circle cx="33.415" cy="179.130" r="8.960" fill="#6f8fb8"/>
+<circle cx="128" cy="128" r="40.960" fill="#e8b25c"/>
+</svg>
