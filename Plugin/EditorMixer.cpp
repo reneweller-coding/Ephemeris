@@ -82,17 +82,13 @@ void MixerStrip::resized()
 {
     auto r = getLocalBounds().reduced(3);
     r.removeFromTop(20);   // the name
-    // The knobs two to a row; an odd last knob stands in the middle.
-    const int cols = 2, kw = r.getWidth() / cols, kh = 30, lh = 11;
-    const int rows = (static_cast<int>(knobs_.size()) + cols - 1) / cols;
-    auto knobArea = r.removeFromTop(rows * (kh + lh));
+    // The knobs one under the other: fourteen strips leave a strip too narrow for two knobs of a size a hand
+    // can grab. The name sits under each knob.
+    const int kh = juce::jlimit(28, 44, r.getWidth() - 18), lh = 12;
     for (size_t i = 0; i < knobs_.size(); ++i) {
-        const int row = static_cast<int>(i) / cols, col = static_cast<int>(i) % cols;
-        const bool alone = static_cast<int>(i) == static_cast<int>(knobs_.size()) - 1 && knobs_.size() % 2 == 1;
-        const int x = knobArea.getX() + (alone ? (knobArea.getWidth() - kw) / 2 : col * kw);
-        const int y = knobArea.getY() + row * (kh + lh);
-        knobs_[i]->setBounds(x, y, kw, kh);
-        knobNames_[i]->setBounds(x - 4, y + kh - 1, kw + 8, lh);
+        auto row = r.removeFromTop(kh + lh);
+        knobs_[i]->setBounds(row.removeFromTop(kh));
+        knobNames_[i]->setBounds(row);
     }
     r.removeFromTop(6);
     r.removeFromBottom(15);   // the peak readout

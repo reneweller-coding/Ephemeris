@@ -39,7 +39,7 @@ public:
     float peakDb() const { return holdDb_; }   ///< @copydoc rmsDb
 
     void paint(juce::Graphics&) override;   ///< the frame, the name and the meter
-    void resized() override;                ///< knobs two to a row, then fader and meter side by side
+    void resized() override;                ///< knobs one under the other, then fader and meter side by side
 
 private:
     juce::String name_;                                                        ///< the source's name
