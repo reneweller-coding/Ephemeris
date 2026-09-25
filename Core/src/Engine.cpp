@@ -204,9 +204,7 @@ void Engine::updateCell()
         as.bleepsPerMinute = a(atmos::Bleeps);
         as.bleepGain = gain(a(atmos::BleepLevel));
         // The bleeps take their notes from the root the rows are in.
-        int shift = 0;
-        for (const auto& rs : score_.rootShifts) { if (rs.first > beat) break; shift = rs.second; }
-        as.rootPc = ((score_.keyRoot + shift) % 12 + 12) % 12;
+        as.rootPc = pitchClass(score_.keyRoot + score_.rootAt(beat));
         as.scale = params_.getInt(params_.id(Module::Compose, 0, compose::Scale));
         atmos_.set(as);
         atmosRunning_ = atmos_.active();
@@ -375,10 +373,7 @@ bool Engine::process(float* L, float* R, int n)
             if (e.row == kDrumsVoice) {
                 if (e.on) {
                     // The toms are tuned to the root of the moment, the high one a fifth above.
-                    int shift = 0;
-                    const double now = beat();
-                    for (const auto& rs : score_.rootShifts) { if (rs.first > now) break; shift = rs.second; }
-                    const float low = static_cast<float>(midiToHz(43 + ((score_.keyRoot + shift - 7) % 12 + 12) % 12));
+                    const float low = static_cast<float>(midiToHz(43 + pitchClass(score_.keyRoot + score_.rootAt(beat()) - 7)));
                     drums_.hit(e.pitch, e.velocity, e.pitch == 48 || e.pitch == 47 || e.pitch == 50 ? low * 1.5f : low);
                     drumsRunning_ = true;
                 }

@@ -52,6 +52,16 @@ void Score::clear(double bpm)
     rootShifts.clear();
 }
 
+int rootShiftAt(const std::vector<std::pair<double, int>>& shifts, double beat)
+{
+    int s = 0;
+    for (const auto& e : shifts) {
+        if (e.first > beat) break;
+        s = e.second;
+    }
+    return s;
+}
+
 float Score::gestureOffset(int param, double beat) const
 {
     const Gesture* latest = nullptr;

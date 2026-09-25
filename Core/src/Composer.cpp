@@ -26,20 +26,6 @@ float offsetTo(const ParamStore& p, int id, float value)
     return p.toNormalised(id, value) - p.toNormalised(id, p.get(id));
 }
 
-/** @brief The drone: the root in the second octave, held through each root of the span. */
-void writeDrone(Score& s, int keyRoot, double from, double to)
-{
-    for (size_t i = 0; i < s.rootShifts.size(); ++i) {
-        const double b0 = std::max(from, s.rootShifts[i].first);
-        const double b1 = std::min(to, i + 1 < s.rootShifts.size() ? s.rootShifts[i + 1].first : to);
-        if (b1 <= b0 + 1.0) continue;
-        int pitch = 45 + ((keyRoot - 9 + 12) % 12) + s.rootShifts[i].second;
-        while (pitch > 52) pitch -= 12;
-        while (pitch < 40) pitch += 12;
-        s.notes.push_back({ b0, b1 - b0 - 0.05, Part::Drone, pitch, 0.8f, false, false });
-    }
-}
-
 /**
  * @brief Drums for a span, by style (PLAN 5.7): an eighties kit in "Melodic", a sparse one in "Modern",
  *        a lone tom now and then in "Doom". General MIDI numbers; toms are tuned by the engine.
@@ -102,7 +88,7 @@ Score composePiece(const ParamStore& params, uint64_t seed, double minutes, int 
     auto stream = [&](Stream k) { Rng r; r.seed(streamSeed(k)); return r; };
 
     const int keyId = p.id(Module::Compose, 0, compose::Key);
-    const int key = ((p.getInt(keyId) + keyShift) % 12 + 12) % 12;
+    const int key = pitchClass(p.getInt(keyId) + keyShift);
     p.set(keyId, static_cast<float>(key));
     double bpm = p.get(p.id(Module::Compose, 0, compose::Bpm));
     if (p.getBool(p.id(Module::Compose, 0, compose::StyleTempo))) {
@@ -370,7 +356,7 @@ Score composeConcert(const ParamStore& p, uint64_t seed, double minutes, const C
         // The next key: a fourth, a fifth, the relative, a tone.
         const int moves[5] = { 5, -5, 3, -2, 2 };
         shift += moves[r.below(5)];
-        shift = ((shift + 6) % 12 + 12) % 12 - 6;
+        shift = pitchClass(shift + 6) - 6;
     }
     return out;
 }

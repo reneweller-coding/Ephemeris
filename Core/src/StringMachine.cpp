@@ -92,7 +92,7 @@ void StringMachine::process(float* L, float* R, int n)
             if (!k.on) continue;
             k.env += ((k.held ? 1.0f : 0.0f) - k.env) * (k.held ? att : rel);
             if (!k.held && k.env < 1e-4f) { k.on = false; continue; }
-            const int pc = ((k.pitch % 12) + 12) % 12;
+            const int pc = pitchClass(k.pitch);
             const int octDown = static_cast<int>(std::lround((kTopOctaveMidi + pc - k.pitch) / 12.0));   // divisions below the top
             const double div8 = std::ldexp(1.0, octDown), div4 = std::ldexp(1.0, std::max(0, octDown - 1));
             // Phase of the 8' and the 4': the counter divided, which keeps every octave in lock.

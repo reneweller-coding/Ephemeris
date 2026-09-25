@@ -9,6 +9,19 @@
 
 namespace eph {
 
+void writeDrone(Score& s, int keyRoot, double from, double to)
+{
+    for (size_t i = 0; i < s.rootShifts.size(); ++i) {
+        const double b0 = std::max(from, s.rootShifts[i].first);
+        const double b1 = std::min(to, i + 1 < s.rootShifts.size() ? s.rootShifts[i + 1].first : to);
+        if (b1 <= b0 + 1.0) continue;
+        int pitch = 45 + ((keyRoot - 9 + 12) % 12) + s.rootShifts[i].second;
+        while (pitch > 52) pitch -= 12;
+        while (pitch < 40) pitch += 12;
+        s.notes.push_back({ b0, b1 - b0 - 0.05, Part::Drone, pitch, 0.8f, false, false });
+    }
+}
+
 int writeChords(Score& score, const PadPlan& plan, double from, double to, Rng& rng)
 {
     // The roots in the span, as segments.
@@ -31,7 +44,7 @@ int writeChords(Score& score, const PadPlan& plan, double from, double to, Rng& 
         std::vector<int> pcs = { 0, 2, 4 };
         if (rng.uniform() < plan.colour) pcs.push_back(rng.uniform() < 0.5f ? 6 : 8);
         std::vector<int> tones;
-        for (int d : pcs) tones.push_back(((base + scaleSemitones(plan.scale, d)) % 12 + 12) % 12);
+        for (int d : pcs) tones.push_back(pitchClass(base + scaleSemitones(plan.scale, d)));
         // Voicing with the least movement: every combination of octaves inside the register is tried (a
         // few dozen at most) and the one kept whose voices lie nearest to those of the last chord, with a
         // small pull towards the middle of the register and a penalty for a spread wider than a tenth.

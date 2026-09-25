@@ -65,10 +65,7 @@ struct OuProcess {
     double step(double dt, double tau, double sigma, Rng& rng)
     {
         const double a = std::exp(-dt / tau);
-        // Gaussian from twelve uniforms (Irwin-Hall), variance 1: cheap and plenty for a drift.
-        double n = -6.0;
-        for (int i = 0; i < 12; ++i) n += static_cast<double>(rng.uniform());
-        x = a * x + sigma * std::sqrt(1.0 - a * a) * n;
+        x = a * x + sigma * std::sqrt(1.0 - a * a) * rng.gaussian();
         return x;
     }
 };

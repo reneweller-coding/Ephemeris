@@ -31,6 +31,12 @@ struct PadPlan {
     std::vector<std::pair<double, int>> shifts;   ///< the transposer's roots over time
 };
 
+/**
+ * @brief The drone: the root in the second octave (E2 .. E3), held through each of the score's roots
+ *        (Score::rootShifts) between @p from and @p to.
+ */
+void writeDrone(Score& score, int keyRoot, double from, double to);
+
 /** @brief Writes chords between two beats; returns the number of chords struck. */
 int writeChords(Score& score, const PadPlan& plan, double from, double to, Rng& rng);
 

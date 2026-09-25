@@ -31,6 +31,9 @@ template <class T> inline T clampv(T v, T lo, T hi) { return v < lo ? lo : (v > 
 inline float dbToGain(float db) { return std::pow(10.0f, db * 0.05f); }
 
 /** @brief MIDI note number to frequency in Hz (A4 = 69 = 440 Hz). */
+/** @brief The pitch class 0..11 of a note or interval, for negative values too. (Added in Ephemeris.) */
+inline int pitchClass(int n) { return ((n % 12) + 12) % 12; }
+
 inline double midiToHz(double note) { return 440.0 * std::pow(2.0, (note - 69.0) / 12.0); }
 
 /**
@@ -54,6 +57,11 @@ struct Rng {
     int below(int n) { return n <= 0 ? 0 : static_cast<int>(next() % static_cast<uint64_t>(n)); }
     /** @brief A seed for a derived, independent stream. */
     uint64_t fork() { return next(); }
+    /**
+     * @brief A standard normal value from twelve uniforms (Irwin-Hall): variance 1, bounded at +-6, cheap.
+     *        Plenty for drifts and scatter. (Added in Ephemeris.)
+     */
+    double gaussian() { double n = -6.0; for (int i = 0; i < 12; ++i) n += static_cast<double>(uniform()); return n; }
 };
 
 /**

@@ -93,6 +93,9 @@ struct Marker {
     std::string text;    ///< name, e.g. "Atmo", "Build", "Piece 2"
 };
 
+/** @brief The root offset in force at @p beat in a list of (beat, semitones) changes (0 before the first). */
+int rootShiftAt(const std::vector<std::pair<double, int>>& shifts, double beat);
+
 /** @brief A score of one piece or a whole concert. */
 struct Score {
     TempoMap tempo;                    ///< the tempo map; every other time is in beats
@@ -119,6 +122,8 @@ struct Score {
      * for the offline render and the tests; the audio thread keeps a cursor instead.
      */
     float gestureOffset(int param, double beat) const;
+    /** @brief The transposer's root offset at @p beat (rootShifts). */
+    int rootAt(double beat) const { return rootShiftAt(rootShifts, beat); }
 };
 
 } // namespace eph

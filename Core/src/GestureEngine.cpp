@@ -10,12 +10,7 @@ namespace eph {
 
 namespace {
 
-double gaussian(Rng& rng)
-{
-    double n = -6.0;
-    for (int i = 0; i < 12; ++i) n += static_cast<double>(rng.uniform());
-    return n;
-}
+double gaussian(Rng& rng) { return rng.gaussian(); }
 
 } // namespace
 

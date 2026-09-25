@@ -61,15 +61,7 @@ Score buildSketch(const ParamStore& params, uint64_t seed, double minutes)
     s.rootShifts = rack.shifts();
 
     // The drone: the root in the second octave, held through each root, from the first bar to the end.
-    for (size_t i = 0; i < s.rootShifts.size(); ++i) {
-        const double b0 = std::max(0.0, s.rootShifts[i].first);
-        const double b1 = i + 1 < s.rootShifts.size() ? s.rootShifts[i + 1].first : at(0.97);
-        if (b1 <= b0 + 1.0 || b0 >= at(0.97)) continue;
-        int pitch = 45 + ((rack.keyRoot() - 9 + 12) % 12) + s.rootShifts[i].second;
-        while (pitch > 52) pitch -= 12;
-        while (pitch < 40) pitch += 12;
-        s.notes.push_back({ b0, b1 - b0 - 0.05, Part::Drone, pitch, 0.8f, false, false });
-    }
+    writeDrone(s, rack.keyRoot(), 0.0, at(0.97));
 
     // The atmosphere: wind swells in the intro and recedes under the sequence, comes back for the coda;
     // sweeps in the intro and the coda, bleeps in the middle. Steps and slow moves of knobs that start
