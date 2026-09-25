@@ -36,6 +36,14 @@
  * **A new mode** (RackOp::Scale): the rows play in another scale from the next step on, on the same
  * centre -- Aeolian brightening to Dorian at the peak (the style guide's 3.2).
  *
+ * **Figures** (25.09.2026, the style guide's 4.2): a row is drawn from an archetype (Figure), eight steps
+ * that the longer rows repeat with the odd octave changed; every eight steps have one to three rests (the
+ * bass none to two) and accents on their first and fifth step (or 3+3+2); a style's share of steps are
+ * probability gates (Modern the most, Cosmic and Doom the fewest). Ratchets (RackOp::Ratchet) split a
+ * few steps into quick triggers, a thinning (RackOp::Thin) silences steps one by one, a new division
+ * (RackOp::Division) doubles the pulse -- all drawn from each row's own dice, so the patterns and the
+ * mutations stay what they were.
+ *
  * **A new key** (RackOp::Key, Phase 4) moves the whole rack -- rows, and the root the lead and the chords
  * follow -- by some semitones from the piece's key; the transposer then moves around the new key.
  */
@@ -58,7 +66,23 @@ struct Step {
     float velocity = 0.8f;   ///< 0..1
     bool accent = false;     ///< accented
     bool slide = false;      ///< glides into the next step (legato)
+    int ratchet = 1;         ///< triggers the step is split into (RackOp::Ratchet)
+    float chance = 1.0f;     ///< chance that the step sounds each time it comes round (a probability gate)
 };
+
+/**
+ * @brief The figures a row is drawn from (the style guide's 4.2): the old free rules (Classic), and the
+ *        archetypes -- octave pendulum (D2 D3 D2 D3 .. A2 D3), fifth anchor (D A D A' D A C A), the 3+1 pulse
+ *        (D D D - D D D -), stairs up and down, the mode's colour (D F A B D' A F D in Dorian), the Phrygian
+ *        push (D Eb D A D Eb D C), the arpeggio spiral (i, then VI), the canon (the row before, three steps
+ *        later or a fifth up).
+ */
+enum class Figure : int { Classic, OctavePendulum, FifthAnchor, ThreePlusOne, StairsUp, StairsDown, Colour,
+                          PhrygianPush, Spiral, Canon, Count };
+/** @brief The name of a figure ("Classic", "Octave Pendulum", ...). */
+const char* figureName(Figure f);
+/** @brief The degree that makes a mode heard (Aeolian b6, Dorian 6, Phrygian b2, Lydian #4 ...; the style guide's 3.2). */
+int characterDegree(int scale);
 
 /** @brief How a row's steps are drawn when it is generated. */
 enum class RowRole : int {
@@ -93,6 +117,8 @@ public:
     const Step* steps(int row) const { return rows_[row].steps; }
     /** @brief Current length of a row in steps. */
     int length(int row) const { return rows_[row].length; }
+    /** @brief The figure a row was last drawn from. */
+    Figure figure(int row) const { return rows_[row].figure; }
     /** @brief Mutations a row has made since setup(). */
     int mutations(int row) const { return rows_[row].mutations; }
     /** @brief The transposer's current offset in semitones. */
@@ -134,7 +160,9 @@ private:
         int dir = 1;              ///< pendulum direction
         int mutations = 0;
         bool transposer = false;  ///< row.mode = Transposer
+        Figure figure = Figure::Classic;
         Rng rng;
+        Rng dice;                 ///< probability gates, ratchets and thinning: apart from the patterns' stream
     };
     double nextStepBeat(const Row& r) const { return r.startBeat + static_cast<double>(r.step) * r.divBeats; }
     void playStep(int index, Row& r, Score& score, std::vector<RackEvent>& log);

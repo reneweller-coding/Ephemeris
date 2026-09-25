@@ -52,6 +52,7 @@
 #include <cstring>
 #include <functional>
 #include <string>
+#include <set>
 #include <vector>
 
 using namespace eph;
@@ -1034,6 +1035,133 @@ void testHarmony()
 }
 
 /**
+ * The sequencing after the style guide (Rack.h, 4.x): the figures, their rests and accents, the ratchets, the
+ * probability gates, the doubled pulse, the thinning; in a piece, ratchets only on the plateau and at the peak.
+ */
+void testSequencing()
+{
+    section("sequencing after the style guide");
+    // Figures: every archetype turns up; the first step sounds on the root or the fifth; rests and accents per eight.
+    std::set<int> seen;
+    int badFirst = 0, badRests = 0, badAccents = 0, rows = 0;
+    for (int seed = 1; seed <= 60; ++seed) {
+        ParamStore p;
+        p.parseText(seed % 3 == 0 ? "compose.scale=Phrygian" : "compose.scale=Dorian");
+        Rack r;
+        r.setup(p, static_cast<uint64_t>(seed));
+        r.generate(0, RowRole::Bass);
+        r.generate(1, RowRole::Counter);
+        r.generate(2, RowRole::Walk);
+        for (int row = 0; row < 3; ++row) {
+            const Step* st = r.steps(row);
+            const Figure f = r.figure(row);
+            seen.insert(static_cast<int>(f));
+            ++rows;
+            if (f != Figure::Canon && (!st[0].gate || (st[0].degree != 0 && st[0].degree != 4))) ++badFirst;
+            for (int b = 0; b < 16; b += 8) {
+                int rests = 0;
+                for (int i = b; i < b + 8; ++i) rests += st[i].gate ? 0 : 1;
+                if (f != Figure::Canon && (row == 0 ? rests > 2 : (rests < 1 || rests > 3))) ++badRests;
+                if (!st[b].accent) ++badAccents;
+            }
+        }
+    }
+    check(seen.size() == static_cast<size_t>(Figure::Count), "every figure turns up", fmt("%zu of %d", seen.size(), static_cast<int>(Figure::Count)));
+    check(badFirst == 0 && badRests == 0 && badAccents == 0, "root or fifth first, the rests and accents of each eight",
+          fmt("%d first steps, %d rest counts, %d accents wrong of %d rows", badFirst, badRests, badAccents, rows));
+
+    // A row played with rack events: ratchets, the doubled pulse, the thinning.
+    auto play = [](const std::vector<RackEvent>& events, const char* extra) {
+        ParamStore p;
+        p.parseText(std::string("row1.active=1 row1.length=8 row1.division=1/16 row1.mutation=0 ") + extra);
+        Score s;
+        s.clear(120.0);
+        Rack r;
+        r.setup(p, 5);
+        r.generate(0, RowRole::Counter);
+        s.rack = events;
+        r.run(s, 64.0);
+        s.sort();
+        return s;
+    };
+    auto notesIn = [](const Score& s, double from, double to) {
+        int n = 0;
+        for (const NoteEvent& e : s.notes) n += e.beat >= from && e.beat < to ? 1 : 0;
+        return n;
+    };
+    const Score plain = play({}, "");
+    const Score ratch = play({ { 32.0, 0, RackOp::Ratchet, 2 } }, "");
+    double closest = 1.0;
+    for (size_t i = 1; i < ratch.notes.size(); ++i) if (ratch.notes[i].beat >= 32.0) closest = std::min(closest, ratch.notes[i].beat - ratch.notes[i - 1].beat);
+    check(notesIn(ratch, 0.0, 32.0) == notesIn(plain, 0.0, 32.0) && notesIn(ratch, 32.0, 64.0) > notesIn(plain, 32.0, 64.0) && closest < 0.2,
+          "ratchets split steps into quick triggers from their event on",
+          fmt("%d against %d notes after it, closest %.3f beats", notesIn(ratch, 32.0, 64.0), notesIn(plain, 32.0, 64.0), closest));
+    const Score doubled = play({ { 32.0, 0, RackOp::Division, static_cast<int>(RowDivision::ThirtySecond) } }, "");
+    check(notesIn(doubled, 0.0, 32.0) == notesIn(plain, 0.0, 32.0) && notesIn(doubled, 32.0, 64.0) > notesIn(plain, 32.0, 64.0) * 3 / 2,
+          "a new division doubles the pulse from its event on", fmt("%d against %d notes", notesIn(doubled, 32.0, 64.0), notesIn(plain, 32.0, 64.0)));
+    std::vector<RackEvent> thin;
+    for (double b = 16.0; b < 48.0; b += 4.0) thin.push_back({ b, 0, RackOp::Thin, 1 });
+    const Score thinned = play(thin, "");
+    bool downbeats = true;
+    for (const NoteEvent& e : plain.notes)
+        if (std::fmod(e.beat, 2.0) == 0.0) {
+            bool found = false;
+            for (const NoteEvent& t : thinned.notes) found = found || t.beat == e.beat;
+            downbeats = downbeats && found;
+        }
+    check(notesIn(thinned, 48.0, 64.0) < notesIn(plain, 48.0, 64.0) && downbeats, "the thinned row loses steps but never its first",
+          fmt("%d against %d notes at the end", notesIn(thinned, 48.0, 64.0), notesIn(plain, 48.0, 64.0)));
+    // Probability gates in Modern: a step that sounds on some rounds and not on others.
+    {
+        ParamStore p;
+        p.parseText("compose.style=Modern row1.active=1 row1.length=16 row1.division=1/16 row1.mutation=0");
+        int chancy = 0, varied = 0;
+        for (int seed = 1; seed <= 20; ++seed) {
+            Rack r;
+            r.setup(p, static_cast<uint64_t>(seed));
+            r.generate(0, RowRole::Counter);
+            for (int i = 0; i < 16; ++i) chancy += r.steps(0)[i].chance < 1.0f && r.steps(0)[i].gate ? 1 : 0;
+            Score s;
+            s.clear(120.0);
+            r.run(s, 64.0);
+            s.sort();
+            int count[16] = {};
+            for (const NoteEvent& e : s.notes) ++count[static_cast<int>(std::lround(e.beat * 4.0)) % 16];
+            for (int i = 0; i < 16; ++i) varied += count[i] > 0 && count[i] < 16 ? 1 : 0;
+        }
+        check(chancy > 0 && varied > 0, "probability gates: steps that sound on some rounds only", fmt("%d chance steps, %d varied", chancy, varied));
+    }
+
+    // In a piece: ratchets only on the plateau (the lead's section) and at the peak.
+    int outside = 0, ratchets = 0;
+    for (int seed = 1; seed <= 6; ++seed) {
+        ParamStore p;
+        p.parseText("compose.style=Melodic");
+        const Score sc = composePiece(p, static_cast<uint64_t>(seed), 12.0);
+        std::vector<std::pair<double, double>> allowed;
+        for (size_t m = 0; m < sc.markers.size(); ++m) {
+            const std::string& t = sc.markers[m].text;
+            if (t.rfind("Lead", 0) == 0 || t.rfind("Hoehepunkt", 0) == 0)
+                allowed.push_back({ sc.markers[m].beat, m + 1 < sc.markers.size() ? sc.markers[m + 1].beat : sc.lengthBeats });
+        }
+        double last[kRows];
+        for (double& l : last) l = -10.0;
+        for (const NoteEvent& n : sc.notes) {
+            const int r = static_cast<int>(n.part) - static_cast<int>(Part::Row1);
+            if (r < 0 || r >= kRows) continue;
+            if (n.beat - last[r] < 0.2 && n.beat - last[r] > 1e-6) {
+                ++ratchets;
+                bool in = false;
+                for (const auto& a : allowed) in = in || (n.beat >= a.first && n.beat < a.second + 0.5);
+                outside += in ? 0 : 1;
+            }
+            last[r] = n.beat;
+        }
+    }
+    check(ratchets > 0 && outside == 0, "ratchets only on the plateau and at the peak", fmt("%d ratchet triggers, %d elsewhere", ratchets, outside));
+}
+
+/**
  * The offline render is the oracle only if a host's block size cannot change a sample: the study
  * rendered with blocks of 1, 37 and 512 must agree bit for bit (Engine.h).
  */
@@ -1180,6 +1308,7 @@ const TestSection kSections[] = {
     { "testRooms", testRooms },
     { "testStrings", testStrings },
     { "testHarmony", testHarmony },
+    { "testSequencing", testSequencing },
     { "testBlockSizes", testBlockSizes },
     { "testEcho", testEcho },
     { "testDrift", testDrift },

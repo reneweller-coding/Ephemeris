@@ -98,6 +98,7 @@ struct Piece {
     double stringsFrom = -1.0;            ///< first beat of the string machine, -1 if the piece has none
     std::vector<std::pair<double, int>> chords;   ///< the chord track: degrees of the mode over time (Harmony.h)
     std::vector<std::pair<double, int>> keys = { { 0.0, 0 } };   ///< the phases' keys over time, for the drone
+    std::vector<std::pair<double, double>> doubled;   ///< spans where row 2 plays sixteenths (the pulse doubled)
     std::function<uint64_t(Stream)> seedOf;   ///< the seed of a stream, rerolls counted
     /** @brief A fresh generator on stream @p k. */
     Rng stream(Stream k) const { Rng r; r.seed(seedOf(k)); return r; }
@@ -124,7 +125,9 @@ void setUpRows(Piece& c)
     for (size_t i = lengths.size(); i > 1; --i) std::swap(lengths[i - 1], lengths[static_cast<size_t>(cfg.below(static_cast<int>(i)))]);
     auto rowSet = [&](int r, int index, float v) { p.set(p.id(Module::Row, r, index), v); };
     for (int r = 0; r < kRows; ++r) rowSet(r, row::Active, 0.0f);
-    rowSet(0, row::Length, 16); rowSet(0, row::Division, static_cast<float>(RowDivision::Sixteenth));
+    // The bass ostinato: eight or sixteen steps (the style guide's 4.2), its gate long (4.4).
+    rowSet(0, row::Length, cfg.uniform() < 0.5f ? 8.0f : 16.0f); rowSet(0, row::Division, static_cast<float>(RowDivision::Sixteenth));
+    rowSet(0, row::Gate, 60.0f + 15.0f * cfg.uniform());
     rowSet(0, row::Octave, -1); rowSet(0, row::Mutation, c.prof.mutation); rowSet(0, row::Mode, 0);
     for (int k = 0; k < counters; ++k) {
         const int r = k + 1;
@@ -232,6 +235,29 @@ void writeRack(Piece& c)
             ev.push_back({ breakdown->beat, -1, RackOp::Scale, 2 });
             ev.push_back({ end, -1, RackOp::Scale, c.scale });
         }
+        // The sequencing of the phase (the style guide's 4.3): ratchets on the plateau and at the peak, the pulse of
+        // an eighths row doubled at the peak, the bass losing steps in the breakdown. Their own draws, after the harmony's.
+        static const float kRatchets[] = { 0.6f, 0.3f, 0.8f, 0.7f, 0.2f }, kDouble[] = { 0.5f, 0.3f, 0.6f, 0.5f, 0.0f };
+        const Section* plateau = form.find(SectionType::Lead, ph);
+        const int lead = counters > 0 ? 1 : 0;   // the main sequence: the first counter row, else the bass
+        if (harm.uniform() < kRatchets[si]) {
+            if (plateau != nullptr) ev.push_back({ plateau->beat, lead, RackOp::Ratchet, 1 });
+            if (peak != nullptr) {
+                ev.push_back({ peak->beat, lead, RackOp::Ratchet, 2 });
+                ev.push_back({ peak->beat, 0, RackOp::Ratchet, 1 });
+            }
+            ev.push_back({ chordsEnd, lead, RackOp::Ratchet, 0 });
+            ev.push_back({ chordsEnd, 0, RackOp::Ratchet, 0 });
+        }
+        if (peak != nullptr && counters >= 2 && harm.uniform() < kDouble[si]) {
+            // Row 2 runs in eighths (setUpRows): sixteenths from the peak to the breakdown.
+            ev.push_back({ peak->beat, 2, RackOp::Division, static_cast<int>(RowDivision::Sixteenth) });
+            ev.push_back({ chordsEnd, 2, RackOp::Division, static_cast<int>(RowDivision::Eighth) });
+            c.doubled.push_back({ peak->beat, chordsEnd });
+        }
+        if (breakdown != nullptr)
+            for (double b = breakdown->beat + 2 * kBeatsPerBar; b < breakdown->beat + breakdown->length; b += 4 * kBeatsPerBar)
+                ev.push_back({ b, 0, RackOp::Thin, 1 });
         auto chordSpan = [&](double b0, double b1, int scale) {
             if (b1 <= b0) return;
             for (const auto& ch : drawChordTrack(c.style, scale, b0, b1, harm)) {
@@ -250,6 +276,9 @@ void writeRack(Piece& c)
         // In the coda the bass row plays on for a third of it, then leaves the atmosphere alone.
         const double bassEnd = bridge != nullptr ? end : end + std::floor((coda != nullptr ? coda->length : 0.0) / 3.0 / kBeatsPerBar) * kBeatsPerBar;
         ev.push_back({ bassEnd, 0, RackOp::Stop, 0 });
+        // In the coda the bass loses a step every two bars before it stops (the style guide's 4.7).
+        if (bridge == nullptr)
+            for (double b = end + 2 * kBeatsPerBar; b < bassEnd; b += 2 * kBeatsPerBar) ev.push_back({ b, 0, RackOp::Thin, 1 });
         s.rack.insert(s.rack.end(), ev.begin(), ev.end());
     }
     s.sort();
@@ -262,6 +291,12 @@ void writeRack(Piece& c)
         const double div = rowDivisionBeats(static_cast<RowDivision>(static_cast<int>(p.get(p.id(Module::Row, r, row::Division)))));
         const bool transposer = static_cast<int>(p.get(p.id(Module::Row, r, row::Mode))) == static_cast<int>(RowMode::Transposer);
         s.rowShapes.push_back({ 0.0, r, length, div, transposer });
+    }
+    // Row 2's doubled pulse, for the displays.
+    const int length2 = std::clamp(static_cast<int>(p.get(p.id(Module::Row, 2, row::Length))), 1, kMaxSteps);
+    for (const auto& d : c.doubled) {
+        s.rowShapes.push_back({ d.first, 2, length2, rowDivisionBeats(RowDivision::Sixteenth), false });
+        s.rowShapes.push_back({ d.second, 2, length2, rowDivisionBeats(RowDivision::Eighth), false });
     }
 }
 

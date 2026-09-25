@@ -79,6 +79,9 @@ enum class RackOp : uint8_t {
     Key,          ///< the whole rack moves to a new key, @p value semitones from the piece's (row unused; Phase 4)
     Chord,        ///< the row's steps move by @p value scale degrees (the bass wandering under the sequence; -1: all rows)
     Scale,        ///< the rack plays in scale @p value (compose.scale order) from here: a parallel change of mode
+    Ratchet,      ///< @p value steps of the row, drawn anew, split into two to four triggers (0: none)
+    Thin,         ///< @p value more steps of the row fall silent: the sequence loses its pieces
+    Division,     ///< the row's division becomes @p value (RowDivision) on its next step: the pulse doubled or halved
 };
 
 /** @brief One change to the rack. */

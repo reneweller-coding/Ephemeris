@@ -107,6 +107,16 @@ of a mutation at the end of each cycle (a Turing machine's shift register), the 
 sends, and the mode -- notes, or the transposer that moves the others. The composer sets the rows for
 each piece; the values here are what a piece starts from.
 
+The composer draws each row from one of the Berlin School's figures: the octave pendulum, the fifth
+anchor, the 3+1 pulse (three notes and a rest), stairs up and down, the mode's colour (the note that
+makes Dorian or Phrygian heard), the Phrygian push, the arpeggio spiral from i to VI, or a canon of the
+row before -- three steps later or a fifth up -- besides the older free rules. The bass ostinato has eight
+or sixteen steps and a long gate; every eight steps have one to three rests (the bass none to two), the
+first always sounds on the root or the fifth, accents fall on the first and fifth step or 3+3+2. Some
+steps are probability gates that sound on some rounds only -- Modern has the most, Cosmic and Doom the
+fewest. On the plateau and at the peak a few steps are ratcheted into quick triggers, at some peaks the
+eighths row doubles its pulse, and in the breakdown and the coda the bass loses its steps one by one.
+
 == Gestures | | 3 ==
 
 What the player's two hands do to the knobs over the whole piece. Every knob the composer moves has a lane:

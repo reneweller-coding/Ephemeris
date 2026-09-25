@@ -62,6 +62,13 @@ diatonisch, die Gegenreihen bleiben), `RackOp::Scale` und `Score::scaleShifts` (
 der Phasen, Schluss auf offener Quinte (Streicher, sonst Tape Keys), `compose.scale` um Mixolydisch, Lydisch
 und Lokrisch erweitert. Der Transposer läuft nur noch im Lead-Teil (Plateau) und im Höhepunkt, ohne
 Mutation. Selbsttest `testHarmony`.
+Schritt 3 erledigt: `Figure` in `Rack.h` (Classic, Oktavpendel, Quintanker, 3+1, Treppe auf/ab, Modusfarbe,
+phrygischer Stoß, Spirale i-VI, Kanon der Vorreihe), Schritt 1 Grundton oder Quinte, 1-3 Pausen je 8 (Bass
+0-2), Akzente 1 und 5 oder 3+3+2, Wahrscheinlichkeits-Gates je Stil (Cosmic/Doom 5 %, Melodic 8 %, Modern
+20 %, Drift 15 %) aus eigenem Würfel je Reihe; `RackOp::Ratchet` (Lead-Teil 1 Schritt, Höhepunkt 2 plus 1 im
+Bass), `RackOp::Division` (Achtelreihe im Höhepunkt in Sechzehnteln), `RackOp::Thin` (Bass verliert im Abbau
+alle 4 und im Ausklang alle 2 Takte einen Schritt); Bass 8 oder 16 Schritte, Gate 60-75 %. Selbsttest
+`testSequencing`.
 
 **25.09.2026: Eigener Stil, Platte und BBD, Granular, Konzertbogen.**
 - **Eigener Stil** (Modul `custom`, Style-Tab): alle Zahlen eines Profils als Parameter, "Copy <Stil> into

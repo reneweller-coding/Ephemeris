@@ -73,9 +73,78 @@ void Rack::setup(const ParamStore& p, uint64_t seed)
         r.dir = 1;
         r.mutations = 0;
         r.rng.seed(mixSeed(seed, static_cast<uint64_t>(i) + 1));
+        r.dice.seed(mixSeed(seed, static_cast<uint64_t>(i) + 101));
+        r.figure = Figure::Classic;
         for (Step& s : r.steps) s = Step{};
     }
     position_ = 0.0;
+}
+
+namespace {
+
+constexpr int kRest = -99;
+
+/** @brief The archetypes as eight steps: degrees of a seven-note mode (kRest a rest) and octaves. */
+struct Shape { int degree[8]; int octave[8]; };
+
+const Shape& shapeOf(Figure f)
+{
+    static const Shape kShapes[] = {
+        { { 0, 0, 0, 0, 0, 0, 0, 0 },          { 0, 0, 0, 0, 0, 0, 0, 0 } },   // Classic (unused)
+        { { 0, 0, 0, 0, 0, 0, 4, 0 },          { 0, 1, 0, 1, 0, 1, 0, 1 } },   // octave pendulum
+        { { 0, 4, 0, 4, 0, 4, 6, 4 },          { 0, 0, 0, 1, 0, 0, 0, 0 } },   // fifth anchor
+        { { 0, 0, 0, kRest, 0, 0, 4, kRest },  { 0, 1, 0, 0, 0, 1, 0, 0 } },   // 3+1 pulse
+        { { 0, 1, 2, 3, 4, 6, 7, 4 },          { 0, 0, 0, 0, 0, 0, 0, 0 } },   // stairs up
+        { { 7, 6, 4, 3, 2, 1, 0, 4 },          { 0, 0, 0, 0, 0, 0, 0, 0 } },   // stairs down
+        { { 0, 2, 4, 5, 7, 4, 2, 0 },          { 0, 0, 0, 0, 0, 0, 0, 0 } },   // colour (the 5 is the mode's degree)
+        { { 0, 1, 0, 4, 0, 1, 0, 6 },          { 0, 0, 0, 0, 0, 0, 0, 0 } },   // Phrygian push
+        { { 0, 2, 4, 7, -2, 0, 2, 5 },         { 0, 0, 0, 0, 0, 0, 0, 0 } },   // spiral: i, then VI
+    };
+    return kShapes[std::clamp(static_cast<int>(f), 0, static_cast<int>(Figure::Spiral))];
+}
+
+/** @brief A degree of a seven-note figure in @p scale: itself, or the nearest of the pentatonic's. */
+int fromSeven(int scale, int d)
+{
+    if (scaleSize(scale) == 7) return d;
+    static const int kPent[7] = { 0, 1, 1, 2, 3, 3, 4 };
+    const int oct = floorDiv(d, 7);
+    return kPent[d - 7 * oct] + 5 * oct;
+}
+
+/** @brief Share of a row's steps that are probability gates, by style (the style guide's 4.6). */
+float chanceShare(Style style)
+{
+    static const float kShare[] = { 0.05f, 0.05f, 0.08f, 0.20f, 0.15f };   // Cosmic, Doom, Melodic, Modern, Drift
+    return kShare[std::clamp(static_cast<int>(style), 0, 4)];
+}
+
+template <size_t N>
+Figure drawFigure(const Figure (&f)[N], const float (&w)[N], Rng& g)
+{
+    float total = 0.0f;
+    for (float x : w) total += x;
+    float u = g.uniform() * total;
+    for (size_t i = 0; i < N; ++i) {
+        u -= w[i];
+        if (u <= 0.0f && w[i] > 0.0f) return f[i];
+    }
+    return f[N - 1];
+}
+
+} // namespace
+
+const char* figureName(Figure f)
+{
+    static const char* const kNames[] = { "Classic", "Octave Pendulum", "Fifth Anchor", "3+1 Pulse", "Stairs Up",
+                                          "Stairs Down", "Colour", "Phrygian Push", "Spiral", "Canon" };
+    return kNames[std::clamp(static_cast<int>(f), 0, static_cast<int>(Figure::Count) - 1)];
+}
+
+int characterDegree(int scale)
+{
+    static const int kChar[kScales] = { 5, 5, 1, 6, 4, 6, 3, 4 };
+    return kChar[std::clamp(scale, 0, kScales - 1)];
 }
 
 void Rack::generate(int row, RowRole role)
@@ -87,45 +156,117 @@ void Rack::generate(int row, RowRole role)
     std::vector<int> roots;
     if (role == RowRole::Transposer)
         roots = drawProgression(style_, scale_, r.length, std::max(1, static_cast<int>(std::lround(r.divBeats / kBeatsPerBar))), g);
+    // The figure (the style guide's 4.2).
+    using F = Figure;
+    const bool phrygian = scale_ == 2 || scale_ == 7;
+    const bool canon = row > 0 && !rows_[row - 1].transposer;
+    switch (role) {
+    case RowRole::Bass: {
+        static const F f[] = { F::Classic, F::OctavePendulum, F::FifthAnchor, F::ThreePlusOne };
+        static const float w[] = { 0.25f, 0.30f, 0.30f, 0.15f };
+        r.figure = drawFigure(f, w, g);
+        break;
+    }
+    case RowRole::Counter: {
+        static const F f[] = { F::Classic, F::StairsUp, F::StairsDown, F::Colour, F::PhrygianPush, F::Spiral, F::Canon, F::FifthAnchor };
+        const float w[] = { 0.15f, 0.12f, 0.10f, 0.18f, phrygian ? 0.20f : 0.0f, 0.12f, canon ? 0.15f : 0.0f, 0.08f };
+        r.figure = drawFigure(f, w, g);
+        break;
+    }
+    case RowRole::Walk: {
+        static const F f[] = { F::Classic, F::StairsUp, F::StairsDown, F::Colour, F::Spiral, F::Canon };
+        const float w[] = { 0.35f, 0.15f, 0.15f, 0.15f, 0.10f, canon ? 0.10f : 0.0f };
+        r.figure = drawFigure(f, w, g);
+        break;
+    }
+    default: r.figure = F::Classic; break;
+    }
+    // The canon: the row before, three steps later or a fifth up.
+    const bool canonLater = g.uniform() < 0.5f;
+    const Row& before = rows_[std::max(0, row - 1)];
     for (int i = 0; i < kMaxSteps; ++i) {
         Step s;
         s.velocity = 0.72f + 0.12f * g.uniform();
-        switch (role) {
-        case RowRole::Bass: {
-            // Mostly the root; an octave up on about a third of the steps; now and then the fifth,
-            // the seventh or the third; the downbeat of every four steps always sounds.
-            const float u = g.uniform();
-            if (i == 0) { s.degree = 0; s.octave = 0; }
-            else if (u < 0.30f) s.octave = 1;
-            else if (u < 0.42f) { const int pick[3] = { 4, 6, 2 }; s.degree = pick[g.below(3)] % n; }
-            s.gate = (i % 4 == 0) || g.uniform() < 0.88f;
-            s.accent = (i % 8 == 0) || g.uniform() < 0.08f;
-            s.slide = i != 0 && g.uniform() < 0.05f;
-            break;
-        }
-        case RowRole::Counter: {
-            // Chord tones of the tonic (1, 3, 5, octave) as a rising and falling figure.
-            const int chord[4] = { 0, 2, 4, n };
-            const int up = i % 6 < 3 ? i % 6 : 6 - i % 6;
-            s.degree = chord[(up + (g.uniform() < 0.2f ? 1 : 0)) % 4];
-            s.gate = i == 0 || g.uniform() < 0.85f;
-            s.accent = i == 0;
-            break;
-        }
-        case RowRole::Walk: {
-            const float u = g.uniform();
-            if (i > 0) walk += u < 0.4f ? 1 : (u < 0.8f ? -1 : (g.uniform() < 0.5f ? 3 : -2));
-            walk = std::clamp(walk, -2, n + 2);
-            s.degree = walk;
-            s.gate = i == 0 || g.uniform() < 0.8f;
-            s.accent = i == 0;
-            break;
-        }
-        case RowRole::Transposer:
+        if (role == RowRole::Transposer) {
             s.degree = i < static_cast<int>(roots.size()) ? roots[static_cast<size_t>(i)] : 0;
-            break;
+            r.steps[i] = s;
+            continue;
         }
+        if (r.figure == F::Canon) {
+            const int L = std::max(1, before.length);
+            const Step& src = before.steps[canonLater ? ((i - 3) % L + L) % L : i % L];
+            s.degree = src.degree + (canonLater ? 0 : fromSeven(scale_, 4));
+            s.octave = src.octave;
+            s.gate = src.gate;
+        } else if (r.figure != F::Classic) {
+            const Shape& sh = shapeOf(r.figure);
+            int d = sh.degree[i % 8];
+            if (d == kRest) { s.gate = false; d = 0; }
+            s.degree = fromSeven(scale_, d);
+            if (r.figure == F::Colour && i % 8 == 3) {
+                // The mode's own degree, above the fifth: B in D Dorian, Eb' in D Phrygian.
+                const int c = characterDegree(scale_);
+                s.degree = n == 7 && c < 4 ? c + 7 : c;
+            }
+            s.octave = sh.octave[i % 8];
+            // The second eight and on: the same figure with the odd step an octave away.
+            if (i >= 8 && i % 8 != 0 && g.uniform() < 0.2f) s.octave = s.octave == 0 ? 1 : 0;
+        } else {
+            switch (role) {
+            case RowRole::Bass: {
+                // Mostly the root; an octave up on about a third of the steps; now and then the fifth,
+                // the seventh or the third.
+                const float u = g.uniform();
+                if (i == 0) { s.degree = 0; s.octave = 0; }
+                else if (u < 0.30f) s.octave = 1;
+                else if (u < 0.42f) { const int pick[3] = { 4, 6, 2 }; s.degree = pick[g.below(3)] % n; }
+                break;
+            }
+            case RowRole::Counter: {
+                // Chord tones of the tonic (1, 3, 5, octave) as a rising and falling figure.
+                const int chord[4] = { 0, 2, 4, n };
+                const int up = i % 6 < 3 ? i % 6 : 6 - i % 6;
+                s.degree = chord[(up + (g.uniform() < 0.2f ? 1 : 0)) % 4];
+                break;
+            }
+            case RowRole::Walk: {
+                const float u = g.uniform();
+                if (i > 0) walk += u < 0.4f ? 1 : (u < 0.8f ? -1 : (g.uniform() < 0.5f ? 3 : -2));
+                walk = std::clamp(walk, -2, n + 2);
+                s.degree = walk;
+                break;
+            }
+            default: break;
+            }
+        }
+        if (role == RowRole::Bass) s.slide = i != 0 && r.figure != F::ThreePlusOne && g.uniform() < 0.05f;
         r.steps[i] = s;
+    }
+    if (role == RowRole::Transposer) return;
+    // The first step is the root or the fifth: it names the centre.
+    if (r.figure != F::Canon && r.steps[0].degree != 0 && r.steps[0].degree != fromSeven(scale_, 4)) r.steps[0].degree = 0;
+    r.steps[0].gate = true;
+    // Rests, accents and probability gates per eight steps.
+    const bool threeThreeTwo = g.uniform() < 0.25f;
+    const float share = chanceShare(style_);
+    for (int b = 0; b < kMaxSteps; b += 8) {
+        int rests = 0;
+        for (int i = b; i < b + 8; ++i) rests += r.steps[i].gate ? 0 : 1;
+        const float u = g.uniform();
+        const int want = role == RowRole::Bass ? (u < 0.3f ? 0 : (u < 0.8f ? 1 : 2)) : (u < 0.45f ? 1 : (u < 0.85f ? 2 : 3));
+        for (int tries = 0; rests < want && tries < 16; ++tries) {
+            const int i = b + 1 + g.below(7);
+            if (i % 4 == 0 || !r.steps[i].gate) continue;   // the first of every four always sounds
+            r.steps[i].gate = false;
+            ++rests;
+        }
+        for (int i = b; i < b + 8; ++i) {
+            Step& s = r.steps[i];
+            const int k = i - b;
+            s.accent = threeThreeTwo ? (k == 0 || k == 3 || k == 6) : (k == 0 || k == 4);
+            if (role != RowRole::Bass && !threeThreeTwo && k == 4) s.accent = g.uniform() < 0.5f;
+            if (i % 4 != 0 && g.uniform() < share) s.chance = 0.6f + 0.3f * g.uniform();
+        }
     }
 }
 
@@ -188,17 +329,21 @@ void Rack::playStep(int index, Row& r, Score& score, std::vector<RackEvent>& log
             shift_ = base_ + degree_;
             if (shiftLog_.empty() || shiftLog_.back().second != shift_) shiftLog_.push_back({ beat, shift_ });
         }
-    } else if (s.gate) {
-        NoteEvent e;
-        e.beat = beat;
-        e.part = rowPart(index);
-        e.pitch = std::clamp(rootNote(r) + r.transpose + shift_ + scaleSemitones(scale_, s.degree + r.chord) + 12 * s.octave, 0, 127);
-        e.accent = s.accent;
-        e.velocity = std::min(1.0f, s.velocity + (s.accent ? 0.15f : 0.0f));
-        e.slide = s.slide;
-        // A slide holds into the next step so the voice glides instead of retriggering.
-        e.length = r.divBeats * (s.slide ? 1.05 : static_cast<double>(std::max(0.05f, r.gate)));
-        score.notes.push_back(e);
+    } else if (s.gate && (s.chance >= 1.0f || r.dice.uniform() < s.chance)) {
+        // A ratchet splits the step into quick triggers, each a little softer.
+        const int sub = std::max(1, s.ratchet);
+        for (int k = 0; k < sub; ++k) {
+            NoteEvent e;
+            e.beat = beat + r.divBeats * static_cast<double>(k) / sub;
+            e.part = rowPart(index);
+            e.pitch = std::clamp(rootNote(r) + r.transpose + shift_ + scaleSemitones(scale_, s.degree + r.chord) + 12 * s.octave, 0, 127);
+            e.accent = s.accent && k == 0;
+            e.velocity = std::min(1.0f, s.velocity + (e.accent ? 0.15f : 0.0f) - 0.06f * static_cast<float>(k));
+            e.slide = s.slide && sub == 1;
+            // A slide holds into the next step so the voice glides instead of retriggering.
+            e.length = sub > 1 ? 0.5 * r.divBeats / sub : r.divBeats * (s.slide ? 1.05 : static_cast<double>(std::max(0.05f, r.gate)));
+            score.notes.push_back(e);
+        }
     }
     advance(r, index, beat, log);
 }
@@ -252,6 +397,33 @@ void Rack::run(Score& score, double endBeat)
                     break;
                 case RackOp::Transpose: r.transpose = e.value; break;
                 case RackOp::Chord: r.chord = e.value; break;
+                case RackOp::Ratchet: {
+                    // Steps drawn anew from the row's dice: two triggers mostly, three or four now and then.
+                    for (Step& st : r.steps) st.ratchet = 1;
+                    for (int k = 0, tries = 0; k < e.value && tries < 32; ++tries) {
+                        Step& st = r.steps[1 + r.dice.below(std::max(1, r.length - 1))];
+                        if (!st.gate || st.ratchet > 1 || r.length < 2) continue;
+                        const float u = r.dice.uniform();
+                        st.ratchet = u < 0.7f ? 2 : (u < 0.9f ? 3 : 4);
+                        ++k;
+                    }
+                    break;
+                }
+                case RackOp::Thin:
+                    for (int k = 0, tries = 0; k < e.value && tries < 32 && r.length > 1; ++tries) {
+                        Step& st = r.steps[1 + r.dice.below(r.length - 1)];
+                        if (!st.gate) continue;
+                        st.gate = false;
+                        ++k;
+                    }
+                    break;
+                case RackOp::Division: {
+                    // From the next step on: the steps played so far stay where they were.
+                    const double div = rowDivisionBeats(static_cast<RowDivision>(e.value));
+                    if (r.running) r.startBeat = nextStepBeat(r) - static_cast<double>(r.step) * div;
+                    r.divBeats = div;
+                    break;
+                }
                 case RackOp::SetLength:
                     r.length = std::clamp(e.value, 1, kMaxSteps);
                     r.pos %= r.length;
