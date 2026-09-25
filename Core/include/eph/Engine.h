@@ -78,27 +78,53 @@ public:
     float played(int id) const;
 
 private:
+    /**
+     * @brief The sources, in the order they are mixed: the rows' voices, the lead and the drone (all
+     *        ModVoices), then the tape keys, the string machine, the drums and the atmosphere.
+     */
+    enum Source : int { kSrcLead = kRows, kSrcDrone, kSrcTape, kSrcStrings, kSrcDrums, kSrcAtmos, kSources };
+    static constexpr int kModVoices = kSrcTape;   ///< sources that are a ModVoice
+
     /** @brief A note event on the sample grid. */
     struct Ev {
-        int64_t sample;
+        int64_t sample;   ///< when
         uint8_t on;       ///< 0 off, 1 on (offs first at equal samples)
-        uint8_t row;
-        bool accent;
-        bool legato;
-        int pitch;
-        float velocity;
+        uint8_t source;   ///< the Source it goes to
+        bool accent;      ///< accented step
+        bool legato;      ///< the note before slides into this one
+        int pitch;        ///< MIDI note (the drums: a General MIDI instrument)
+        float velocity;   ///< 0..1
         int id;           ///< pairs an off with its on
     };
     /** @brief The gestures on one parameter, in time order, with a cursor. */
     struct Track {
-        int param;
-        std::vector<Gesture> gestures;
-        size_t cursor = 0;   ///< index of the latest gesture that has started, or gestures.size()
-        float offset = 0.0f;
+        int param;                     ///< the knob
+        std::vector<Gesture> gestures; ///< its gestures
+        size_t cursor = 0;             ///< index of the latest gesture that has started, or gestures.size()
+        float offset = 0.0f;           ///< the offset at the current cell
+    };
+    /** @brief A channel strip: where a source's signal goes, and whether the source runs at all. */
+    struct Strip {
+        bool running = false;   ///< decided at a cell's start and on a note-on (see renderSpan)
+        float gainL = 0.0f;     ///< level into the left channel (pan law included)
+        float gainR = 0.0f;     ///< level into the right channel
+        float echo = 0.0f;      ///< send into the tape echo (and its springs)
+        float reverb = 0.0f;    ///< send into the hall
+    };
+    /** @brief The buses of one span: the mix, the echo send, the hall send. */
+    struct Buses {
+        float* L; float* R;             ///< the dry mix (the output buffers)
+        float* echoL; float* echoR;     ///< into the tape echo
+        float* hallL; float* hallR;     ///< into the hall
     };
     void updateCell();
     void renderSpan(float* L, float* R, int n);
-    void setLeadLike(Module m, int voiceIndex);
+    /** @brief A voice's settings from a module laid out like the voice table (voice, lead, drone). */
+    VoiceSettings voiceSettings(Module m, int instance, bool vibrato) const;
+    /** @brief Level, equal-power pan (times @p width) and sends of strip @p s. */
+    void setStrip(int s, float levelDb, float pan, float echo, float reverb, float width = 1.0f);
+    /** @brief Adds a source's output through its strip to the buses; @p sends false leaves the echo send alone. */
+    static void mix(const Strip& strip, const float* xl, const float* xr, int n, const Buses& b, bool echoSend = true);
 
     ParamStore params_;
     Score score_;
@@ -111,38 +137,18 @@ private:
     std::vector<Track> tracks_;
     std::vector<int> trackOf_;   ///< parameter id -> index into tracks_, or -1
 
-    static constexpr int kVoices = kRows + 2;   ///< the rows' voices, then the lead and the drone
-    static constexpr int kLeadVoice = kRows;
-    static constexpr int kDroneVoice = kRows + 1;
-    static constexpr int kTapeVoice = kRows + 2;   ///< not a ModVoice: the tape keyboard's events
-    static constexpr int kStringsVoice = kRows + 3;   ///< not a ModVoice: the string machine's events
-    static constexpr int kDrumsVoice = kRows + 4;     ///< not a ModVoice: the drum kit's hits
-    ModVoice voices_[kVoices];
-    /** Whether a voice runs in the current cell: decided at the cell's start and on a note-on, never
-     *  when it falls silent mid-span -- that would tie its oscillator phase to the host's block size. */
-    bool running_[kVoices] = {};
-    TapeEcho echo_;
+    ModVoice voices_[kModVoices];
+    Strip strips_[kSources];
     TapeKeys tape_;
+    StringMachine strings_;
+    DrumKit drums_;
+    Atmos atmos_;
+    TapeEcho echo_;
+    Spring spring_;
+    Reverb reverb_;
     BusCompressor comp_;
     TruePeakLimiter limiter_;
-    Atmos atmos_;
-    StringMachine strings_;
-    Spring spring_;
-    DrumKit drums_;
-    bool drumsRunning_ = false;
-    float drumLevel_ = 0.0f, drumEcho_ = 0.0f, drumReverb_ = 0.0f;
-    float springReturn_ = 0.0f;
-    bool stringsRunning_ = false;
-    float strL_ = 0.0f, strR_ = 0.0f, strEcho_ = 0.0f, strReverb_ = 0.0f;
-    bool atmosRunning_ = false;
-    float atmosLevel_ = 0.0f, atmosEcho_ = 0.0f, atmosReverb_ = 0.0f;
-    bool tapeRunning_ = false;
-    float tapeL_ = 0.0f, tapeR_ = 0.0f, tapeEcho_ = 0.0f, tapeReverb_ = 0.0f;
-    Reverb reverb_;
-    float rsend_[kVoices] = {};
-    float reverbReturn_ = 0.0f;
-    float gainL_[kVoices] = {}, gainR_[kVoices] = {}, send_[kVoices] = {};
-    float echoReturn_ = 0.0f, master_ = 1.0f;
+    float echoReturn_ = 0.0f, springReturn_ = 0.0f, reverbReturn_ = 0.0f, master_ = 1.0f;
 };
 
 } // namespace eph
