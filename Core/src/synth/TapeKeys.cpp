@@ -30,6 +30,7 @@ void TapeKeys::prepare(double sampleRate, uint64_t seed)
     sr_ = sampleRate > 0.0 ? sampleRate : 48000.0;
     seed_ = seed;
     rng_.seed(mixSeed(seed, 17));
+    fallCoef_ = std::exp(-1.0 / (0.07 * sr_));
     reset();
     set(s_);
 }
@@ -46,6 +47,7 @@ void TapeKeys::set(const TapeSettings& s)
 {
     const bool vowelMoved = s.vowel != s_.vowel || s.set != s_.set;
     s_ = s;
+    for (int f = 0; f < 5; ++f) formantGain_[f] = dbToGain(kAahG[f] + s_.vowel * (kOohG[f] - kAahG[f]));
     const float sr = static_cast<float>(sr_);
     for (Key& k : keys_) {
         if (!k.on) continue;
@@ -75,6 +77,9 @@ void TapeKeys::startKey(Key& k, int pitch, float velocity, int id)
     k.released = -1.0;
     k.order = ++counter_;
     k.set = s_.set;
+    k.rise = 0.0;
+    k.riseCoef = 1.0 - std::exp(-1.0 / (riseTau(k.set) * sr_));
+    k.fall = 1.0;
     // This key's tape: the same every time the key is pressed, as an instrument has one set of tapes.
     Rng tape;
     tape.seed(mixSeed(seed_, 1000 + static_cast<uint64_t>(pitch)));
@@ -136,13 +141,12 @@ float TapeKeys::render(Key& k, double speedCents)
 {
     const double dt = 1.0 / sr_;
     k.age += dt;
-    if (k.released >= 0.0) k.released += dt;
+    if (k.released >= 0.0) { k.released += dt; k.fall *= fallCoef_; }
     // The envelope of the machine: the lag, the pressure pad's rise, the tape end, the release.
-    double env = 0.0;
-    if (k.age > k.lag) env = 1.0 - std::exp(-(k.age - k.lag) / riseTau(k.set));
+    if (k.age > k.lag) k.rise += (1.0 - k.rise) * k.riseCoef;
+    double env = k.rise * k.fall;
     const double fadeStart = kTapeSeconds - 0.33;
     if (k.age > fadeStart) env *= std::max(0.0, 1.0 - (k.age - fadeStart) / 0.33);
-    if (k.released >= 0.0) env *= std::exp(-k.released / 0.07);
     if (k.age >= kTapeSeconds || (k.released >= 0.0 && k.released > 0.7)) { k.on = false; return 0.0f; }
 
     const double cents = k.cents + speedCents;
@@ -168,8 +172,7 @@ float TapeKeys::render(Key& k, double speedCents)
         for (int f = 0; f < 5; ++f) {
             float fl, fb, fh;
             k.formant[f].tick(src, fl, fb, fh);
-            const float gdb = kAahG[f] + s_.vowel * (kOohG[f] - kAahG[f]);
-            y += dbToGain(gdb) * fb * k.formant[f].k;
+            y += formantGain_[f] * fb * k.formant[f].k;
         }
         y *= 2.5f;
         break;

@@ -31,6 +31,29 @@ komponierten Stücken soll die Klangbasis bestätigen, bevor sie auf die Quest g
    Kalibrierung der Tape Keys an Mellotron-Aufnahmen (dafür fehlen noch Aufnahmen).
 5. **Release (Phase 7)**: `Deploy/` nach Phosphene (Inno Setup, `build_release.ps1`, Paketprüfung).
 
+**25.09.2026: Überarbeitung nach dem Code-Review (neun Punkte).** Alle reinen Umbauten bitidentisch
+(SHA-256 der Referenz-Renders `out/ref_hashes.txt`: `eph_render --minutes 5 --seed 5` für Melodic und
+Cosmic, WAV und MIDI), danach ctest und Plugin-Build.
+
+| Punkt | Ergebnis |
+|---|---|
+| Doxygen | `docs/Doxyfile` nach Phosphene; streng geprüft: nichts undokumentiert |
+| Hilfsfunktionen | `pitchClass`, `Rng::gaussian`, `rootShiftAt`/`Score::rootAt`, `writeDrone` statt Kopien |
+| Engine | ein Kanalzug je Quelle (`Strip`: Pegel, Panorama, Sends), eine Mischroutine, Quellen mit Namen |
+| Komponist | `composePiece` in seine sechs Schritte (Form, Rack, Schichten, Atmosphäre, Einstellungen, Hände), `writeLead` in Rhythmus, Schritt, Akkordton, Note |
+| Stilprofile | mit benannten Initialisierern, jeder Wert mit Namen |
+| Studie, Skizze | aus dem Kern nach `Tools/pieces` (Bibliothek `EphemerisPieces`) |
+| Unterordner | `eph/compose`, `eph/synth`, `eph/fx` |
+| ctest | ein Test je Selbsttest-Abschnitt (`selftest.<name>`), aus der Registrierungstabelle gelesen: 19 Tests |
+| Leistung | siehe unten; neue Referenz-Hashes |
+
+Leistung (ein Modul, eine Minute bei 48 kHz, vorher → nachher): Tape Keys mit vier Chortasten
+1,07 → 0,45 s (Formantpegel beim Setzen statt fünf `pow` je Taste und Sample; Hüllkurve rekursiv statt
+`exp`; der Oszillator rechnet den Puls nur, wenn er gemischt wird), String Machine mit vier Tasten
+0,39 → 0,17 s (Teiler je Taste beim Anschlag, Bruchteil mit `floor` statt `fmod`, beides exakt, also
+bitidentisch), Modularstimme 0,32 → 0,21 s (Tonhöhe und Cutoff alle 4 Samples). Der ganze Render von
+fünf Minuten: 14,6 → 10,1 s (Melodic). Offen für die Quest: die Reihen als Vektor-Lanes (Abschnitt 9).
+
 **24.09.2026: Phase 5, erster Teil fertig: das Plugin.** VST3 und Standalone
 (`build/Plugin/Ephemeris_artefacts/Release/`), Bild des Panels in `docs/screenshot.png`.
 

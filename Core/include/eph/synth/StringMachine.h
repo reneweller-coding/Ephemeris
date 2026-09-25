@@ -54,6 +54,8 @@ private:
         int pitch = 60, id = -1;
         float velocity = 0.8f, env = 0.0f;
         uint32_t order = 0;
+        int pc = 0;                  ///< pitch class: the top-octave generator the key divides
+        double inv8 = 1.0, inv4 = 1.0;   ///< 1 / the 8' and 4' dividers (powers of two, so exact)
     };
     double sr_ = 48000.0;
     StringSettings s_;

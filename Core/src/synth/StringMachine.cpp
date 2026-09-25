@@ -53,6 +53,10 @@ void StringMachine::noteOn(int pitch, float velocity, int id)
     slot->id = id;
     slot->velocity = velocity;
     slot->order = ++order_;
+    slot->pc = pitchClass(pitch);
+    const int octDown = static_cast<int>(std::lround((kTopOctaveMidi + slot->pc - pitch) / 12.0));   // divisions below the top
+    slot->inv8 = std::ldexp(1.0, -octDown);
+    slot->inv4 = std::ldexp(1.0, -std::max(0, octDown - 1));
     // The envelope is not reset: a stolen key glides from where it was, as the machine's did.
 }
 
@@ -92,12 +96,12 @@ void StringMachine::process(float* L, float* R, int n)
             if (!k.on) continue;
             k.env += ((k.held ? 1.0f : 0.0f) - k.env) * (k.held ? att : rel);
             if (!k.held && k.env < 1e-4f) { k.on = false; continue; }
-            const int pc = pitchClass(k.pitch);
-            const int octDown = static_cast<int>(std::lround((kTopOctaveMidi + pc - k.pitch) / 12.0));   // divisions below the top
-            const double div8 = std::ldexp(1.0, octDown), div4 = std::ldexp(1.0, std::max(0, octDown - 1));
-            // Phase of the 8' and the 4': the counter divided, which keeps every octave in lock.
-            const double p8 = std::fmod(counter_[pc] / div8, 1.0), p4 = std::fmod(counter_[pc] / div4, 1.0);
-            const float dt8 = static_cast<float>(inc[pc] / div8), dt4 = static_cast<float>(inc[pc] / div4);
+            // Phase of the 8' and the 4': the counter divided, which keeps every octave in lock. The
+            // dividers are powers of two and the counter is positive, so the products and the fractions
+            // are exact.
+            const double c8 = counter_[k.pc] * k.inv8, c4 = counter_[k.pc] * k.inv4;
+            const double p8 = c8 - std::floor(c8), p4 = c4 - std::floor(c4);
+            const float dt8 = static_cast<float>(inc[k.pc] * k.inv8), dt4 = static_cast<float>(inc[k.pc] * k.inv4);
             const float s8 = 2.0f * static_cast<float>(p8) - 1.0f - polyBlep(static_cast<float>(p8), dt8);
             const float s4 = 2.0f * static_cast<float>(p4) - 1.0f - polyBlep(static_cast<float>(p4), dt4);
             sum += k.env * k.velocity * (s8 + s_.feet * s4);

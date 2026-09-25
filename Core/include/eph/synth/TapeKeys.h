@@ -92,6 +92,9 @@ private:
         float velocity = 0.8f;
         double age = 0.0;          ///< seconds since the key went down
         double released = -1.0;    ///< seconds since release, -1 while held
+        double rise = 0.0;         ///< the pressure pad's rise, 0 .. 1 (a one-pole towards 1 after the lag)
+        double riseCoef = 0.0;     ///< its coefficient per sample
+        double fall = 1.0;         ///< the release, 1 .. 0 (a one-pole towards 0 after the key is let go)
         double lag = 0.0;          ///< this tape's onset lag, seconds
         double cents = 0.0;        ///< this tape's detune
         float gain = 1.0f;
@@ -114,6 +117,8 @@ private:
     double wowPhase_ = 0.0, flutterPhase_ = 0.0, drift_ = 0.0, driftTarget_ = 0.0;
     int64_t count_ = 0;
     float thump_ = 0.0f;
+    double fallCoef_ = 0.0;       ///< the release's factor per sample (70 ms time constant)
+    float formantGain_[5] = {};   ///< the choir's formant levels at the current vowel
 };
 
 } // namespace eph

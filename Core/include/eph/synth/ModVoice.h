@@ -23,6 +23,12 @@
  * **Filter.** Cutoff in Hz from the knob, raised by the filter envelope (`env_amount` octaves, more on
  * an accent) and by key tracking. The knobs the player's hand moves -- cutoff, resonance, envelope
  * amount, decay -- come in already offset by the gestures (Engine.cpp).
+ *
+ * **Control rate.** Glide, vibrato and the envelopes run every sample; the oscillators' frequencies
+ * and the ladder's cutoff follow them every 4 samples (12 kHz at 48 kHz) on the voice's absolute
+ * sample raster, which saves two exponentials, an exp2 and a tan on three of four samples. The
+ * ladder's zero-delay form takes the steps of its coefficient without clicks; the fastest thing it
+ * follows, the 1.5 ms attack of the filter envelope, still gets 18 steps.
  */
 #pragma once
 #include "eph/Adaa.h"
@@ -124,6 +130,7 @@ private:
     double vibPhase_ = 0.0;     ///< vibrato phase in cycles
     double vibLevel_ = 0.0;     ///< 0..1, rises while a note is held
     double vibCoef_ = 0.0;
+    float g_ = 0.1f;            ///< the ladder's integrator gain of the current control step
 };
 
 } // namespace eph

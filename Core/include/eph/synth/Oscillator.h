@@ -69,10 +69,13 @@ public:
     {
         const float t = phase_;
         const float saw = 2.0f * t - 1.0f - polyBlep(t, dt_);
-        float t2 = t + 1.0f - pw_;
-        if (t2 >= 1.0f) t2 -= 1.0f;
-        const float pulse = -((t < pw_ ? 1.0f : -1.0f) + polyBlep(t, dt_) - polyBlep(t2, dt_));
-        float v = saw + wave_ * (pulse - saw);
+        float v = saw;
+        if (wave_ > 0.0f) {   // a pure saw (the tape keys' singers, most rows) skips the pulse
+            float t2 = t + 1.0f - pw_;
+            if (t2 >= 1.0f) t2 -= 1.0f;
+            const float pulse = -((t < pw_ ? 1.0f : -1.0f) + polyBlep(t, dt_) - polyBlep(t2, dt_));
+            v = saw + wave_ * (pulse - saw);
+        }
         if (hasJump_) {
             // The sample before the restart already went out; the first one after it carries half
             // of the step, which spreads the edge over two samples.

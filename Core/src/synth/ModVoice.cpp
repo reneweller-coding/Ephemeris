@@ -15,6 +15,7 @@ const HalfbandDesign& halfband()
     return d;
 }
 constexpr double kDriftTau1 = 14.0, kDriftTau2 = 19.0;   ///< seconds; two, so the VCOs wander apart
+constexpr int64_t kControl = 4;   ///< samples per control step of pitch and cutoff (a power of two)
 }
 
 void ModVoice::prepare(double sampleRate, uint64_t seed)
@@ -88,8 +89,11 @@ void ModVoice::process(float* out, int n)
             drift1_.step(dt, kDriftTau1, s_.driftCents, rng_);
             drift2_.step(dt, kDriftTau2, s_.driftCents, rng_);
         }
+        // Glide, vibrato and envelopes every output sample; the oscillators' frequencies and the cutoff
+        // every kControl samples of the absolute raster (independent of the block size); oscillators,
+        // mixer and ladder at 2x.
+        const bool control = (sampleCount_ & (kControl - 1)) == 0;
         ++sampleCount_;
-        // Pitch, envelopes and cutoff once per output sample; oscillators, mixer and ladder at 2x.
         pitch_ += (target_ - pitch_) * glideCoef_;
         double vib = 0.0;
         if (s_.vibratoCents > 0.0f) {
@@ -98,15 +102,18 @@ void ModVoice::process(float* out, int n)
             if (vibPhase_ >= 1.0) vibPhase_ -= 1.0;
             vib = static_cast<double>(s_.vibratoCents) * vibLevel_ * static_cast<double>(sin01(vibPhase_));
         }
-        const double f1 = midiToHz(pitch_ + (drift1_.x + noteCents_ + vib) * 0.01);
-        const double f2 = midiToHz(pitch_ + (drift2_.x + noteCents_ + vib + s_.detuneCents) * 0.01);
-        osc1_.set(f1, sr2_, s_.wave, s_.pulseWidth);
-        osc2_.set(f2, sr2_, s_.wave, s_.pulseWidth);
         const float fe = filt_.process();
         const float gain = amp_.process() * velocity_ * (1.0f + 0.4f * accentAmt_);
-        const float octs = s_.envOctaves * fe * (1.0f + accentAmt_) + s_.keyTrack * static_cast<float>((pitch_ - 60.0) / 12.0);
-        const float fc = std::min(nyq, s_.cutoffHz * std::exp2(octs));
-        const float g = std::tan(kPi * fc * static_cast<float>(inv2));
+        if (control) {
+            const double f1 = midiToHz(pitch_ + (drift1_.x + noteCents_ + vib) * 0.01);
+            const double f2 = midiToHz(pitch_ + (drift2_.x + noteCents_ + vib + s_.detuneCents) * 0.01);
+            osc1_.set(f1, sr2_, s_.wave, s_.pulseWidth);
+            osc2_.set(f2, sr2_, s_.wave, s_.pulseWidth);
+            const float octs = s_.envOctaves * fe * (1.0f + accentAmt_) + s_.keyTrack * static_cast<float>((pitch_ - 60.0) / 12.0);
+            const float fc = std::min(nyq, s_.cutoffHz * std::exp2(octs));
+            g_ = std::tan(kPi * fc * static_cast<float>(inv2));
+        }
+        const float g = g_;
         float two[2];
         for (int h = 0; h < 2; ++h) {
             const float mix = 0.5f * (osc1_.next() + osc2_.next());
