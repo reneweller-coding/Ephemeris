@@ -80,7 +80,8 @@ keys start at 150 Hz, the strings at 200 Hz, the atmosphere at 120 Hz, the drone
 is at 82 Hz), the drums at 25 Hz. Mud between 200 and 500 Hz and a crowded bass are what make a long
 piece tiring; this is where they are kept away.
 
-Distance (on the rows, the lead, the drone, the tape keys and the strings) places a source between near (0)
+Punch (on the rows) lifts a row's attacks by up to 6 dB and leaves its sustain: the composer gives it to the
+main sequence, which keeps it in front. Distance (on the rows, the lead, the drone, the tape keys and the strings) places a source between near (0)
 and the horizon (1) with every cue at once, so nothing is near in its level and far in the hall: at 0.3 it
 is 4 dB quieter, its highs end at 10 kHz and it sends a little more to the hall; at 0.6 it is 10 dB back,
 dark from 5 kHz and well in the hall; at 1 it is 24 dB back, 2.5 kHz and almost only hall. The composer
@@ -168,7 +169,8 @@ atmosphere -- has 1024 factory presets above its knobs, in sixteen groups of six
 "Glass Arp", "Cathedral Choir", "Slow Swell", "Solar Wind" ...); the arrows step through them. Each name is
 two words: the first runs from dark to bright ("Umbral" ... "Radiant"), the second is the group's own, so
 "Umbral Keel" is the darkest and "Radiant Piston" the brightest of the ladder basses. On the voices page a
-preset goes to the row chosen on the left. A preset sets the sound, never the mix: level, pan, the sends,
+preset goes to the row chosen on the left. Save... keeps the synth's knobs as they stand under a name of
+your own (a small text file in the application data, Ephemeris/Presets); they appear under "User". A preset sets the sound, never the mix: level, pan, the sends,
 the low cut, the distance and the drone's auto pan stay, and so do the atmosphere's amounts, which the
 composer moves. Nor does it put a synth out of tune with the rest: the drone and the bass groups keep their
 oscillators within a cent or three of each other (the pure foundation), the others within twelve, the lead's
@@ -261,7 +263,7 @@ layer of the sequence have its own delay: the main sequence on the first echo's 
 counter rows on the second in eighths or quarter triplets (1/4T, which both echoes offer), as the composer
 draws it for each piece.
 
-== Hall | reverb | 11 ==
+== Hall | reverb blend | 11 ==
 
 A long, dark hall (an eight-line feedback delay network) with its size, decay, damping, pre-delay and
 the band it returns -- by default 250 Hz to 6.5 kHz, so the hall adds space without mud or glare. The
@@ -269,6 +271,14 @@ composer lets its decay grow in the atmosphere, the bridges and the coda and shr
 and sets the pre-delay to a 64th note at the piece's tempo (32 ms at 118 BPM), which keeps the dry sounds in
 front of their room. Duck lowers the hall's return by up to that many dB while the rows play, so the tail
 blooms in the gaps and steps back under the notes.
+
+The blend room is a second, short plate (Blend Decay about a second, a few ms of pre-delay, 240 Hz to 7 kHz)
+on a send of its own (Blend Send on the rows, the lead, the drone, the tape keys, the strings and the drums).
+Into Hall sends a share of its return on into the hall, so the far room sounds like the near one going on,
+not like a second place -- the serial far space of the dark-ambient practice. The composer puts the second
+layer there -- the counter rows, the lead, the drums -- with only a little hall; the pads, the drone and the
+atmosphere stay in the hall, the bass stays dry; at the peak the feed into the hall drops to 5 %, where the
+far room would fill up. Both returns are ducked by the rows alike.
 
 Room switches the same send to a plate instead: Dattorro's plate reverberator (1997) -- four diffusers and a
 tank of two halves that feed each other, each with a slowly moving all-pass, a damping low pass and the
@@ -290,7 +300,10 @@ and a true-peak limiter as protection at -1 dBTP. Before them the mix bus remove
 20 Hz, keeps everything under 100 Hz in mono whatever its pan, and widens what lies above 300 Hz by Width
 (dB of side) -- never so far that the side comes within 3 dB of the mid, so the correlation stays positive
 and the mix survives in mono. Mono sums both sides after the limiter, to check the mix as a small speaker
-would play it. The composer moves the level along the form instead of compressing it -- the spaces 3 dB
+would play it. Soft Clip rounds the peaks above the ceiling into at most that many dB before the limiter
+(with anti-aliasing), so short ratchets do not make the limiter work; quieter material passes untouched. Sub
+Ceiling holds the band under 80 Hz on its own under that level (a Linkwitz-Riley split), so the sub never
+pushes the whole mix into the limiter. The composer moves the level along the form instead of compressing it -- the spaces 3 dB
 under the peak, the entry and the breakdown 1.5 dB -- and the width too: widest in the spaces, narrow
 where the dry bass comes in, growing again with the layers; while the lead plays, the tape keys and the
 strings step back 3 dB.

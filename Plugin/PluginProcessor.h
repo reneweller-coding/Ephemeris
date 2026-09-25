@@ -32,6 +32,7 @@
  * -- start the plugin muted, and then it never unmutes itself: an automated run makes no sound.
  */
 #pragma once
+#include "eph/Presets.h"
 #include "eph/Engine.h"
 #include "eph/SetFile.h"
 #include <juce_audio_processors/juce_audio_processors.h>
@@ -132,6 +133,12 @@ public:
     /** @brief The host parameter of store id @p id, or null. */
     /** @brief Applies factory preset @p index of @p module (Presets.h) to instance @p instance, through the host's parameters. */
     void applyPreset(eph::Module module, int instance, int index);
+    /** @brief Applies @p preset (a factory or a user preset) to instance @p instance of @p module, through the host. */
+    void applyPresetValues(eph::Module module, int instance, const eph::SoundPreset& preset);
+    /** @brief The user's presets of a synth: the text files in its folder under the application data, by name. */
+    std::vector<eph::SoundPreset> userPresets(eph::Module module) const;
+    /** @brief Saves the synth's knobs on @p instance as a user preset named @p name; false if it cannot be written. */
+    bool saveUserPreset(eph::Module module, int instance, const juce::String& name);
     StoreParameter* parameter(int id) { return id >= 0 && id < static_cast<int>(params_.size()) ? params_[static_cast<size_t>(id)] : nullptr; }
 
     // juce::AudioProcessor: a stereo instrument without MIDI, one program, the state as XML.

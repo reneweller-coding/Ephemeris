@@ -500,7 +500,43 @@ void EphemerisProcessor::applyPreset(Module module, int instance, int index)
 {
     const std::vector<SoundPreset>& list = factoryPresets(module);
     if (index < 0 || index >= static_cast<int>(list.size())) return;
-    for (const auto& e : presetKnobs(module, list[static_cast<size_t>(index)])) {
+    applyPresetValues(module, instance, list[static_cast<size_t>(index)]);
+}
+
+namespace {
+/** @brief Where a synth's user presets live: <application data>/Ephemeris/Presets/<synth>. */
+juce::File presetFolder(Module module)
+{
+    const char* name = module == Module::Voice ? "Voices" : module == Module::Lead ? "Lead" : module == Module::Drone ? "Drone"
+                     : module == Module::Tape ? "Tape Keys" : module == Module::Strings ? "Strings" : module == Module::Drums ? "Drums" : "Atmosphere";
+    return juce::File::getSpecialLocation(juce::File::userApplicationDataDirectory).getChildFile("Ephemeris").getChildFile("Presets").getChildFile(name);
+}
+} // namespace
+
+std::vector<SoundPreset> EphemerisProcessor::userPresets(Module module) const
+{
+    std::vector<SoundPreset> out;
+    juce::Array<juce::File> files = presetFolder(module).findChildFiles(juce::File::findFiles, false, "*.txt");
+    files.sort();
+    for (const juce::File& f : files) {
+        SoundPreset p;
+        if (presetFromText(module, f.getFileNameWithoutExtension().toStdString(), f.loadFileAsString().toStdString(), p)) out.push_back(std::move(p));
+    }
+    return out;
+}
+
+bool EphemerisProcessor::saveUserPreset(Module module, int instance, const juce::String& name)
+{
+    const juce::String clean = juce::File::createLegalFileName(name.trim());
+    if (clean.isEmpty()) return false;
+    const juce::File dir = presetFolder(module);
+    if (!dir.createDirectory()) return false;
+    return dir.getChildFile(clean + ".txt").replaceWithText(juce::String(presetText(store(), module, instance)));
+}
+
+void EphemerisProcessor::applyPresetValues(Module module, int instance, const SoundPreset& preset)
+{
+    for (const auto& e : presetKnobs(module, preset)) {
         const int id = store().id(module, instance, e.first);
         StoreParameter* p = parameter(id);
         if (p == nullptr) continue;

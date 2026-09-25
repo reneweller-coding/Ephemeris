@@ -81,6 +81,8 @@ enum class Module : int { Compose = 0, Row, Master,
                           Custom,
                           /** 25.09.2026: a second echo, its own time for the counter rows (the style guide's 4.4, 4.5). */
                           Echo2,
+                          /** 25.09.2026: the blend room, a short plate before the hall (the addon's serial far space). */
+                          Blend,
                           Count };
 
 constexpr int kRows = 8;   ///< instances of the row module (the rows of the rack) and of the voice module
@@ -108,7 +110,9 @@ enum : int { Active, Length, Division, Direction, Octave, Transpose, Mutation, G
              // 25.09.2026: the send into the second echo; the strip's low cut (the production guide's 4.2).
              Echo2Send, LowCut,
              // 25.09.2026 (the addon's distance macro): 0 near .. 1 the horizon, level, highs and hall together.
-             Distance, Count };
+             Distance,
+             // 25.09.2026: the send into the blend room; the transient punch (the production guide's 7.5).
+             BlendSend, Punch, Count };
 }
 /** @brief Parameters of the master section. */
 namespace master {
@@ -120,7 +124,10 @@ enum : int { Level,
              Width, Mono,
              // 25.09.2026 (the addon): the rows duck the pads, the pads the atmosphere, in the band 300 Hz .. 5 kHz (dB);
              // the slow movements of pads, rooms and atmosphere (0 still .. 1); a sub solo (80 Hz low pass) for listening.
-             Cascade, Motion, SubSolo, Count };
+             Cascade, Motion, SubSolo,
+             // 25.09.2026 (the production guide's 7.4, the addon's 5): a soft clipper before the limiter (dB it may take
+             // off the peaks), and a limiter on the band under 80 Hz (its ceiling in dBFS).
+             Clip, SubCeiling, Count };
 }
 /**
  * @brief Parameters of one modular voice (module Voice, "voice1" .. "voice8", one per row; PLAN 5.2).
@@ -142,13 +149,13 @@ enum : int { Wave, Detune, PulseWidth, Drift, Drive, Cutoff, Resonance, EnvAmoun
              // Phase 3: the send into the hall.
              ReverbSend,
              // 25.09.2026: a slow sine (0.05 Hz) on the pan, the wandering drone of the style guide's 7.3.
-             AutoPan, LowCut, Distance, Count };
+             AutoPan, LowCut, Distance, BlendSend, Count };
 }
 /** @brief Parameters of the tape keyboard (module Tape; PLAN 5.4, TapeKeys.h). */
 namespace tape {
 enum : int { Set, Vowel, Wow, Flutter, Sag, Tone, Age, Level, Pan, EchoSend, ReverbSend,
              // 25.09.2026: the strip's low cut; the distance macro; the allpass spread of the mono keyboard.
-             LowCut, Distance, Spread, Count };
+             LowCut, Distance, Spread, BlendSend, Count };
 }
 extern const char* const kTapeSetNames[];       ///< names of tape.set
 /** @brief The drone's parameters are the lead's table with other defaults (module Drone). */
@@ -158,8 +165,8 @@ namespace strings {
 enum : int { Attack, Release, Feet, Tone, Ensemble, Level, Pan, EchoSend, ReverbSend,
              // 25.09.2026, after Waldorf's Streichfett: the registration, its animation, the ensemble's type, the phaser.
              Registration, Animate, AnimateRate, EnsembleType, Phaser,
-             // the strip's low cut, the distance macro
-             LowCut, Distance, Count };
+             // the strip's low cut, the distance macro, the send into the blend room
+             LowCut, Distance, BlendSend, Count };
 }
 /** @brief Parameters of the springs (module Spring; Spring.h): fed from the echo's send. */
 namespace spring {
@@ -167,7 +174,7 @@ enum : int { Decay, Tone, Return, Count };
 }
 /** @brief Parameters of the drum kit (module Drums; Drums.h). */
 namespace drums {
-enum : int { KickHz, Decay, Tone, Level, EchoSend, ReverbSend, /** 25.09.2026 */ LowCut, Count };
+enum : int { KickHz, Decay, Tone, Level, EchoSend, ReverbSend, /** 25.09.2026 */ LowCut, BlendSend, Count };
 }
 /**
  * @brief The performer's controls (module Perform; PLAN 8.1). They act on the piece as it plays and are
@@ -211,6 +218,10 @@ enum : int { Size, Decay, Damping, PreDelay, LowCut, HighCut, Return,
 }
 static_assert(static_cast<int>(lead::Glide) == static_cast<int>(voice::Glide), "the first parameters of the lead are those of the voice, in the same order");
 /** @brief Parameters of the tape echo (module Echo; PLAN 5.8). */
+/** @brief Parameters of the blend room (Module::Blend, keys "blend.*"): a short plate whose return feeds the hall a little. */
+namespace blend {
+enum : int { Decay, PreDelay, LowCut, HighCut, Damping, Return, IntoHall, Count };
+}
 /** @brief Parameters of the second echo (Module::Echo2, keys "delay.*"): a clean tape echo with its own time and return. */
 namespace echo2 {
 enum : int { Time, Feedback, Tone, PingPong, Return, LowCut, Count };

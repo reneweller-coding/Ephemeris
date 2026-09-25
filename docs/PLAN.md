@@ -68,6 +68,14 @@ Synth-Seite als Liste mit Untermenüs und Pfeilen; ein Preset setzt den ganzen K
 (Pegel, Pan, Sends, Low Cut, Distance, Auto Pan, Spread) und die Mengen der Atmosphäre in Ruhe. Stimmung:
 Bordun-Detune 0-1 ct, Bass-Gruppen 0-3, sonst höchstens 12, Drift höchstens 7, Vibrato höchstens 40 ct,
 Tape-Wow/Flutter/Motorlast im Bereich der Standardwerte; keine Transposition. Selbsttest `testPresets`.
+Danach der serielle Fernraum und der Rest: Blend-Raum (`Module::Blend`, zweite Platte, 1,2 s, eigener Send je
+Quelle, `blend.into_hall` 0,15 in den Hall, im Höhepunkt 0,05; Gegenreihen, Lead, Drums in den Blend-Raum, Pads,
+Bordun, Atmosphäre in den Hall), weicher Clipper vor dem Limiter (`master.clip` 0,75 dB, ADAA nur um die
+Spitzen), Limiter unter 80 Hz (`master.sub_ceiling` -6 dBFS, Linkwitz-Riley-Weiche), Punch je Reihe
+(Transientenformer; Hauptsequenz 0,5), Echo ohne Leiern auf der Sequenz (Wow 0,2 ms, Flutter 0,02; Echo 2
+fast frei), Benutzer-Presets mit "Save..." (Textdateien unter Ephemeris/Presets). Gemessen: -15,1 bis -15,2
+LUFS, Doom/Drift -17,5; Crest 16,7-19,4 dB; Render 15-20x Echtzeit (die zweite Platte kostet rund 2 % eines
+Kerns). Selbsttest `testBlendAndBus`.
 Auftrag des Nutzers: die String Machine mehr wie Waldorfs Streichfett (Ensemble, Mischung der Register, langsames
 Animieren der Mischung) und den "Harmonie- und Stilguide Moderne Berlin School" (Downloads des Nutzers, Stand
 25.09.2026) umsetzen, soweit sinnvoll. Reihenfolge und Stand:

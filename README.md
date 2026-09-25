@@ -35,7 +35,10 @@ The plan, the musical specification and the literature behind each building bloc
   slow movements with irrational periods, near events where no sequence plays, export fades, an archive
   master without a limiter.
 - 1024 factory presets for each synth (voices, lead, drone, tape keys, strings, drums, atmosphere), in
-  sixteen groups each, with names from dark to bright; they set the sound, never the mix or the tuning.
+  sixteen groups each, with names from dark to bright; they set the sound, never the mix or the tuning;
+  your own presets saved beside them.
+- A blend room (a short plate) that feeds the hall -- the serial far space; a soft clipper before the limiter,
+  a limiter for the band under 80 Hz, a punch for the main sequence.
 - Score cues over OSC for a visualiser (Kaleidoscope); stems; a gestures page and a style page.
 - The Quest app (built, not yet run on a headset), the release build with installer and pluginval, and the
   manual generator.

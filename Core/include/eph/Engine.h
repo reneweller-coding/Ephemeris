@@ -155,6 +155,9 @@ private:
         float lpHz = 0.0f;      ///< the distance's low pass in Hz, 0 none (the addon's distance macro)
         Svf lpL, lpR;           ///< its states
         Svf splitLo[2], splitHi[2];   ///< the band 300 Hz .. 5 kHz a cascaded duck works in
+        float blend = 0.0f;     ///< send into the blend room (the addon's serial far space)
+        float punch = 0.0f;     ///< the transient shaper's amount (rows)
+        float envFast = 0.0f, envSlow = 0.0f;   ///< its two followers
     };
     /** @brief The buses of one span: the mix, the echo send, the hall send. */
     struct Buses {
@@ -164,6 +167,7 @@ private:
         float* echo2L; float* echo2R;   ///< into the second echo
         float* rowsL; float* rowsR;     ///< the rows' dry sum, which ducks the rooms' returns and the pads
         float* padsL; float* padsR;     ///< the pads' sum (strings, tape keys), which ducks the atmosphere
+        float* blendL; float* blendR;   ///< into the blend room
     };
     void updateCell();
     void renderSpan(float* L, float* R, int n);
@@ -223,6 +227,13 @@ private:
     float apL_[4] = {}, apR_[4] = {}, apCoefL_[4] = {}, apCoefR_[4] = {};
     bool subSolo_ = false, limiterOn_ = true;
     Svf subL_, subR_;
+    // The blend room (a second plate, short) and its serial feed into the hall; the soft clipper (with first-order
+    // antiderivative anti-aliasing) and the limiter under 80 Hz on the mix bus.
+    Plate blend_;
+    float blendReturn_ = 0.0f, blendIntoHall_ = 0.0f;
+    float clipDb_ = 0.0f, clipCeiling_ = 1.0f, clipPrev_[2] = {}, subCeiling_ = 1.0f, subEnv_ = 0.0f, subAttack_ = 0.0f, subRelease_ = 0.0f;
+    float punchFastA_ = 0.0f, punchFastR_ = 0.0f, punchSlowA_ = 0.0f, punchSlowR_ = 0.0f;
+    Svf subSplitL_[2], subSplitR_[2], subHpL_[2], subHpR_[2];
     int transpose_ = 0;   ///< perform.transpose at the current cell, for the notes that start
     int tapeSingers_ = kSingers;   ///< setTapeSingers()
     float* const* stemL_ = nullptr;   ///< setStems(), left
@@ -249,6 +260,7 @@ private:
         int echoType = -1;                    ///< which of the two took it
         EchoSettings echo2;                   ///< the second echo's TapeEcho::set
         float reverb[7] = {};                 ///< Reverb::set or Plate::set, and which
+        float blend[5] = {};                  ///< the blend room's Plate::set
         float spring[2] = {};                 ///< Spring::set
         float compress = 0.0f, ceiling = 0.0f;   ///< BusCompressor::set, TruePeakLimiter::set
     } cache_;

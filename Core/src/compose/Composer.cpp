@@ -562,6 +562,23 @@ void writeSettings(Piece& c)
         const double third = std::floor(coda->length / 3.0 / kBeatsPerBar) * kBeatsPerBar;
         if (third > 0.0) c.s.gestures.push_back({ dist, coda->beat, third, near, far, G::MinimumJerk, 3 });
     }
+    // The rooms per layer (the addon's 4, the production guide's 5.2): the second layer -- the counter rows, the lead,
+    // the drums -- in the blend room with a little hall, the main sequence near it with less, the bass dry; the pads,
+    // the drone and the atmosphere stay in the hall. A direct sound gets one room fully, never both.
+    for (int k = 0; k < c.counters; ++k) {
+        setTo(p.id(Module::Row, k + 1, row::BlendSend), k == 0 ? 0.15f : 0.3f);
+        setTo(p.id(Module::Row, k + 1, row::ReverbSend), 0.1f);
+    }
+    setTo(p.id(Module::Lead, 0, lead::BlendSend), 0.35f);
+    setTo(p.id(Module::Lead, 0, lead::ReverbSend), 0.25f);
+    setTo(p.id(Module::Drums, 0, drums::BlendSend), 0.25f);
+    setTo(p.id(Module::Drums, 0, drums::ReverbSend), 0.05f);
+    // The main sequence's attacks lifted, so it stays in front (the production guide's 7.5).
+    if (c.counters > 0) setTo(p.id(Module::Row, 1, row::Punch), 0.5f);
+    // The serial feed into the hall down to 5 % at the peak, where energy would pile up in the far room (the addon's 4).
+    const int into = p.id(Module::Blend, 0, blend::IntoHall);
+    const float into0 = p.get(into);
+    alongForm(into, into0, [&](SectionType t) { return t == SectionType::Peak ? 0.05f : into0; });
     // The foundation in pure intervals (the addon's 3): the bass row's two oscillators without detune.
     setTo(p.id(Module::Voice, 0, voice::Detune), 0.0f);
     // The pads step back 3 dB while the lead plays (7.2): its section and the peak after it.

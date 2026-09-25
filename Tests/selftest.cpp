@@ -1646,6 +1646,78 @@ void testPresets()
 }
 
 /**
+ * The blend room and the rest of the mix bus (Engine.h): the serial feed of the blend room into the hall, the soft
+ * clipper (which leaves what lies under the ceiling alone), the limiter under 80 Hz, the punch; the user presets'
+ * text.
+ */
+void testBlendAndBus()
+{
+    section("blend room, clipper, sub limiter, punch, user presets");
+    auto render = [](const Score& sc, const char* setting, double seconds) {
+        Engine e;
+        e.params().parseText("master.level=0 master.motion=0");
+        e.params().parseText(setting);
+        e.prepare(48000.0, 256);
+        e.load(sc);
+        std::vector<float> out, l(256), r(256);
+        for (int done = 0; done < static_cast<int>(48000 * seconds); done += 256) {
+            e.process(l.data(), r.data(), 256);
+            for (int i = 0; i < 256; ++i) out.push_back(0.5f * (l[i] + r[i]));
+        }
+        return out;
+    };
+    auto energy = [](const std::vector<float>& v, double s0, double s1) {
+        double e = 0.0;
+        for (size_t i = static_cast<size_t>(s0 * 48000.0); i < static_cast<size_t>(s1 * 48000.0) && i < v.size(); ++i) e += double(v[i]) * v[i];
+        return e;
+    };
+    Score one;
+    one.clear(120.0);
+    one.notes.push_back({ 0.0, 0.25, Part::Row2, 57, 0.9f, false, false });
+    one.lengthBeats = 8.0;
+    // Into the blend room only: its short tail; with the serial feed the hall's long one follows.
+    const auto dry = render(one, "row2.echo=0 row2.reverb=0 row2.blend=1 blend.into_hall=0 reverb.decay=8", 5.0);
+    const auto serial = render(one, "row2.echo=0 row2.reverb=0 row2.blend=1 blend.into_hall=0.5 reverb.decay=8", 5.0);
+    check(energy(dry, 0.3, 1.0) > 1e-4 && energy(serial, 3.0, 4.5) > 4.0 * energy(dry, 3.0, 4.5), "the blend room, and its return going on into the hall",
+          fmt("tail after 3 s: %.2g with the feed, %.2g without", energy(serial, 3.0, 4.5), energy(dry, 3.0, 4.5)));
+    // The soft clipper: quiet material passes bit for bit; loud peaks come out lower than without it.
+    const auto quiet0 = render(one, "row2.level=-24 master.clip=0", 1.0), quiet1 = render(one, "row2.level=-24 master.clip=1", 1.0);
+    const auto loud0 = render(one, "row2.level=6 row2.echo=0 row2.reverb=0 master.clip=0 master.ceiling=-6", 1.0);
+    const auto loud1 = render(one, "row2.level=6 row2.echo=0 row2.reverb=0 master.clip=1 master.ceiling=-6", 1.0);
+    bool same = quiet0.size() == quiet1.size();
+    for (size_t i = 0; same && i < quiet0.size(); ++i) same = quiet0[i] == quiet1[i];
+    check(same && loud0 != loud1, "the soft clipper leaves the quiet alone and rounds the peaks", "");
+    // The limiter under 80 Hz: a loud low note is held under its ceiling in the low band.
+    Score low = one;
+    low.notes[0] = { 0.0, 4.0, Part::Row1, 28, 1.0f, false, false };
+    const auto free = render(low, "row1.level=6 row1.echo=0 row1.reverb=0 row1.low_cut=10 master.sub_ceiling=0", 2.0);
+    const auto held = render(low, "row1.level=6 row1.echo=0 row1.reverb=0 row1.low_cut=10 master.sub_ceiling=-18", 2.0);
+    auto lowBand = [](std::vector<float> v) {   // under 60 Hz (fourth order)
+        Svf a1, a2;
+        a1.setQ(60.0f, 0.7071f, 48000.0f);
+        a2.copyCoefficients(a1);
+        for (float& x : v) x = a2.lp(a1.lp(x));
+        return v;
+    };
+    const auto freeLow = lowBand(free), heldLow = lowBand(held);
+    check(energy(heldLow, 0.5, 2.0) < 0.5 * energy(freeLow, 0.5, 2.0), "the band under 80 Hz limited on its own",
+          fmt("%.1f dB less under 60 Hz", 10.0 * std::log10(energy(freeLow, 0.5, 2.0) / std::max(1e-30, energy(heldLow, 0.5, 2.0)))));
+    // The punch lifts the attack more than the rest.
+    const auto flat = render(one, "row2.echo=0 row2.reverb=0 row2.punch=0", 1.0), punched = render(one, "row2.echo=0 row2.reverb=0 row2.punch=1", 1.0);
+    const double attack = energy(punched, 0.0, 0.02) / std::max(1e-30, energy(flat, 0.0, 0.02));
+    const double body = energy(punched, 0.08, 0.12) / std::max(1e-30, energy(flat, 0.08, 0.12));
+    check(attack > 1.2 * body, "the punch lifts the attack", fmt("attack x%.2f, body x%.2f", attack, body));
+    // A user preset's text: the knobs as they stand, read back to the same sound.
+    ParamStore a, b;
+    a.parseText("lead.cutoff=2345 lead.vibrato=17 lead.level=-3");
+    SoundPreset mine;
+    const bool read = presetFromText(Module::Lead, "Mine", presetText(a, Module::Lead, 0), mine);
+    applyPreset(b, Module::Lead, 0, mine);
+    check(read && std::fabs(b.get(b.id(Module::Lead, 0, lead::Cutoff)) - 2345.0f) < 1.0f && std::fabs(b.get(b.id(Module::Lead, 0, lead::Vibrato)) - 17.0f) < 0.01f
+          && b.get(b.id(Module::Lead, 0, lead::Level)) != -3.0f, "a user preset keeps the sound and leaves the mix", "");
+}
+
+/**
  * The offline render is the oracle only if a host's block size cannot change a sample: the study
  * rendered with blocks of 1, 37 and 512 must agree bit for bit (Engine.h).
  */
@@ -1799,6 +1871,7 @@ const TestSection kSections[] = {
     { "testMixBus", testMixBus },
     { "testAddon", testAddon },
     { "testPresets", testPresets },
+    { "testBlendAndBus", testBlendAndBus },
     { "testBlockSizes", testBlockSizes },
     { "testEcho", testEcho },
     { "testDrift", testDrift },

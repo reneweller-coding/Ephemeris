@@ -52,15 +52,31 @@ ParamPage::ParamPage(EphemerisProcessor& p, std::vector<std::pair<Module, int>> 
     if (!list.empty()) {
         presetModule_ = m;
         presetCount_ = static_cast<int>(list.size());
-        std::vector<std::string> order;
-        std::map<std::string, juce::PopupMenu> menus;
-        for (size_t i = 0; i < list.size(); ++i) {
-            if (menus.find(list[i].group) == menus.end()) order.push_back(list[i].group);
-            menus[list[i].group].addItem(static_cast<int>(i) + 1, list[i].name);
-        }
-        for (const std::string& g : order) preset_.getRootMenu()->addSubMenu(g, menus[g]);
-        preset_.setTextWhenNothingSelected(juce::String(presetCount_) + " presets");
-        preset_.onChange = [this] { if (preset_.getSelectedId() > 0) choosePreset(preset_.getSelectedId() - 1); };
+        fillPresets();
+        preset_.onChange = [this] {
+            const int id = preset_.getSelectedId();
+            if (id > 5000 && id - 5001 < static_cast<int>(user_.size())) {
+                presetIndex_ = -1;
+                proc_.applyPresetValues(presetModule_, instances_ > 1 ? instance_.getSelectedId() - 1 : 0, user_[static_cast<size_t>(id - 5001)]);
+            } else if (id > 0) {
+                choosePreset(id - 1);
+            }
+        };
+        // Save...: the synth's knobs as they stand, under a name, into the user's presets.
+        save_.onClick = [this] {
+            nameDialog_ = std::make_unique<juce::AlertWindow>("Save preset", "A name for the sound as it is:", juce::MessageBoxIconType::NoIcon);
+            nameDialog_->addTextEditor("name", "", "Name");
+            nameDialog_->addButton("Save", 1, juce::KeyPress(juce::KeyPress::returnKey));
+            nameDialog_->addButton("Cancel", 0, juce::KeyPress(juce::KeyPress::escapeKey));
+            nameDialog_->enterModalState(true, juce::ModalCallbackFunction::create([this](int result) {
+                if (result == 1 && nameDialog_ != nullptr) {
+                    const juce::String name = nameDialog_->getTextEditorContents("name");
+                    if (proc_.saveUserPreset(presetModule_, instances_ > 1 ? instance_.getSelectedId() - 1 : 0, name)) fillPresets();
+                }
+                nameDialog_.reset();
+            }), false);
+        };
+        addAndMakeVisible(save_);
         prev_.onClick = [this] { choosePreset(((presetIndex_ < 0 ? 0 : presetIndex_) - 1 + presetCount_) % presetCount_); };
         next_.onClick = [this] { choosePreset((presetIndex_ + 1) % presetCount_); };
         prev_.setTooltip("the preset before");
@@ -70,6 +86,26 @@ ParamPage::ParamPage(EphemerisProcessor& p, std::vector<std::pair<Module, int>> 
         addAndMakeVisible(next_);
     }
     build();
+}
+
+void ParamPage::fillPresets()
+{
+    const std::vector<SoundPreset>& list = factoryPresets(presetModule_);
+    preset_.clear(juce::dontSendNotification);
+    std::vector<std::string> order;
+    std::map<std::string, juce::PopupMenu> menus;
+    for (size_t i = 0; i < list.size(); ++i) {
+        if (menus.find(list[i].group) == menus.end()) order.push_back(list[i].group);
+        menus[list[i].group].addItem(static_cast<int>(i) + 1, list[i].name);
+    }
+    for (const std::string& g : order) preset_.getRootMenu()->addSubMenu(g, menus[g]);
+    user_ = proc_.userPresets(presetModule_);
+    if (!user_.empty()) {
+        juce::PopupMenu mine;
+        for (size_t i = 0; i < user_.size(); ++i) mine.addItem(5001 + static_cast<int>(i), user_[i].name);
+        preset_.getRootMenu()->addSubMenu("User", mine);
+    }
+    preset_.setTextWhenNothingSelected(juce::String(presetCount_) + " presets" + (user_.empty() ? "" : " + " + juce::String(user_.size()) + " of yours"));
 }
 
 void ParamPage::choosePreset(int index)
@@ -143,6 +179,8 @@ void ParamPage::resized()
             preset_.setBounds(top.removeFromLeft(300));
             top.removeFromLeft(4);
             next_.setBounds(top.removeFromLeft(28));
+            top.removeFromLeft(8);
+            save_.setBounds(top.removeFromLeft(70));
         }
     }
     area.removeFromTop(6);
@@ -348,7 +386,7 @@ EphemerisEditor::EphemerisEditor(EphemerisProcessor& p) : juce::AudioProcessorEd
     page("Strings", { { M::Strings, 0 } }, 1);
     page("Atmosphere", { { M::Atmos, 0 } }, 1);
     page("Echo + Spring", { { M::Echo, 0 }, { M::Spring, 0 }, { M::Echo2, 0 } }, 1);
-    page("Hall", { { M::Reverb, 0 } }, 1);
+    page("Hall", { { M::Reverb, 0 }, { M::Blend, 0 } }, 1);
     page("Drums", { { M::Drums, 0 } }, 1);
     page("Master", { { M::Master, 0 }, { M::Compose, 0 }, { M::Cue, 0 } }, 1);
     tabs_.addTab("Style", kPanel, new StylePage(proc_, std::make_unique<ParamPage>(proc_, std::vector<std::pair<M, int>>{ { M::Custom, 0 } }, 1)), true);

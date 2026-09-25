@@ -6,6 +6,8 @@
 #include "eph/Dsp.h"
 #include <algorithm>
 #include <cmath>
+#include <cstdio>
+#include <cstdlib>
 #include <mutex>
 
 namespace eph {
@@ -487,15 +489,15 @@ bool presetLeaves(Module module, int k)
     switch (module) {
     case Module::Lead: case Module::Drone:
         return k == lead::Level || k == lead::Pan || k == lead::EchoSend || k == lead::ReverbSend || k == lead::AutoPan
-            || k == lead::LowCut || k == lead::Distance;
+            || k == lead::LowCut || k == lead::Distance || k == lead::BlendSend;
     case Module::Tape:
         return k == tape::Level || k == tape::Pan || k == tape::EchoSend || k == tape::ReverbSend || k == tape::LowCut
-            || k == tape::Distance || k == tape::Spread;
+            || k == tape::Distance || k == tape::Spread || k == tape::BlendSend;
     case Module::Strings:
         return k == strings::Level || k == strings::Pan || k == strings::EchoSend || k == strings::ReverbSend
-            || k == strings::LowCut || k == strings::Distance;
+            || k == strings::LowCut || k == strings::Distance || k == strings::BlendSend;
     case Module::Drums:
-        return k == drums::Level || k == drums::EchoSend || k == drums::ReverbSend || k == drums::LowCut;
+        return k == drums::Level || k == drums::EchoSend || k == drums::ReverbSend || k == drums::LowCut || k == drums::BlendSend;
     case Module::Atmos:
         return k == atmos::Wind || k == atmos::Sweeps || k == atmos::Bleeps || k == atmos::Grains || k == atmos::Level
             || k == atmos::EchoSend || k == atmos::ReverbSend || k == atmos::LowCut;
@@ -516,6 +518,45 @@ std::vector<std::pair<int, float>> presetKnobs(Module module, const SoundPreset&
         out.push_back({ k, v });
     }
     return out;
+}
+
+std::string presetText(const ParamStore& params, Module module, int instance)
+{
+    std::string out;
+    const int count = ParamStore::moduleCount(module);
+    for (int k = 0; k < count; ++k) {
+        if (presetLeaves(module, k)) continue;
+        const int id = params.id(module, instance, k);
+        char line[96];
+        std::snprintf(line, sizeof(line), "%s=%.6g\n", params.desc(id).key, static_cast<double>(params.get(id)));
+        out += line;
+    }
+    return out;
+}
+
+bool presetFromText(Module module, const std::string& name, const std::string& text, SoundPreset& out)
+{
+    ParamStore store;
+    out = SoundPreset{};
+    out.group = "User";
+    out.name = name;
+    const int count = ParamStore::moduleCount(module);
+    size_t pos = 0;
+    while (pos < text.size()) {
+        size_t end = text.find('\n', pos);
+        if (end == std::string::npos) end = text.size();
+        const std::string line = text.substr(pos, end - pos);
+        pos = end + 1;
+        const size_t eq = line.find('=');
+        if (eq == std::string::npos) continue;
+        const std::string key = line.substr(0, eq);
+        for (int k = 0; k < count; ++k) {
+            const ParamDesc& d = store.desc(store.id(module, 0, k));
+            if (key != d.key || presetLeaves(module, k)) continue;
+            out.values.push_back({ k, std::clamp(static_cast<float>(std::atof(line.c_str() + eq + 1)), d.minValue, d.maxValue) });
+        }
+    }
+    return !out.values.empty();
 }
 
 void applyPreset(ParamStore& params, Module module, int instance, const SoundPreset& preset)

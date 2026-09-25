@@ -90,8 +90,8 @@ void MixerStrip::resized()
         knobs_[i]->setBounds(row.removeFromTop(kh));
         knobNames_[i]->setBounds(row);
     }
-    // Room for the rows' four knobs on every strip, so the faders and meters line up across the console.
-    r.removeFromTop(static_cast<int>(4 - std::min<size_t>(4, knobs_.size())) * (kh + lh));
+    // Room for the rows' five knobs on every strip, so the faders and meters line up across the console.
+    r.removeFromTop(static_cast<int>(5 - std::min<size_t>(5, knobs_.size())) * (kh + lh));
     r.removeFromTop(6);
     r.removeFromBottom(15);   // the peak readout
     const int half = r.getWidth() / 2;
@@ -181,6 +181,14 @@ MixerConsole::MixerConsole(EphemerisProcessor& proc) : proc_(proc)
         if (pan >= 0) knobs.emplace_back(p.id(m, inst, pan), "Pan");
         knobs.emplace_back(p.id(m, inst, echoSend), "Echo");
         if (c < kRows) knobs.emplace_back(p.id(m, inst, row::Echo2Send), "Echo 2");
+        // The blend room (the addon's serial far space), where the source has a send into it.
+        int blendSend = -1;
+        if (c < kRows) blendSend = row::BlendSend;
+        else if (m == M::Lead || m == M::Drone) blendSend = lead::BlendSend;
+        else if (m == M::Tape) blendSend = tape::BlendSend;
+        else if (m == M::Strings) blendSend = strings::BlendSend;
+        else if (m == M::Drums) blendSend = drums::BlendSend;
+        if (blendSend >= 0) knobs.emplace_back(p.id(m, inst, blendSend), "Blend");
         knobs.emplace_back(p.id(m, inst, reverbSend), "Hall");
         auto strip = std::make_unique<MixerStrip>(proc, Engine::channelName(c), colour, p.id(m, inst, level), knobs);
         addAndMakeVisible(*strip);

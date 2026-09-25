@@ -109,6 +109,19 @@ void Engine::load(const Score& score)
             }
         }
         subL_.setQ(80.0f, 0.70710678f, sr); subR_.copyCoefficients(subL_); subL_.reset(); subR_.reset();
+        for (int k = 0; k < 2; ++k) {
+            subSplitL_[k].setQ(80.0f, 0.70710678f, sr); subSplitL_[k].reset();
+            subSplitR_[k].setQ(80.0f, 0.70710678f, sr); subSplitR_[k].reset();
+            subHpL_[k].setQ(80.0f, 0.70710678f, sr); subHpL_[k].reset();
+            subHpR_[k].setQ(80.0f, 0.70710678f, sr); subHpR_[k].reset();
+        }
+        subEnv_ = 0.0f;
+        subAttack_ = std::exp(-1.0f / (0.001f * sr));
+        subRelease_ = std::exp(-1.0f / (0.1f * sr));
+        clipPrev_[0] = clipPrev_[1] = 0.0f;
+        punchFastA_ = std::exp(-1.0f / (0.001f * sr)); punchFastR_ = std::exp(-1.0f / (0.02f * sr));
+        punchSlowA_ = std::exp(-1.0f / (0.02f * sr)); punchSlowR_ = std::exp(-1.0f / (0.2f * sr));
+        for (Strip& st : strips_) st.envFast = st.envSlow = 0.0f;
         for (int k = 0; k < 4; ++k) apL_[k] = apR_[k] = 0.0f;
         // The spread's all-passes turn their phase at corners spread over the band, different on each side:
         // a = (tan(pi f / fs) - 1) / (tan(pi f / fs) + 1).
@@ -124,6 +137,7 @@ void Engine::load(const Score& score)
     }
     reverb_.prepare(sampleRate_);
     plate_.prepare(sampleRate_);
+    blend_.prepare(sampleRate_);
     tape_.prepare(sampleRate_, mixSeed(score_.seed, 500));
     tape_.setSingers(tapeSingers_);
     atmos_.prepare(sampleRate_, mixSeed(score_.seed, 600));
@@ -267,6 +281,8 @@ void Engine::updateCell()
         setStrip(r, s(row::Level, lead::Level), pan, s(row::EchoSend, lead::EchoSend), s(row::ReverbSend, lead::ReverbSend), 1.0f,
                  row ? played(params_.id(Module::Row, r, row::Echo2Send)) : 0.0f, s(row::Distance, lead::Distance));
         setLowCut(r, s(row::LowCut, lead::LowCut));
+        strips_[r].blend = s(row::BlendSend, lead::BlendSend);
+        strips_[r].punch = row ? played(params_.id(Module::Row, r, row::Punch)) : 0.0f;
     }
 
     // The slow movements (the addon's 7): micro (under 2 s, a few tenths of a dB on the pads' levels) and meso
@@ -291,6 +307,7 @@ void Engine::updateCell()
              knob(Module::Tape, tape::EchoSend), std::clamp(knob(Module::Tape, tape::ReverbSend) + 0.08f * wave(13.7), 0.0f, 1.0f),
              1.0f, 0.0f, knob(Module::Tape, tape::Distance));
     tapeSpread_ = knob(Module::Tape, tape::Spread);
+    strips_[kSrcTape].blend = knob(Module::Tape, tape::BlendSend);
     setLowCut(kSrcTape, knob(Module::Tape, tape::LowCut));
 
     StringSettings ss;
@@ -311,6 +328,7 @@ void Engine::updateCell()
              knob(Module::Strings, strings::EchoSend), std::clamp(knob(Module::Strings, strings::ReverbSend) + 0.08f * wave(21.1), 0.0f, 1.0f),
              1.41421356f, 0.0f, knob(Module::Strings, strings::Distance));
     setLowCut(kSrcStrings, knob(Module::Strings, strings::LowCut));
+    strips_[kSrcStrings].blend = knob(Module::Strings, strings::BlendSend);
 
     DrumSettings ds;
     ds.kickHz = knob(Module::Drums, drums::KickHz);
@@ -326,6 +344,7 @@ void Engine::updateCell()
         d.reverb = knob(Module::Drums, drums::ReverbSend);
     }
     setLowCut(kSrcDrums, knob(Module::Drums, drums::LowCut));
+    strips_[kSrcDrums].blend = knob(Module::Drums, drums::BlendSend);
     setLowCut(kSrcAtmos, knob(Module::Atmos, atmos::LowCut));
 
     auto gain = [](float db) { return db <= -59.9f ? 0.0f : dbToGain(db); };
@@ -382,8 +401,8 @@ void Engine::updateCell()
     e2.delaySeconds = echoTimeBeats(static_cast<EchoTime>(static_cast<int>(knob(Module::Echo2, echo2::Time)))) * 60.0 / bpm;
     e2.feedback = knob(Module::Echo2, echo2::Feedback);
     e2.toneHz = knob(Module::Echo2, echo2::Tone);
-    e2.wowMs = 0.3f;
-    e2.flutterMs = 0.03f;
+    e2.wowMs = 0.1f;      // clean: no timing smear on the counter rows (the production guide's 8.1)
+    e2.flutterMs = 0.01f;
     e2.driveDb = 2.0f;
     e2.pingPong = knob(Module::Echo2, echo2::PingPong) >= 0.5f;
     e2.lowCutHz = knob(Module::Echo2, echo2::LowCut);
@@ -409,6 +428,15 @@ void Engine::updateCell()
         else reverb_.set(hall[0], hall[1], hall[2], hall[3], hall[4], hall[5]);
     }
     reverbReturn_ = dbToGain(knob(Module::Reverb, reverb::Return));
+    const float blendSet[5] = { knob(Module::Blend, blend::Decay), knob(Module::Blend, blend::Damping),
+                                knob(Module::Blend, blend::PreDelay) * 0.001f * static_cast<float>(sampleRate_),
+                                knob(Module::Blend, blend::LowCut), knob(Module::Blend, blend::HighCut) };
+    if (changed(cache_.blend, blendSet, cache_.valid)) blend_.set(blendSet[0], blendSet[1], blendSet[2], blendSet[3], blendSet[4]);
+    blendReturn_ = dbToGain(knob(Module::Blend, blend::Return));
+    blendIntoHall_ = knob(Module::Blend, blend::IntoHall);
+    clipDb_ = knob(Module::Master, master::Clip);
+    clipCeiling_ = dbToGain(knob(Module::Master, master::Ceiling));
+    subCeiling_ = dbToGain(knob(Module::Master, master::SubCeiling));
     const float springs[2] = { knob(Module::Spring, spring::Decay), knob(Module::Spring, spring::Tone) };
     if (changed(cache_.spring, springs, cache_.valid)) spring_.set(springs[0], springs[1]);
     springReturn_ = gain(knob(Module::Spring, spring::Return));
@@ -454,6 +482,22 @@ void Engine::mix(int source, const float* xl, const float* xr, int n, const Buse
         xl = fl;
         xr = fr;
     }
+    // The punch (the production guide's 7.5): a fast and a slow follower; where the fast runs ahead -- an attack --
+    // the gain rises by up to 6 dB, the sustain stays. Rows only, and only where it is set.
+    if (strip.punch > 0.0f) {
+        const float k = strip.punch;
+        for (int i = 0; i < n; ++i) {
+            const float x = std::max(std::fabs(xl[i]), std::fabs(xr[i]));
+            strip.envFast = x + (x > strip.envFast ? punchFastA_ : punchFastR_) * (strip.envFast - x);
+            strip.envSlow = x + (x > strip.envSlow ? punchSlowA_ : punchSlowR_) * (strip.envSlow - x);
+            const float ratio = strip.envSlow > 1e-6f ? strip.envFast / strip.envSlow : 1.0f;
+            const float g = std::clamp(1.0f + k * (ratio - 1.0f), 1.0f, 2.0f);
+            fl[i] = xl[i] * g;
+            fr[i] = xr[i] * g;
+        }
+        xl = fl;
+        xr = fr;
+    }
     // The distance's high loss (the addon's 2).
     if (strip.lpHz > 0.0f) {
         for (int i = 0; i < n; ++i) fl[i] = strip.lpL.lp(xl[i]);
@@ -491,6 +535,8 @@ void Engine::mix(int source, const float* xl, const float* xr, int n, const Buse
         b.echo2R[i] += r * strip.echo2;
         if (source < kRows) { b.rowsL[i] += l; b.rowsR[i] += r; }
         if (source == kSrcStrings || source == kSrcTape) { b.padsL[i] += l; b.padsR[i] += r; }
+        b.blendL[i] += l * strip.blend;
+        b.blendR[i] += r * strip.blend;
     }
     if (metering_) {
         // What the strip put into the mix, read again: the sums above are not touched.
@@ -514,7 +560,7 @@ void Engine::mix(int source, const float* xl, const float* xr, int n, const Buse
 void Engine::renderSpan(float* L, float* R, int n)
 {
     float bufL[kCell], bufR[kCell], echoL[kCell], echoR[kCell], hallInL[kCell], hallInR[kCell], echo2L[kCell], echo2R[kCell];
-    float rowsL[kCell] = {}, rowsR[kCell] = {}, padsL[kCell] = {}, padsR[kCell] = {};
+    float rowsL[kCell] = {}, rowsR[kCell] = {}, padsL[kCell] = {}, padsR[kCell] = {}, blendInL[kCell] = {}, blendInR[kCell] = {};
     std::fill(L, L + n, 0.0f);
     std::fill(R, R + n, 0.0f);
     std::fill(echoL, echoL + n, 0.0f);
@@ -523,7 +569,7 @@ void Engine::renderSpan(float* L, float* R, int n)
     std::fill(hallInR, hallInR + n, 0.0f);
     std::fill(echo2L, echo2L + n, 0.0f);
     std::fill(echo2R, echo2R + n, 0.0f);
-    const Buses b{ L, R, echoL, echoR, hallInL, hallInR, echo2L, echo2R, rowsL, rowsR, padsL, padsR };
+    const Buses b{ L, R, echoL, echoR, hallInL, hallInR, echo2L, echo2R, rowsL, rowsR, padsL, padsR, blendInL, blendInR };
     if (metering_) meterCount_ += n;
 
     // The sources, each through its strip, in a fixed order (the order of the sums is part of the result).
@@ -622,6 +668,14 @@ void Engine::renderSpan(float* L, float* R, int n)
         hallInL[i] += wetL[i] * echoReturn_ * 0.5f + wet2L[i] * echo2Return_ * 0.5f;
         hallInR[i] += wetR[i] * echoReturn_ * 0.5f + wet2R[i] * echo2Return_ * 0.5f;
     }
+    // The blend room (the addon's serial far space): a short plate; a share of its return goes on into the hall, so the
+    // far room sounds like the near one going on, not like a second place.
+    float blendL[kCell] = {}, blendR[kCell] = {};
+    blend_.process(blendInL, blendInR, blendL, blendR, n);
+    for (int i = 0; i < n; ++i) {
+        hallInL[i] += blendL[i] * blendReturn_ * blendIntoHall_;
+        hallInR[i] += blendR[i] * blendReturn_ * blendIntoHall_;
+    }
     if (plateOn_) {
         std::fill(hallL, hallL + n, 0.0f);
         std::fill(hallR, hallR + n, 0.0f);
@@ -631,8 +685,8 @@ void Engine::renderSpan(float* L, float* R, int n)
     }
     for (int i = 0; i < n; ++i) {
         const float eg = std::exp(echoK * duckAmount[i]), hg = std::exp(hallK * duckAmount[i]);
-        const float rl = (wetL[i] * echoReturn_ + wet2L[i] * echo2Return_) * eg + hallL[i] * reverbReturn_ * hg;
-        const float rr = (wetR[i] * echoReturn_ + wet2R[i] * echo2Return_) * eg + hallR[i] * reverbReturn_ * hg;
+        const float rl = (wetL[i] * echoReturn_ + wet2L[i] * echo2Return_) * eg + (hallL[i] * reverbReturn_ + blendL[i] * blendReturn_) * hg;
+        const float rr = (wetR[i] * echoReturn_ + wet2R[i] * echo2Return_) * eg + (hallR[i] * reverbReturn_ + blendR[i] * blendReturn_) * hg;
         if (stemL_ != nullptr) {
             stemL_[kChannels][spanAt_ + i] = rl;
             stemR_[kChannels][spanAt_ + i] = rr;
@@ -666,7 +720,55 @@ void Engine::renderSpan(float* L, float* R, int n)
         L[i] = m + side;
         R[i] = m - side;
     }
+    // The band under 80 Hz limited on its own (the addon's 5): the sub never pushes the whole mix into the limiter.
+    // A Linkwitz-Riley crossover (two Butterworth sections each way): both bands turn their phase alike, so their sum
+    // is flat, and only the low one is held under its ceiling.
+    for (int i = 0; i < n; ++i) {
+        float lo, bp, hp, hl[2], hr[2];
+        subHpL_[0].tick(L[i], lo, bp, hl[0]); subHpL_[1].tick(hl[0], lo, bp, hl[1]);
+        subHpR_[0].tick(R[i], lo, bp, hr[0]); subHpR_[1].tick(hr[0], lo, bp, hr[1]);
+        const float lowL = subSplitL_[1].lp(subSplitL_[0].lp(L[i])), lowR = subSplitR_[1].lp(subSplitR_[0].lp(R[i]));
+        const float x = std::max(std::fabs(lowL), std::fabs(lowR));
+        subEnv_ = x + (x > subEnv_ ? subAttack_ : subRelease_) * (subEnv_ - x);
+        const float g = subEnv_ > subCeiling_ ? subCeiling_ / subEnv_ : 1.0f;
+        L[i] = hl[1] + g * lowL;
+        R[i] = hr[1] + g * lowR;
+        (void)hp;
+    }
     comp_.process(L, R, n);
+    // The soft clipper (the production guide's 7.4): peaks above the limiter's ceiling are rounded into at most clipDb_
+    // above it, so short ratchet and percussion peaks do not make the limiter work; first-order antiderivative
+    // anti-aliasing (the difference quotient of the curve's integral) keeps the harmonics it makes from folding back.
+    if (clipDb_ > 0.01f) {
+        const float t = clipCeiling_;
+        const float kk = t * (dbToGain(clipDb_) - 1.0f);
+        auto curve = [&](float x) {
+            const float a = std::fabs(x);
+            return a <= t ? x : std::copysign(t + kk * std::tanh((a - t) / kk), x);
+        };
+        auto integral = [&](float x) {
+            const float a = std::fabs(x);
+            if (a <= t) return 0.5f * x * x;
+            const float u = (a - t) / kk;
+            // ln cosh u, stable for large u
+            const float lc = u > 15.0f ? u - 0.69314718f : std::log(std::cosh(u));
+            return 0.5f * t * t + t * (a - t) + kk * kk * lc;
+        };
+        float* ch[2] = { L, R };
+        for (int c = 0; c < 2; ++c) {
+            float prev = clipPrev_[c];
+            for (int i = 0; i < n; ++i) {
+                const float x = ch[c][i];
+                const float d = x - prev;
+                // Under the ceiling on both sides the sample passes untouched (no averaging of the whole mix).
+                const float y = std::fabs(x) <= t && std::fabs(prev) <= t ? x
+                              : (std::fabs(d) > 1e-5f ? (integral(x) - integral(prev)) / d : curve(0.5f * (x + prev)));
+                prev = x;
+                ch[c][i] = y;
+            }
+            clipPrev_[c] = prev;
+        }
+    }
     if (limiterOn_) limiter_.process(L, R, n);
     // Listening: the sub alone (an 80 Hz low pass, the addon's 5), and mono.
     if (subSolo_)

@@ -51,6 +51,12 @@ bool presetLeaves(Module module, int k);
  */
 std::vector<std::pair<int, float>> presetKnobs(Module module, const SoundPreset& preset);
 
+/** @brief The knobs a preset of @p module sets, as they stand on @p instance, as `key=value` lines (a user preset). */
+std::string presetText(const ParamStore& params, Module module, int instance);
+
+/** @brief A user preset read back from such lines; false if none of them belongs to @p module. */
+bool presetFromText(Module module, const std::string& name, const std::string& text, SoundPreset& out);
+
 /** @brief Applies @p preset to instance @p instance of @p module in @p params (the offline tools and the tests). */
 void applyPreset(ParamStore& params, Module module, int instance, const SoundPreset& preset);
 
