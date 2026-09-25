@@ -10,6 +10,43 @@ verschiedener Länge um einen gemeinsamen Grundton, die nur selten wieder zusamm
 
 ## Stand der Umsetzung
 
+**In Arbeit (25.09.2026, abends): Hypnose und Groove, Nacht-Sets mit DJ-Überblendung.**
+Auftrag des Nutzers: Ephemeris klingt "unfassbar langweilig", groovt nicht und wirkt nicht hypnotisch (Vergleich:
+Martin Stürtzer); außerdem wie bei Phosphene ganze Sets, die eine Nacht durchlaufen, mit wechselnden Stilen und
+guter DJ-Überblendung. Keine Agenten, alles im Vordergrund.
+
+Diagnose (aus dem Code, gegen Literatur und Stilguide):
+- Zu viel Zufall im Kern: Mutation 10-30 % je Zyklus (bei 1-Takt-Reihen alle 3-10 Takte eine Änderung),
+  Wahrscheinlichkeits-Gates und Zufallsschritte auch auf Bass und Hauptsequenz, Akkordwechsel ab 2 Takten --
+  Hypnose braucht Wiederholung über 16-32 Takte und eine Änderung zur Zeit.
+- Es fehlen die Modulationssequenzer (Stürtzer: Stepic, "8 Modulationssequencer mit unterschiedlichen
+  Längen"): Klangfarbe (Cutoff, Decay, Akzent) je Schritt in eigener, polymetrischer Länge -- das eigentliche
+  Groove-Mittel der modernen Schule.
+- Keine durchgehenden Filterfahrten als Makro-Bewegung (30-120 s Zyklen, eine Oktave), nur zufällige Handgesten.
+- Zu langsam (Modern ab 90, Cosmic ab 96 BPM; Referenz 118-132) und zu lange Intros (12-14 %).
+- Der Sequenzklang zu brav (Resonanz 0,35, Hüllkurve 2,5 Okt., Akzent schwach); die Sequenz zu leise gegen Pads
+  und Räume (nachmessen per Stems).
+- Kein Puls: Schlagzeug selten und erst ab 45 %; keine Kick/Pulsschicht.
+- Aufbau additiv, aber neue Reihen setzen sofort voll ein (Guide 6.4: "beginnt mit Rests und füllt sich").
+
+Schritte:
+1. Hypnose-Kern: Mutation der Bass- und Hauptreihe selten und nur an 16-Takt-Grenzen; Gates/Zufallsschritte
+   nur auf den Gegenreihen ab der zweiten; Akkorde mindestens 8 Takte (Melodic 4).
+2. Modulationssequenzer: je Reihe eine Klangfarben-Spur (Länge 3/5/7/12 gegen die Notenlänge), je Schritt
+   Helligkeit und Decay; `NoteEvent` trägt sie, die Stimme setzt sie je Note um.
+3. Sequenzklang und Filterfahrten: Rollen-Klang der Hauptsequenz (Resonanz ~0,5, Hüllkurve 3,5 Okt.,
+   Decay 150-250 ms, Akzent stark), Filterfahrten als Kompositionsgesten (irrationale Perioden, je Reihe eigene).
+4. Tempo und Form: Tempi hoch (Cosmic 112-126, Melodic 118-132, Modern 118-130, Drift 100-118, Doom 92-110),
+   Intros 6-9 %; Reihen setzen ausgedünnt ein und füllen sich (`RackOp::Fill`).
+5. Puls: weiche Vierviertel-Kick bzw. Herzschlag ab dem zweiten Aufbau je Stil, Schlagzeug früher (ab 30 %).
+6. Pegel: Sequenzen gegen Pads/Räume nachmessen (Stems) und anheben.
+7. Nacht-Sets (`compose.set_hours`): Stile gemischt nach Energiewellen (Guide 6.3 "Wellen"), Stücke 8-15 min,
+   DJ-Überlappung 16-32 Takte: abwechselnde Reihenbänke (Stück A Reihen 1-4, Stück B 5-8, Transposer jeweils in
+   der anderen Bank), B übernimmt A's Tempo und rampt später, harmonische Tonartwechsel (Quinte, Quarte,
+   Parallele), Bass-Übergabe über das Distanz-Makro und den Low Cut (A entfernt sich, B nähert sich), der Bordun
+   gleitet in die neue Tonart. Offline (`eph_render --set`), Plugin und Quest.
+Jeder Schritt mit Selbsttest, neuen Referenz-Hashes, Handbuch und Commit.
+
 **Nächste Schritte (Stand 25.09.2026, nachmittags).** Die Programmieraufgaben der Phasen 4 bis 7 sind
 umgesetzt (die Einträge darunter); offen ist, was einen Menschen, eine Installation oder ein Gerät braucht:
 1. **Hörrunde** (Nutzer): im Standalone "Compose" und "Play", oder `eph_render` (README). Fragen: Tragen die
