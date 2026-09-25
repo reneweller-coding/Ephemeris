@@ -10,69 +10,20 @@ verschiedener Länge um einen gemeinsamen Grundton, die nur selten wieder zusamm
 
 ## Stand der Umsetzung
 
-**Nächste Schritte (Stand 24.09.2026, nachts).** Bewusst angehalten vor Phase 6: Der Quest-Port lässt
-sich hier nur kompilieren, nicht auf einem Gerät prüfen, und die Hörrunde des Nutzers mit den
-komponierten Stücken soll die Klangbasis bestätigen, bevor sie auf die Quest geht.
-1. **Hörrunde** (Nutzer): `out/piece_cosmic.wav` (Cosmic, 14 min), `out/piece_Melodic.wav` und
-   `out/piece_Modern.wav` (mit Schlagzeug), die Skizze `out/sketch.wav`; oder im Standalone mit "Compose"
-   und "Play". Fragen: Ist die Grundstimme jetzt hell genug? Tragen Chor und Streicher der Tape Keys? Ist
-   der Hall zu viel oder zu wenig? Sind die Formen zu lang oder zu kurz, die Stile unterscheidbar?
-2. **Quest (Phase 6)**, Weg: `Quest/` aus Phosphene kopieren (OpenXR-Sitzung, Swapchain, Punkt-Renderer,
-   Schrift, Hände, Oboe, `build_apk.ps1`, `fetch_thirdparty.ps1` sind generisch); ersetzt werden
-   `SetPlayer`, `Config` und die Anzeige. Der Ephemeris-Player komponiert ein Konzert beim Start auf dem
-   kleinen Kern, lädt es vor dem Start des Audiostroms (die Engine allokiert beim Laden) und spielt mit
-   derselben Übergabe über einen atomaren Zustand wie Phosphene. Hände: linke Höhe = Cutoff der
-   Bassreihe, rechte Höhe = Echo-Rückkopplung, linker Pinch = Play/Stop, rechter Pinch = nächstes Stück.
-   Bild: die Reihen als Umlaufbahnen (die Orrery-Ansicht aus 8.2), Abschnitt und Tonart als Text.
-   Qualitätsstufe: Sänger je Taste 6 → 3, Reihen mit 2× → 1× außer der Bassreihe.
-3. **Plugin (Rest von Phase 5)**: Host-Test und pluginval, die Tempokarte des Stücks im Host, eine
-   eigene Oberfläche mit der Orrery-Ansicht, Perform-Makros, Handbuch-Generator.
-4. **Offen aus Phase 4**: Konjunktionen als Formgrenzen, Tempogramm für die Referenzmessung,
-   Kalibrierung der Tape Keys an Mellotron-Aufnahmen (dafür fehlen noch Aufnahmen).
-5. **Release (Phase 7)**: `Deploy/` nach Phosphene (Inno Setup, `build_release.ps1`, Paketprüfung).
-
-**25.09.2026: Überarbeitung nach dem Code-Review (neun Punkte).** Alle reinen Umbauten bitidentisch
-(SHA-256 der Referenz-Renders `out/ref_hashes.txt`: `eph_render --minutes 5 --seed 5` für Melodic und
-Cosmic, WAV und MIDI), danach ctest und Plugin-Build.
-
-| Punkt | Ergebnis |
-|---|---|
-| Doxygen | `docs/Doxyfile` nach Phosphene; streng geprüft: nichts undokumentiert |
-| Hilfsfunktionen | `pitchClass`, `Rng::gaussian`, `rootShiftAt`/`Score::rootAt`, `writeDrone` statt Kopien |
-| Engine | ein Kanalzug je Quelle (`Strip`: Pegel, Panorama, Sends), eine Mischroutine, Quellen mit Namen |
-| Komponist | `composePiece` in seine sechs Schritte (Form, Rack, Schichten, Atmosphäre, Einstellungen, Hände), `writeLead` in Rhythmus, Schritt, Akkordton, Note |
-| Stilprofile | mit benannten Initialisierern, jeder Wert mit Namen |
-| Studie, Skizze | aus dem Kern nach `Tools/pieces` (Bibliothek `EphemerisPieces`) |
-| Unterordner | `eph/compose`, `eph/synth`, `eph/fx` |
-| ctest | ein Test je Selbsttest-Abschnitt (`selftest.<name>`), aus der Registrierungstabelle gelesen: 19 Tests |
-| Leistung | siehe unten; neue Referenz-Hashes |
-
-Leistung (ein Modul, eine Minute bei 48 kHz, vorher → nachher): Tape Keys mit vier Chortasten
-1,07 → 0,45 s (Formantpegel beim Setzen statt fünf `pow` je Taste und Sample; Hüllkurve rekursiv statt
-`exp`; der Oszillator rechnet den Puls nur, wenn er gemischt wird), String Machine mit vier Tasten
-0,39 → 0,17 s (Teiler je Taste beim Anschlag, Bruchteil mit `floor` statt `fmod`, beides exakt, also
-bitidentisch), Modularstimme 0,32 → 0,21 s (Tonhöhe und Cutoff alle 4 Samples). Der ganze Render von
-fünf Minuten: 14,6 → 10,1 s (Melodic).
-
-Danach die Modularstimmen in SIMD-Lanes (`ModVoiceBank`, `VoiceKernel.h`): die acht Reihen, Lead und
-Drone als eine Bank, zwei AVX2-Register (drei NEON-Register) nebeneinander durch jede Stufe, damit
-sich die Abhängigkeitsketten überlappen. Skalar pro Stimme bleiben Glide, Vibrato, Hüllkurven, Drift
-und der Kontrollschritt (Tonhöhe per `exp2`, Cutoff per `tan`). Zwei Umstellungen, damit Lanes
-bitgleich zum Skalarpfad bleiben und die Divisionseinheit entlastet wird: Die Sättigung des Mixers
-ist die algebraische Sigmoide x/√(1+x²) (wie in der Leiter) statt tanh, ihre ADAA-Form ist
-(x+x₁)/(√(1+x²)+√(1+x₁²)) ohne Sonderfall; die Leiter rechnet dieselbe Gleichung mit vier statt zehn
-Divisionen, und die Division der Sättigung geht in ihre letzte ein. Der VCA sitzt jetzt hinter dem
-DC-Blocker. Vektortest: Kernel auf AVX2, NEON-Shim und skalar bitgleich zur float-Instanz.
-
-| Stimmen spielen | skalar vorher | Bank |
-|---|---|---|
-| 1 | 0,21 s/min | 0,44 s/min |
-| 10 | 2,1 s/min | 0,89 s/min |
-
-Im Render laufen im Mittel drei Stimmen (Melodic, 5 min): Stimmen 2,7 s statt etwa 3,3 s, der ganze
-Render 9,3 s. Die übrigen Posten dort: Hall 1,6 s, Federn 1,5 s, `updateCell` 1,1 s, Kompressor und
-Limiter 0,9 s, Echo 0,7 s, die anderen Klangerzeuger 1,7 s. Hörprüfung offen: Die Sigmoide biegt etwas
-früher als tanh, die Stimmen sind dadurch rund 0,5 dB leiser (RMS des Mixes −19,5 statt −19,0 dBFS).
+**Nächste Schritte (Stand 25.09.2026, nachmittags).** Die Programmieraufgaben der Phasen 4 bis 7 sind
+umgesetzt (die Einträge darunter); offen ist, was einen Menschen, eine Installation oder ein Gerät braucht:
+1. **Hörrunde** (Nutzer): im Standalone "Compose" und "Play", oder `eph_render` (README). Fragen: Tragen die
+   Modularstimmen mit der neuen Sättigung (Sigmoide statt tanh, rund 0,5 dB leiser)? Chor und Streicher der
+   Tape Keys, die Hallmenge, die Formlängen, die Unterscheidbarkeit der Stile, die Tempi (die Referenzmessung
+   legt für Cosmic und Melodic langsamere nahe)? Die Konjunktionen an den Formgrenzen?
+2. **Quest auf dem Gerät**: `adb install -r build-quest\EphemerisQuest.apk`, mit `eph.cfg` (`mute=1` zum
+   Prüfen); messen, ob zwei Kerne reichen, dann die Qualitätsstufe festlegen; `eph_vectest` und
+   `eph_selftest` über adb auf dem echten NEON.
+3. **pluginval** (braucht einen Download von Tracktion) und **Inno Setup** (braucht eine Installation, z. B.
+   `winget install JRSoftware.InnoSetup`): dann `Deployuild_release.ps1` ohne `-NoSetup`.
+4. **Kalibrierung der Tape Keys** an Mellotron-Aufnahmen (dafür fehlen Aufnahmen).
+5. Kleinere Ideen aus 8.1, die eine Entscheidung brauchen: Stilprofile im Style-Tab editierbar machen,
+   Platte und BBD als weitere Räume, Granular in der Atmosphäre, ein Spannungsbogen über ein ganzes Konzert.
 
 **25.09.2026: Stil-Morph, Style-Tab, Instrumentierungs-Matrix, Stems im Plugin.** `compose.morph_to`: Ein
 Konzert wandert vom eigenen Stil zu einem anderen, jedes Stück mit dem Profil beim bereits gespielten Anteil
