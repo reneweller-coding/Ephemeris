@@ -3,6 +3,7 @@
  * @brief The style page (EditorStyle.h).
  */
 #include "EditorStyle.h"
+#include "PluginEditor.h"
 #include "eph/compose/Style.h"
 #include <functional>
 
@@ -66,9 +67,43 @@ const std::vector<Line>& lines()
 }
 } // namespace
 
-StylePage::StylePage(EphemerisProcessor& p) : proc_(p)
+StylePage::StylePage(EphemerisProcessor& p, std::unique_ptr<ParamPage> custom) : proc_(p), custom_(std::move(custom))
 {
+    view_.setViewedComponent(custom_.get(), false);
+    view_.setScrollBarsShown(true, false);
+    addAndMakeVisible(view_);
+    copy_.onClick = [this] { copyStyle(); };
+    addAndMakeVisible(copy_);
     startTimerHz(4);
+    timerCallback();
+}
+
+void StylePage::resized()
+{
+    auto r = getLocalBounds();
+    table_ = r.removeFromLeft(r.getWidth() * 3 / 5);
+    auto right = r.reduced(8, 6);
+    copy_.setBounds(right.removeFromTop(28).withWidth(std::min(right.getWidth(), 260)));
+    right.removeFromTop(6);
+    view_.setBounds(right);
+    const int w = right.getWidth() - view_.getScrollBarThickness();
+    custom_->setSize(w, std::max(right.getHeight(), custom_->heightFor(w)));
+}
+
+void StylePage::copyStyle()
+{
+    // Through the host parameters, so the controls, the host and the saved state all see the new values.
+    ParamStore scratch;
+    scratch.copyValuesFrom(proc_.store());
+    copyToCustom(styleProfile(static_cast<Style>(std::max(0, style_))), scratch);
+    for (int index = custom::BpmLow; index < custom::Count; ++index) {
+        const int id = scratch.id(Module::Custom, 0, index);
+        if (StoreParameter* sp = proc_.parameter(id)) {
+            sp->beginChangeGesture();
+            sp->setValueNotifyingHost(scratch.toNormalised(id, scratch.get(id)));
+            sp->endChangeGesture();
+        }
+    }
 }
 
 StylePage::~StylePage() { stopTimer(); }
@@ -77,27 +112,39 @@ void StylePage::timerCallback()
 {
     const ParamStore& s = proc_.store();
     const int style = s.getInt(s.id(Module::Compose, 0, compose::Style));
-    if (style != style_) { style_ = style; repaint(); }
+    float hash = 0.0f;
+    for (int index = 0; index < custom::Count; ++index) hash += s.get(s.id(Module::Custom, 0, index)) * static_cast<float>(index + 1);
+    if (style != style_ || hash != customHash_) {
+        style_ = style;
+        customHash_ = hash;
+        copy_.setButtonText("Copy " + juce::String(kStyleNames[std::max(0, style)]) + " into Custom");
+        repaint();
+    }
 }
 
 void StylePage::paint(juce::Graphics& g)
 {
     g.fillAll(kBack);
     const int styles = static_cast<int>(Style::Count);
-    auto area = getLocalBounds().toFloat().reduced(16.0f, 10.0f);
-    const float labelW = 240.0f, colW = (area.getWidth() - labelW) / static_cast<float>(styles);
+    const ParamStore& store = proc_.store();
+    const bool own = customStyleOn(store);
+    const StyleProfile mine = customProfile(store, styleProfile(static_cast<Style>(std::max(0, style_))));
+    // Columns: the five styles, then the user's own; the one the composer uses is lit.
+    const int columns = styles + 1, lit = own ? styles : style_;
+    auto area = table_.toFloat().reduced(12.0f, 10.0f);
+    const float labelW = 190.0f, colW = (area.getWidth() - labelW) / static_cast<float>(columns);
     const auto& rows = lines();
     const float rowH = std::min(22.0f, (area.getHeight() - 60.0f) / static_cast<float>(rows.size() + 1));
     // The chosen style's column.
-    if (style_ >= 0 && style_ < styles) {
+    if (lit >= 0 && lit < columns) {
         g.setColour(kAccent.withAlpha(0.12f));
-        g.fillRoundedRectangle(area.getX() + labelW + colW * static_cast<float>(style_), area.getY(), colW, rowH * static_cast<float>(rows.size() + 1) + 4.0f, 4.0f);
+        g.fillRoundedRectangle(area.getX() + labelW + colW * static_cast<float>(lit), area.getY(), colW, rowH * static_cast<float>(rows.size() + 1) + 4.0f, 4.0f);
     }
-    g.setFont(juce::Font(juce::FontOptions(13.0f, juce::Font::bold)));
-    for (int s = 0; s < styles; ++s) {
-        g.setColour(s == style_ ? kAccent : kInk);
-        g.drawText(styleProfile(static_cast<Style>(s)).name, juce::Rectangle<float>(area.getX() + labelW + colW * static_cast<float>(s), area.getY(), colW, rowH),
-                   juce::Justification::centred);
+    g.setFont(juce::Font(juce::FontOptions(12.5f, juce::Font::bold)));
+    for (int s = 0; s < columns; ++s) {
+        g.setColour(s == lit ? kAccent : (s == styles && !own ? kDim : kInk));
+        g.drawText(s < styles ? juce::String(styleProfile(static_cast<Style>(s)).name) : juce::String("Custom"),
+                   juce::Rectangle<float>(area.getX() + labelW + colW * static_cast<float>(s), area.getY(), colW, rowH), juce::Justification::centred);
     }
     g.setFont(juce::Font(juce::FontOptions(12.5f)));
     for (size_t i = 0; i < rows.size(); ++i) {
@@ -105,9 +152,9 @@ void StylePage::paint(juce::Graphics& g)
         if (i % 2 == 0) { g.setColour(kFaint.withAlpha(0.5f)); g.fillRect(area.getX(), y, area.getWidth(), rowH); }
         g.setColour(kDim);
         g.drawText(rows[i].label, juce::Rectangle<float>(area.getX() + 4.0f, y, labelW - 8.0f, rowH), juce::Justification::centredLeft);
-        for (int s = 0; s < styles; ++s) {
-            g.setColour(s == style_ ? kInk : kInk.withAlpha(0.75f));
-            g.drawText(rows[i].value(styleProfile(static_cast<Style>(s))),
+        for (int s = 0; s < columns; ++s) {
+            g.setColour(s == lit ? kInk : (s == styles && !own ? kDim.withAlpha(0.7f) : kInk.withAlpha(0.75f)));
+            g.drawText(rows[i].value(s < styles ? styleProfile(static_cast<Style>(s)) : mine),
                        juce::Rectangle<float>(area.getX() + labelW + colW * static_cast<float>(s), y, colW, rowH), juce::Justification::centred);
         }
     }
@@ -115,7 +162,8 @@ void StylePage::paint(juce::Graphics& g)
     g.setFont(juce::Font(juce::FontOptions(12.0f)));
     const float y = area.getY() + rowH * static_cast<float>(rows.size() + 1) + 14.0f;
     g.drawFittedText("A style is a set of ranges and chances the composer draws from: two pieces of one style share these, "
-                     "not their notes. The tempo comes from the style while compose.style_tempo is on. The tempi and the "
-                     "levels were set after measuring reference recordings (Tools/analyze_ref.py).",
-                     juce::Rectangle<float>(area.getX(), y, area.getWidth(), 40.0f).toNearestInt(), juce::Justification::topLeft, 3);
+                     "not their notes. Custom is a style of your own: copy a style into it, change what you like, and turn "
+                     "on Use Custom Style; the counter rows, the transposer, the tape set and the drum patterns still come from the "
+                     "chosen style (Cosmic and Drift have no drum patterns).",
+                     juce::Rectangle<float>(area.getX(), y, area.getWidth(), 48.0f).toNearestInt(), juce::Justification::topLeft, 3);
 }

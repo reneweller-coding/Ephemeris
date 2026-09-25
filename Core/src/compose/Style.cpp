@@ -3,6 +3,7 @@
  * @brief The five profiles.
  */
 #include "eph/compose/Style.h"
+#include "eph/Params.h"
 #include <algorithm>
 #include <cmath>
 
@@ -246,6 +247,56 @@ StyleProfile arcProfile(const StyleProfile& p, float tension, float strength)
     m.hands.medianSeconds = p.hands.medianSeconds * (1.0 - 0.3 * static_cast<double>(x));
     m.hands.restSeconds = p.hands.restSeconds * (1.0 - 0.3 * static_cast<double>(x));
     return m;
+}
+
+bool customStyleOn(const ParamStore& p)
+{
+    return p.getBool(p.id(Module::Custom, 0, custom::Use));
+}
+
+StyleProfile customProfile(const ParamStore& p, const StyleProfile& base)
+{
+    auto v = [&](int index) { return p.get(p.id(Module::Custom, 0, index)); };
+    StyleProfile m = base;
+    m.bpmLow = std::min(v(custom::BpmLow), v(custom::BpmHigh));
+    m.bpmHigh = std::max(v(custom::BpmLow), v(custom::BpmHigh));
+    m.minutesLow = std::min(v(custom::MinutesLow), v(custom::MinutesHigh));
+    m.minutesHigh = std::max(v(custom::MinutesLow), v(custom::MinutesHigh));
+    m.phasesLow = static_cast<int>(std::lround(std::min(v(custom::PhasesLow), v(custom::PhasesHigh))));
+    m.phasesHigh = static_cast<int>(std::lround(std::max(v(custom::PhasesLow), v(custom::PhasesHigh))));
+    m.introShare = v(custom::Intro);
+    m.codaShare = v(custom::Coda);
+    m.newTempoChance = v(custom::NewTempo);
+    m.newKeyChance = v(custom::NewKey);
+    m.peakRows = static_cast<int>(std::lround(v(custom::PeakRows)));
+    m.mutation = v(custom::Mutation);
+    m.tapeChance = v(custom::Tape);
+    m.stringsChance = v(custom::Strings);
+    m.leadChance = v(custom::Lead);
+    m.bleepChance = v(custom::Bleeps);
+    m.drumsChance = v(custom::Drums);
+    m.leadIntensity = v(custom::LeadDensity);
+    m.hands.medianSeconds = v(custom::HandMove);
+    m.hands.restSeconds = v(custom::HandRest);
+    m.darkness = v(custom::Darkness);
+    m.hallSeconds = v(custom::Hall);
+    m.levelDb = v(custom::Level);
+    return m;
+}
+
+void copyToCustom(const StyleProfile& s, ParamStore& p)
+{
+    auto set = [&](int index, float value) { p.set(p.id(Module::Custom, 0, index), value); };
+    set(custom::BpmLow, s.bpmLow); set(custom::BpmHigh, s.bpmHigh);
+    set(custom::MinutesLow, s.minutesLow); set(custom::MinutesHigh, s.minutesHigh);
+    set(custom::PhasesLow, static_cast<float>(s.phasesLow)); set(custom::PhasesHigh, static_cast<float>(s.phasesHigh));
+    set(custom::Intro, s.introShare); set(custom::Coda, s.codaShare);
+    set(custom::NewTempo, s.newTempoChance); set(custom::NewKey, s.newKeyChance);
+    set(custom::PeakRows, static_cast<float>(s.peakRows)); set(custom::Mutation, s.mutation);
+    set(custom::Tape, s.tapeChance); set(custom::Strings, s.stringsChance); set(custom::Lead, s.leadChance);
+    set(custom::Bleeps, s.bleepChance); set(custom::Drums, s.drumsChance); set(custom::LeadDensity, s.leadIntensity);
+    set(custom::HandMove, static_cast<float>(s.hands.medianSeconds)); set(custom::HandRest, static_cast<float>(s.hands.restSeconds));
+    set(custom::Darkness, s.darkness); set(custom::Hall, s.hallSeconds); set(custom::Level, s.levelDb);
 }
 
 } // namespace eph

@@ -221,6 +221,34 @@ const ParamDesc kCueParams[cue::Count] = {
     { "port",    "OSC Port", "",  1024.0f, 65535.0f, 9000.0f, Curve::Int },
 };
 
+/** A style of the user's own (Style tab): the defaults are the Cosmic profile's numbers. */
+const ParamDesc kCustomParams[custom::Count] = {
+    { "use",          "Use Custom Style", "",     0.0f,   1.0f,   0.0f, Curve::Toggle },
+    { "bpm_low",      "Tempo Low",        "BPM", 60.0f, 160.0f,  96.0f, Curve::Linear },
+    { "bpm_high",     "Tempo High",       "BPM", 60.0f, 160.0f, 118.0f, Curve::Linear },
+    { "minutes_low",  "Piece Min Low",    "min",  4.0f,  40.0f,  12.0f, Curve::Linear },
+    { "minutes_high", "Piece Min High",   "min",  4.0f,  40.0f,  22.0f, Curve::Linear },
+    { "phases_low",   "Phases Low",       "",     1.0f,   4.0f,   1.0f, Curve::Int },
+    { "phases_high",  "Phases High",      "",     1.0f,   4.0f,   2.0f, Curve::Int },
+    { "intro",        "Atmosphere Share", "",     0.0f,   0.3f,   0.10f, Curve::Linear },
+    { "coda",         "Coda Share",       "",     0.0f,   0.3f,   0.08f, Curve::Linear },
+    { "new_tempo",    "New Tempo Chance", "",     0.0f,   1.0f,   0.3f, Curve::Linear },
+    { "new_key",      "New Key Chance",   "",     0.0f,   1.0f,   0.3f, Curve::Linear },
+    { "peak_rows",    "Rows at Peak",     "",     1.0f,   7.0f,   3.0f, Curve::Int },
+    { "mutation",     "Mutation",         "",     0.0f,   1.0f,   0.2f, Curve::Linear },
+    { "tape",         "Tape Keys Chance", "",     0.0f,   1.0f,   0.9f, Curve::Linear },
+    { "strings",      "Strings Chance",   "",     0.0f,   1.0f,   0.5f, Curve::Linear },
+    { "lead",         "Lead Chance",      "",     0.0f,   1.0f,   0.6f, Curve::Linear },
+    { "bleeps",       "Bleeps Chance",    "",     0.0f,   1.0f,   0.4f, Curve::Linear },
+    { "drums",        "Drums Chance",     "",     0.0f,   1.0f,   0.0f, Curve::Linear },
+    { "lead_density", "Lead Density",     "",     0.1f,   1.0f,   0.5f, Curve::Linear },
+    { "hand_move",    "Hands: a Move",    "s",    2.0f,  30.0f,   8.0f, Curve::Log },
+    { "hand_rest",    "Hands: a Rest",    "s",    4.0f,  40.0f,  14.0f, Curve::Log },
+    { "darkness",     "Darkness",         "",    -0.5f,   0.5f,  -0.05f, Curve::Linear },
+    { "hall",         "Hall",             "s",    1.0f,  15.0f,   6.0f, Curve::Log },
+    { "level",        "Level",            "dB", -12.0f,  12.0f,   4.0f, Curve::Linear },
+};
+
 /** The hall: long and dark, as the style's spaces are (a first setting, to be judged by ear). */
 const ParamDesc kReverbParams[reverb::Count] = {
     { "size",     "Size",       "",     0.3f,     3.0f,    1.8f, Curve::Linear },
@@ -290,6 +318,7 @@ const ModuleSpec kModules[static_cast<int>(Module::Count)] = {
     { "drums",   kDrumsParams,   drums::Count,   1 },
     { "perform", kPerformParams, perform::Count, 1 },
     { "cue",     kCueParams,     cue::Count,     1 },
+    { "custom",  kCustomParams,  custom::Count,  1 },
 };
 
 bool isDiscrete(Curve c) { return c == Curve::Int || c == Curve::Choice || c == Curve::Toggle; }

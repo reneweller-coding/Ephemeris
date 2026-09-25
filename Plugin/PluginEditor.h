@@ -30,6 +30,8 @@ public:
      */
     ParamPage(EphemerisProcessor& p, std::vector<std::pair<eph::Module, int>> groups, int instances);
     void resized() override;   ///< lays the controls out in a grid
+    /** @brief The height the grid needs at @p width (for a page in a viewport). */
+    int heightFor(int width) const;
 
 private:
     void build();

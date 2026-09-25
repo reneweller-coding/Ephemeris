@@ -63,6 +63,16 @@ const StyleProfile& styleProfile(Style style);
  */
 StyleProfile morphProfile(const StyleProfile& a, const StyleProfile& b, float t);
 
+/** @brief Whether the user's own style is on (custom.use). */
+bool customStyleOn(const ParamStore& p);
+/**
+ * @brief The user's own style (module custom): compose.style's profile (@p base) with the numbers of the custom
+ *        module; the counter rows' lengths, the transposer, the tape set and the name stay @p base's.
+ */
+StyleProfile customProfile(const ParamStore& p, const StyleProfile& base);
+/** @brief Writes @p s's numbers into the custom module (the Style tab's "copy"). */
+void copyToCustom(const StyleProfile& s, ParamStore& p);
+
 /** @brief Where a concert's arc of tension stands at @p t (0..1 of the concert): 0 at the ends, 1 at 60 %. */
 float concertArc(float t);
 

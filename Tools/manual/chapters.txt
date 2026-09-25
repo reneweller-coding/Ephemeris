@@ -179,7 +179,7 @@ tempo (/eph/beat), every section with its phase (/eph/phase), every new root (/e
 conjunction of the rows with the share of the running rows that meet (/eph/conjunction). Each cue leaves
 when its sound is heard, not when it is composed.
 
-== Style | | 14 ==
+== Style | custom | 14 ==
 
 The five style profiles side by side, the chosen one lit. A style is not a sound but a set of ranges and
 chances the composer draws from: the tempo, the length and the number of sequence phases, how much of the
@@ -188,3 +188,9 @@ rows play at the peak and which lengths they are drawn from, how often a row mut
 transposer moves, how often each layer comes in, how dense the lead is, how fast the hands move, how dark
 the voices are, how long the hall rings and how loud the piece is. Two pieces of one style share these,
 not their notes. The tempi and the levels were set after measuring reference recordings.
+
+The sixth column is a style of your own. "Copy ... into Custom" takes the chosen style's numbers as a
+starting point; change what you like on the right, and turn on Use Custom Style: the composer then takes
+your numbers. The counter rows' lengths, the transposer, the tape set and the drum patterns still come
+from the chosen style -- Cosmic and Drift have no drum patterns, so there Drums Chance does nothing. Your
+style is saved with the set and the plugin's state, and a concert starts from it (and morphs from it).

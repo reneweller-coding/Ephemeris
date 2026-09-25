@@ -531,6 +531,19 @@ void testMorph()
                   && concertArc(0.0f) < 0.01f && concertArc(1.0f) < 0.01f && concertArc(0.6f) > 0.99f;
     check(arc, "the concert's arc: nothing at strength 0, denser at the height than at the ends, its peak at 60 %",
           fmt("rows %d / %d, lead %.2f / %.2f", low.peakRows, high.peakRows, static_cast<double>(low.leadChance), static_cast<double>(high.leadChance)));
+    // The user's own style: Cosmic plays three rows at the peak; the custom style with six, once it is switched on.
+    auto rowsStarted = [](const char* set) {
+        ParamStore q;
+        q.parseText(set);
+        const Score sc = composePiece(q, 9, 8.0);
+        bool started[kRows] = {};
+        for (const RackEvent& e : sc.rack) if (e.op == RackOp::Start && e.row >= 0 && e.row < kRows) started[e.row] = true;
+        int n = 0;
+        for (bool b : started) n += b;
+        return n;
+    };
+    const int plain = rowsStarted("compose.style=Cosmic custom.peak_rows=6"), own = rowsStarted("compose.style=Cosmic custom.use=1 custom.peak_rows=6");
+    check(own > plain, "the custom style is used when it is switched on", fmt("rows started: %d off, %d on", plain, own));
     check(ends && middle, "the ends are the two profiles, the middle lies between them",
           fmt("bpm %.0f-%.0f / %.0f-%.0f / %.0f-%.0f", static_cast<double>(m0.bpmLow), static_cast<double>(m0.bpmHigh),
               static_cast<double>(mh.bpmLow), static_cast<double>(mh.bpmHigh), static_cast<double>(m1.bpmLow), static_cast<double>(m1.bpmHigh)));

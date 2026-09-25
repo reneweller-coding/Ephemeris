@@ -73,6 +73,8 @@ enum class Module : int { Compose = 0, Row, Master,
                           Perform,
                           /** Phase 5: the score cues for a visualiser (PLAN 8.3, Cue.h). */
                           Cue,
+                          /** Phase 5: a style profile of the user's own (the Style tab; Style.h, customProfile). */
+                          Custom,
                           Count };
 
 constexpr int kRows = 8;   ///< instances of the row module (the rows of the rack) and of the voice module
@@ -151,6 +153,17 @@ enum : int { KickHz, Decay, Tone, Level, EchoSend, ReverbSend, Count };
  */
 namespace perform {
 enum : int { Filter, Transpose, Hold, Throw, Count };
+}
+/**
+ * @brief A style profile of the user's own (module Custom; Style.h, customProfile): with Use on, the composer
+ *        takes these numbers instead of compose.style's; the counter rows' lengths, the transposer, the tape set
+ *        and the drum patterns still come from compose.style (Cosmic and Drift have none: there Drums Chance does
+ *        nothing). The defaults are the Cosmic profile's.
+ */
+namespace custom {
+enum : int { Use, BpmLow, BpmHigh, MinutesLow, MinutesHigh, PhasesLow, PhasesHigh, Intro, Coda, NewTempo, NewKey,
+             PeakRows, Mutation, Tape, Strings, Lead, Bleeps, Drums, LeadDensity, HandMove, HandRest, Darkness, Hall,
+             Level, Count };
 }
 /** @brief The score cues over OSC (module Cue; Cue.h): on or off, and the UDP port (the host: EPH_CUE_HOST, else this machine). */
 namespace cue {

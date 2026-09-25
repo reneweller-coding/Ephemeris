@@ -91,6 +91,13 @@ void ParamPage::build()
     }
 }
 
+int ParamPage::heightFor(int width) const
+{
+    const int perRow = std::max(1, (width - 20) / 104);
+    const int rows = (controls_.size() + perRow - 1) / perRow;
+    return 20 + (instances_ > 1 ? 32 : 6) + rows * 96;
+}
+
 void ParamPage::resized()
 {
     auto area = getLocalBounds().reduced(10);
@@ -301,7 +308,7 @@ EphemerisEditor::EphemerisEditor(EphemerisProcessor& p) : juce::AudioProcessorEd
     page("Hall", { { M::Reverb, 0 } }, 1);
     page("Drums", { { M::Drums, 0 } }, 1);
     page("Master", { { M::Master, 0 }, { M::Compose, 0 }, { M::Cue, 0 } }, 1);
-    tabs_.addTab("Style", kPanel, new StylePage(proc_), true);
+    tabs_.addTab("Style", kPanel, new StylePage(proc_, std::make_unique<ParamPage>(proc_, std::vector<std::pair<M, int>>{ { M::Custom, 0 } }, 1)), true);
     addAndMakeVisible(tabs_);
 
     setResizable(true, true);

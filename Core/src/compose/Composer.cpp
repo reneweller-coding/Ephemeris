@@ -379,6 +379,9 @@ Score composePiece(const ParamStore& params, uint64_t seed, double minutes, int 
     ParamStore p;
     p.copyValuesFrom(params);
     const Style style = static_cast<Style>(p.getInt(p.id(Module::Compose, 0, compose::Style)));
+    // The profile: the one handed in (a concert's), else the user's own style where it is on, else compose.style's.
+    StyleProfile own;
+    if (profile == nullptr && customStyleOn(p)) { own = customProfile(p, styleProfile(style)); profile = &own; }
     const StyleProfile& prof = profile != nullptr ? *profile : styleProfile(style);
     // A unit's stream moves by its reroll counter; every other stream stays where it was.
     auto seedOf = [seed, curation, unit](Stream k) {
@@ -447,7 +450,9 @@ Score composeConcert(const ParamStore& p, uint64_t seed, double minutes, const C
     const bool shaped = morphing || arc > 0.0f;
     ParamStore q;   // the concert's own copy: a morphing concert changes compose.style from piece to piece
     q.copyValuesFrom(p);
-    StyleProfile prof = styleProfile(from);
+    // The user's own style, where it is on, is where the concert starts (and what it morphs from).
+    const StyleProfile start = customStyleOn(p) ? customProfile(p, styleProfile(from)) : styleProfile(from);
+    StyleProfile prof = start;
     Rng r;
     r.seed(mixSeed(seed, 99u + 131u * static_cast<uint64_t>(curation != nullptr ? curation->count("concert") : 0)));
     Score out;
@@ -458,7 +463,7 @@ Score composeConcert(const ParamStore& p, uint64_t seed, double minutes, const C
             // The profile at the share of the concert already played: between the two styles (the nearer one's
             // drums), then along the arc of tension.
             const float t = static_cast<float>(elapsed / (minutes * 60.0));
-            prof = morphing ? morphProfile(styleProfile(from), styleProfile(static_cast<Style>(morph)), t) : styleProfile(from);
+            prof = morphing ? morphProfile(start, styleProfile(static_cast<Style>(morph)), t) : start;
             if (morphing) q.set(styleId, static_cast<float>(t < 0.5f ? static_cast<int>(from) : morph));
             prof = arcProfile(prof, concertArc(t) - 0.5f, arc);
         }
