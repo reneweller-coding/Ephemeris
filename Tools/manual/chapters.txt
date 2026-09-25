@@ -421,7 +421,7 @@ strings step back 3 dB.
 
 The styles are levelled to the loudness a streamed release is played at (EBU R128, measured with the
 offline renderer on ten-minute pieces): Cosmic, Melodic and Modern about -15 LUFS integrated, Doom and
-Drift about -17.5; the loudest three seconds around -12 LUFS, the true peak at -1 dBTP, the peak-to-loudness
+Drift about -17.5 -- one piece a dB or two either way, with the sounds the composer chose for it; the loudest three seconds around -12 LUFS, the true peak at -1 dBTP, the peak-to-loudness
 ratio 11 to 14 dB and the loudness range 8 to 13 LU -- the dynamics are the product. eph_render prints these
 figures for everything it renders, with the stereo correlation and how far the side lies under the mid.
 Below, the composer's settings -- the style, key, scale, tempo, lengths and whether the style chooses the
