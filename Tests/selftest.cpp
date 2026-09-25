@@ -41,6 +41,7 @@
 #include "eph/synth/ModVoice.h"
 #include "eph/compose/Pads.h"
 #include "eph/Params.h"
+#include "eph/synth/Filters.h"
 #include "eph/synth/Wavetable.h"
 #include "eph/synth/Poly.h"
 #include "eph/Rack.h"
@@ -53,6 +54,7 @@
 #include <algorithm>
 #include <chrono>
 #include <cmath>
+#include <complex>
 #include <cstdio>
 #include <cstring>
 #include <functional>
@@ -2211,6 +2213,94 @@ void testTimbreDrift()
 }
 
 /**
+ * The filter models (Filters.h): in the small-signal range each follows its circuit's linear transfer function; each
+ * that should oscillates at its cutoff at full resonance; none runs away at full resonance and a loud input.
+ */
+void testFilters()
+{
+    section("filter models");
+    const double fs = 96000.0, fc = 1000.0;
+    const float g = static_cast<float>(std::tan(3.14159265358979 * fc / fs));
+    enum { MOOG, PROPHET, JUNO, SEM, XPANDER, DIODE, KORG, POLIVOKS, WASP };
+    auto run = [&](int model, float res, std::function<float(int)> input, int n, float drive = 1.0f) {
+        float v[4] = {}, st[4] = {};
+        std::vector<float> out(static_cast<size_t>(n));
+        for (int i = 0; i < n; ++i) {
+            const float x = input(i) * drive;
+            float y = 0.0f;
+            switch (model) {
+            case MOOG: y = ladderMoog<float>(v, st, x, g, FilterVoicing::feedback(FilterModel::Moog, res)); break;
+            case PROPHET: y = otaCascade<float>(v, st, x, g, FilterVoicing::feedback(FilterModel::Prophet, res), FilterVoicing::otaDrive(FilterModel::Prophet), FilterVoicing::otaRes(FilterModel::Prophet)); break;
+            case JUNO: y = otaCascade<float>(v, st, x, g, FilterVoicing::feedback(FilterModel::Juno, res), FilterVoicing::otaDrive(FilterModel::Juno), FilterVoicing::otaRes(FilterModel::Juno)); break;
+            case SEM: y = svfNonlinear<float>(v, st, x, g, FilterVoicing::feedback(FilterModel::Sem, res), 1.5f, 0.0f, 0.0f); break;
+            case XPANDER: y = otaCascade<float>(v, st, x, g, FilterVoicing::feedback(FilterModel::Xpander, res), FilterVoicing::otaDrive(FilterModel::Xpander), FilterVoicing::otaRes(FilterModel::Xpander), 2); break;
+            case DIODE: y = diodeLadder<float>(v, st, x, g * 0.70710678f, FilterVoicing::feedback(FilterModel::Diode, res)); break;
+            case KORG: y = korg35<float>(v, st, x, g, FilterVoicing::feedback(FilterModel::Korg35, res)); break;
+            case POLIVOKS: y = svfNonlinear<float>(v, st, x, g, FilterVoicing::feedback(FilterModel::Polivoks, res), 0.35f, 0.0f, 0.0f); break;
+            default: y = svfNonlinear<float>(v, st, x, g, FilterVoicing::feedback(FilterModel::Wasp, res), 0.6f, 0.35f, 0.0f); break;
+            }
+            out[static_cast<size_t>(i)] = y;
+        }
+        return out;
+    };
+    // The gain at f of a small sine, after the transient.
+    auto gainAt = [&](int model, double f) {
+        const double w = 2.0 * 3.14159265358979 * f / fs;
+        const int n = 96000;
+        const auto y = run(model, 0.0f, [&](int i) { return static_cast<float>(0.01 * std::sin(w * i)); }, n);
+        double re = 0.0, im = 0.0;
+        for (int i = n / 2; i < n; ++i) { re += y[static_cast<size_t>(i)] * std::cos(w * i); im += y[static_cast<size_t>(i)] * std::sin(w * i); }
+        return 2.0 * std::sqrt(re * re + im * im) / (n / 2) / 0.01;
+    };
+    // The analog prototypes at the prewarped frequency (the bilinear transform is exact at fc).
+    auto analog = [&](int model, double f) {
+        const double wa = std::tan(3.14159265358979 * f / fs) / std::tan(3.14159265358979 * fc / fs);
+        const std::complex<double> sj(0.0, wa);
+        switch (model) {
+        case SEM: return 1.0 / std::abs(sj * sj + 1.414 * sj + 1.0);
+        case DIODE: { const std::complex<double> pz = sj * 1.41421356 + 2.0; return 1.0 / std::abs(pz * pz * pz * pz * 0.5 - 2.0 * pz * pz + 1.0); }
+        case KORG: return 1.0 / std::abs(sj * sj + 3.0 * sj + 1.0);
+        default: return 1.0 / std::pow(std::abs(sj + 1.0), 4.0);
+        }
+    };
+    const char* names[] = { "Moog", "Prophet", "Juno", "SEM", "", "Diode", "Korg35" };
+    double worst = 0.0;
+    std::string where;
+    for (int m : { MOOG, PROPHET, JUNO, SEM, DIODE, KORG }) {
+        for (double f : { 250.0, 1000.0, 3000.0 }) {
+            const double e = std::fabs(20.0 * std::log10(gainAt(m, f) / analog(m, f)));
+            if (e > worst) { worst = e; where = std::string(names[m]) + " at " + std::to_string(static_cast<int>(f)) + " Hz"; }
+        }
+    }
+    check(worst < 0.5, "small signals follow each circuit's linear response", fmt("worst %.2f dB (%s)", worst, where.c_str()));
+    // Self-oscillation: kicked once, at full resonance, each ladder, cascade, diode ladder and Sallen-Key rings on at fc.
+    int ringing = 0;
+    std::string freqs;
+    for (int m : { MOOG, PROPHET, DIODE, KORG }) {
+        const auto y = run(m, 1.02f, [](int i) { return i == 0 ? 1.0f : 0.0f; }, 96000);
+        double e = 0.0;
+        int crossings = 0;
+        for (size_t i = 48000; i < y.size(); ++i) { e += double(y[i]) * y[i]; crossings += (y[i - 1] < 0.0f) != (y[i] < 0.0f); }
+        const double rms = std::sqrt(e / 48000.0), f = crossings / 2.0 / 0.5;
+        ringing += rms > 0.01 && std::fabs(f - fc) < 0.08 * fc;
+        freqs += fmt(" %s %.0f Hz", names[m], f);
+    }
+    check(ringing == 4, "at full resonance each oscillates at its cutoff", freqs);
+    // Loud and at full resonance: bounded.
+    bool bounded = true;
+    std::string peaks;
+    for (int m = MOOG; m <= WASP; ++m) {
+        const auto y = run(m, 1.0f, [](int i) { return std::sin(0.05f * i) > 0.0f ? 1.0f : -1.0f; }, 48000, 4.0f);
+        float peak = 0.0f;
+        bool finite = true;
+        for (float x : y) { finite = finite && std::isfinite(x); peak = std::max(peak, std::fabs(x)); }
+        bounded = bounded && finite && peak < 12.0f;
+        peaks += fmt(" %.1f", finite ? static_cast<double>(peak) : -1.0);
+    }
+    check(bounded, "full resonance and a loud square: every model stays finite and bounded", "peaks" + peaks);
+}
+
+/**
  * The offline render is the oracle only if a host's block size cannot change a sample: the study
  * rendered with blocks of 1, 37 and 512 must agree bit for bit (Engine.h).
  */
@@ -2373,6 +2463,7 @@ const TestSection kSections[] = {
     { "testPoly", testPoly },
     { "testRowTables", testRowTables },
     { "testTimbreDrift", testTimbreDrift },
+    { "testFilters", testFilters },
     { "testBlockSizes", testBlockSizes },
     { "testEcho", testEcho },
     { "testDrift", testDrift },
