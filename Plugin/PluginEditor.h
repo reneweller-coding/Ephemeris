@@ -50,6 +50,12 @@ private:
     juce::TextButton prev_ { "<" }, next_ { ">" }, save_ { "Save..." };
     std::vector<eph::SoundPreset> user_;   ///< the user's presets of the synth (ids from 5001 in the list)
     std::unique_ptr<juce::AlertWindow> nameDialog_;
+    juce::ToggleButton allRows_ { "All rows" };   ///< on a page with instances: a preset goes to every one
+    // An effect page (no factory presets): the user's presets of the whole page, every module of it, by full key.
+    bool pagePresets_ = false;
+    std::vector<std::pair<juce::String, juce::String>> pageUser_;   ///< name and text
+    juce::File pageFolder() const;
+    void fillPagePresets();
     juce::OwnedArray<juce::Component> controls_;
     juce::OwnedArray<juce::Label> labels_;
     std::vector<std::unique_ptr<juce::SliderParameterAttachment>> sliders_;

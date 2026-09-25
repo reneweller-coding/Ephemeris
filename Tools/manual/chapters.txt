@@ -66,7 +66,9 @@ rows, the builds, the lead, the peak, the bridges, the fade -- with the playhead
 A channel strip per source, in the order the engine mixes them: the eight rows, the lead, the drone,
 the tape keys, the string machine, the drums and the atmosphere. Each strip has its pan (where the
 source has one), its sends to the tape echo and to the hall -- the rows also to the second echo -- its
-fader and its meter. The controls are the same parameters the sources' own pages show.
+fader and its meter. The controls are the same parameters the sources' own pages show. Show sends unfolds
+the sends of every strip (the echoes, the early reflections, the blend room, the hall, the shimmer); folded,
+the console shows level, pan and meter only, with long faders.
 
 The composer sets the stereo field for each piece: the bass in the middle, the main sequence near it, the
 other counter rows 30 to 50 % out to alternating sides, the lead a little off the middle. It keeps the bass
@@ -173,7 +175,9 @@ atmosphere -- has 1024 factory presets above its knobs, in sixteen groups of six
 two words: the first runs from dark to bright ("Umbral" ... "Radiant"), the second is the group's own, so
 "Umbral Keel" is the darkest and "Radiant Piston" the brightest of the ladder basses. On the voices page a
 preset goes to the row chosen on the left. Save... keeps the synth's knobs as they stand under a name of
-your own (a small text file in the application data, Ephemeris/Presets); they appear under "User". A preset sets the sound, never the mix: level, pan, the sends,
+your own (a small text file in the application data, Ephemeris/Presets); they appear under "User". All rows,
+on the voices page, sends a preset to every row at once. The effect pages (Echo + Spring, Hall) keep presets
+of your own too, each the whole page -- all its rooms -- as it stands. A preset sets the sound, never the mix: level, pan, the sends,
 the low cut, the distance and the drone's auto pan stay, and so do the atmosphere's amounts, which the
 composer moves. Nor does it put a synth out of tune with the rest: the drone and the bass groups keep their
 oscillators within a cent or three of each other (the pure foundation), the others within twelve, the lead's

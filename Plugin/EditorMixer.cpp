@@ -53,6 +53,7 @@ MixerStrip::MixerStrip(EphemerisProcessor& proc, const juce::String& name, juce:
         k->setTooltip(juce::String(p.desc(id).name));
         addAndMakeVisible(*k);
         knobLinks_.push_back(std::make_unique<juce::SliderParameterAttachment>(*sp, *k));
+        isSend_.push_back(juce::String(label) != "Pan");
         auto l = std::make_unique<juce::Label>(juce::String(), label);
         l->setJustificationType(juce::Justification::centred);
         l->setColour(juce::Label::textColourId, kDim);
@@ -84,15 +85,22 @@ void MixerStrip::resized()
     r.removeFromTop(20);   // the name
     // The knobs one under the other: fourteen strips leave a strip too narrow for two knobs of a size a hand
     // can grab. The name sits under each knob.
-    // Six knobs at most a strip; they shrink where the console is short, so the faders keep their room.
-    const int lh = 12, kh = juce::jlimit(20, 44, std::min(r.getWidth() - 18, (r.getHeight() - 170) / 6 - lh));
+    // Folded, only the pan above the fader; unfolded, up to six sends as well, shrinking where the console is short.
+    // Every strip keeps the same room, so the faders and meters line up across the console.
+    const int slots = sends_ ? 6 : 1;
+    const int lh = 12, kh = juce::jlimit(20, 44, std::min(r.getWidth() - 18, (r.getHeight() - 170) / slots - lh));
+    int used = 0;
     for (size_t i = 0; i < knobs_.size(); ++i) {
+        const bool show = sends_ || !isSend_[i];
+        knobs_[i]->setVisible(show);
+        knobNames_[i]->setVisible(show);
+        if (!show) continue;
         auto row = r.removeFromTop(kh + lh);
         knobs_[i]->setBounds(row.removeFromTop(kh));
         knobNames_[i]->setBounds(row);
+        ++used;
     }
-    // Room for six knobs on every strip, so the faders and meters line up across the console.
-    r.removeFromTop(static_cast<int>(6 - std::min<size_t>(6, knobs_.size())) * (kh + lh));
+    r.removeFromTop(std::max(0, slots - used) * (kh + lh));
     r.removeFromTop(6);
     r.removeFromBottom(15);   // the peak readout
     const int half = r.getWidth() / 2;
@@ -205,6 +213,13 @@ MixerConsole::MixerConsole(EphemerisProcessor& proc) : proc_(proc)
         addAndMakeVisible(*strip);
         strips_.push_back(std::move(strip));
     }
+    // The sends fold away: the console shows level, pan and meter until they are asked for.
+    fold_.onClick = [this] {
+        sends_ = !sends_;
+        fold_.setButtonText(sends_ ? "Hide sends" : "Show sends");
+        for (auto& st : strips_) st->showSends(sends_);
+    };
+    addAndMakeVisible(fold_);
     lastPoll_ = juce::Time::getMillisecondCounterHiRes() * 0.001;
     startTimerHz(30);
 }
@@ -227,7 +242,9 @@ void MixerConsole::resized()
 {
     const int n = static_cast<int>(strips_.size());
     if (n == 0) return;
-    const auto area = getLocalBounds().reduced(6);
+    auto area = getLocalBounds().reduced(6);
+    fold_.setBounds(area.removeFromTop(22).removeFromLeft(110));
+    area.removeFromTop(4);
     const int gap = 4, w = (area.getWidth() - gap * (n - 1)) / n;
     for (int i = 0; i < n; ++i) strips_[static_cast<size_t>(i)]->setBounds(area.getX() + i * (w + gap), area.getY(), w, area.getHeight());
 }

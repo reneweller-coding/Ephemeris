@@ -139,6 +139,8 @@ public:
     std::vector<eph::SoundPreset> userPresets(eph::Module module) const;
     /** @brief Saves the synth's knobs on @p instance as a user preset named @p name; false if it cannot be written. */
     bool saveUserPreset(eph::Module module, int instance, const juce::String& name);
+    /** @brief Sets every `key=value` line of @p text (full keys, e.g. reverb.decay) through the host's parameters. */
+    void applyKeyText(const juce::String& text);
     StoreParameter* parameter(int id) { return id >= 0 && id < static_cast<int>(params_.size()) ? params_[static_cast<size_t>(id)] : nullptr; }
 
     // juce::AudioProcessor: a stereo instrument without MIDI, one program, the state as XML.

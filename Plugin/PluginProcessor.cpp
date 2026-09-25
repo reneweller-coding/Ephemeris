@@ -534,6 +534,20 @@ bool EphemerisProcessor::saveUserPreset(Module module, int instance, const juce:
     return dir.getChildFile(clean + ".txt").replaceWithText(juce::String(presetText(store(), module, instance)));
 }
 
+void EphemerisProcessor::applyKeyText(const juce::String& text)
+{
+    for (const juce::String& line : juce::StringArray::fromLines(text)) {
+        const int eq = line.indexOfChar('=');
+        if (eq <= 0) continue;
+        const int id = store().find(line.substring(0, eq).trim().toStdString());
+        StoreParameter* p = id >= 0 ? parameter(id) : nullptr;
+        if (p == nullptr) continue;
+        p->beginChangeGesture();
+        p->setValueNotifyingHost(store().toNormalised(id, line.substring(eq + 1).getFloatValue()));
+        p->endChangeGesture();
+    }
+}
+
 void EphemerisProcessor::applyPresetValues(Module module, int instance, const SoundPreset& preset)
 {
     for (const auto& e : presetKnobs(module, preset)) {

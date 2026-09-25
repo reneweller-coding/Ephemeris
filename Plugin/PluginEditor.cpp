@@ -57,7 +57,10 @@ ParamPage::ParamPage(EphemerisProcessor& p, std::vector<std::pair<Module, int>> 
             const int id = preset_.getSelectedId();
             if (id > 5000 && id - 5001 < static_cast<int>(user_.size())) {
                 presetIndex_ = -1;
-                proc_.applyPresetValues(presetModule_, instances_ > 1 ? instance_.getSelectedId() - 1 : 0, user_[static_cast<size_t>(id - 5001)]);
+                const int one = instances_ > 1 ? instance_.getSelectedId() - 1 : 0;
+                for (int i = 0; i < instances_; ++i)
+                    if (i == one || allRows_.getToggleState())
+                        proc_.applyPresetValues(presetModule_, i, user_[static_cast<size_t>(id - 5001)]);
             } else if (id > 0) {
                 choosePreset(id - 1);
             }
@@ -84,8 +87,63 @@ ParamPage::ParamPage(EphemerisProcessor& p, std::vector<std::pair<Module, int>> 
         addAndMakeVisible(preset_);
         addAndMakeVisible(prev_);
         addAndMakeVisible(next_);
+        if (instances_ > 1) {
+            allRows_.setTooltip("a preset goes to every row, not only the one chosen");
+            addAndMakeVisible(allRows_);
+        }
+    } else if (m == Module::Echo || m == Module::Reverb) {
+        // The effect pages: the user's own presets of the whole page (all its rooms), saved and recalled by full key.
+        pagePresets_ = true;
+        presetCount_ = 0;
+        fillPagePresets();
+        preset_.onChange = [this] {
+            const int id = preset_.getSelectedId();
+            if (id > 0 && id - 1 < static_cast<int>(pageUser_.size())) proc_.applyKeyText(pageUser_[static_cast<size_t>(id - 1)].second);
+        };
+        save_.onClick = [this] {
+            nameDialog_ = std::make_unique<juce::AlertWindow>("Save preset", "A name for the page as it is:", juce::MessageBoxIconType::NoIcon);
+            nameDialog_->addTextEditor("name", "", "Name");
+            nameDialog_->addButton("Save", 1, juce::KeyPress(juce::KeyPress::returnKey));
+            nameDialog_->addButton("Cancel", 0, juce::KeyPress(juce::KeyPress::escapeKey));
+            nameDialog_->enterModalState(true, juce::ModalCallbackFunction::create([this](int result) {
+                if (result == 1 && nameDialog_ != nullptr) {
+                    const juce::String name = juce::File::createLegalFileName(nameDialog_->getTextEditorContents("name").trim());
+                    const ParamStore& st = proc_.store();
+                    juce::String text;
+                    for (const auto& g : groups_)
+                        for (int k = 0; k < ParamStore::moduleCount(g.first); ++k) {
+                            const int id = st.id(g.first, g.second, k);
+                            text << juce::String(st.key(id)) << "=" << juce::String(st.get(id), 6) << "\n";
+                        }
+                    if (name.isNotEmpty() && pageFolder().createDirectory() && pageFolder().getChildFile(name + ".txt").replaceWithText(text))
+                        fillPagePresets();
+                }
+                nameDialog_.reset();
+            }), false);
+        };
+        addAndMakeVisible(preset_);
+        addAndMakeVisible(save_);
     }
     build();
+}
+
+juce::File ParamPage::pageFolder() const
+{
+    const juce::String page = groups_.front().first == Module::Echo ? "Echo + Spring" : "Hall";
+    return juce::File::getSpecialLocation(juce::File::userApplicationDataDirectory).getChildFile("Ephemeris").getChildFile("Presets").getChildFile(page);
+}
+
+void ParamPage::fillPagePresets()
+{
+    preset_.clear(juce::dontSendNotification);
+    pageUser_.clear();
+    juce::Array<juce::File> files = pageFolder().findChildFiles(juce::File::findFiles, false, "*.txt");
+    files.sort();
+    for (const juce::File& f : files) {
+        pageUser_.push_back({ f.getFileNameWithoutExtension(), f.loadFileAsString() });
+        preset_.addItem(f.getFileNameWithoutExtension(), static_cast<int>(pageUser_.size()));
+    }
+    preset_.setTextWhenNothingSelected(pageUser_.empty() ? juce::String("your presets (Save...)") : juce::String(pageUser_.size()) + " of yours");
 }
 
 void ParamPage::fillPresets()
@@ -113,7 +171,9 @@ void ParamPage::choosePreset(int index)
     if (presetCount_ == 0 || index < 0 || index >= presetCount_) return;
     presetIndex_ = index;
     preset_.setSelectedId(index + 1, juce::dontSendNotification);
-    proc_.applyPreset(presetModule_, instances_ > 1 ? instance_.getSelectedId() - 1 : 0, index);
+    const int one = instances_ > 1 ? instance_.getSelectedId() - 1 : 0;
+    for (int i = 0; i < instances_; ++i)
+        if (i == one || allRows_.getToggleState()) proc_.applyPreset(presetModule_, i, index);
 }
 
 void ParamPage::build()
@@ -164,13 +224,13 @@ int ParamPage::heightFor(int width) const
 {
     const int perRow = std::max(1, (width - 20) / 104);
     const int rows = (controls_.size() + perRow - 1) / perRow;
-    return 20 + (instances_ > 1 || presetCount_ > 0 ? 32 : 6) + rows * 96;
+    return 20 + (instances_ > 1 || presetCount_ > 0 || pagePresets_ ? 32 : 6) + rows * 96;
 }
 
 void ParamPage::resized()
 {
     auto area = getLocalBounds().reduced(10);
-    if (instances_ > 1 || presetCount_ > 0) {
+    if (instances_ > 1 || presetCount_ > 0 || pagePresets_) {
         auto top = area.removeFromTop(26);
         if (instances_ > 1) { instance_.setBounds(top.removeFromLeft(90)); top.removeFromLeft(12); }
         if (presetCount_ > 0) {
@@ -179,6 +239,11 @@ void ParamPage::resized()
             preset_.setBounds(top.removeFromLeft(300));
             top.removeFromLeft(4);
             next_.setBounds(top.removeFromLeft(28));
+            top.removeFromLeft(8);
+            save_.setBounds(top.removeFromLeft(70));
+            if (instances_ > 1) { top.removeFromLeft(8); allRows_.setBounds(top.removeFromLeft(90)); }
+        } else if (pagePresets_) {
+            preset_.setBounds(top.removeFromLeft(300));
             top.removeFromLeft(8);
             save_.setBounds(top.removeFromLeft(70));
         }

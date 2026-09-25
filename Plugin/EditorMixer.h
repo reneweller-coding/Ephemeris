@@ -40,8 +40,12 @@ public:
 
     void paint(juce::Graphics&) override;   ///< the frame, the name and the meter
     void resized() override;                ///< knobs one under the other, then fader and meter side by side
+    /** @brief Shows the sends (@p on) or folds them away, leaving the pan, the fader and the meter. */
+    void showSends(bool on) { sends_ = on; resized(); }
 
 private:
+    bool sends_ = false;                                                       ///< the sends unfolded
+    std::vector<bool> isSend_;                                                 ///< per knob: a send (not the pan)
     juce::String name_;                                                        ///< the source's name
     juce::Colour colour_;                                                      ///< its accent colour
     std::unique_ptr<juce::Slider> fader_;                                      ///< the level fader
@@ -65,11 +69,13 @@ public:
     int stripCount() const { return static_cast<int>(strips_.size()); }
     MixerStrip& strip(int i) { return *strips_[static_cast<size_t>(i)]; }   ///< @copydoc stripCount
 
-    void resized() override;   ///< the strips side by side
+    void resized() override;   ///< the strips side by side, the fold switch above them
 
 private:
     /** @brief Takes the processor's readings and hands them to the strips. */
     void timerCallback() override;
+    juce::TextButton fold_ { "Show sends" };   ///< folds the sends of every strip away or out
+    bool sends_ = false;
     EphemerisProcessor& proc_;                          ///< the processor whose meters it reads
     std::vector<std::unique_ptr<MixerStrip>> strips_;   ///< one strip per channel
     double lastPoll_ = 0.0;                             ///< when the meters were last read, seconds
