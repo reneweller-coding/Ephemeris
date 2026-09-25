@@ -1323,6 +1323,37 @@ void testGuideExtras()
         }
         check(hi - lo > 0.4, "the drone's auto pan moves it across the field", fmt("left share %.2f .. %.2f", lo, hi));
     }
+    // The album: interludes without rows between the long pieces, the middle piece Phrygian, the last one Dorian.
+    {
+        ParamStore p;
+        p.parseText("compose.style=Melodic compose.scale=Aeolian compose.album=1");
+        const Score sc = composeConcert(p, 9, 70.0);
+        std::vector<std::pair<double, double>> inter;
+        std::vector<double> pieceStarts;
+        for (size_t m = 0; m < sc.markers.size(); ++m) {
+            const std::string& t = sc.markers[m].text;
+            if (t.rfind("Zwischenspiel", 0) == 0 && t.find(':') == std::string::npos) {
+                double end = sc.lengthBeats;
+                for (size_t k = m + 1; k < sc.markers.size(); ++k)
+                    if (sc.markers[k].text.rfind("Stueck", 0) == 0) { end = sc.markers[k].beat; break; }
+                inter.push_back({ sc.markers[m].beat, end });
+            }
+            if (t.rfind("Stueck", 0) == 0 && t.find(": Atmo") != std::string::npos) pieceStarts.push_back(sc.markers[m].beat);
+        }
+        int rowNotes = 0;
+        for (const NoteEvent& n : sc.notes) {
+            const int r = static_cast<int>(n.part) - static_cast<int>(Part::Row1);
+            if (r < 0 || r >= kRows) continue;
+            for (const auto& iv : inter) rowNotes += n.beat >= iv.first && n.beat < iv.second ? 1 : 0;
+        }
+        bool phrygian = false;
+        for (double b : pieceStarts) phrygian = phrygian || sc.scaleAt(b + 1.0, 0) == 2;
+        const bool dorianEnd = !pieceStarts.empty() && sc.scaleAt(pieceStarts.back() + 1.0, 0) == 1;
+        check(!inter.empty() && rowNotes == 0 && phrygian && dorianEnd,
+              "an album: interludes without rows, the darkest piece in the middle, an ethereal end",
+              fmt("%zu interludes, %d row notes in them, %zu pieces, Phrygian %d, Dorian at the end %d",
+                  inter.size(), rowNotes, pieceStarts.size(), phrygian ? 1 : 0, dorianEnd ? 1 : 0));
+    }
 }
 
 /**

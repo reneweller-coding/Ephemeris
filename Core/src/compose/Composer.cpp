@@ -597,6 +597,75 @@ Score composePiece(const ParamStore& params, uint64_t seed, double minutes, int 
     return s;
 }
 
+Score composeInterlude(const ParamStore& params, uint64_t seed, double minutes, int keyShift, const StyleProfile& profile)
+{
+    ParamStore p;
+    p.copyValuesFrom(params);
+    const Style style = static_cast<Style>(p.getInt(p.id(Module::Compose, 0, compose::Style)));
+    const int keyId = p.id(Module::Compose, 0, compose::Key);
+    const int key = pitchClass(p.getInt(keyId) + keyShift);
+    p.set(keyId, static_cast<float>(key));
+    const int scale = p.getInt(p.id(Module::Compose, 0, compose::Scale));
+    StyleProfile prof = profile;
+    prof.hallSeconds *= 1.4f;
+    const double bpm = prof.bpmLow;
+    // The form: the atmosphere, then a coda of a fifth of it; whole bars.
+    const double bars = std::max(8.0, std::round(minutes * bpm / kBeatsPerBar));
+    const double codaBars = std::max(4.0, std::round(bars * 0.2));
+    PieceForm form;
+    form.sections.push_back({ SectionType::Atmo, 0, 0, 0.0, (bars - codaBars) * kBeatsPerBar, 0.1f, 0.25f });
+    form.sections.push_back({ SectionType::Coda, 0, 0, (bars - codaBars) * kBeatsPerBar, codaBars * kBeatsPerBar, 0.2f, 0.0f });
+    form.phaseBpm = { bpm };
+    form.phaseKey = { 0 };
+    form.lengthBeats = bars * kBeatsPerBar;
+
+    Score s;
+    s.clear(bpm);
+    s.seed = seed;
+    s.keyRoot = key;
+    s.lengthBeats = form.lengthBeats;
+    Piece c{ p, prof, style, s, form };
+    c.key = key;
+    c.phases = 1;
+    c.scale = scale;
+    c.rowFrom.assign(kRows, -1.0);
+    c.seedOf = [seed](Stream k) { return mixSeed(seed, static_cast<uint64_t>(k)); };
+    writeMarkers(c);
+    s.markers.front().text = "Zwischenspiel";
+    s.rootShifts = { { 0.0, 0 } };
+    s.scaleShifts = { { 0.0, scale } };
+    const Section& atmo = form.sections[0];
+    const Section& coda = form.sections[1];
+    writeDrone(s, key, 0.0, coda.beat + coda.length * 0.9, &c.keys);
+    // Slow chords, a chord every 16 to 32 bars (Drift's rhythm), on the string machine or the tape keys' choir.
+    Rng pads = c.stream(sPads);
+    PadPlan pp;
+    pp.keyRoot = key;
+    pp.scale = scale;
+    pp.shifts = s.rootShifts;
+    pp.scales = s.scaleShifts;
+    if (pads.uniform() < 0.5f) {
+        pp.part = Part::Strings;
+        pp.low = 62; pp.high = 81;
+        pp.restrikeSeconds = 1e6;
+        pp.choir = false;
+    }
+    const double from = 4.0 * kBeatsPerBar;
+    pp.chords = drawChordTrack(Style::Drift, scale, from, atmo.beat + atmo.length, pads);
+    pp.chords.push_back({ atmo.beat + atmo.length, 0 });
+    writeChords(s, pp, from, atmo.beat + atmo.length, pads);
+    if (pp.part == Part::Strings) c.stringsFrom = from;
+    PadPlan fifth = pp;
+    fifth.openFifth = true;
+    writeChords(s, fifth, coda.beat, coda.beat + coda.length * 0.85, pads);
+    c.grainsOn = true;
+    writeAtmosphere(c);
+    writeSettings(c);
+    writeHands(c);
+    s.sort();
+    return s;
+}
+
 void appendScore(Score& dst, const Score& src, int rootOffset)
 {
     const double off = dst.lengthBeats;
@@ -630,6 +699,12 @@ Score composeConcert(const ParamStore& p, uint64_t seed, double minutes, const C
     Score out;
     double elapsed = 0.0;
     int shift = 0;
+    // The album (the style guide's 6.5): its draws come only where it is on, so a concert without it stays as it was.
+    const bool album = p.getBool(p.id(Module::Compose, 0, compose::Album));
+    const int scaleId = p.id(Module::Compose, 0, compose::Scale);
+    const int baseScale = p.getInt(scaleId);
+    bool middleDone = false;
+    int interludes = 0;
     for (int i = 0; elapsed < minutes * 60.0 - 90.0 && i < 64; ++i) {
         if (shaped) {
             // The profile at the share of the concert already played: between the two styles (the nearer one's
@@ -643,14 +718,48 @@ Score composeConcert(const ParamStore& p, uint64_t seed, double minutes, const C
         double m = prof.minutesLow + (prof.minutesHigh - prof.minutesLow) * r.uniform();
         if (left - m < prof.minutesLow * 0.6) m = left;   // no short piece at the end: the last takes the rest
         m = std::max(4.0, m);
+        const bool last = m >= left - 1e-9;
+        StyleProfile own = prof;
+        if (album) {
+            // The darkest piece where the concert's middle falls, an ethereal one at its end.
+            q.set(scaleId, static_cast<float>(baseScale));
+            const double total = minutes * 60.0;
+            if (!middleDone && !last && elapsed + m * 60.0 >= 0.5 * total) {
+                middleDone = true;
+                if (baseScale <= 1) q.set(scaleId, 2.0f);
+                own.darkness -= 0.12f;
+                own.peakRows = std::min(kRows - 1, own.peakRows + 1);
+            } else if (last && i > 0) {
+                if (baseScale == 0 || baseScale == 2) q.set(scaleId, 1.0f);
+                own.hallSeconds *= 1.3f;
+                own.peakRows = std::max(1, own.peakRows - 1);
+                own.drumsChance = 0.0f;
+                own.leadIntensity *= 0.7f;
+                own.darkness += 0.05f;
+            }
+        }
         Score piece = composePiece(q, mixSeed(seed, 1000 + static_cast<uint64_t>(i)), m, shift, curation,
-                                   "piece" + std::to_string(i + 1) + ".", shaped ? &prof : nullptr);
+                                   "piece" + std::to_string(i + 1) + ".", album ? &own : (shaped ? &prof : nullptr));
         for (Marker& mk : piece.markers) mk.text = "Stueck " + std::to_string(i + 1) + ": " + mk.text;
         if (i == 0) { out = piece; out.rootShifts.clear(); out.scaleShifts.clear(); out.lengthBeats = 0.0; out.notes.clear(); out.gestures.clear();
                       out.rack.clear(); out.markers.clear(); out.rowShapes.clear(); }
         const double before = out.tempo.secondsAt(out.lengthBeats);
         appendScore(out, piece, shift);
         elapsed += out.tempo.secondsAt(out.lengthBeats) - before;
+        // An interlude of three to five minutes between two long pieces, in the key of the one before.
+        if (album && !last) {
+            const double im = 3.0 + 2.0 * r.uniform();
+            if (minutes * 60.0 - elapsed - im * 60.0 > prof.minutesLow * 60.0 * 0.8) {
+                q.set(scaleId, static_cast<float>(baseScale));
+                Score inter = composeInterlude(q, mixSeed(seed, 5000 + static_cast<uint64_t>(i)), im, shift, prof);
+                ++interludes;
+                for (Marker& mk : inter.markers)
+                    mk.text = "Zwischenspiel " + std::to_string(interludes) + (mk.text == "Zwischenspiel" ? std::string() : ": " + mk.text);
+                const double b0 = out.tempo.secondsAt(out.lengthBeats);
+                appendScore(out, inter, shift);
+                elapsed += out.tempo.secondsAt(out.lengthBeats) - b0;
+            }
+        }
         // The next key: a fourth, a fifth, the relative, a tone.
         const int moves[5] = { 5, -5, 3, -2, 2 };
         shift += moves[r.below(5)];

@@ -54,8 +54,24 @@ Score composePiece(const ParamStore& p, uint64_t seed, double minutes, int keySh
  *        to that style: each piece is composed with the profile at the share of the concert already played
  *        (morphProfile), and takes the nearer style's drum patterns. With compose.concert_arc the pieces follow an
  *        arc of tension over the whole concert (concertArc, arcProfile): quiet at the ends, densest at 60 %.
+ *        With compose.album the concert is an album (the style guide's 6.5): an interlude of three to five minutes
+ *        between the long pieces, the piece in the middle the darkest (Phrygian, darker voices), the last one
+ *        ethereal (Dorian, a longer hall, a row fewer at the peak, no drums, a quieter lead). Without it the
+ *        concert draws exactly what it drew before.
  */
 Score composeConcert(const ParamStore& p, uint64_t seed, double minutes, const Curation* curation = nullptr);
+
+/**
+ * @brief Writes an interlude (the style guide's 6.5, the album's short ambient pieces between the long ones): no
+ *        rows, only the drone, slow chords on the string machine or the tape keys (a chord every 16 to 32 bars),
+ *        the atmosphere with its granular cloud, a longer hall, and the open fifth at the end.
+ * @param p        parameters (key, scale, the voices)
+ * @param seed     the interlude's seed
+ * @param minutes  its length
+ * @param keyShift semitones from compose.key
+ * @param profile  the profile of the moment in the concert
+ */
+Score composeInterlude(const ParamStore& p, uint64_t seed, double minutes, int keyShift, const StyleProfile& profile);
 
 /** @brief The names of a piece's units, in stream order: form, tempo, rows, rack, layers, lead, pads, hands. */
 extern const char* const kUnitNames[8];

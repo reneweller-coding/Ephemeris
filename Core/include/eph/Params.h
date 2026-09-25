@@ -90,7 +90,9 @@ enum : int { Bpm, Key, Scale, Style, PieceMinutes,
              StyleTempo, ConcertMinutes,
              // Phase 5: a concert that wanders from its style to another (0: none, else the style + 1), and the
              // strength of the arc of tension over a whole concert (0: none).
-             MorphTo, ConcertArc, Count };
+             MorphTo, ConcertArc,
+             // 25.09.2026: a concert as an album (the style guide's 6.5): interludes, the darkest piece in the middle.
+             Album, Count };
 }
 /** @brief Parameters of one row of the sequencer rack (module Row, "row1" .. "row8"). */
 namespace row {
