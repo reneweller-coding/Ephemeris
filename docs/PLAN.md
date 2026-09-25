@@ -10,6 +10,39 @@ verschiedener Länge um einen gemeinsamen Grundton, die nur selten wieder zusamm
 
 ## Stand der Umsetzung
 
+**In Arbeit (26.09.2026): Filtermodelle auf dem Stand der Technik.** Auftrag: "noch mehr verschiedene Filtermodelle"
+(SEM, SSM2040, CEM3320, SSI2140, Moog, IR3109, Korg35/MS-20, ARP 4075, Polivoks, Matrix-12, Kamm, CEM3389/3387), "weitere
+interessante Ideen gerne hinzufügen", "die Filter auch in die Presets", und ausdrücklich: "das absolute SOTA in der
+Filtersimulation". Keine Agenten.
+Methode (SOTA, white-box ohne Hardware-Messungen): jedes Modell als Schaltungs-ODE an seinen physikalischen Nichtlinearitäten
+(Differenzpaare tanh, Diodenpaare, Diodenbegrenzer, CMOS-Inverter, Slew-Rate), trapezförmig diskretisiert in
+Kondensatorstrom-/TPT-Form (Zavalishin, Simper/Cytomic), die implizite Gleichung pro Sample mit Newton-Raphson gelöst
+(analytische Jacobi-Matrix, strukturierte Lösung: Kaskade = bidiagonal + Rückkopplungsecke, Diodenleiter = tridiagonal +
+Ecke; Warmstart aus dem letzten Sample; feste Iterationszahl, damit Vektor = Skalar bitgenau und blockgrößenunabhängig),
+bei 2x (die Reihenstimmen laufen schon so). Referenzen: D'Angelo/Välimäki 2013/2014 (Moog, Generalized Ladder I/II),
+Huovilainen 2004, Zavalishin "The Art of VA Filter Design", Simper (trapezoidale SVF, MNA + Newton), Holters/Zölzer 2015
+(nichtlineare Zustandsraummodelle aus Schaltplänen), Stinchcombe (Ladder/Diodenleiter/MS-20-Analysen), DAFx 2022 EDP Wasp,
+ADAA (Parker/Zavalishin/Le Bivic 2016, Bilbao et al. 2017, Holters 2019 für zustandsbehaftete Systeme) als Option.
+Modelle (`voice.filter`, `lead.filter`/`drone.filter`, `poly.filter`; dazu `filter_mode` 0..1 und `filter_fm` 0..1):
+ 0 Moog-Ladder (tanh je Stufe, Newton; ersetzt die bisherige halbimplizite Leiter)
+ 1 Prophet OTA-Kaskade (SSM2040/SSI2140/CEM3320/CEM3389: vier gepufferte OTA-Stufen tanh(ein-aus), Resonanz-VCA mit Sättigung)
+ 2 Juno OTA-Kaskade (IR3109: sauberer, anderer Bassverlust)
+ 3 Oberheim SEM (trapezoidale SVF nach Simper mit OTA-tanh in den Integratoren; Mode morpht LP -> Notch -> HP)
+ 4 Xpander/Matrix-12 (Polmischung auf 1: LP4 LP2 BP2 BP4 HP2 HP4 Notch Phaser, Mode wählt)
+ 5 Diodenleiter (TB-303/EMS: gekoppelte Knoten über Diodenpaare, tridiagonal)
+ 6 Korg35/MS-20 (Sallen-Key, Diodenbegrenzer in der Rückkopplung, Stinchcombe)
+ 7 Polivoks (SVF aus slew-begrenzten Op-Amp-Integratoren)
+ 8 EDP Wasp (CMOS-Inverter-SVF, DAFx 2022) -- eigene Idee dazu
+ 9 Kammfilter (Verzögerung mit gedämpfter Rückkopplung, Frequenz = Cutoff, Mode = +/- Rückkopplung)
+ Filter-FM (Xpander): Oszillator 1 moduliert den Cutoff in Audiorate (`filter_fm`) -- eigene Idee dazu.
+Schritte: F1 Filterkern `eph/synth/Filters.h` (Templates für float und VecF, alle Modelle, Newton) mit Selbsttests
+(Kleinsignal-Frequenzgang gegen die analytische Übertragungsfunktion, Selbstoszillation ~ Cutoff, Stabilität an den
+Rändern, Verzerrung steigt mit Pegel); F2 in den SIMD-Kern (Modelle nur rechnen, wenn eine Spur sie nutzt), Vektortest je
+Modell; F3 Parameter und Engine (Voice, Lead, Drone; drone-Tabelle mitziehen!); F4 Poly; F5 Presets (je Gruppe eine
+Filterliste, z. B. Squelch Arp: Diodenleiter/Korg35/Moog; Juno Strings: Juno; Oberheim Brass: SEM; Cosmic Drip: Kamm/
+Phaser) und Panel-Gruppe "Filter" mit Modellwahl; F6 Handbuchkapitel "Filters", Screenshots, Hashes, Release, APK.
+Stand: F1 in Arbeit.
+
 **Erledigt (26.09.2026): Die Oberfläche als Instrumenten-Panel.** Auftrag: GUI und Synth-Tabs gefielen nicht, Funktionsgruppen
 wie in Phosphene, wichtige Encoder größer (Cutoff, Streichfett), ein stimmiges Farbschema für moderne Berlin School,
 Maximieren-Knopf. Umgesetzt: `Plugin/EditorTheme.*` -- Palette aus dem Logo (Mitternachtsgrund, Pergament-Text, die fünf
