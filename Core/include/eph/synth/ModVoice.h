@@ -65,6 +65,9 @@ struct VoiceSettings {
     int table = 0;             ///< a wavetable instead of the analog oscillators: 0 none, else Wavetable.h's index + 1
     float tablePos = 0.0f;     ///< where in the table, 0..1
     float tableMod = 0.4f;     ///< how far the note's modulation step moves that place
+    int filter = 0;            ///< the filter model (FilterModel, Filters.h)
+    float filterMode = 0.0f;   ///< the SEM's morph, the Xpander's response, the Polivoks' band pass, the comb's sign
+    float filterFm = 0.0f;     ///< oscillator 1 on the cutoff at audio rate, 0..1 (three octaves at full swing)
 };
 
 /**

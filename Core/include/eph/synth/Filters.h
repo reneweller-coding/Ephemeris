@@ -29,6 +29,14 @@
 #include "eph/Vec.h"
 #include <cstdint>
 
+#ifndef EPH_FORCE_INLINE
+  #if defined(_MSC_VER)
+    #define EPH_FORCE_INLINE __forceinline
+  #else
+    #define EPH_FORCE_INLINE inline __attribute__((always_inline))
+  #endif
+#endif
+
 namespace eph {
 
 /** @brief The filter models, in the order of the `filter` parameter (Params.cpp kFilterNames). */

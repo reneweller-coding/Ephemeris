@@ -20,6 +20,7 @@ constexpr int64_t kControl = 4;   ///< samples per control step of pitch and cut
 
 void ModVoiceBank::prepare(double sampleRate, const uint64_t* seeds)
 {
+    lanes_.comb.assign(static_cast<size_t>(kBankLanes) * VoiceLanes::kCombLen, 0.0f);   // the comb filters' lines
     sr_ = sampleRate > 0.0 ? sampleRate : 48000.0;
     stepBase_ = std::log2(440.0 / (2.0 * sr_)) - 69.0 / 12.0;
     lanes_ = VoiceLanes{};
@@ -71,7 +72,22 @@ void ModVoiceBank::set(int v, const VoiceSettings& s)
     lanes_.norm[v] = 1.0f / std::sqrt(drive);
     lanes_.wave[v] = std::clamp(s.wave, 0.0f, 1.0f);
     lanes_.pw[v] = std::clamp(s.pulseWidth, 0.05f, 0.95f);
-    lanes_.k[v] = 4.0f * std::clamp(s.resonance, 0.0f, 1.0f) * 0.985f;
+    // The filter (Filters.h): the model, its reading of the resonance, its makeup, the Xpander's pole mix; a new model
+    // starts from rest.
+    const int model = std::clamp(s.filter, 0, kFilterModels - 1);
+    const FilterModel fm = static_cast<FilterModel>(model);
+    if (static_cast<int>(lanes_.fmodel[v]) != model) lanes_.clearFilter(v);
+    lanes_.fmodel[v] = static_cast<float>(model);
+    lanes_.k[v] = FilterVoicing::feedback(fm, std::clamp(s.resonance, 0.0f, 1.0f));
+    lanes_.fmk[v] = FilterVoicing::makeup(fm, lanes_.k[v]);
+    lanes_.fmode[v] = std::clamp(s.filterMode, 0.0f, 1.0f);
+    lanes_.ffm[v] = 3.0f * std::clamp(s.filterFm, 0.0f, 1.0f);
+    {
+        static const float kMix[8][5] = { { 0, 0, 0, 0, 1 }, { 0, 0, 1, 0, 0 }, { 0, 2, -2, 0, 0 }, { 0, 0, 4, -8, 4 },
+                                          { 1, -2, 1, 0, 0 }, { 1, -4, 6, -4, 1 }, { 1, -2, 2, 0, 0 }, { 1, -4, 4, 0, 0 } };
+        const int mix = std::clamp(static_cast<int>(std::lround(lanes_.fmode[v] * 7.0f)), 0, 7);
+        for (int j = 0; j < 5; ++j) lanes_.pm[j][v] = kMix[mix][j];
+    }
     c.table = s.table > 0 ? &wavetable(s.table - 1) : nullptr;
     lanes_.tbl[v] = c.table != nullptr ? 1.0f : 0.0f;
 }
@@ -196,8 +212,15 @@ void ModVoiceBank::process(const bool* run, int n)
                 }
             }
         }
+        // The filter models the bank's voices use (the kernel computes those), and whether any modulates its cutoff.
+        unsigned models = 0u;
+        bool fm = false;
+        for (int v = 0; v < kBankVoices; ++v) {
+            models |= 1u << std::clamp(static_cast<int>(lanes_.fmodel[v]), 0, kFilterModels - 1);
+            fm = fm || lanes_.ffm[v] > 0.0f;
+        }
         constexpr int regs = (kBankVoices + kVecWidth - 1) / kVecWidth;
-        voiceKernel<VecF, regs>(lanes_, halfband(), 0, n, pulse, mixed_, table);
+        voiceKernel<VecF, regs>(lanes_, halfband(), 0, n, pulse, mixed_, table, models, fm);
         for (int v = 0; v < kBankVoices; ++v)
             if (run[v]) for (int i = 0; i < n; ++i) out_[v][i] = mixed_[i * kBankLanes + v];
     }

@@ -43,6 +43,10 @@
 #pragma once
 #include "eph/Halfband.h"
 #include "eph/Vec.h"
+#include <algorithm>
+#include <cmath>
+#include <vector>
+#include "eph/synth/Filters.h"
 
 /** @def EPH_FORCE_INLINE
  *  @brief Inlines a small lane helper whatever the compiler's size heuristics say. */
@@ -64,7 +68,7 @@ struct VoiceLanes {
      *  @{ */
     alignas(32) float ph1[kBankLanes] = {}, ph2[kBankLanes] = {};    ///< VCO phases [0, 1)
     alignas(32) float satX[kBankLanes] = {}, satS[kBankLanes] = {};  ///< saturator: previous input, sqrt(1 + x^2) of it
-    alignas(32) float ls[4][kBankLanes] = {}, ly[4][kBankLanes] = {}, lu[kBankLanes] = {};   ///< ladder: integrators, stage outputs, input stage
+    alignas(32) float fv[4][kBankLanes] = {}, fs[4][kBankLanes] = {};   ///< the filter's node voltages and trapezoidal states (Filters.h)
     alignas(32) float hx[kHalfbandMaxCoefs][kBankLanes] = {}, hy[kHalfbandMaxCoefs][kBankLanes] = {};   ///< decimator
     alignas(32) float dcX[kBankLanes] = {}, dcY[kBankLanes] = {};    ///< DC blocker
     /** @} */
@@ -74,7 +78,12 @@ struct VoiceLanes {
     alignas(32) float pw[kBankLanes] = {};      ///< pulse width
     alignas(32) float drive[kBankLanes] = {};   ///< mixer drive, linear
     alignas(32) float norm[kBankLanes] = {};    ///< level after the saturator
-    alignas(32) float k[kBankLanes] = {};       ///< ladder feedback
+    alignas(32) float k[kBankLanes] = {};       ///< the filter's feedback (FilterVoicing::feedback: k, R or the comb's)
+    alignas(32) float fmodel[kBankLanes] = {};  ///< the filter model (FilterModel) as a number
+    alignas(32) float fmode[kBankLanes] = {};   ///< the SEM's morph, the Polivoks' band pass, the comb's sign
+    alignas(32) float ffm[kBankLanes] = {};     ///< filter FM: oscillator 1 on the cutoff, in octaves at full swing / 3
+    alignas(32) float fmk[kBankLanes] = {};     ///< the pass band's makeup (FilterVoicing::makeup)
+    alignas(32) float pm[5][kBankLanes] = {};   ///< the Xpander's pole mix: weights of the input and the four stages
     alignas(32) float dcR[kBankLanes] = {};     ///< DC blocker pole
     alignas(32) float tbl[kBankLanes] = {};     ///< 1: the lane plays its wavetable oscillators (wt1, wt2) instead
     /** @} */
@@ -90,12 +99,28 @@ struct VoiceLanes {
     alignas(32) float wt1[2 * kBankSpan * kBankLanes] = {}, wt2[2 * kBankSpan * kBankLanes] = {};
     /** @} */
 
+    /** @name The comb filters (unaligned, last)
+     *  @{ */
+    static constexpr int kCombLen = 4096;                                ///< the comb's line at twice the rate (down to 24 Hz)
+    std::vector<float> comb;                                             ///< the comb filter's lines, kCombLen a lane (ModVoiceBank::prepare)
+    int combPos[kBankLanes] = {};                                        ///< ... their write positions
+    float combLp[kBankLanes] = {};                                       ///< ... the damping in their loops
+    /** @} */
+
+    /** @brief Clears lane @p l's filter: its nodes, its states, its comb (a new model starts from rest). */
+    void clearFilter(int l)
+    {
+        for (int j = 0; j < 4; ++j) fv[j][l] = fs[j][l] = 0.0f;
+        if (!comb.empty()) std::fill(comb.begin() + static_cast<std::ptrdiff_t>(l) * kCombLen, comb.begin() + static_cast<std::ptrdiff_t>(l + 1) * kCombLen, 0.0f);
+        combPos[l] = 0;
+        combLp[l] = 0.0f;
+    }
     /** @brief Clears the filters' states; the VCO phases run on. */
     void clearFilters()
     {
         for (int l = 0; l < kBankLanes; ++l) {
-            satX[l] = 0.0f; satS[l] = 1.0f; lu[l] = 0.0f; dcX[l] = dcY[l] = 0.0f;
-            for (int j = 0; j < 4; ++j) ls[j][l] = ly[j][l] = 0.0f;
+            satX[l] = 0.0f; satS[l] = 1.0f; dcX[l] = dcY[l] = 0.0f;
+            clearFilter(l);
             for (int j = 0; j < kHalfbandMaxCoefs; ++j) hx[j][l] = hy[j][l] = 0.0f;
         }
     }
@@ -149,22 +174,24 @@ EPH_FORCE_INLINE V laneVco(V& ph, V dt, V inv, V wave, V pw, bool pulse)
  * @param out   per sample and lane (index i * kBankLanes + lane)
  */
 template <class V, int R>
-void voiceKernel(VoiceLanes& s, const HalfbandDesign& hbd, int lane, int n, bool pulse, float* out, bool table = false)
+void voiceKernel(VoiceLanes& s, const HalfbandDesign& hbd, int lane, int n, bool pulse, float* out, bool table = false,
+                 unsigned models = 1u, bool fm = false)
 {
     constexpr int width = laneWidth<V>();
     auto at = [lane](const float* a, int r) { return loadLanes<V>(a + lane + r * width); };
-    const V one = lanes<V>(1.0f), half = lanes<V>(0.5f), two = lanes<V>(2.0f), comp = lanes<V>(0.5f);
-    V dcr[R], wave[R], pw[R], drive[R], k[R], cin[R], tb[R];
-    V ph1[R], ph2[R], sx[R], ss[R], dcx[R], dcy[R], ls[R][4], ly[R][4], lu[R];
+    const V one = lanes<V>(1.0f), half = lanes<V>(0.5f);
+    V dcr[R], wave[R], pw[R], drive[R], k[R], cin[R], tb[R], model[R], mode[R], fmd[R], mk[R], pmw[R][5];
+    V ph1[R], ph2[R], sx[R], ss[R], dcx[R], dcy[R], fv[R][4], fs[R][4];
     HalfbandDown<V> hb[R];
     for (int r = 0; r < R; ++r) {
         dcr[r] = at(s.dcR, r); wave[r] = at(s.wave, r); pw[r] = at(s.pw, r); tb[r] = at(s.tbl, r);
         drive[r] = at(s.drive, r); k[r] = at(s.k, r);
-        cin[r] = at(s.norm, r) * vfmadd(comp, k[r], one);   // the level after the saturator times the ladder's input gain
+        cin[r] = at(s.norm, r);   // the level after the saturator
+        model[r] = at(s.fmodel, r); mode[r] = at(s.fmode, r); fmd[r] = at(s.ffm, r); mk[r] = at(s.fmk, r);
+        for (int j = 0; j < 5; ++j) pmw[r][j] = at(s.pm[j], r);
         ph1[r] = at(s.ph1, r); ph2[r] = at(s.ph2, r); sx[r] = at(s.satX, r); ss[r] = at(s.satS, r);
         dcx[r] = at(s.dcX, r); dcy[r] = at(s.dcY, r);
-        for (int j = 0; j < 4; ++j) { ls[r][j] = at(s.ls[j], r); ly[r][j] = at(s.ly[j], r); }
-        lu[r] = at(s.lu, r);
+        for (int j = 0; j < 4; ++j) { fv[r][j] = at(s.fv[j], r); fs[r][j] = at(s.fs[j], r); }
         hb[r].d = hbd;
         for (int j = 0; j < hbd.count; ++j) { hb[r].x[j] = at(s.hx[j], r); hb[r].y[j] = at(s.hy[j], r); }
     }
@@ -188,31 +215,75 @@ void voiceKernel(VoiceLanes& s, const HalfbandDesign& hbd, int lane, int n, bool
                 const V A = x + sx[r], B = sq + ss[r];
                 sx[r] = x;
                 ss[r] = sq;
-                // The ladder (see the file comment): S_j from the previous sample's values.
-                const V g = at(s.g + row, r);
-                const V S0 = vsqrt(vfmadd(lu[r], lu[r], one));
-                const V S1 = vsqrt(vfmadd(ly[r][0], ly[r][0], one)), S2 = vsqrt(vfmadd(ly[r][1], ly[r][1], one));
-                const V S3 = vsqrt(vfmadd(ly[r][2], ly[r][2], one)), S4 = vsqrt(vfmadd(ly[r][3], ly[r][3], one));
-                const V q1 = one / (S0 * (S1 + g)), q2 = one / (S1 * (S2 + g));
-                const V q3 = one / (S2 * (S3 + g)), q4 = one / (S3 * (S4 + g));
-                const V a1 = g * S1 * q1, a2 = g * S2 * q2, a3 = g * S3 * q3, a4 = g * S4 * q4;
-                const V b1 = ls[r][0] * S1 * (S0 * q1), b2 = ls[r][1] * S2 * (S1 * q2);
-                const V b3 = ls[r][2] * S3 * (S2 * q3), b4 = ls[r][3] * S4 * (S3 * q4);
-                const V a43 = a4 * a3, a432 = a43 * a2;
-                const V P = a432 * a1;
-                const V Q = vfmadd(a432, b1, vfmadd(a43, b2, vfmadd(a4, b3, b4)));
-                const V un = (A * cin[r] - B * k[r] * Q) / (B * vfmadd(k[r], P, one));
-                const V y1 = vfmadd(a1, un, b1);
-                const V y2 = vfmadd(a2, y1, b2);
-                const V y3 = vfmadd(a3, y2, b3);
-                const V y4 = vfmadd(a4, y3, b4);
-                ls[r][0] = two * y1 - ls[r][0];
-                ls[r][1] = two * y2 - ls[r][1];
-                ls[r][2] = two * y3 - ls[r][2];
-                ls[r][3] = two * y4 - ls[r][3];
-                ly[r][0] = y1; ly[r][1] = y2; ly[r][2] = y3; ly[r][3] = y4;
-                lu[r] = un;
-                hi[h][r] = y4;
+                // The filter (Filters.h, 26.09.2026): the saturator's output into the lane's model, each model computed
+                // where a lane of the bank uses it, the lane taking its own; Newton-solved circuit equations.
+                const V xs = cin[r] * A / B;
+                V g = at(s.g + row, r);
+                if (fm) g = g * fpow2(fmd[r] * o1);   // filter FM: oscillator 1 on the cutoff at audio rate
+                V y = lanes<V>(0.0f);
+                V nv[4], ns[4];
+                for (int j = 0; j < 4; ++j) { nv[j] = fv[r][j]; ns[j] = fs[r][j]; }
+                auto take = [&](int m, V out, const V* tv, const V* ts) {
+                    const auto on = vge(model[r], lanes<V>(static_cast<float>(m) - 0.5f)) & vlt(model[r], lanes<V>(static_cast<float>(m) + 0.5f));
+                    y = vselect(on, out, y);
+                    for (int j = 0; j < 4; ++j) { nv[j] = vselect(on, tv[j], nv[j]); ns[j] = vselect(on, ts[j], ns[j]); }
+                };
+                auto runModel = [&](int m) {
+                    V tv[4], ts[4];
+                    for (int j = 0; j < 4; ++j) { tv[j] = fv[r][j]; ts[j] = fs[r][j]; }
+                    V out = lanes<V>(0.0f);
+                    switch (static_cast<FilterModel>(m)) {
+                    case FilterModel::Moog: out = ladderMoog(tv, ts, xs, g, k[r]); break;
+                    case FilterModel::Prophet: case FilterModel::Juno: case FilterModel::Xpander: {
+                        const FilterModel fmodel = static_cast<FilterModel>(m);
+                        out = otaCascade(tv, ts, xs, g, k[r], FilterVoicing::otaDrive(fmodel), FilterVoicing::otaRes(fmodel));
+                        if (fmodel == FilterModel::Xpander) {
+                            const float rr = FilterVoicing::otaRes(fmodel);
+                            const V a0 = xs - k[r] * ftanh(lanes<V>(rr) * tv[3]) * lanes<V>(1.0f / rr);
+                            out = pmw[r][0] * a0 + pmw[r][1] * tv[0] + pmw[r][2] * tv[1] + pmw[r][3] * tv[2] + pmw[r][4] * tv[3];
+                        }
+                        break;
+                    }
+                    case FilterModel::Sem: case FilterModel::Wasp:
+                        out = svfNonlinear(tv, ts, xs, g, k[r], FilterVoicing::svfRange(static_cast<FilterModel>(m)),
+                                           FilterVoicing::svfAsym(static_cast<FilterModel>(m)), mode[r]);
+                        break;
+                    case FilterModel::Polivoks:
+                        out = svfNonlinear(tv, ts, xs, g, k[r], FilterVoicing::svfRange(FilterModel::Polivoks), 0.0f, mode[r], true);
+                        break;
+                    case FilterModel::Diode: out = diodeLadder(tv, ts, xs, g * lanes<V>(0.70710678f), k[r]); break;
+                    case FilterModel::Korg35: out = korg35(tv, ts, xs, g, k[r]); break;
+                    case FilterModel::Comb: {
+                        // Lane by lane: a line tuned to the cutoff (at twice the rate), its feedback damped by a pole.
+                        alignas(32) float xin[8], gg[8], res[8];
+                        vstore(xin, xs); vstore(gg, g);
+                        for (int w = 0; w < width; ++w) {
+                            const int L = lane + r * width + w;
+                            if (s.fmodel[L] < 8.5f || s.comb.empty()) { res[w] = 0.0f; continue; }
+                            const float period = std::min(static_cast<float>(VoiceLanes::kCombLen - 2), 3.14159265f / std::atan(std::max(gg[w], 1e-4f)));
+                            float rp = static_cast<float>(s.combPos[L]) - period;
+                            if (rp < 0.0f) rp += static_cast<float>(VoiceLanes::kCombLen);
+                            const int i0 = static_cast<int>(rp);
+                            const float fr = rp - static_cast<float>(i0);
+                            float* line = s.comb.data() + static_cast<size_t>(L) * VoiceLanes::kCombLen;
+                            const float d = line[i0] + fr * (line[(i0 + 1) & (VoiceLanes::kCombLen - 1)] - line[i0]);
+                            s.combLp[L] += 0.5f * (d - s.combLp[L]);
+                            const float fb = (s.fmode[L] >= 0.5f ? -1.0f : 1.0f) * s.k[L];
+                            const float yv = xin[w] + fb * s.combLp[L];
+                            line[s.combPos[L]] = yv;
+                            s.combPos[L] = (s.combPos[L] + 1) & (VoiceLanes::kCombLen - 1);
+                            res[w] = 0.5f * yv;
+                        }
+                        out = loadLanes<V>(res);
+                        break;
+                    }
+                    default: break;
+                    }
+                    take(m, out, tv, ts);
+                };
+                for (int m = 0; m < kFilterModels; ++m) if (models & (1u << m)) runModel(m);
+                for (int j = 0; j < 4; ++j) { fv[r][j] = nv[j]; fs[r][j] = ns[j]; }
+                hi[h][r] = y * mk[r];
             }
         }
         for (int r = 0; r < R; ++r) {
@@ -227,8 +298,7 @@ void voiceKernel(VoiceLanes& s, const HalfbandDesign& hbd, int lane, int n, bool
     for (int r = 0; r < R; ++r) {
         auto put = [lane, r](float* a, V v) { vstore(a + lane + r * width, v); };
         put(s.ph1, ph1[r]); put(s.ph2, ph2[r]); put(s.satX, sx[r]); put(s.satS, ss[r]); put(s.dcX, dcx[r]); put(s.dcY, dcy[r]);
-        for (int j = 0; j < 4; ++j) { put(s.ls[j], ls[r][j]); put(s.ly[j], ly[r][j]); }
-        put(s.lu, lu[r]);
+        for (int j = 0; j < 4; ++j) { put(s.fv[j], fv[r][j]); put(s.fs[j], fs[r][j]); }
         for (int j = 0; j < hbd.count; ++j) { put(s.hx[j], hb[r].x[j]); put(s.hy[j], hb[r].y[j]); }
     }
 }

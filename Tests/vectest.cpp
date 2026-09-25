@@ -147,6 +147,15 @@ void testVoiceKernel()
         vec.k[l] = 0.25f * static_cast<float>(l % 16);
         vec.dcR[l] = 0.999f;
         vec.tbl[l] = l % 2 == 0 ? 1.0f : 0.0f;   // every other lane on its wavetable oscillators (25.09.2026)
+        // The filter models (26.09.2026): every model but the comb on some lane, with its modes and filter FM.
+        const FilterModel fmodel = static_cast<FilterModel>(l % 9);
+        vec.fmodel[l] = static_cast<float>(l % 9);
+        vec.k[l] = FilterVoicing::feedback(fmodel, 0.3f + 0.04f * static_cast<float>(l));
+        vec.fmk[l] = FilterVoicing::makeup(fmodel, vec.k[l]);
+        vec.fmode[l] = static_cast<float>(l % 4) / 3.0f;
+        vec.ffm[l] = l % 3 == 0 ? 1.5f : 0.0f;
+        const float mixes[5] = { 0.0f, 2.0f, -2.0f, 0.0f, 0.0f };   // the Xpander's lanes: a band pass
+        for (int j = 0; j < 5; ++j) vec.pm[j][l] = mixes[j];
     }
     sca = vec;
     alignas(32) float outV[kBankSpan * kBankLanes], outS[kBankSpan * kBankLanes];
@@ -180,8 +189,8 @@ void testVoiceKernel()
             vec.wt2[w] = sca.wt2[w] = 0.7f * std::sin(0.0013f * t + 1.0f);
         }
         const bool table = span % 2 == 1;
-        voiceKernel<VecF, regs>(vec, d, 0, kBankSpan, true, outV, table);
-        for (int l = 0; l < kBankLanes; ++l) voiceKernel<float, 1>(sca, d, l, kBankSpan, true, outS, table);
+        voiceKernel<VecF, regs>(vec, d, 0, kBankSpan, true, outV, table, 0x1ffu, true);
+        for (int l = 0; l < kBankLanes; ++l) voiceKernel<float, 1>(sca, d, l, kBankSpan, true, outS, table, 0x1ffu, true);
         for (int j = 0; j < kBankSpan * kBankLanes; ++j) {
             if (!sameBits(outV[j], outS[j])) ++bad;
             maxAbs = std::max(maxAbs, std::fabs(outS[j]));
