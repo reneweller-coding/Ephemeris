@@ -172,6 +172,7 @@ private:
     BusCompressor comp_;
     TruePeakLimiter limiter_;
     float echoReturn_ = 0.0f, springReturn_ = 0.0f, reverbReturn_ = 0.0f, master_ = 1.0f;
+    int transpose_ = 0;   ///< perform.transpose at the current cell, for the notes that start
 };
 
 } // namespace eph

@@ -16,6 +16,13 @@
  * message thread, from the beat the engine was at. The piece's own tempo changes (a new tempo in a
  * bridge) are the standalone's and the export's; in a DAW the song's tempo track decides. The
  * standalone has its own play and stop.
+ *
+ * **Performing** (PLAN 8.1). The perform module's controls act on the piece as it plays (Params.h,
+ * perform). MIDI reaches them: a key transposes the rows by its distance from middle C, as the
+ * transposition key of a sequencer did (it holds until the next key); controllers move the controls
+ * they are bound to -- the mod wheel the filter, the expression pedal the echo throw, the sustain pedal
+ * the hold -- and any controller can be learned for any of them (learn()). The bindings are part of the
+ * state.
  */
 #pragma once
 #include "eph/Engine.h"
@@ -97,6 +104,13 @@ public:
      */
     void takeChannelMeters(float* peak, float* rms);
 
+    // Performing.
+    /** @brief Binds the next MIDI controller that arrives to store id @p id; -1 cancels. */
+    void learn(int id) { learn_ = id; }
+    int learning() const { return learn_.load(); }   ///< the store id waiting for a controller, or -1
+    /** @brief The controller bound to store id @p id, or -1. */
+    int controllerFor(int id) const;
+
     eph::ParamStore& store() { return engine_.params(); }   ///< the engine's parameters
     /** @brief The host parameter of store id @p id, or null. */
     StoreParameter* parameter(int id) { return id >= 0 && id < static_cast<int>(params_.size()) ? params_[static_cast<size_t>(id)] : nullptr; }
@@ -109,7 +123,7 @@ public:
     juce::AudioProcessorEditor* createEditor() override;   ///< the panel
     bool hasEditor() const override { return true; }   ///< it has one
     const juce::String getName() const override { return JucePlugin_Name; }   ///< "Ephemeris"
-    bool acceptsMidi() const override { return false; }   ///< no MIDI in
+    bool acceptsMidi() const override { return true; }   ///< MIDI in: the performer's keys and controllers
     bool producesMidi() const override { return false; }   ///< no MIDI out (the export writes files)
     double getTailLengthSeconds() const override { return 8.0; }   ///< the rooms ring on
     int getNumPrograms() override { return 1; }   ///< one program
@@ -129,6 +143,10 @@ private:
      *        changes come only through the export and its MIDI file), in the standalone as composed.
      */
     eph::Score forPlayback(const eph::Score& s) const;
+    /** @brief The performer's MIDI: keys transpose, controllers move what they are bound to (audio thread). */
+    void perform(const juce::MidiBuffer& midi);
+    /** @brief Sets store id @p id to the real value @p value through its host parameter. */
+    void setFromMidi(int id, float value);
 
     eph::Engine engine_;
     std::vector<StoreParameter*> params_;
@@ -152,6 +170,8 @@ private:
     std::array<std::atomic<double>, eph::Engine::kChannels> meterSum_{};   ///< sums of squares since the editor last took them
     std::atomic<int> meterCount_{ 0 };                                      ///< samples in those sums
     std::atomic<int> scoreVersion_{ 0 };     ///< scoreVersion()
+    std::array<std::atomic<int>, 128> ccMap_{};   ///< controller number -> store id, -1 unbound
+    std::atomic<int> learn_{ -1 };                ///< learn()
     std::atomic<double> hostBpm_{ 0.0 };     ///< the host's tempo as the audio thread last saw it, 0 outside a host
     std::atomic<double> playedBpm_{ 0.0 };   ///< the tempo the engine's score was loaded with (forPlayback), 0 as composed
 };

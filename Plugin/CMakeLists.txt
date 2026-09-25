@@ -3,7 +3,7 @@ juce_add_plugin(Ephemeris
     COMPANY_NAME                "Rene Weller"
     BUNDLE_ID                   "com.reneweller.ephemeris"
     IS_SYNTH                    TRUE
-    NEEDS_MIDI_INPUT            FALSE
+    NEEDS_MIDI_INPUT            TRUE
     NEEDS_MIDI_OUTPUT           FALSE
     IS_MIDI_EFFECT              FALSE
     EDITOR_WANTS_KEYBOARD_FOCUS FALSE
@@ -14,7 +14,7 @@ juce_add_plugin(Ephemeris
     VST3_CATEGORIES             Instrument Synth
     VERSION                     ${PROJECT_VERSION}
     PRODUCT_NAME                "Ephemeris")
-target_sources(Ephemeris PRIVATE PluginProcessor.cpp PluginEditor.cpp EditorMixer.cpp EditorOrrery.cpp)
+target_sources(Ephemeris PRIVATE PluginProcessor.cpp PluginEditor.cpp EditorMixer.cpp EditorOrrery.cpp EditorPerform.cpp)
 target_compile_definitions(Ephemeris PUBLIC
     JUCE_WEB_BROWSER=0
     JUCE_USE_CURL=0

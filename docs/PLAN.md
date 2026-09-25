@@ -74,6 +74,16 @@ Render 9,3 s. Die übrigen Posten dort: Hall 1,6 s, Federn 1,5 s, `updateCell` 1
 Limiter 0,9 s, Echo 0,7 s, die anderen Klangerzeuger 1,7 s. Hörprüfung offen: Die Sigmoide biegt etwas
 früher als tanh, die Stimmen sind dadurch rund 0,5 dB leiser (RMS des Mixes −19,5 statt −19,0 dBFS).
 
+**25.09.2026: Perform.** Ein Modul `perform` mit vier Bedienelementen, die auf das laufende Stück wirken und in
+der Grundstellung neutral sind (die Referenz-Renders bleiben bitgleich): Filter (die Hand auf den Filtern der
+Reihen, ±2 Oktaven), Transpose (die Transpositionstaste, ±12 Halbtöne für jede tonale Note, die danach
+beginnt), Hold (die Hände lassen los, die Gesten stehen), Echo Throw (alle Echo-Sends und die Rückkopplung
+hoch). MIDI: Tasten transponieren um ihren Abstand zum mittleren C (hält bis zur nächsten Taste),
+Modulationsrad = Filter, Expression = Throw, Sustain = Hold; jedes Bedienelement per Learn auf jeden
+Controller, die Zuordnung liegt im Zustand. Tab "Perform" mit den Reglern und Learn-Knöpfen. Selbsttest
+"perform controls". Live-Mutation einer Reihe gibt es nicht: Die Partitur ist fertig komponiert; dafür
+ist das Neuwürfeln einer Einheit da.
+
 **25.09.2026: Rack-Tab mit der Orrery-Ansicht.** Links die Reihen als Umlaufbahnen um den Grundton (die Sonne
 in der Mitte ist der Transposer, ihr Buchstabe der Grundton, auf dem die Reihen gerade spielen), der Bass innen;
 ein Umlauf ist ein Zyklus der Reihe, oben liegt Schritt 1. Stehen spielende Reihen dort zusammen, steigt eine

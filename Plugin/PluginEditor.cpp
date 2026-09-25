@@ -5,6 +5,7 @@
 #include "PluginEditor.h"
 #include "EditorMixer.h"
 #include "EditorOrrery.h"
+#include "EditorPerform.h"
 #include "eph/compose/Composer.h"
 #include <cstdlib>
 
@@ -212,6 +213,7 @@ EphemerisEditor::EphemerisEditor(EphemerisProcessor& p) : juce::AudioProcessorEd
         tabs_.addTab(name, kPanel, new ParamPage(proc_, std::move(groups), instances), true);
     };
     tabs_.addTab("Mixer", kPanel, new MixerConsole(proc_), true);
+    tabs_.addTab("Perform", kPanel, new PerformPage(proc_, std::make_unique<ParamPage>(proc_, std::vector<std::pair<M, int>>{ { M::Perform, 0 } }, 1)), true);
     tabs_.addTab("Rack", kPanel, new RackPage(proc_, std::make_unique<ParamPage>(proc_, std::vector<std::pair<M, int>>{ { M::Row, 0 } }, kRows)), true);
     page("Voices", { { M::Voice, 0 } }, kRows);
     page("Lead", { { M::Lead, 0 } }, 1);

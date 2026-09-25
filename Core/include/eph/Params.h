@@ -69,6 +69,8 @@ enum class Module : int { Compose = 0, Row, Master,
                           Spring,
                           /** Phase 4: the drum kit. */
                           Drums,
+                          /** Phase 5: the performer's hands on the running piece (PLAN 8.1, Perform). */
+                          Perform,
                           Count };
 
 constexpr int kRows = 8;   ///< instances of the row module (the rows of the rack) and of the voice module
@@ -133,6 +135,17 @@ enum : int { Decay, Tone, Return, Count };
 /** @brief Parameters of the drum kit (module Drums; Drums.h). */
 namespace drums {
 enum : int { KickHz, Decay, Tone, Level, EchoSend, ReverbSend, Count };
+}
+/**
+ * @brief The performer's controls (module Perform; PLAN 8.1). They act on the piece as it plays and are
+ *        neutral at their defaults, so a render without a performer is the composed piece to the bit:
+ *  - Filter: the hand on the rows' filters, in octaves up or down from where the score has them.
+ *  - Transpose: the transposition key, in semitones, for every tonal note that starts from now on.
+ *  - Hold: the hands let go of the knobs, the score's gestures stand where they are.
+ *  - Throw: the echo throw, 0..1: every source's echo send and the echo's feedback go up together.
+ */
+namespace perform {
+enum : int { Filter, Transpose, Hold, Throw, Count };
 }
 /** @brief Parameters of the atmosphere (module Atmos; Atmos.h). */
 namespace atmos {

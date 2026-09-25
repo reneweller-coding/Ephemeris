@@ -206,6 +206,13 @@ const ParamDesc kDrumsParams[drums::Count] = {
     { "reverb",  "Reverb Send", "",     0.0f,   1.0f,   0.2f, Curve::Linear },
 };
 
+const ParamDesc kPerformParams[perform::Count] = {
+    { "filter",    "Filter",     "oct", -2.0f,  2.0f, 0.0f, Curve::Linear },
+    { "transpose", "Transpose",  "st", -12.0f, 12.0f, 0.0f, Curve::Int },
+    { "hold",      "Hold Hands", "",     0.0f,  1.0f, 0.0f, Curve::Toggle },
+    { "throw",     "Echo Throw", "",     0.0f,  1.0f, 0.0f, Curve::Linear },
+};
+
 /** The hall: long and dark, as the style's spaces are (a first setting, to be judged by ear). */
 const ParamDesc kReverbParams[reverb::Count] = {
     { "size",     "Size",       "",     0.3f,     3.0f,    1.8f, Curve::Linear },
@@ -273,6 +280,7 @@ const ModuleSpec kModules[static_cast<int>(Module::Count)] = {
     { "strings", kStringsParams, strings::Count, 1 },
     { "spring",  kSpringParams,  spring::Count,  1 },
     { "drums",   kDrumsParams,   drums::Count,   1 },
+    { "perform", kPerformParams, perform::Count, 1 },
 };
 
 bool isDiscrete(Curve c) { return c == Curve::Int || c == Curve::Choice || c == Curve::Toggle; }

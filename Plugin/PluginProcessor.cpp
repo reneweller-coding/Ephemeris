@@ -94,6 +94,11 @@ EphemerisProcessor::EphemerisProcessor()
     seed_ = static_cast<uint64_t>(juce::Time::currentTimeMillis() % 100000);
     if (const char* env = std::getenv("EPH_SEED")) seed_ = std::strtoull(env, nullptr, 10);
     autoPlay_ = std::getenv("EPH_PLAY") != nullptr;
+    // The performer's controllers as a keyboard has them: mod wheel, expression pedal, sustain pedal.
+    for (auto& c : ccMap_) c = -1;
+    ccMap_[1] = s.id(Module::Perform, 0, perform::Filter);
+    ccMap_[11] = s.id(Module::Perform, 0, perform::Throw);
+    ccMap_[64] = s.id(Module::Perform, 0, perform::Hold);
     startTimerHz(10);
     compose();
 }
@@ -267,6 +272,7 @@ bool EphemerisProcessor::isBusesLayoutSupported(const BusesLayout& layouts) cons
 void EphemerisProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::MidiBuffer& midi)
 {
     juce::ScopedNoDenormals noDenormals;
+    perform(midi);
     midi.clear();
     const int n = buffer.getNumSamples();
     bool play = playing_.load();
@@ -414,6 +420,51 @@ juce::String EphemerisProcessor::status() const
     return t;
 }
 
+int EphemerisProcessor::controllerFor(int id) const
+{
+    for (int c = 0; c < 128; ++c) if (ccMap_[static_cast<size_t>(c)].load() == id) return c;
+    return -1;
+}
+
+void EphemerisProcessor::setFromMidi(int id, float value)
+{
+    StoreParameter* p = parameter(id);
+    if (p == nullptr) return;
+    const float norm = store().toNormalised(id, value);
+    if (std::fabs(p->getValue() - norm) < 1.0e-6f) return;
+    p->beginChangeGesture();
+    p->setValueNotifyingHost(norm);
+    p->endChangeGesture();
+}
+
+void EphemerisProcessor::perform(const juce::MidiBuffer& midi)
+{
+    const ParamStore& s = store();
+    for (const auto meta : midi) {
+        const juce::MidiMessage m = meta.getMessage();
+        if (m.isNoteOn()) {
+            // The transposition key: the distance from middle C, an octave either way at most.
+            setFromMidi(s.id(Module::Perform, 0, perform::Transpose), static_cast<float>(std::clamp(m.getNoteNumber() - 60, -12, 12)));
+        } else if (m.isController()) {
+            const int cc = m.getControllerNumber();
+            if (cc < 0 || cc > 127) continue;
+            const int learning = learn_.exchange(-1);
+            if (learning >= 0) {
+                for (auto& c : ccMap_) if (c.load() == learning) c = -1;   // one controller per control
+                ccMap_[static_cast<size_t>(cc)] = learning;
+            }
+            const int id = ccMap_[static_cast<size_t>(cc)].load();
+            if (id < 0) continue;
+            const ParamDesc& d = s.desc(id);
+            const float u = static_cast<float>(m.getControllerValue()) / 127.0f;
+            // A bipolar control has its middle on the controller's middle (64), exactly.
+            float v = d.minValue + u * (d.maxValue - d.minValue);
+            if (d.minValue < 0.0f && d.maxValue > 0.0f && m.getControllerValue() == 64) v = 0.0f;
+            setFromMidi(id, v);
+        }
+    }
+}
+
 void EphemerisProcessor::getStateInformation(juce::MemoryBlock& destData)
 {
     juce::XmlElement xml("Ephemeris");
@@ -425,6 +476,10 @@ void EphemerisProcessor::getStateInformation(juce::MemoryBlock& destData)
         xml.setAttribute("rerolls", rerolls);
     }
     xml.setAttribute("params", juce::String(store().toText(true)));
+    juce::String cc;
+    for (int c = 0; c < 128; ++c)
+        if (const int id = ccMap_[static_cast<size_t>(c)].load(); id >= 0) cc << c << "=" << juce::String(store().key(id)) << ";";
+    xml.setAttribute("controllers", cc);
     copyXmlToBinary(xml, destData);
 }
 
@@ -434,6 +489,14 @@ void EphemerisProcessor::setStateInformation(const void* data, int sizeInBytes)
     if (xml == nullptr || !xml->hasTagName("Ephemeris")) return;
     store().resetDefaults();
     store().parseText(xml->getStringAttribute("params").toStdString());
+    if (xml->hasAttribute("controllers")) {
+        for (auto& c : ccMap_) c = -1;
+        for (const auto& item : juce::StringArray::fromTokens(xml->getStringAttribute("controllers"), ";", "")) {
+            const int c = item.upToFirstOccurrenceOf("=", false, false).getIntValue();
+            const int id = store().find(item.fromFirstOccurrenceOf("=", false, false).toStdString());
+            if (c >= 0 && c < 128 && id >= 0) ccMap_[static_cast<size_t>(c)] = id;
+        }
+    }
     {
         std::lock_guard<std::mutex> g(lock_);
         seed_ = static_cast<uint64_t>(xml->getStringAttribute("seed").getLargeIntValue());

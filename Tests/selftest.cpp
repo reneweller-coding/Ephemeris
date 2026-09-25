@@ -585,6 +585,52 @@ void testCuration()
     check(saved && loaded && without(d, Part::Count) == without(b, Part::Count), "a set file brings the same piece back", err);
 }
 
+/** The perform controls (Params.h, perform): neutral at their defaults, audible when moved. */
+void testPerform()
+{
+    section("perform controls");
+    ParamStore base;
+    base.parseText("compose.style=Melodic");
+    const Score score = composePiece(base, 5, 4.0);
+    auto render = [&](const char* setting) {
+        Engine e;
+        e.params().copyValuesFrom(base);
+        e.params().parseText(setting);
+        e.prepare(48000.0, 256);
+        e.load(score);
+        e.seek(96.0);
+        std::vector<float> out;
+        std::vector<float> L(256), R(256);
+        for (int done = 0; done < 48000 * 10; done += 256) {
+            e.process(L.data(), R.data(), 256);
+            out.insert(out.end(), L.begin(), L.end());
+        }
+        return out;
+    };
+    auto rms = [](const std::vector<float>& v) { double s = 0.0; for (float x : v) s += double(x) * x; return std::sqrt(s / double(v.size())); };
+    // Brightness: the energy of the first difference against the energy of the signal.
+    auto bright = [](const std::vector<float>& v) {
+        double d = 0.0, e = 0.0;
+        for (size_t i = 1; i < v.size(); ++i) { d += double(v[i] - v[i - 1]) * (v[i] - v[i - 1]); e += double(v[i]) * v[i]; }
+        return d / std::max(1e-12, e);
+    };
+    auto diff = [](const std::vector<float>& a, const std::vector<float>& b) {
+        double s = 0.0; for (size_t i = 0; i < a.size(); ++i) s += double(a[i] - b[i]) * (a[i] - b[i]); return std::sqrt(s / double(a.size()));
+    };
+    const auto plain = render("");
+    const auto neutral = render("perform.filter=0 perform.transpose=0 perform.hold=0 perform.throw=0");
+    check(diff(plain, neutral) == 0.0, "the controls at their defaults change nothing", "bit for bit");
+    const auto open = render("perform.filter=2"), shut = render("perform.filter=-2");
+    check(bright(open) > 1.2 * bright(plain) && bright(shut) < 0.8 * bright(plain), "the filter hand opens and closes the rows",
+          fmt("brightness %.4f / %.4f / %.4f", bright(shut), bright(plain), bright(open)));
+    const auto up = render("perform.transpose=7");
+    check(diff(up, plain) > 0.2 * rms(plain), "the transposition key moves the notes", fmt("difference %.3f of rms %.3f", diff(up, plain), rms(plain)));
+    const auto thrown = render("perform.throw=1");
+    check(rms(thrown) > rms(plain) * 1.05, "the echo throw adds its repeats", fmt("rms %.4f against %.4f", rms(thrown), rms(plain)));
+    const auto held = render("perform.hold=1");
+    check(diff(held, plain) > 0.0, "the hold keeps the gestures where they stood", fmt("difference %.4f", diff(held, plain)));
+}
+
 /**
  * The offline render is the oracle only if a host's block size cannot change a sample: the study
  * rendered with blocks of 1, 37 and 512 must agree bit for bit (Engine.h).
@@ -726,6 +772,7 @@ const TestSection kSections[] = {
     { "testConjunctions", testConjunctions },
     { "testComposer", testComposer },
     { "testCuration", testCuration },
+    { "testPerform", testPerform },
     { "testBlockSizes", testBlockSizes },
     { "testEcho", testEcho },
     { "testDrift", testDrift },

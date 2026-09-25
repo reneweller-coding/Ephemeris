@@ -104,6 +104,11 @@ VoiceSettings Engine::voiceSettings(Module m, int instance, bool vibrato) const
     s.driftCents = v(voice::Drift);
     s.driveDb = v(voice::Drive);
     s.cutoffHz = v(voice::Cutoff);
+    // The performer's hand on the rows' filters (perform.filter), in octaves; nothing at 0.
+    if (m == Module::Voice) {
+        const float grab = played(params_.id(Module::Perform, 0, perform::Filter));
+        if (grab != 0.0f) s.cutoffHz *= std::exp2(grab);
+    }
     s.resonance = v(voice::Resonance);
     s.envOctaves = v(voice::EnvAmount);
     s.decayMs = v(voice::Decay);
@@ -133,7 +138,11 @@ void Engine::updateCell()
 {
     // Gesture offsets at this cell's beat.
     const double beat = score_.tempo.beatAt(seconds());
+    auto knob = [&](Module m, int index) { return played(params_.id(m, 0, index)); };
+    // Hold (perform.hold): the hands let go, every gesture stands where it is until they take the knobs again.
+    const bool hold = knob(Module::Perform, perform::Hold) >= 0.5f;
     for (Track& t : tracks_) {
+        if (hold) break;
         // Positions only move forward, so the cursor only moves forward: the latest gesture that has
         // started is the one that counts (Score::gestureOffset), gestures.size() while none has.
         const size_t none = t.gestures.size();
@@ -143,7 +152,7 @@ void Engine::updateCell()
         t.cursor = c;
         t.offset = c == none ? 0.0f : gestureValue(t.gestures[c], beat);
     }
-    auto knob = [&](Module m, int index) { return played(params_.id(m, 0, index)); };
+    transpose_ = static_cast<int>(std::lround(knob(Module::Perform, perform::Transpose)));
 
     // The modular voices: the rows (their strips on the row module), the lead and the drone.
     for (int r = 0; r < kModVoices; ++r) {
@@ -218,11 +227,16 @@ void Engine::updateCell()
         at.reverb = knob(Module::Atmos, atmos::ReverbSend);
     }
 
+    // The echo throw (perform.throw): every send up, and the echo's feedback with them (below).
+    const float throwAmount = knob(Module::Perform, perform::Throw);
+    if (throwAmount > 0.0f) for (Strip& st : strips_) st.echo += 0.8f * throwAmount;
+
     // The rooms and the master.
     EchoSettings es;
     const double bpm = score_.tempo.bpmAt(beat);
     es.delaySeconds = echoTimeBeats(static_cast<EchoTime>(static_cast<int>(knob(Module::Echo, echo::Time)))) * 60.0 / bpm;
     es.feedback = knob(Module::Echo, echo::Feedback);
+    if (throwAmount > 0.0f) es.feedback += (0.9f - es.feedback) * throwAmount;
     es.toneHz = knob(Module::Echo, echo::Tone);
     es.wowMs = knob(Module::Echo, echo::Wow);
     es.flutterMs = knob(Module::Echo, echo::Flutter);
@@ -385,13 +399,13 @@ bool Engine::process(float* L, float* R, int n)
                 }
                 break;
             case kSrcStrings:
-                if (e.on) strings_.noteOn(e.pitch, e.velocity, e.id); else strings_.noteOff(e.id);
+                if (e.on) strings_.noteOn(std::clamp(e.pitch + transpose_, 0, 127), e.velocity, e.id); else strings_.noteOff(e.id);
                 break;
             case kSrcTape:
-                if (e.on) tape_.noteOn(e.pitch, e.velocity, e.id); else tape_.noteOff(e.id);
+                if (e.on) tape_.noteOn(std::clamp(e.pitch + transpose_, 0, 127), e.velocity, e.id); else tape_.noteOff(e.id);
                 break;
             default:
-                if (e.on) voices_.noteOn(e.source, e.pitch, e.velocity, e.accent, e.legato, e.id);
+                if (e.on) voices_.noteOn(e.source, std::clamp(e.pitch + transpose_, 0, 127), e.velocity, e.accent, e.legato, e.id);
                 else voices_.noteOff(e.source, e.id);
                 break;
             }
