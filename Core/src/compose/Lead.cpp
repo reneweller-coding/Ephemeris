@@ -18,7 +18,9 @@ void pitchSets(int scale, bool* inScaleSet, bool* pentatonic)
     const int n = scaleSize(scale);
     for (int d = 0; d < n; ++d) inScaleSet[scaleSemitones(scale, d) % 12] = true;
     for (int pc : { 0, 3, 5, 7, 10 }) pentatonic[pc] = inScaleSet[pc] || pc == 0;
-    // Where the scale has no minor third or seventh (none of ours), the pentatonic keeps what it has.
+    // Where the scale has no minor third or seventh, the pentatonic keeps what it has; where it has the major
+    // sixth (Dorian), the sixth joins it as a colour (the style guide's 3.8).
+    if (inScaleSet[9]) pentatonic[9] = true;
 }
 
 /** @brief The allowed pitches in the register, under a root. */
@@ -86,6 +88,10 @@ int toChordTone(int pitch, int rootPc, const bool* chord, const LeadPlan& plan)
 void writeNote(Score& score, const LeadPlan& plan, const bool* sc, int rootPc, int pitch, double beat,
                double len, double noteLen, bool glideSpot, Rng& rng)
 {
+    // A little behind the beat, as a player over a machine (the style guide's 5.4): 8 to 23 ms at 120 BPM.
+    const double lag = 0.015 + 0.03 * static_cast<double>(rng.uniform());
+    beat += lag;
+    noteLen -= lag;
     const int grace = sc[pitchClass(pitch - 2 - rootPc)] ? pitch - 2 : (sc[pitchClass(pitch - 1 - rootPc)] ? pitch - 1 : -1);
     NoteEvent e;
     e.part = Part::Lead;
@@ -121,7 +127,7 @@ bool inScale(int pitch, int rootPc, int scale)
 
 void writeLead(Score& score, const LeadPlan& plan, double from, double to, Rng& rng)
 {
-    bool sc[12], pent[12], chord[12];
+    bool sc[12], pent[12], chord[12], ending[12];
     int setsFor = -1;
     // The pitch sets of the scale at a beat (a parallel change of mode moves them).
     auto setsAt = [&](double beat) {
@@ -132,6 +138,9 @@ void writeLead(Score& score, const LeadPlan& plan, double from, double to, Rng& 
         for (bool& c : chord) c = false;
         chord[0] = chord[7] = true;
         chord[sc[3] ? 3 : 4] = true;
+        for (bool& c : ending) c = false;
+        ending[sc[7] ? 7 : 6] = true;
+        ending[sc[3] ? 3 : 4] = true;
     };
     setsAt(from);
     const int centre = (plan.low + plan.high) / 2;
@@ -144,7 +153,8 @@ void writeLead(Score& score, const LeadPlan& plan, double from, double to, Rng& 
     while (t < to - kBeatsPerBar) {
         // A repeated phrase keeps the length of the one it repeats, so its rhythm fits.
         const bool repeat = !lastRhythm.empty() && rng.uniform() < 0.4f;
-        const int bars = repeat ? lastBars : (rng.uniform() < 0.55f ? 2 : 4);
+        // Phrases of four to eight bars (the style guide's 3.8).
+        const int bars = repeat ? lastBars : (rng.uniform() < 0.6f ? 4 : 8);
         const double end = std::min(t + bars * kBeatsPerBar, to);
         setsAt(t);
         const int rootPc = pitchClass(plan.keyRoot + rootShiftAt(plan.shifts, t));
@@ -168,7 +178,10 @@ void writeLead(Score& score, const LeadPlan& plan, double from, double to, Rng& 
             int pitch = pentSet[static_cast<size_t>(idx)];
             const double beat = t + pos;
             const bool strong = std::fmod(beat, 2.0) < 1e-6;
-            if ((strong || k == notes - 1) && !chord[pitchClass(pitch - rootPc)]) pitch = toChordTone(pitch, rootPc, chord, plan);
+            if (k == notes - 1) {
+                // The phrase ends on the fifth or the minor third, not on the root (3.8).
+                if (!ending[pitchClass(pitch - rootPc)]) pitch = toChordTone(pitch, rootPc, ending, plan);
+            } else if (strong && !chord[pitchClass(pitch - rootPc)]) pitch = toChordTone(pitch, rootPc, chord, plan);
             else if (!strong && len <= 0.5 && rng.uniform() < 0.25f) {
                 // A passing tone of the full scale, off the beat.
                 pitch = fullSet[static_cast<size_t>(nearestIndex(fullSet, pitch + (step >= 0 ? 1 : -1)))];
@@ -189,8 +202,8 @@ void writeLead(Score& score, const LeadPlan& plan, double from, double to, Rng& 
         lastRhythm = rhythm;
         lastSteps = steps;
         lastBars = bars;
-        // A rest of one to four bars, shorter with more intensity.
-        const int restBars = 1 + static_cast<int>(rng.below(4 - static_cast<int>(2.0f * plan.intensity)));
+        // A rest of two to four bars, shorter with more intensity (3.8).
+        const int restBars = 2 + static_cast<int>(rng.below(plan.intensity > 0.6f ? 2 : 3));
         t = end + restBars * kBeatsPerBar;
     }
 }

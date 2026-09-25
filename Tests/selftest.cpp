@@ -1162,6 +1162,80 @@ void testSequencing()
 }
 
 /**
+ * Form, space and lead after the style guide (3.8, 5.3, 7.3): phrases of four to eight bars with rests of two to
+ * four, ending on the fifth or the minor third, a little behind the beat; the drums between 45 and 90 % of the
+ * piece; the bass dry; the hall shorter at the peak than in the spaces.
+ */
+void testFormAndSpace()
+{
+    section("form, space and lead after the style guide");
+    LeadPlan lp;
+    lp.keyRoot = 9;
+    lp.scale = 0;
+    Score ls;
+    ls.clear(120.0);
+    Rng rng;
+    rng.seed(31);
+    writeLead(ls, lp, 0.0, 4.0 * 128, rng);
+    ls.sort();
+    int phrases = 0, longPhrases = 0, shortRests = 0, endings = 0, goodEndings = 0, early = 0;
+    double phraseStart = -1.0, lastEnd = -100.0;
+    int lastPitch = -1;
+    auto closePhrase = [&]() {
+        if (phraseStart < 0.0) return;
+        ++phrases;
+        if (lastEnd - phraseStart > 8 * 4.0 + 0.5) ++longPhrases;
+        ++endings;
+        const int pc = pitchClass(lastPitch - 9);
+        goodEndings += pc == 7 || pc == 3 ? 1 : 0;
+    };
+    for (const NoteEvent& n : ls.notes) {
+        if (n.beat - lastEnd > 4.0) {
+            closePhrase();
+            if (phraseStart >= 0.0 && n.beat - lastEnd < 2 * 4.0 - 0.5) ++shortRests;
+            phraseStart = n.beat;
+        }
+        const double off = std::fmod(n.beat, 0.25);
+        if (off < 0.014 || off > 0.05) ++early;
+        lastEnd = std::max(lastEnd, n.beat + n.length);
+        lastPitch = n.pitch;
+    }
+    closePhrase();
+    check(phrases >= 6 && longPhrases == 0 && shortRests == 0, "lead phrases of four to eight bars, rests of two or more",
+          fmt("%d phrases, %d too long, %d rests too short", phrases, longPhrases, shortRests));
+    check(goodEndings * 10 >= endings * 9, "the phrases end on the fifth or the minor third", fmt("%d of %d", goodEndings, endings));
+    check(early == 0, "the lead a little behind the beat", fmt("%d notes on or before the grid", early));
+
+    int drumsOutside = 0, drumPieces = 0, dryBass = 0, pieces = 0, hallShrinks = 0;
+    for (int seed = 1; seed <= 8; ++seed) {
+        ParamStore p;
+        p.parseText("compose.style=Melodic");
+        const Score sc = composePiece(p, static_cast<uint64_t>(seed), 14.0);
+        ++pieces;
+        bool drums = false;
+        for (const NoteEvent& n : sc.notes)
+            if (n.part == Part::Drums) {
+                drums = true;
+                drumsOutside += n.beat < 0.45 * sc.lengthBeats - 1e-6 || n.beat > 0.9 * sc.lengthBeats ? 1 : 0;
+            }
+        drumPieces += drums ? 1 : 0;
+        const int echo = p.id(Module::Row, 0, row::EchoSend);
+        dryBass += p.fromNormalised(echo, p.toNormalised(echo, p.get(echo)) + sc.gestureOffset(echo, 1.0)) < 0.01f ? 1 : 0;
+        const int hall = p.id(Module::Reverb, 0, reverb::Decay);
+        double peakEnd = -1.0, atmoMid = -1.0;
+        for (size_t m = 0; m < sc.markers.size(); ++m) {
+            const double next = m + 1 < sc.markers.size() ? sc.markers[m + 1].beat : sc.lengthBeats;
+            if (sc.markers[m].text.rfind("Hoehepunkt", 0) == 0 && peakEnd < 0.0) peakEnd = next - 1.0;
+            if (sc.markers[m].text.rfind("Atmo", 0) == 0) atmoMid = next - 1.0;
+        }
+        if (peakEnd > 0.0 && atmoMid > 0.0 && sc.gestureOffset(hall, peakEnd) < sc.gestureOffset(hall, atmoMid)) ++hallShrinks;
+    }
+    check(drumPieces > 0 && drumsOutside == 0, "the drums only between 45 and 90 % of the piece", fmt("%d pieces with drums, %d hits outside", drumPieces, drumsOutside));
+    check(dryBass == pieces, "the bass without echo", fmt("%d of %d", dryBass, pieces));
+    check(hallShrinks == pieces, "the hall shorter at the peak than in the atmosphere", fmt("%d of %d", hallShrinks, pieces));
+}
+
+/**
  * The offline render is the oracle only if a host's block size cannot change a sample: the study
  * rendered with blocks of 1, 37 and 512 must agree bit for bit (Engine.h).
  */
@@ -1309,6 +1383,7 @@ const TestSection kSections[] = {
     { "testStrings", testStrings },
     { "testHarmony", testHarmony },
     { "testSequencing", testSequencing },
+    { "testFormAndSpace", testFormAndSpace },
     { "testBlockSizes", testBlockSizes },
     { "testEcho", testEcho },
     { "testDrift", testDrift },

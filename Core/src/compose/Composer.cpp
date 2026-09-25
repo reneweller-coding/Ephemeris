@@ -361,11 +361,15 @@ void writeLayers(Piece& c)
         }
         const Section* bridge = form.find(SectionType::Bridge, ph + 1);
         if (tapeOn && bridge != nullptr) writeChords(s, pp, bridge->beat, bridge->beat + bridge->length, pads);
-        // The drums come late: from the second build (or the peak) to the end of the peak.
+        // The drums come late: from the second build (or the peak) to the end of the peak, and never before 45 % of
+        // the piece or after 90 % (the style guide's 5.3: the kick not before the sequence, gone before the end).
         if (drumsOn && peak != nullptr) {
             const Section* second = nullptr;
             for (const Section& sec : form.sections) if (sec.phase == ph && sec.type == SectionType::Build && sec.index == 1) second = &sec;
-            writeDrums(s, c.style, second != nullptr ? second->beat : peak->beat, peak->beat + peak->length, layers);
+            const double d0 = std::max(second != nullptr ? second->beat : peak->beat,
+                                       std::ceil(0.45 * form.lengthBeats / kBeatsPerBar) * kBeatsPerBar);
+            const double d1 = std::min(peak->beat + peak->length, std::floor(0.9 * form.lengthBeats / kBeatsPerBar) * kBeatsPerBar);
+            if (d1 - d0 >= 8 * kBeatsPerBar) writeDrums(s, c.style, d0, d1, layers);
         }
     }
     // The end on the open fifth (the style guide's 3.3, Phaedra's close): the strings, or else the tape keys,
@@ -445,6 +449,28 @@ void writeSettings(Piece& c)
     c.s.gestures.push_back({ hall, 0.0, 0.0, 0.0f, offsetTo(p, hall, c.prof.hallSeconds), G::Step, 1 });
     const int level = p.id(Module::Master, 0, master::Level);
     c.s.gestures.push_back({ level, 0.0, 0.0, 0.0f, offsetTo(p, level, p.get(level) + c.prof.levelDb), G::Step, 1 });
+    // The rooms of the style guide's 7.3: the bass dry, the pads and strings in the hall without echo.
+    for (int id : { p.id(Module::Row, 0, row::EchoSend), p.id(Module::Strings, 0, strings::EchoSend), p.id(Module::Tape, 0, tape::EchoSend) })
+        c.s.gestures.push_back({ id, 0.0, 0.0, 0.0f, offsetTo(p, id, 0.0f), G::Step, 1 });
+    const int bassHall = p.id(Module::Row, 0, row::ReverbSend);
+    c.s.gestures.push_back({ bassHall, 0.0, 0.0, 0.0f, offsetTo(p, bassHall, std::min(p.get(bassHall), 0.1f)), G::Step, 1 });
+    // The hall grows in the spaces and shrinks at the peak (7.3): a slow glide at the start of each section,
+    // written by the composer's own hand (3), apart from the player's two.
+    float hallAt = offsetTo(p, hall, c.prof.hallSeconds);
+    for (const Section& sec : c.form.sections) {
+        float factor = 1.0f;
+        switch (sec.type) {
+        case SectionType::Atmo: case SectionType::Bridge: factor = 1.3f; break;
+        case SectionType::Coda: factor = 1.4f; break;
+        case SectionType::Peak: factor = 0.75f; break;
+        case SectionType::Breakdown: factor = 1.1f; break;
+        default: break;
+        }
+        const float to = offsetTo(p, hall, c.prof.hallSeconds * factor);
+        if (to == hallAt) continue;
+        c.s.gestures.push_back({ hall, sec.beat, std::min(sec.length, 8.0 * kBeatsPerBar), hallAt, to, G::MinimumJerk, 3 });
+        hallAt = to;
+    }
 }
 
 /** @brief Step 6, the hands on the knobs of what plays, following the form's energy. */
@@ -473,8 +499,10 @@ void writeHands(Piece& c)
     knobs.push_back(knob(Module::Atmos, 0, atmos::WindTone, -0.30f, 0.30f, 0.0f, 0.10f, 0.5f, 0.0));
     // The string machine's registration, a slow hand through its mixes (StringMachine.h), where it plays.
     if (c.stringsFrom >= 0.0) knobs.push_back(knob(Module::Strings, 0, strings::Registration, 0.0f, 0.45f, 0.05f, 0.3f, 0.6f, c.stringsFrom));
-    HandKnob throwKnob = knob(Module::Echo, 0, echo::Feedback, 0.0f, 0.4f, 0.0f, 0.05f, 0.6f, rowFrom[0]);
-    throwKnob.atRest = 0.0f; throwKnob.atPeak = 0.05f;
+    // The echo's feedback, thrown and caught: its home high where the energy is low and low at the peak (the style
+    // guide's 6.3, U-shaped over the piece).
+    HandKnob throwKnob = knob(Module::Echo, 0, echo::Feedback, -0.15f, 0.4f, 0.0f, 0.05f, 0.6f, rowFrom[0]);
+    throwKnob.atRest = 0.12f; throwKnob.atPeak = -0.08f;
     throwKnob.throws = true;
     throwKnob.scatter = 0.15f;
     knobs.push_back(throwKnob);

@@ -144,9 +144,11 @@ their meaning.
 == Lead | lead | 5 ==
 
 The lead is the same voice as a row's, with vibrato that comes in over the first half second of a held
-note, as a hand reaches the wheel. It plays in its own section and over the peak: phrases on the
-pentatonic of the moment, chord tones on the strong beats, glides from the tone below, and repeats of
-its own phrases.
+note, as a hand reaches the wheel. It plays in its own section and over the peak: phrases of four to
+eight bars with rests of two to four between them, on the pentatonic of the moment (with the sixth where
+the mode is Dorian), chord tones on the strong beats, glides from the tone below, repeats of its own
+phrases, and an end on the fifth or the minor third rather than the root. It plays a little behind the
+beat, as a player over a machine does.
 
 == Drone | drone | 6 ==
 
@@ -193,7 +195,9 @@ in.
 A tape echo with a moving read head -- wow, flutter, saturation and loss of highs in the feedback --
 synchronised to the tempo, with a ping-pong option; its feedback can run into self-oscillation, which
 the echo throw uses. Springs are built into it, as in the tape echoes of the time: they take the echo's
-send and return beside it.
+send and return beside it. The composer keeps the bass and the pads out of the echo -- the bass dry, the
+tape keys and the strings in the hall only -- and the hands lean the feedback high in the quiet parts of
+a piece and low at the peak.
 
 Echo switches the same send to a bucket-brigade delay instead of the tape: an analogue delay of 4096 stages
 as in the pedals of the late seventies. Its clock runs slower the longer the delay is set, and its filters
@@ -204,7 +208,8 @@ ping-pong work as on the tape.
 == Hall | reverb | 11 ==
 
 A long, dark hall (an eight-line feedback delay network) with its size, decay, damping, pre-delay and
-the band it returns.
+the band it returns. The composer lets its decay grow in the atmosphere, the bridges and the coda and
+shrink at the peak.
 
 Room switches the same send to a plate instead: Dattorro's plate reverberator (1997) -- four diffusers and a
 tank of two halves that feed each other, each with a slowly moving all-pass, a damping low pass and the
@@ -216,7 +221,8 @@ return is matched to the hall's level, so the switch changes the room, not the l
 
 A small analogue kit for the styles that have drums: kick, snare, hats, toms tuned to the root, rim and
 shaker, with patterns per style. The drums come late in a piece, from the second build to the end of
-the peak.
+the peak, and never before 45 % of the piece or after 90 %: the sequence is there before them and stays
+after them.
 
 == Master | master compose cue | 13 ==
 

@@ -69,6 +69,12 @@ phrygischer Stoß, Spirale i-VI, Kanon der Vorreihe), Schritt 1 Grundton oder Qu
 Bass), `RackOp::Division` (Achtelreihe im Höhepunkt in Sechzehnteln), `RackOp::Thin` (Bass verliert im Abbau
 alle 4 und im Ausklang alle 2 Takte einen Schritt); Bass 8 oder 16 Schritte, Gate 60-75 %. Selbsttest
 `testSequencing`.
+Schritt 4 erledigt: Intro/Ausklang (Cosmic 14/10 %, Melodic 12/8 %, Modern Ausklang 10 %), Schlagzeug nur
+zwischen 45 und 90 % des Stücks, Echo-Rückkopplung der Würfe u-förmig über die Energie (Ruhe +0,12, Höhepunkt
+-0,08), Hall-Abklingzeit je Teil (Atmosphäre/Brücke ×1,3, Ausklang ×1,4, Höhepunkt ×0,75, Abbau ×1,1; Hand 3
+des Komponisten), Bass ohne Echo und mit höchstens 0,1 Hall, Tape Keys und Streicher ohne Echo; Lead-Phrasen
+4-8 Takte, Pausen 2-4, Schluss auf Quinte oder kleiner Terz, dorische Sexte in der Pentatonik, 8-23 ms hinter
+dem Schlag. Selbsttest `testFormAndSpace`.
 
 **25.09.2026: Eigener Stil, Platte und BBD, Granular, Konzertbogen.**
 - **Eigener Stil** (Modul `custom`, Style-Tab): alle Zahlen eines Profils als Parameter, "Copy <Stil> into
