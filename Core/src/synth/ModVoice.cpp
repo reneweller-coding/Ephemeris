@@ -74,7 +74,7 @@ void ModVoiceBank::set(int v, const VoiceSettings& s)
     lanes_.k[v] = 4.0f * std::clamp(s.resonance, 0.0f, 1.0f) * 0.985f;
 }
 
-void ModVoiceBank::noteOn(int v, int pitch, float velocity, bool accent, bool legato, int id)
+void ModVoiceBank::noteOn(int v, int pitch, float velocity, bool accent, bool legato, int id, float bright)
 {
     Control& c = ctl_[v];
     c.target = pitch;
@@ -84,6 +84,7 @@ void ModVoiceBank::noteOn(int v, int pitch, float velocity, bool accent, bool le
         c.amp.noteOn();
         c.velocity = velocity;
         c.accentAmt = accent ? c.s.accent : 0.0f;
+        c.noteOct = bright;
         c.noteCents = 0.15 * static_cast<double>(c.s.driftCents) * static_cast<double>(c.rng.bipolar());
         c.vibLevel = 0.0;
         c.fresh = true;
@@ -129,7 +130,7 @@ void ModVoiceBank::control(int v, int i)
         };
         step(c.pitch + (c.drift1.x + c.noteCents + vib) * 0.01, c.dt1, c.inv1);
         step(c.pitch + (c.drift2.x + c.noteCents + vib + s.detuneCents) * 0.01, c.dt2, c.inv2);
-        const float octs = s.envOctaves * fe * (1.0f + c.accentAmt) + s.keyTrack * static_cast<float>((c.pitch - 60.0) / 12.0);
+        const float octs = s.envOctaves * fe * (1.0f + c.accentAmt) + s.keyTrack * static_cast<float>((c.pitch - 60.0) / 12.0) + c.noteOct;
         const float fc = std::min(static_cast<float>(0.42 * sr2), s.cutoffHz * std::exp2(octs));
         c.g = std::tan(kPi * fc / static_cast<float>(sr2));
     }

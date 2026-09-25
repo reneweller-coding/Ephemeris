@@ -135,6 +135,7 @@ private:
         int pitch;        ///< MIDI note (the drums: a General MIDI instrument)
         float velocity;   ///< 0..1
         int id;           ///< pairs an off with its on
+        float bright = 0.0f;   ///< the note's cutoff offset in octaves (NoteEvent::bright)
     };
     /** @brief The gestures on one parameter, in time order, with a cursor. */
     struct Track {

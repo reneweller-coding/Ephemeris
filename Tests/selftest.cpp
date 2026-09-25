@@ -1793,6 +1793,50 @@ void testSendsAD()
 }
 
 /**
+ * The modulation sequencer (Rack.h, ModVoice): a lane of cutoff offsets with its own length, so the timbre's accents
+ * wander against the notes; a bright step sounds brighter.
+ */
+void testModLane()
+{
+    section("modulation sequencer");
+    ParamStore p;
+    p.parseText("compose.style=Modern row2.active=1 row2.length=16 row2.division=1/16 row2.mutation=0");
+    Rack r;
+    r.setup(p, 4);
+    r.generate(1, RowRole::Counter);
+    Score s;
+    s.clear(120.0);
+    r.run(s, 32.0);
+    s.sort();
+    float lo = 1e9f, hi = -1e9f;
+    std::vector<float> bright;
+    for (const NoteEvent& n : s.notes) if (n.part == Part::Row2) { lo = std::min(lo, n.bright); hi = std::max(hi, n.bright); bright.push_back(n.bright); }
+    // The lane does not follow the row's 16 steps: the brightness of a bar differs from the next one's.
+    bool differs = false;
+    for (size_t i = 0; i + 16 < bright.size() && !differs; ++i) differs = bright[i] != bright[i + 16];
+    check(lo < 0.0f && hi > 0.5f && differs, "a lane of its own length: bright and dark steps, not in step with the row",
+          fmt("%.2f .. %.2f octaves", lo, hi));
+    Score one;
+    one.clear(120.0);
+    one.notes.push_back({ 0.0, 0.5, Part::Row2, 57, 0.9f, false, false, 0.0f });
+    one.notes.push_back({ 1.0, 0.5, Part::Row2, 57, 0.9f, false, false, 1.5f });
+    one.lengthBeats = 4.0;
+    Engine e;
+    e.params().parseText("master.level=0 master.motion=0 row2.echo=0 row2.reverb=0 voice2.cutoff=400 voice2.env_amount=0");
+    e.prepare(48000.0, 256);
+    e.load(one);
+    std::vector<float> out, l(256), rr(256);
+    for (int done = 0; done < 48000; done += 256) { e.process(l.data(), rr.data(), 256); out.insert(out.end(), l.begin(), l.end()); }
+    auto brightness = [&](size_t a, size_t b) {
+        double d = 0.0, en = 0.0;
+        for (size_t i = a + 1; i < b; ++i) { d += double(out[i] - out[i - 1]) * (out[i] - out[i - 1]); en += double(out[i]) * out[i]; }
+        return d / std::max(1e-30, en);
+    };
+    const double dark = brightness(2400, 9600), light = brightness(26400, 33600);   // 0.05..0.2 s after each onset
+    check(light > 1.5 * dark, "a bright step opens the filter for its note", fmt("brightness %.4f against %.4f", light, dark));
+}
+
+/**
  * The offline render is the oracle only if a host's block size cannot change a sample: the study
  * rendered with blocks of 1, 37 and 512 must agree bit for bit (Engine.h).
  */
@@ -1948,6 +1992,7 @@ const TestSection kSections[] = {
     { "testPresets", testPresets },
     { "testBlendAndBus", testBlendAndBus },
     { "testSendsAD", testSendsAD },
+    { "testModLane", testModLane },
     { "testBlockSizes", testBlockSizes },
     { "testEcho", testEcho },
     { "testDrift", testDrift },

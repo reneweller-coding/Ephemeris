@@ -169,6 +169,21 @@ void Rack::generate(int row, RowRole role)
 {
     Row& r = rows_[row];
     for (bool& t : r.thinned) t = false;
+    // The modulation lane: a length against the row's (3, 5, 7 or 12, never the row's own), a few bright steps over
+    // a darker ground -- accents of timbre that wander against the notes and make the groove. Its depth by style.
+    {
+        static const float kDepth[] = { 0.8f, 0.6f, 0.7f, 1.0f, 0.5f };   // Cosmic, Doom, Melodic, Modern, Drift
+        const float depth = role == RowRole::Transposer ? 0.0f : kDepth[std::clamp(static_cast<int>(style_), 0, 4)];
+        const int lengths[4] = { 3, 5, 7, 12 };
+        int len = lengths[r.rng.below(4)];
+        if (len == r.length) len = len == 12 ? 7 : len + 2;
+        r.modLength = len;
+        r.modPos = 0;
+        for (int i = 0; i < kMaxSteps; ++i) {
+            const float u = r.rng.uniform();
+            r.mod[i] = i >= len ? 0.0f : depth * (u < 0.3f ? 0.9f + 0.6f * r.rng.uniform() : (u < 0.6f ? 0.0f : -0.5f + 0.3f * r.rng.uniform()));
+        }
+    }
     Rng& g = r.rng;
     const int n = scaleSize(scale_);
     int walk = 0;   // the Walk role's current degree
@@ -338,6 +353,7 @@ void Rack::advance(Row& r, int index, double beat, std::vector<RackEvent>& log)
     default: r.pos = (r.pos + 1) % L; break;
     }
     ++r.step;
+    r.modPos = (r.modPos + 1) % std::max(1, r.modLength);
     // A cycle ends every `length` steps, whatever the direction: that is when the register shifts.
     // Hypnosis (25.09.2026): a row changes only where a 16-bar block begins -- at the first end of its cycle on or
     // after the mark -- so a pattern holds for sixteen bars and one thing changes at a time; the chance is the
@@ -368,6 +384,7 @@ void Rack::playStep(int index, Row& r, Score& score, std::vector<RackEvent>& log
             e.part = rowPart(index);
             e.pitch = std::clamp(rootNote(r) + r.transpose + shift_ + scaleSemitones(scale_, degree + r.chord) + 12 * s.octave, 0, 127);
             e.accent = s.accent && k == 0;
+            e.bright = r.mod[r.modPos];
             e.velocity = std::min(1.0f, s.velocity + (e.accent ? 0.15f : 0.0f) - 0.06f * static_cast<float>(k));
             e.slide = s.slide && sub == 1;
             // A slide holds into the next step so the voice glides instead of retriggering.

@@ -60,7 +60,7 @@ void Engine::load(const Score& score)
         const int64_t on = std::llround(score_.tempo.secondsAt(n.beat) * sampleRate_);
         const int64_t off = std::max(on + 1, static_cast<int64_t>(std::llround(score_.tempo.secondsAt(n.beat + n.length) * sampleRate_)));
         ++id;
-        events_.push_back({ on, 1, static_cast<uint8_t>(src), n.accent, slideInto[src], n.pitch, n.velocity, id });
+        events_.push_back({ on, 1, static_cast<uint8_t>(src), n.accent, slideInto[src], n.pitch, n.velocity, id, n.bright });
         events_.push_back({ off, 0, static_cast<uint8_t>(src), false, false, n.pitch, 0.0f, id });
         slideInto[src] = n.slide;
     }
@@ -889,7 +889,7 @@ bool Engine::process(float* L, float* R, int n)
                 if (e.on) tape_.noteOn(std::clamp(e.pitch + transpose_, 0, 127), e.velocity, e.id); else tape_.noteOff(e.id);
                 break;
             default:
-                if (e.on) voices_.noteOn(e.source, std::clamp(e.pitch + transpose_, 0, 127), e.velocity, e.accent, e.legato, e.id);
+                if (e.on) voices_.noteOn(e.source, std::clamp(e.pitch + transpose_, 0, 127), e.velocity, e.accent, e.legato, e.id, e.bright);
                 else voices_.noteOff(e.source, e.id);
                 break;
             }

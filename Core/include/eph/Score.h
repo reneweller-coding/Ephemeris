@@ -42,6 +42,7 @@ struct NoteEvent {
     float velocity = 0.8f;    ///< 0..1
     bool accent = false;      ///< accented step (filter envelope and level up)
     bool slide = false;       ///< glide into the next note
+    float bright = 0.0f;      ///< the modulation sequencer's step: octaves on the filter's cutoff for this note (25.09.2026)
 };
 
 /** @brief How a gesture moves between its two values. */

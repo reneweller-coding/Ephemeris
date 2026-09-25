@@ -165,6 +165,10 @@ private:
         bool transposer = false;  ///< row.mode = Transposer
         double nextMutation = 64.0;   ///< the next 16-bar mark a mutation may fall on
         bool thinned[kMaxSteps] = {}; ///< steps a thinning silenced (RackOp::Thin), which a Fill may bring back
+        // The modulation sequencer (25.09.2026, after Stuertzer's Stepic "8 Modulationssequencer mit
+        // unterschiedlichen Laengen"): a lane of cutoff offsets with a length of its own, stepping with the row.
+        float mod[kMaxSteps] = {};
+        int modLength = 1, modPos = 0;
         Figure figure = Figure::Classic;
         Rng rng;
         Rng dice;                 ///< probability gates, ratchets and thinning: apart from the patterns' stream
