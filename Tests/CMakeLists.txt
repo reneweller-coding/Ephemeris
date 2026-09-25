@@ -7,7 +7,15 @@ endfunction()
 
 add_executable(eph_selftest selftest.cpp)
 target_link_libraries(eph_selftest PRIVATE EphemerisCore)
-eph_add_test(selftest eph_selftest)
+# One ctest test per self-test section, `selftest.<name>`, read from the registration table in selftest.cpp
+# ({ "testName", testName }) when CMake configures, so a new section needs no edit here (after Phosphene,
+# which asks the executable instead). CONFIGURE_DEPENDS-like: selftest.cpp is a configure dependency.
+set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/selftest.cpp)
+file(STRINGS ${CMAKE_CURRENT_SOURCE_DIR}/selftest.cpp EPH_SECTION_LINES REGEX "^    \{ \"test[A-Za-z0-9]+\", test[A-Za-z0-9]+ \},")
+foreach(line ${EPH_SECTION_LINES})
+    string(REGEX MATCH "\"(test[A-Za-z0-9]+)\"" _ "${line}")
+    eph_add_test(selftest.${CMAKE_MATCH_1} eph_selftest --only ${CMAKE_MATCH_1})
+endforeach()
 
 # The lane paths against the scalar reference, bit for bit, once per vector path. The main variant is
 # built as the core is (AVX2 on x86-64, NEON on the Quest); on x86 the NEON path also runs through
