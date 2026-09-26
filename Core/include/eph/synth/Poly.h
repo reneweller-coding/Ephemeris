@@ -13,6 +13,12 @@
  * analog pad, on a PPG or Waldorf table the timbre walking through its frames. Each oscillator drifts in pitch by a
  * few cents, as analog ones do.
  *
+ * **Envelopes and modulation** (26.09.2026). The amplitude has a full ADSR (attack, decay, sustain, release); the filter
+ * follows it (as the pad had it) or has its own. Every key carries a modulation envelope, four LFOs and an eight-slot
+ * matrix of its own (Modulation.h), evaluated on the control grid: the table's place, pitch, cutoff, resonance, the
+ * filter's mode, the level and the key's place in the stereo field (the blend, the pulse width and the filter FM are
+ * the voices' and do nothing here).
+ *
  * **The ensemble.** A Juno-style chorus after the voices: one short delay line swept by a slow sine, read on the
  * left and, with the sweep inverted, on the right, and added to the dry sound -- width without losing the middle.
  */
@@ -20,6 +26,7 @@
 #include "eph/Dsp.h"
 #include "eph/synth/Wavetable.h"
 #include "eph/synth/Filters.h"
+#include "eph/synth/Modulation.h"
 #include <cstdint>
 #include <vector>
 
@@ -42,6 +49,13 @@ struct PolySettings {
     float chorus = 0.5f;         ///< 0..1 the ensemble's depth and mix
     int filter = 3;              ///< the filter model (Filters.h; 3: the Oberheim SEM)
     float filterMode = 0.0f;     ///< its mode (the SEM's morph, the Xpander's response ...)
+    // 26.09.2026, the envelopes in full and the modulation (Modulation.h); only 4-byte members (compared bit for bit).
+    float ampDecayS = 1.0f;      ///< the amplitude envelope's decay (its attack and release above)
+    float ampSustain = 1.0f;     ///< ... its sustain level
+    int filtLink = 1;            ///< 1: the filter follows the amplitude envelope; 0: its own below
+    float filtAttackS = 2.0f, filtDecayS = 3.0f, filtSustain = 0.4f, filtReleaseS = 4.0f;   ///< the filter's own envelope
+    float envVelocity = 0.0f;    ///< how far the velocity scales the filter envelope
+    ModSettings mod;             ///< every key's modulation envelope, LFOs and matrix
 };
 
 /** @brief The pad synth; stereo out. */
@@ -55,6 +69,8 @@ public:
     void silence();                                   ///< every key off at once (a jump in the song)
     bool active() const;                              ///< whether anything sounds or rings in the ensemble
     void process(float* L, float* R, int n);          ///< renders @p n samples into @p L and @p R (overwritten)
+    /** @brief The piece's beat at the next sample and beats per sample (the synced LFOs); call at every cell. */
+    void setClock(double beat, double beatsPerSample) { beat0_ = beat; bps_ = beatsPerSample; clockAt_ = count_; }
 
 private:
     struct Key {
@@ -72,13 +88,21 @@ private:
         FilterLane filt[2];        ///< left and right (Filters.h)
         float g = 0.1f;            ///< the filter's tan(pi fc / fs) of the moment
         Rng rng;                   ///< its own drift, so the order of the keys does not matter
+        Envelope fenv;             ///< the filter's own envelope (filtLink 0)
+        Modulator mod;             ///< its modulation (Modulation.h)
+        float mo[kModDests] = {};  ///< the matrix's last sums
+        float fk = 0.0f, mode = 0.0f, lv = 1.0f, panL = 1.0f, panR = 1.0f;   ///< resonance, mode, level, pan as the matrix moves them
     };
-    void retune(Key& k);   ///< the oscillators' increments and levels from the pitch, detune and drift
+    void retune(Key& k);   ///< the oscillators' increments and levels from the pitch, detune, drift and the matrix's pitch
+    double beatAt(int64_t at) const { return beat0_ + static_cast<double>(at - clockAt_) * bps_; }   ///< setClock's beat
     double sr_ = 48000.0;
     PolySettings s_;
     const CycleTable* table_ = nullptr;
     Key keys_[kKeys];
     Envelope times_;          ///< the settings' envelope times, copied to every key
+    Envelope ftimes_;         ///< the filter envelope's
+    double beat0_ = 0.0, bps_ = 0.0;   ///< the clock (setClock)
+    int64_t clockAt_ = 0;
     uint32_t order_ = 0;
     double scanPhase_ = 0.0;
     int64_t count_ = 0;

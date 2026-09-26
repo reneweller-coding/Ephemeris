@@ -2459,6 +2459,88 @@ void testModulation()
 }
 
 /**
+ * The other synths' envelopes and modulation (26.09.2026): the pad synth's keys each with their own matrix (a square LFO
+ * on the pan swings a chord from side to side), the tape keys' and the strings' sustain levels, and the same output for
+ * any host block size with every destination moving.
+ */
+void testSynthModulation()
+{
+    section("envelopes and modulation of the pad synth, the tape keys, the strings");
+    auto render = [](Part part, const char* text, int block, double seconds) {
+        Score one;
+        one.clear(120.0);
+        for (int p : { 57, 64, 69 }) one.notes.push_back({ 0.0, 5.0, part, p, 0.8f, false, false });
+        one.lengthBeats = 6.0;
+        Engine e;
+        e.params().parseText(std::string("master.level=0 master.motion=0 poly.echo=0 poly.reverb=0 poly.chorus=0 poly.attack=0.01 "
+                                         "poly.blend=0 poly.early=0 tape.echo=0 tape.reverb=0 tape.blend=0 tape.early=0 "
+                                         "strings.echo=0 strings.reverb=0 strings.blend=0 strings.early=0 strings.attack=0.01 ") + text);
+        e.prepare(48000.0, block);
+        e.load(one);
+        std::vector<float> L, R, l(static_cast<size_t>(block)), r(static_cast<size_t>(block));
+        const int total = static_cast<int>(48000.0 * seconds);
+        for (int done = 0; done < total; done += block) {
+            const int n = std::min(block, total - done);
+            e.process(l.data(), r.data(), n);
+            L.insert(L.end(), l.begin(), l.begin() + n);
+            R.insert(R.end(), r.begin(), r.begin() + n);
+        }
+        L.insert(L.end(), R.begin(), R.end());
+        return L;
+    };
+    auto rms = [](const std::vector<float>& v, size_t offset, double from, double to) {
+        double e = 0.0;
+        const size_t a = offset + static_cast<size_t>(from * 48000.0), b = offset + static_cast<size_t>(to * 48000.0);
+        for (size_t i = a; i < b; ++i) e += static_cast<double>(v[i]) * v[i];
+        return std::sqrt(e / static_cast<double>(b - a));
+    };
+    {
+        // A square of 2 Hz on the pan, restarted by the keys: the chord right in the first quarter second, left in the next.
+        const double seconds = 1.2;
+        const std::vector<float> v = render(Part::Pad, "poly.lfo1_rate=2 poly.lfo1_shape=4 poly.lfo1_retrig=1 poly.mod1_src=1 poly.mod1_dst=10 poly.mod1_amt=1", 256, seconds);
+        const size_t half = v.size() / 2;
+        const double rFirst = rms(v, half, 0.05, 0.22), lFirst = rms(v, 0, 0.05, 0.22), rSecond = rms(v, half, 0.3, 0.47), lSecond = rms(v, 0, 0.3, 0.47);
+        check(rFirst > 3.0 * lFirst && lSecond > 3.0 * rSecond, "a square LFO on the pad's pan swings its keys from side to side",
+              fmt("L/R %.4f/%.4f, then %.4f/%.4f", lFirst, rFirst, lSecond, rSecond));
+    }
+    {
+        // The sustain levels: a held chord settles a good way below the same chord without one.
+        auto settle = [&](Part part, const char* text) {
+            const std::vector<float> v = render(part, text, 256, 2.0);
+            return rms(v, 0, 1.5, 1.9);
+        };
+        const double tape = settle(Part::TapeKeys, "tape.amp_sustain=0.2 tape.amp_decay=150"), tapeFull = settle(Part::TapeKeys, "");
+        const double str = settle(Part::Strings, "strings.amp_sustain=0.2 strings.amp_decay=0.2"), strFull = settle(Part::Strings, "");
+        const double pad = settle(Part::Pad, "poly.amp_sustain=0.2 poly.amp_decay=0.2"), padFull = settle(Part::Pad, "");
+        check(tape < 0.45 * tapeFull && str < 0.45 * strFull && pad < 0.45 * padFull, "the tape keys, the strings and the pad settle on their sustain levels",
+              fmt("held rms with sustain 0.2 against without: tape %.4f/%.4f, strings %.4f/%.4f, pad %.4f/%.4f", tape, tapeFull, str, strFull, pad, padFull));
+    }
+    {
+        // Every destination moving on all three: blocks of 37 equal blocks of 512.
+        const char* busy[3] = {
+            "poly.lfo1_rate=1.7 poly.lfo1_shape=6 poly.mod1_src=1 poly.mod1_dst=4 poly.mod1_amt=0.6 poly.lfo2_sync=7 poly.mod2_src=2 poly.mod2_dst=1 poly.mod2_amt=0.2 "
+            "poly.mod3_src=5 poly.mod3_dst=5 poly.mod3_amt=0.5 poly.mod4_src=6 poly.mod4_dst=6 poly.mod4_amt=0.4 poly.mod5_src=7 poly.mod5_dst=7 poly.mod5_amt=0.5 "
+            "poly.lfo3_retrig=1 poly.lfo3_fade=0.4 poly.lfo3_rate=3 poly.mod6_src=3 poly.mod6_dst=9 poly.mod6_amt=-0.5 poly.mod7_src=4 poly.mod7_dst=10 poly.mod7_amt=0.8 "
+            "poly.filt_link=0 poly.env_velocity=0.5 poly.amp_sustain=0.6",
+            "tape.lfo1_rate=4.5 tape.mod1_src=1 tape.mod1_dst=1 tape.mod1_amt=0.1 tape.lfo2_shape=5 tape.lfo2_rate=2 tape.mod2_src=2 tape.mod2_dst=2 tape.mod2_amt=0.5 "
+            "tape.mod3_src=1 tape.mod3_dst=3 tape.mod3_amt=0.4 tape.mod4_src=2 tape.mod4_dst=4 tape.mod4_amt=0.7 tape.amp_attack=300 tape.amp_sustain=0.5 tape.amp_release=200",
+            "strings.lfo1_rate=5.5 strings.lfo1_fade=0.5 strings.lfo1_retrig=1 strings.mod1_src=1 strings.mod1_dst=1 strings.mod1_amt=0.1 strings.lfo2_sync=6 "
+            "strings.mod2_src=2 strings.mod2_dst=2 strings.mod2_amt=0.5 strings.mod3_src=1 strings.mod3_dst=3 strings.mod3_amt=0.3 strings.mod4_src=2 strings.mod4_dst=4 "
+            "strings.mod4_amt=0.6 strings.amp_sustain=0.5",
+        };
+        const Part parts[3] = { Part::Pad, Part::TapeKeys, Part::Strings };
+        std::string info;
+        bool same = true;
+        for (int i = 0; i < 3; ++i) {
+            const std::vector<float> a = render(parts[i], busy[i], 512, 2.2), b = render(parts[i], busy[i], 37, 2.2);
+            same = same && a.size() == b.size() && std::memcmp(a.data(), b.data(), a.size() * sizeof(float)) == 0 && rms(a, 0, 0.2, 2.0) > 1e-3;
+            info += fmt(" %.4f", rms(a, 0, 0.2, 2.0));
+        }
+        check(same, "the three synths' modulation is the same for any block size", "rms" + info);
+    }
+}
+
+/**
  * The offline render is the oracle only if a host's block size cannot change a sample: the study
  * rendered with blocks of 1, 37 and 512 must agree bit for bit (Engine.h).
  */
@@ -2624,6 +2706,7 @@ const TestSection kSections[] = {
     { "testFilters", testFilters },
     { "testFilterVoices", testFilterVoices },
     { "testModulation", testModulation },
+    { "testSynthModulation", testSynthModulation },
     { "testBlockSizes", testBlockSizes },
     { "testEcho", testEcho },
     { "testDrift", testDrift },

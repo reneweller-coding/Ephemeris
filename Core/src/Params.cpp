@@ -16,6 +16,8 @@ namespace eph {
 const char* const kKeyNames[12] = { "C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B" };
 const char* const kScaleNames[] = { "Aeolian", "Dorian", "Phrygian", "Harmonic Minor", "Minor Pentatonic",
                                     "Mixolydian", "Lydian", "Locrian" };
+const char* const kShortModSourceNames[] = { "Off", "LFO 1", "LFO 2" };
+const char* const kShortModDestNames[] = { "Off", "Pitch", "Tone", "Level", "Pan" };
 const char* const kLfoShapeNames[] = { "Sine", "Triangle", "Saw Up", "Saw Down", "Square", "Sample & Hold", "Smooth Random" };
 const char* const kLfoSyncNames[] = { "Free", "4 bars", "2 bars", "1 bar", "1/2", "1/4", "1/8", "1/16", "1/4T", "1/8T" };
 const char* const kModSourceNames[] = { "Off", "LFO 1", "LFO 2", "LFO 3", "LFO 4", "Mod Env", "Filter Env", "Velocity", "Mod Lane" };
@@ -298,6 +300,32 @@ const ParamDesc kTapeParams[tape::Count] = {
     { "blend",    "Blend Send", "",  0.0f,   1.0f,   0.0f, Curve::Linear },   // into the blend room (the addon's send B)
     { "early",    "Early Send", "",  0.0f,   1.0f,   0.0f, Curve::Linear },   // into the early reflections (send A)
     { "shimmer",  "Shimmer Send", "", 0.0f,  1.0f,   0.0f, Curve::Linear },   // into the effect hall (send D)
+    { "amp_attack",   "Swell",         "ms",   1.0f,  8000.0f, 1.0f, Curve::Log },   // at 1 ms: the pressure pad alone
+    { "amp_decay",    "Decay",         "ms",   5.0f,  8000.0f, 1500.0f, Curve::Log },
+    { "amp_sustain",  "Sustain Level", "",     0.0f,     1.0f, 1.0f, Curve::Linear },
+    { "amp_release",  "Release",       "ms",  10.0f,  3000.0f, 70.0f, Curve::Log },   // the fall after the key
+    { "lfo1_rate",    "LFO 1 Rate",    "Hz",   0.01f,   30.0f, 5.0f, Curve::Log },
+    { "lfo1_shape",   "LFO 1 Shape",   "",     0.0f,     6.0f, 0.0f, Curve::Choice, kLfoShapeNames },
+    { "lfo1_sync",    "LFO 1 Sync",    "",     0.0f,     9.0f, 0.0f, Curve::Choice, kLfoSyncNames },
+    { "lfo1_retrig",  "LFO 1 Retrig",  "",     0.0f,     1.0f, 0.0f, Curve::Toggle },
+    { "lfo1_fade",    "LFO 1 Fade",    "s",    0.0f,    10.0f, 0.0f, Curve::Linear },
+    { "lfo2_rate",    "LFO 2 Rate",    "Hz",   0.01f,   30.0f, 0.3f, Curve::Log },
+    { "lfo2_shape",   "LFO 2 Shape",   "",     0.0f,     6.0f, 0.0f, Curve::Choice, kLfoShapeNames },
+    { "lfo2_sync",    "LFO 2 Sync",    "",     0.0f,     9.0f, 0.0f, Curve::Choice, kLfoSyncNames },
+    { "lfo2_retrig",  "LFO 2 Retrig",  "",     0.0f,     1.0f, 0.0f, Curve::Toggle },
+    { "lfo2_fade",    "LFO 2 Fade",    "s",    0.0f,    10.0f, 0.0f, Curve::Linear },
+    { "mod1_src",     "Mod 1 Source",  "",     0.0f,     2.0f, 0.0f, Curve::Choice, kShortModSourceNames },
+    { "mod1_dst",     "Mod 1 Target",  "",     0.0f,    4.0f, 0.0f, Curve::Choice, kShortModDestNames },
+    { "mod1_amt",     "Mod 1 Amount",  "",    -1.0f,     1.0f, 0.0f, Curve::Linear },
+    { "mod2_src",     "Mod 2 Source",  "",     0.0f,     2.0f, 0.0f, Curve::Choice, kShortModSourceNames },
+    { "mod2_dst",     "Mod 2 Target",  "",     0.0f,    4.0f, 0.0f, Curve::Choice, kShortModDestNames },
+    { "mod2_amt",     "Mod 2 Amount",  "",    -1.0f,     1.0f, 0.0f, Curve::Linear },
+    { "mod3_src",     "Mod 3 Source",  "",     0.0f,     2.0f, 0.0f, Curve::Choice, kShortModSourceNames },
+    { "mod3_dst",     "Mod 3 Target",  "",     0.0f,    4.0f, 0.0f, Curve::Choice, kShortModDestNames },
+    { "mod3_amt",     "Mod 3 Amount",  "",    -1.0f,     1.0f, 0.0f, Curve::Linear },
+    { "mod4_src",     "Mod 4 Source",  "",     0.0f,     2.0f, 0.0f, Curve::Choice, kShortModSourceNames },
+    { "mod4_dst",     "Mod 4 Target",  "",     0.0f,    4.0f, 0.0f, Curve::Choice, kShortModDestNames },
+    { "mod4_amt",     "Mod 4 Amount",  "",    -1.0f,     1.0f, 0.0f, Curve::Linear },
 };
 
 /** The drone: the lead's table, set dark and slow, with a two-second release and much hall. */
@@ -408,7 +436,7 @@ const ParamDesc kAtmosParams[atmos::Count] = {
 /** The string machine: slow in, slow out, the ensemble deep. */
 const ParamDesc kStringsParams[strings::Count] = {
     { "attack",   "Crescendo",    "s",    0.005f,  3.0f,   0.35f, Curve::Log },
-    { "release",  "Sustain",      "s",    0.05f,   6.0f,   1.2f, Curve::Log },
+    { "release",  "Release",      "s",    0.05f,   6.0f,   1.2f, Curve::Log },   // the machines' "sustain" slider
     { "feet",     "Octave Balance", "",   0.0f,    1.0f,   0.4f, Curve::Linear },   // 0 the low footages .. 1 the high ones
     { "tone",     "Tone",         "Hz", 800.0f, 12000.0f, 4500.0f, Curve::Log },
     { "ensemble", "Ensemble",     "",     0.0f,    1.0f,   0.8f, Curve::Linear },
@@ -427,6 +455,30 @@ const ParamDesc kStringsParams[strings::Count] = {
     { "blend",    "Blend Send", "",  0.0f,   1.0f,   0.0f, Curve::Linear },   // into the blend room (the addon's send B)
     { "early",    "Early Send", "",  0.0f,   1.0f,   0.0f, Curve::Linear },   // into the early reflections (send A)
     { "shimmer",  "Shimmer Send", "", 0.0f,  1.0f,   0.0f, Curve::Linear },   // into the effect hall (send D)
+    { "amp_decay",    "Decay",         "s",    0.05f,   20.0f, 2.0f, Curve::Log },
+    { "amp_sustain",  "Sustain Level", "",     0.0f,     1.0f, 1.0f, Curve::Linear },
+    { "lfo1_rate",    "LFO 1 Rate",    "Hz",   0.01f,   30.0f, 5.5f, Curve::Log },
+    { "lfo1_shape",   "LFO 1 Shape",   "",     0.0f,     6.0f, 0.0f, Curve::Choice, kLfoShapeNames },
+    { "lfo1_sync",    "LFO 1 Sync",    "",     0.0f,     9.0f, 0.0f, Curve::Choice, kLfoSyncNames },
+    { "lfo1_retrig",  "LFO 1 Retrig",  "",     0.0f,     1.0f, 0.0f, Curve::Toggle },
+    { "lfo1_fade",    "LFO 1 Fade",    "s",    0.0f,    10.0f, 0.0f, Curve::Linear },
+    { "lfo2_rate",    "LFO 2 Rate",    "Hz",   0.01f,   30.0f, 0.15f, Curve::Log },
+    { "lfo2_shape",   "LFO 2 Shape",   "",     0.0f,     6.0f, 0.0f, Curve::Choice, kLfoShapeNames },
+    { "lfo2_sync",    "LFO 2 Sync",    "",     0.0f,     9.0f, 0.0f, Curve::Choice, kLfoSyncNames },
+    { "lfo2_retrig",  "LFO 2 Retrig",  "",     0.0f,     1.0f, 0.0f, Curve::Toggle },
+    { "lfo2_fade",    "LFO 2 Fade",    "s",    0.0f,    10.0f, 0.0f, Curve::Linear },
+    { "mod1_src",     "Mod 1 Source",  "",     0.0f,     2.0f, 0.0f, Curve::Choice, kShortModSourceNames },
+    { "mod1_dst",     "Mod 1 Target",  "",     0.0f,    4.0f, 0.0f, Curve::Choice, kShortModDestNames },
+    { "mod1_amt",     "Mod 1 Amount",  "",    -1.0f,     1.0f, 0.0f, Curve::Linear },
+    { "mod2_src",     "Mod 2 Source",  "",     0.0f,     2.0f, 0.0f, Curve::Choice, kShortModSourceNames },
+    { "mod2_dst",     "Mod 2 Target",  "",     0.0f,    4.0f, 0.0f, Curve::Choice, kShortModDestNames },
+    { "mod2_amt",     "Mod 2 Amount",  "",    -1.0f,     1.0f, 0.0f, Curve::Linear },
+    { "mod3_src",     "Mod 3 Source",  "",     0.0f,     2.0f, 0.0f, Curve::Choice, kShortModSourceNames },
+    { "mod3_dst",     "Mod 3 Target",  "",     0.0f,    4.0f, 0.0f, Curve::Choice, kShortModDestNames },
+    { "mod3_amt",     "Mod 3 Amount",  "",    -1.0f,     1.0f, 0.0f, Curve::Linear },
+    { "mod4_src",     "Mod 4 Source",  "",     0.0f,     2.0f, 0.0f, Curve::Choice, kShortModSourceNames },
+    { "mod4_dst",     "Mod 4 Target",  "",     0.0f,    4.0f, 0.0f, Curve::Choice, kShortModDestNames },
+    { "mod4_amt",     "Mod 4 Amount",  "",    -1.0f,     1.0f, 0.0f, Curve::Linear },
 };
 
 /** The springs: a short, bright-ish tank under the echo, quiet by default. */
@@ -618,6 +670,62 @@ const ParamDesc kPolyParams[poly::Count] = {
     { "shimmer",    "Shimmer Send", "",      0.0f,     1.0f,   0.1f, Curve::Linear },
     { "filter",     "Filter",       "",      0.0f,     9.0f,   3.0f, Curve::Choice, kFilterNames },   // the SEM by default
     { "filter_mode","Filter Mode",  "",      0.0f,     1.0f,   0.0f, Curve::Linear },
+    { "amp_decay",    "Amp Decay",     "s",    0.01f,   20.0f, 1.0f, Curve::Log },
+    { "amp_sustain",  "Amp Sustain",   "",     0.0f,     1.0f, 1.0f, Curve::Linear },
+    { "filt_link",    "Filter Env = Amp", "",  0.0f,     1.0f, 1.0f, Curve::Toggle },   // the filter follows the amplitude envelope
+    { "filt_attack",  "Filter Attack", "s",    0.01f,   20.0f, 2.0f, Curve::Log },
+    { "filt_decay",   "Filter Decay",  "s",    0.01f,   20.0f, 3.0f, Curve::Log },
+    { "filt_sustain", "Filter Sustain", "",    0.0f,     1.0f, 0.4f, Curve::Linear },
+    { "filt_release", "Filter Release", "s",   0.01f,   20.0f, 4.0f, Curve::Log },
+    { "env_velocity", "Env Velocity",  "",     0.0f,     1.0f, 0.0f, Curve::Linear },
+    { "mod_attack",   "Mod Attack",    "s",    0.01f,   20.0f, 1.0f, Curve::Log },
+    { "mod_decay",    "Mod Decay",     "s",    0.01f,   20.0f, 2.0f, Curve::Log },
+    { "mod_sustain",  "Mod Sustain",   "",     0.0f,     1.0f, 0.5f, Curve::Linear },
+    { "mod_release",  "Mod Release",   "s",    0.01f,   20.0f, 3.0f, Curve::Log },
+    { "lfo1_rate",    "LFO 1 Rate",    "Hz",   0.01f,   30.0f, 0.2f, Curve::Log },
+    { "lfo1_shape",   "LFO 1 Shape",   "",     0.0f,     6.0f, 0.0f, Curve::Choice, kLfoShapeNames },
+    { "lfo1_sync",    "LFO 1 Sync",    "",     0.0f,     9.0f, 0.0f, Curve::Choice, kLfoSyncNames },
+    { "lfo1_retrig",  "LFO 1 Retrig",  "",     0.0f,     1.0f, 0.0f, Curve::Toggle },
+    { "lfo1_fade",    "LFO 1 Fade",    "s",    0.0f,    10.0f, 0.0f, Curve::Linear },
+    { "lfo2_rate",    "LFO 2 Rate",    "Hz",   0.01f,   30.0f, 4.5f, Curve::Log },
+    { "lfo2_shape",   "LFO 2 Shape",   "",     0.0f,     6.0f, 0.0f, Curve::Choice, kLfoShapeNames },
+    { "lfo2_sync",    "LFO 2 Sync",    "",     0.0f,     9.0f, 0.0f, Curve::Choice, kLfoSyncNames },
+    { "lfo2_retrig",  "LFO 2 Retrig",  "",     0.0f,     1.0f, 0.0f, Curve::Toggle },
+    { "lfo2_fade",    "LFO 2 Fade",    "s",    0.0f,    10.0f, 0.0f, Curve::Linear },
+    { "lfo3_rate",    "LFO 3 Rate",    "Hz",   0.01f,   30.0f, 0.05f, Curve::Log },
+    { "lfo3_shape",   "LFO 3 Shape",   "",     0.0f,     6.0f, 0.0f, Curve::Choice, kLfoShapeNames },
+    { "lfo3_sync",    "LFO 3 Sync",    "",     0.0f,     9.0f, 0.0f, Curve::Choice, kLfoSyncNames },
+    { "lfo3_retrig",  "LFO 3 Retrig",  "",     0.0f,     1.0f, 0.0f, Curve::Toggle },
+    { "lfo3_fade",    "LFO 3 Fade",    "s",    0.0f,    10.0f, 0.0f, Curve::Linear },
+    { "lfo4_rate",    "LFO 4 Rate",    "Hz",   0.01f,   30.0f, 0.11f, Curve::Log },
+    { "lfo4_shape",   "LFO 4 Shape",   "",     0.0f,     6.0f, 0.0f, Curve::Choice, kLfoShapeNames },
+    { "lfo4_sync",    "LFO 4 Sync",    "",     0.0f,     9.0f, 0.0f, Curve::Choice, kLfoSyncNames },
+    { "lfo4_retrig",  "LFO 4 Retrig",  "",     0.0f,     1.0f, 0.0f, Curve::Toggle },
+    { "lfo4_fade",    "LFO 4 Fade",    "s",    0.0f,    10.0f, 0.0f, Curve::Linear },
+    { "mod1_src",     "Mod 1 Source",  "",     0.0f,     8.0f, 0.0f, Curve::Choice, kModSourceNames },
+    { "mod1_dst",     "Mod 1 Target",  "",     0.0f,    10.0f, 0.0f, Curve::Choice, kModDestNames },
+    { "mod1_amt",     "Mod 1 Amount",  "",    -1.0f,     1.0f, 0.0f, Curve::Linear },
+    { "mod2_src",     "Mod 2 Source",  "",     0.0f,     8.0f, 0.0f, Curve::Choice, kModSourceNames },
+    { "mod2_dst",     "Mod 2 Target",  "",     0.0f,    10.0f, 0.0f, Curve::Choice, kModDestNames },
+    { "mod2_amt",     "Mod 2 Amount",  "",    -1.0f,     1.0f, 0.0f, Curve::Linear },
+    { "mod3_src",     "Mod 3 Source",  "",     0.0f,     8.0f, 0.0f, Curve::Choice, kModSourceNames },
+    { "mod3_dst",     "Mod 3 Target",  "",     0.0f,    10.0f, 0.0f, Curve::Choice, kModDestNames },
+    { "mod3_amt",     "Mod 3 Amount",  "",    -1.0f,     1.0f, 0.0f, Curve::Linear },
+    { "mod4_src",     "Mod 4 Source",  "",     0.0f,     8.0f, 0.0f, Curve::Choice, kModSourceNames },
+    { "mod4_dst",     "Mod 4 Target",  "",     0.0f,    10.0f, 0.0f, Curve::Choice, kModDestNames },
+    { "mod4_amt",     "Mod 4 Amount",  "",    -1.0f,     1.0f, 0.0f, Curve::Linear },
+    { "mod5_src",     "Mod 5 Source",  "",     0.0f,     8.0f, 0.0f, Curve::Choice, kModSourceNames },
+    { "mod5_dst",     "Mod 5 Target",  "",     0.0f,    10.0f, 0.0f, Curve::Choice, kModDestNames },
+    { "mod5_amt",     "Mod 5 Amount",  "",    -1.0f,     1.0f, 0.0f, Curve::Linear },
+    { "mod6_src",     "Mod 6 Source",  "",     0.0f,     8.0f, 0.0f, Curve::Choice, kModSourceNames },
+    { "mod6_dst",     "Mod 6 Target",  "",     0.0f,    10.0f, 0.0f, Curve::Choice, kModDestNames },
+    { "mod6_amt",     "Mod 6 Amount",  "",    -1.0f,     1.0f, 0.0f, Curve::Linear },
+    { "mod7_src",     "Mod 7 Source",  "",     0.0f,     8.0f, 0.0f, Curve::Choice, kModSourceNames },
+    { "mod7_dst",     "Mod 7 Target",  "",     0.0f,    10.0f, 0.0f, Curve::Choice, kModDestNames },
+    { "mod7_amt",     "Mod 7 Amount",  "",    -1.0f,     1.0f, 0.0f, Curve::Linear },
+    { "mod8_src",     "Mod 8 Source",  "",     0.0f,     8.0f, 0.0f, Curve::Choice, kModSourceNames },
+    { "mod8_dst",     "Mod 8 Target",  "",     0.0f,    10.0f, 0.0f, Curve::Choice, kModDestNames },
+    { "mod8_amt",     "Mod 8 Amount",  "",    -1.0f,     1.0f, 0.0f, Curve::Linear },
 };
 
 const ModuleSpec kModules[static_cast<int>(Module::Count)] = {

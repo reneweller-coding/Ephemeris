@@ -5,6 +5,7 @@
 #include "eph/synth/TapeKeys.h"
 #include <algorithm>
 #include <cmath>
+#include <cstring>
 
 namespace eph {
 
@@ -30,7 +31,8 @@ void TapeKeys::prepare(double sampleRate, uint64_t seed)
     sr_ = sampleRate > 0.0 ? sampleRate : 48000.0;
     seed_ = seed;
     rng_.seed(mixSeed(seed, 17));
-    fallCoef_ = std::exp(-1.0 / (0.07 * sr_));
+    mod_.prepare(sr_, mixSeed(seed, 0x5441ull));
+    mod_.set(s_.mod);
     reset();
     set(s_);
 }
@@ -41,17 +43,22 @@ void TapeKeys::reset()
     wowPhase_ = flutterPhase_ = drift_ = driftTarget_ = 0.0;
     count_ = 0;
     thump_ = 0.0f;
+    mod_.kill();
 }
 
 void TapeKeys::set(const TapeSettings& s)
 {
     const bool vowelMoved = s.vowel != s_.vowel || s.set != s_.set;
+    if (std::memcmp(&s.mod, &s_.mod, sizeof(ModSettings)) != 0) mod_.set(s.mod);
     s_ = s;
+    // The fall after the key (a time constant) and the player's decay (to 5 % of the way in its time).
+    fallCoef_ = std::exp(-1.0 / (static_cast<double>(s.releaseMs) / 1000.0 * sr_));
+    decayCoef_ = std::exp(-3.0 / (std::max(0.005, static_cast<double>(s.decayMs) / 1000.0) * sr_));
     for (int f = 0; f < 5; ++f) formantGain_[f] = dbToGain(kAahG[f] + s_.vowel * (kOohG[f] - kAahG[f]));
     const float sr = static_cast<float>(sr_);
     for (Key& k : keys_) {
         if (!k.on) continue;
-        k.tone.set(std::min(0.45f * sr, s_.toneHz * static_cast<float>(std::exp2(0.4 * k.cents / 6.0))), 0.0f, sr);
+        k.tone.set(std::min(0.45f * sr, s_.toneHz * static_cast<float>(std::exp2(0.4 * k.cents / 6.0 + mod_.offset(mo_, ModDest::Cutoff)))), 0.0f, sr);
         if (vowelMoved && k.set == TapeSet::Choir) {
             for (int f = 0; f < 5; ++f) {
                 const float F = kAahF[f] + s_.vowel * (kOohF[f] - kAahF[f]);
@@ -80,6 +87,7 @@ void TapeKeys::startKey(Key& k, int pitch, float velocity, int id)
     k.rise = 0.0;
     k.riseCoef = 1.0 - std::exp(-1.0 / (riseTau(k.set) * sr_));
     k.fall = 1.0;
+    k.decay = 1.0;
     // This key's tape: the same every time the key is pressed, as an instrument has one set of tapes.
     Rng tape;
     tape.seed(mixSeed(seed_, 1000 + static_cast<uint64_t>(pitch)));
@@ -123,12 +131,16 @@ void TapeKeys::noteOn(int pitch, float velocity, int id)
         for (Key& k : keys_) if (k.order < slot->order) slot = &k;
     }
     startKey(*slot, pitch, velocity, id);
+    mod_.noteOn(count_, beatAt(count_));
 }
 
 void TapeKeys::noteOff(int id)
 {
     for (Key& k : keys_)
         if (k.on && k.held && k.id == id) { k.held = false; k.released = 0.0; }
+    bool held = false;
+    for (const Key& k : keys_) held = held || k.held;
+    if (!held) mod_.noteOff();
 }
 
 bool TapeKeys::active() const
@@ -145,9 +157,17 @@ float TapeKeys::render(Key& k, double speedCents)
     // The envelope of the machine: the lag, the pressure pad's rise, the tape end, the release.
     if (k.age > k.lag) k.rise += (1.0 - k.rise) * k.riseCoef;
     double env = k.rise * k.fall;
+    // The player's envelope over the machine's: the swell, then the decay towards the sustain level.
+    const double swellS = static_cast<double>(s_.swellMs) / 1000.0;
+    if (swellS > 0.001 && k.age < swellS) env *= k.age / swellS;
+    if (s_.sustain < 1.0f && k.age >= std::max(swellS, 0.0)) {
+        k.decay *= decayCoef_;
+        env *= static_cast<double>(s_.sustain) + (1.0 - static_cast<double>(s_.sustain)) * k.decay;
+    }
     const double fadeStart = kTapeSeconds - 0.33;
     if (k.age > fadeStart) env *= std::max(0.0, 1.0 - (k.age - fadeStart) / 0.33);
-    if (k.age >= kTapeSeconds || (k.released >= 0.0 && k.released > 0.7)) { k.on = false; return 0.0f; }
+    const double gone = s_.releaseMs > 70.0f ? 10.0 * static_cast<double>(s_.releaseMs) / 1000.0 : 0.7;   // a longer fall rings longer
+    if (k.age >= kTapeSeconds || (k.released >= 0.0 && k.released > gone)) { k.on = false; return 0.0f; }
 
     const double cents = k.cents + speedCents;
     const float sr = static_cast<float>(sr_);
@@ -212,6 +232,16 @@ void TapeKeys::process(float* out, int n)
         if ((count_ & 31) == 0) {
             if ((count_ % 32768) == 0) driftTarget_ = static_cast<double>(rng_.bipolar());
             drift_ += (driftTarget_ - drift_) * 0.002;
+            if (mod_.active()) {
+                // The keyboard's matrix (Modulation.h); a moving tone retunes every key's head filter.
+                const float ext[kModSources] = {};
+                mod_.evaluate(count_, beatAt(count_), ext, mo_);
+                if (mod_.targets(ModDest::Cutoff)) {
+                    const float sr = static_cast<float>(sr_);
+                    for (Key& k : keys_)
+                        if (k.on) k.tone.set(std::min(0.45f * sr, s_.toneHz * static_cast<float>(std::exp2(0.4 * k.cents / 6.0 + mo_[static_cast<int>(ModDest::Cutoff)]))), 0.0f, sr);
+                }
+            }
         }
         wowPhase_ += 0.6 / sr_;
         if (wowPhase_ >= 1.0) wowPhase_ -= 1.0;
@@ -220,12 +250,15 @@ void TapeKeys::process(float* out, int n)
         int down = 0;
         bool any = false;
         for (const Key& k : keys_) { down += k.held ? 1 : 0; any = any || k.on; }
-        const double speed = static_cast<double>(s_.wowCents) * (0.7 * static_cast<double>(sin01(wowPhase_)) + 0.3 * drift_)
-                           + static_cast<double>(s_.flutterCents) * static_cast<double>(sin01(flutterPhase_))
-                           - static_cast<double>(s_.sagCents) * std::max(0, down - 1);
+        double speed = static_cast<double>(s_.wowCents) * (0.7 * static_cast<double>(sin01(wowPhase_)) + 0.3 * drift_)
+                     + static_cast<double>(s_.flutterCents) * static_cast<double>(sin01(flutterPhase_))
+                     - static_cast<double>(s_.sagCents) * std::max(0, down - 1);
+        const bool mod = mod_.active();
+        if (mod && mod_.targets(ModDest::Pitch)) speed += 100.0 * static_cast<double>(mo_[static_cast<int>(ModDest::Pitch)]);
         float y = 0.0f;
         for (Key& k : keys_) if (k.on) y += render(k, speed);
         y *= 0.3f;
+        if (mod && mod_.targets(ModDest::Level)) y *= std::clamp(1.0f + mo_[static_cast<int>(ModDest::Level)], 0.0f, 2.0f);
         // The pressure pad's thump and the tape's hiss.
         if (thump_ > 1e-5f) { y += thump_ * rng_.bipolar(); thump_ *= 0.9974f; }
         if (any) y += (0.0003f + 0.001f * s_.age) * rng_.bipolar();

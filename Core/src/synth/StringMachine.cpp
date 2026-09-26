@@ -6,6 +6,7 @@
 #include "eph/synth/Oscillator.h"   // polyBlep
 #include <algorithm>
 #include <cmath>
+#include <cstring>
 
 namespace eph {
 
@@ -55,10 +56,18 @@ void StringMachine::prepare(double sampleRate, uint64_t seed)
     for (Svf& b : bbd_) { b.reset(); b.set(7000.0f, 0.0f, static_cast<float>(sr_)); }
     for (int c = 0; c < 2; ++c) { for (int i = 0; i < 4; ++i) apX_[c][i] = apY_[c][i] = 0.0f; phFb_[c] = 0.0f; }
     ring_ = 0.0f;
+    mod_.prepare(sr_, mixSeed(seed, 0x5354ull));
+    mod_.set(s_.mod);
+    pitchMul_ = 1.0;
+    toneMul_ = 1.0f;
     set(s_);
 }
 
-void StringMachine::set(const StringSettings& s) { s_ = s; }
+void StringMachine::set(const StringSettings& s)
+{
+    if (std::memcmp(&s.mod, &s_.mod, sizeof(ModSettings)) != 0) mod_.set(s.mod);
+    s_ = s;
+}
 
 void StringMachine::registrationAt(float position)
 {
@@ -77,7 +86,9 @@ void StringMachine::registrationAt(float position)
     }
     // The same loudness for every registration: the Violins' 8' and 4' saws at 0.4 are the reference.
     regGain_ = 1.077f / std::sqrt(std::max(sumSq, 1e-4f)) * (a.trim + f * (b.trim - a.trim));
-    const float tone = std::min(s_.toneHz * (a.tone + f * (b.tone - a.tone)), static_cast<float>(0.45 * sr_));
+    float tone = s_.toneHz * (a.tone + f * (b.tone - a.tone));
+    if (mod_.active() && mod_.targets(ModDest::Cutoff)) tone *= toneMul_;
+    tone = std::min(tone, static_cast<float>(0.45 * sr_));
     tone_.set(tone, 0.1f, static_cast<float>(sr_));
 }
 
@@ -100,11 +111,16 @@ void StringMachine::noteOn(int pitch, float velocity, int id)
     slot->inv16 = std::ldexp(1.0, -std::clamp(octDown + 1, 0, 8));
     slot->inv4 = std::ldexp(1.0, -std::clamp(octDown - 1, 0, 8));
     // The envelope is not reset: a stolen key glides from where it was, as the machine's did.
+    slot->decaying = false;
+    mod_.noteOn(count_, beatAt(count_));
 }
 
 void StringMachine::noteOff(int id)
 {
     for (Key& k : keys_) if (k.on && k.id == id) k.held = false;
+    bool held = false;
+    for (const Key& k : keys_) held = held || (k.on && k.held);
+    if (!held) mod_.noteOff();
 }
 
 void StringMachine::silence()
@@ -112,6 +128,7 @@ void StringMachine::silence()
     for (Key& k : keys_) k = Key{};
     std::fill(line_.begin(), line_.end(), 0.0f);
     ring_ = 0.0f;
+    mod_.kill();
 }
 
 bool StringMachine::active() const
@@ -125,6 +142,8 @@ void StringMachine::process(float* L, float* R, int n)
     const double inv = 1.0 / sr_;
     const float att = static_cast<float>(1.0 - std::exp(-inv / std::max(0.005, static_cast<double>(s_.attackS) / 3.0)));
     const float rel = static_cast<float>(1.0 - std::exp(-inv / std::max(0.01, static_cast<double>(s_.releaseS) / 3.0)));
+    const float dec = static_cast<float>(1.0 - std::exp(-inv / std::max(0.01, static_cast<double>(s_.decayS) / 3.0)));
+    const float sus = std::clamp(s_.sustain, 0.0f, 1.0f);
     // Top-octave increments per pitch class (in counter units per sample).
     double inc[12];
     for (int pc = 0; pc < 12; ++pc) inc[pc] = midiToHz(kTopOctaveMidi + pc) * inv;
@@ -137,6 +156,13 @@ void StringMachine::process(float* L, float* R, int n)
     const float e = s_.ensemble;
     for (int i = 0; i < n; ++i) {
         if ((count_ & 31) == 0) {
+            if (mod_.active()) {
+                // The machine's matrix (Modulation.h): pitch and tone as factors, the level below.
+                const float ext[kModSources] = {};
+                mod_.evaluate(count_, beatAt(count_), ext, mo_);
+                pitchMul_ = std::exp2(static_cast<double>(mod_.offset(mo_, ModDest::Pitch)) / 12.0);
+                toneMul_ = std::exp2(mod_.offset(mo_, ModDest::Cutoff));
+            }
             // The registration, moved by the animation's slow sine, and the phaser's sweep.
             const double dt = 32.0 * inv;
             animPhase_ += s_.animateHz * dt;
@@ -154,14 +180,19 @@ void StringMachine::process(float* L, float* R, int n)
             }
         }
         ++count_;
+        const bool bend = mod_.active() && mod_.targets(ModDest::Pitch);
+        double step[12];
         for (int pc = 0; pc < 12; ++pc) {
-            counter_[pc] += inc[pc];
+            step[pc] = bend ? inc[pc] * pitchMul_ : inc[pc];
+            counter_[pc] += step[pc];
             if (counter_[pc] >= kModulus) counter_[pc] -= kModulus;
         }
         float sum = 0.0f;
         for (Key& k : keys_) {
             if (!k.on) continue;
-            k.env += ((k.held ? 1.0f : 0.0f) - k.env) * (k.held ? att : rel);
+            // Crescendo, then (below a sustain level of 1) the decay towards it, and the release.
+            if (k.held && !k.decaying && sus < 1.0f && k.env > 0.98f) k.decaying = true;
+            k.env += ((k.held ? (k.decaying ? sus : 1.0f) : 0.0f) - k.env) * (k.held ? (k.decaying ? dec : att) : rel);
             if (!k.held && k.env < 1e-4f) { k.on = false; continue; }
             // The phases of the footages: the counter divided, which keeps every octave in lock.
             const double c = counter_[k.pc];
@@ -172,13 +203,14 @@ void StringMachine::process(float* L, float* R, int n)
                 const float wq = f == 0 ? 0.0f : weight_[f + 2];   // squares at 8' and 4'
                 if (ws <= 1e-4f && wq <= 1e-4f) continue;
                 const float p = frac(c * invs[f]);
-                const float dt = static_cast<float>(inc[k.pc] * invs[f]);
+                const float dt = static_cast<float>(step[k.pc] * invs[f]);
                 const float bl = polyBlep(p, dt);
                 if (ws > 1e-4f) v += ws * (2.0f * p - 1.0f - bl);
                 if (wq > 1e-4f) v += wq * ((p < 0.5f ? 1.0f : -1.0f) + bl - polyBlep(frac(p + 0.5), dt));
             }
             sum += k.env * k.velocity * v;
         }
+        if (mod_.active() && mod_.targets(ModDest::Level)) sum *= std::clamp(1.0f + mo_[static_cast<int>(ModDest::Level)], 0.0f, 2.0f);
         const float dry = tone_.lp(0.12f * regGain_ * sum);
         ring_ = std::max(std::fabs(dry), ring_ * 0.9999f);
         // The ensemble: delay lines swept by a slow and a fast LFO, a third (or a half) of a cycle apart.

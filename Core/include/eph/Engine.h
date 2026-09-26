@@ -182,6 +182,12 @@ private:
     void renderSpan(float* L, float* R, int n);
     /** @brief A voice's settings from a module laid out like the voice table (voice, lead, drone). */
     VoiceSettings voiceSettings(Module m, int instance, bool vibrato) const;
+    /**
+     * @brief A synth's modulation from its parameters (Modulation.h), read as they stand (no gesture moves them): the
+     *        modulation envelope at @p env (-1: none; its times times @p envToMs), @p lfos LFOs from @p lfo, @p slots
+     *        slots from @p slot; @p shortMatrix: the destinations of the smaller matrix (shortModDest).
+     */
+    ModSettings modSettings(Module m, int instance, int env, float envToMs, int lfo, int lfos, int slot, int slots, bool shortMatrix) const;
     /** @brief Level, equal-power pan (times @p width) and sends of strip @p s. */
     void setStrip(int s, float levelDb, float pan, float echo, float reverb, float width = 1.0f, float echo2 = 0.0f,
                   float distance = 0.0f);

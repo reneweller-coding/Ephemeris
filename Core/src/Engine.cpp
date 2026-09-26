@@ -226,31 +226,35 @@ VoiceSettings Engine::voiceSettings(Module m, int instance, bool vibrato) const
     s.filtReleaseMs = raw(voice::FiltRelease, lead::FiltRelease);
     s.filtLink = choice(voice::FiltLink, lead::FiltLink);
     s.envVelocity = raw(voice::EnvVelocity, lead::EnvVelocity);
-    s.mod.attackMs = raw(voice::ModAttack, lead::ModAttack);
-    s.mod.decayMs = raw(voice::ModDecay, lead::ModDecay);
-    s.mod.sustain = raw(voice::ModSustain, lead::ModSustain);
-    s.mod.releaseMs = raw(voice::ModRelease, lead::ModRelease);
-    constexpr int kLfoStride = voice::Lfo2Rate - voice::Lfo1Rate, kSlotStride = voice::Mod2Src - voice::Mod1Src;
-    static_assert(kLfoStride == lead::Lfo2Rate - lead::Lfo1Rate && kSlotStride == lead::Mod2Src - lead::Mod1Src);
-    for (int l = 0; l < kLfos; ++l) {
-        const int o = l * kLfoStride;
-        LfoSettings& lf = s.mod.lfo[l];
-        lf.rateHz = raw(voice::Lfo1Rate + o, lead::Lfo1Rate + o);
-        lf.shape = choice(voice::Lfo1Shape + o, lead::Lfo1Shape + o);
-        lf.sync = choice(voice::Lfo1Sync + o, lead::Lfo1Sync + o);
-        lf.retrig = choice(voice::Lfo1Retrig + o, lead::Lfo1Retrig + o);
-        lf.fadeS = raw(voice::Lfo1Fade + o, lead::Lfo1Fade + o);
-    }
-    for (int k = 0; k < kModSlots; ++k) {
-        const int o = k * kSlotStride;
-        ModSlot& sl = s.mod.slot[k];
-        sl.src = choice(voice::Mod1Src + o, lead::Mod1Src + o);
-        sl.dst = choice(voice::Mod1Dst + o, lead::Mod1Dst + o);
-        sl.amount = raw(voice::Mod1Amt + o, lead::Mod1Amt + o);
-    }
+    s.mod = modSettings(m, instance, isVoice ? voice::ModAttack : lead::ModAttack, 1.0f, isVoice ? voice::Lfo1Rate : lead::Lfo1Rate,
+                        kLfos, isVoice ? voice::Mod1Src : lead::Mod1Src, kModSlots, false);
     if (vibrato) {
         s.vibratoCents = v(lead::Vibrato);
         s.vibratoHz = v(lead::VibratoRate);
+    }
+    return s;
+}
+
+ModSettings Engine::modSettings(Module m, int instance, int env, float envToMs, int lfo, int lfos, int slot, int slots, bool shortMatrix) const
+{
+    // Every synth lays these out alike: the envelope's four times, then five knobs per LFO, then three per slot.
+    auto raw = [&](int index) { return params_.get(params_.id(m, instance, index)); };
+    auto choice = [&](int index) { return static_cast<int>(std::lround(raw(index))); };
+    ModSettings s;
+    if (env >= 0) {
+        s.attackMs = raw(env) * envToMs;
+        s.decayMs = raw(env + 1) * envToMs;
+        s.sustain = raw(env + 2);
+        s.releaseMs = raw(env + 3) * envToMs;
+    }
+    for (int l = 0; l < std::min(lfos, kLfos); ++l) {
+        const int o = lfo + 5 * l;
+        s.lfo[l] = { raw(o), choice(o + 1), choice(o + 2), choice(o + 3), raw(o + 4) };
+    }
+    for (int k = 0; k < std::min(slots, kModSlots); ++k) {
+        const int o = slot + 3 * k;
+        const int dst = choice(o + 1);
+        s.slot[k] = { choice(o), shortMatrix ? shortModDest(dst) : dst, raw(o + 2) };
     }
     return s;
 }
@@ -319,8 +323,13 @@ void Engine::updateCell()
     }
     transpose_ = static_cast<int>(std::lround(knob(Module::Perform, perform::Transpose)));
 
-    // The modular voices: the rows (their strips on the row module), the lead and the drone; the clock for their synced LFOs.
-    voices_.setClock(beat, score_.tempo.bpmAt(beat) / (60.0 * sampleRate_));
+    // The modular voices: the rows (their strips on the row module), the lead and the drone; the clock for the synths'
+    // synced LFOs.
+    const double beatsPerSample = score_.tempo.bpmAt(beat) / (60.0 * sampleRate_);
+    voices_.setClock(beat, beatsPerSample);
+    poly_.setClock(beat, beatsPerSample);
+    tape_.setClock(beat, beatsPerSample);
+    strings_.setClock(beat, beatsPerSample);
     for (int r = 0; r < kModVoices; ++r) {
         const bool row = r < kRows;
         const Module m = row ? Module::Voice : (r == kSrcLead ? Module::Lead : Module::Drone);
@@ -372,9 +381,20 @@ void Engine::updateCell()
     ts.sagCents = knob(Module::Tape, tape::Sag);
     ts.toneHz = knob(Module::Tape, tape::Tone);
     ts.age = knob(Module::Tape, tape::Age);
+    {
+        // The player's envelope and the keyboard's modulation (26.09.2026), as they stand.
+        auto raw = [&](int index) { return params_.get(params_.id(Module::Tape, 0, index)); };
+        ts.swellMs = raw(tape::AmpAttack);
+        ts.decayMs = raw(tape::AmpDecay);
+        ts.sustain = raw(tape::AmpSustain);
+        ts.releaseMs = raw(tape::AmpRelease);
+        ts.mod = modSettings(Module::Tape, 0, -1, 1.0f, tape::Lfo1Rate, 2, tape::Mod1Src, 4, true);
+    }
     if (changed(cache_.tape, ts, cache_.valid)) tape_.set(ts);
     strips_[kSrcTape].running = tape_.active();
-    setStrip(kSrcTape, knob(Module::Tape, tape::Level) + 0.3f * wave(1.37) + 0.2f * wave(0.83), knob(Module::Tape, tape::Pan),
+    float tapePan = knob(Module::Tape, tape::Pan);
+    if (const float pm = tape_.panMod(); pm != 0.0f) tapePan += pm;
+    setStrip(kSrcTape, knob(Module::Tape, tape::Level) + 0.3f * wave(1.37) + 0.2f * wave(0.83), tapePan,
              knob(Module::Tape, tape::EchoSend), std::clamp(knob(Module::Tape, tape::ReverbSend) + 0.08f * wave(13.7), 0.0f, 1.0f),
              1.0f, 0.0f, knob(Module::Tape, tape::Distance));
     tapeSpread_ = knob(Module::Tape, tape::Spread);
@@ -394,10 +414,15 @@ void Engine::updateCell()
     ss.animateHz = knob(Module::Strings, strings::AnimateRate);
     ss.ensembleType = static_cast<int>(std::lround(knob(Module::Strings, strings::EnsembleType)));
     ss.phaser = knob(Module::Strings, strings::Phaser);
+    ss.decayS = params_.get(params_.id(Module::Strings, 0, strings::AmpDecay));
+    ss.sustain = params_.get(params_.id(Module::Strings, 0, strings::AmpSustain));
+    ss.mod = modSettings(Module::Strings, 0, -1, 1.0f, strings::Lfo1Rate, 2, strings::Mod1Src, 4, true);
     if (changed(cache_.strings, ss, cache_.valid)) strings_.set(ss);
     strips_[kSrcStrings].running = strings_.active();
+    float stringsPan = knob(Module::Strings, strings::Pan);
+    if (const float pm = strings_.panMod(); pm != 0.0f) stringsPan += pm;
     // The ensemble spreads the machine over both sides; the pan law's 3 dB come back with sqrt 2.
-    setStrip(kSrcStrings, knob(Module::Strings, strings::Level) + 0.3f * wave(1.61) + 0.2f * wave(0.97), knob(Module::Strings, strings::Pan),
+    setStrip(kSrcStrings, knob(Module::Strings, strings::Level) + 0.3f * wave(1.61) + 0.2f * wave(0.97), stringsPan,
              knob(Module::Strings, strings::EchoSend), std::clamp(knob(Module::Strings, strings::ReverbSend) + 0.08f * wave(21.1), 0.0f, 1.0f),
              1.41421356f, 0.0f, knob(Module::Strings, strings::Distance));
     setLowCut(kSrcStrings, knob(Module::Strings, strings::LowCut));
@@ -421,6 +446,19 @@ void Engine::updateCell()
     ps.chorus = knob(Module::Poly, poly::Chorus);
     ps.filter = static_cast<int>(std::lround(knob(Module::Poly, poly::Filter)));
     ps.filterMode = knob(Module::Poly, poly::FilterMode);
+    {
+        // The envelopes in full and every key's modulation (26.09.2026), as they stand; the pad's times in seconds.
+        auto raw = [&](int index) { return params_.get(params_.id(Module::Poly, 0, index)); };
+        ps.ampDecayS = raw(poly::AmpDecay);
+        ps.ampSustain = raw(poly::AmpSustain);
+        ps.filtLink = static_cast<int>(std::lround(raw(poly::FiltLink)));
+        ps.filtAttackS = raw(poly::FiltAttack);
+        ps.filtDecayS = raw(poly::FiltDecay);
+        ps.filtSustain = raw(poly::FiltSustain);
+        ps.filtReleaseS = raw(poly::FiltRelease);
+        ps.envVelocity = raw(poly::EnvVelocity);
+        ps.mod = modSettings(Module::Poly, 0, poly::ModAttack, 1000.0f, poly::Lfo1Rate, kLfos, poly::Mod1Src, kModSlots, false);
+    }
     if (changed(cache_.poly, ps, cache_.valid)) poly_.set(ps);
     strips_[kSrcPoly].running = poly_.active();
     setStrip(kSrcPoly, knob(Module::Poly, poly::Level) + 0.3f * wave(1.37) + 0.2f * wave(1.13), knob(Module::Poly, poly::Pan),

@@ -69,6 +69,14 @@ struct ModSettings {
     ModSlot slot[kModSlots];
 };
 
+/** @brief The smaller matrix's destinations (the tape keys', the strings': kShortModDestNames) as ModDest. */
+inline int shortModDest(int i)
+{
+    static const int k[5] = { 0, static_cast<int>(ModDest::Pitch), static_cast<int>(ModDest::Cutoff), static_cast<int>(ModDest::Level),
+                              static_cast<int>(ModDest::Pan) };
+    return k[std::clamp(i, 0, 4)];
+}
+
 /** @brief The span of each destination for an amount of 1 (see the file comment); the pitch's amount is squared. */
 inline float modDestSpan(ModDest d)
 {
@@ -174,6 +182,8 @@ public:
     }
     /** @brief The envelope's level (for tests). */
     float envLevel() const { return env_.level(); }
+    /** @brief @p sum of destination @p d where a slot reaches it, else nothing (for the synths' per-destination reads). */
+    float offset(const float* sums, ModDest d) const { return active() && targets(d) ? sums[static_cast<int>(d)] : 0.0f; }
 
 private:
     struct LfoState {

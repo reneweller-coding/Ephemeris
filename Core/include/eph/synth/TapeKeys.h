@@ -31,12 +31,17 @@
  *   does. A player re-strikes; the chord writer does too (Pads.h).
  * - The heads and the electronics: a low pass (tone) per key, gentle tanh saturation on the sum, and a
  *   hiss while any key is down.
+ * **The player's envelope and modulation** (26.09.2026): over the machine's own envelope a swell (a volume pedal),
+ * a decay to a sustain level, and the release after the key, which is the machine's fall (70 ms by default); two
+ * LFOs and four slots (Modulation.h) on the whole keyboard -- pitch, the heads' tone, the level, the pan -- as a
+ * player's hand on the machine would reach them.
  * The magnitudes are first settings; PLAN 5.4 wants them measured on Mellotron recordings (statistics
  * only), which has not happened yet.
  */
 #pragma once
 #include "eph/Dsp.h"
 #include "eph/synth/Oscillator.h"
+#include "eph/synth/Modulation.h"
 #include <cstdint>
 
 namespace eph {
@@ -57,6 +62,12 @@ struct TapeSettings {
     float sagCents = 1.0f;      ///< pitch drop per key pressed beyond the first
     float toneHz = 7000.0f;     ///< head and electronics low pass
     float age = 0.5f;           ///< 0..1: spread of the tapes, hiss, onset thump
+    // 26.09.2026 (compared bit for bit: 4-byte members only).
+    float swellMs = 1.0f;       ///< the swell over the pressure pad's rise; at 1 ms and below, none
+    float decayMs = 1500.0f;    ///< the decay towards the sustain level
+    float sustain = 1.0f;       ///< the sustain level (1: no decay)
+    float releaseMs = 70.0f;    ///< the fall after the key (the machine's)
+    ModSettings mod;            ///< two LFOs and four slots (the destinations mapped by shortModDest)
 };
 
 /** @brief The tape keyboard: eight keys, one output (mono). */
@@ -84,6 +95,10 @@ public:
     void process(float* out, int n);
     /** @brief The capstan's speed factor for @p keysDown keys pressed (for the tests). */
     double speedFor(int keysDown) const;
+    /** @brief The piece's beat at the next sample and beats per sample (the synced LFOs); call at every cell. */
+    void setClock(double beat, double beatsPerSample) { beat0_ = beat; bps_ = beatsPerSample; clockAt_ = count_; }
+    /** @brief The matrix's pan offset (the engine adds it to the strip's pan). */
+    float panMod() const { return mod_.offset(mo_, ModDest::Pan); }
 
 private:
     struct Singer {
@@ -111,6 +126,7 @@ private:
         Svf breath;
         uint32_t order = 0;        ///< for taking the oldest key
         TapeSet set = TapeSet::Choir;   ///< the tape set the key was pressed on: a switch takes the next press
+        double decay = 1.0;        ///< the player's envelope: what is left of the decay towards the sustain level
     };
     float render(Key& k, double speedCents);
     void startKey(Key& k, int pitch, float velocity, int id);
@@ -126,6 +142,12 @@ private:
     double fallCoef_ = 0.0;       ///< the release's factor per sample (70 ms time constant)
     float formantGain_[5] = {};
     int singers_ = kSingers;       ///< setSingers()   ///< the choir's formant levels at the current vowel
+    double decayCoef_ = 1.0;       ///< the player's decay per sample
+    Modulator mod_;                ///< the keyboard's LFOs and matrix
+    float mo_[kModDests] = {};     ///< its last sums
+    double beat0_ = 0.0, bps_ = 0.0;   ///< the clock (setClock)
+    int64_t clockAt_ = 0;
+    double beatAt(int64_t at) const { return beat0_ + static_cast<double>(at - clockAt_) * bps_; }
 };
 
 } // namespace eph

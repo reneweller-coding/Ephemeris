@@ -28,10 +28,13 @@
  * a 0.3 Hz sine, the right side a quarter of a cycle behind, with feedback -- the swirl of a string machine
  * through a phase shifter.
  *
- * Polyphonic (12 keys), slow attack and release after the machines' crescendo and sustain sliders.
+ * Polyphonic (12 keys), slow attack and release after the machines' crescendo and sustain sliders; 26.09.2026 a decay
+ * to a sustain level between them, and two LFOs and four slots (Modulation.h) on the whole machine: pitch (the
+ * top-octave generator's vibrato), the tone, the level, the pan.
  */
 #pragma once
 #include "eph/Dsp.h"
+#include "eph/synth/Modulation.h"
 #include <cstdint>
 #include <vector>
 
@@ -49,6 +52,10 @@ struct StringSettings {
     float animateHz = 0.05f;     ///< its rate
     int ensembleType = 0;        ///< 0 Solina, 1 Chorus, 2 Wide
     float phaser = 0.0f;         ///< 0..1 amount of the phaser
+    // 26.09.2026 (compared bit for bit: 4-byte members only).
+    float decayS = 2.0f;         ///< the decay after the crescendo, towards
+    float sustain = 1.0f;        ///< the sustain level (1: none)
+    ModSettings mod;             ///< two LFOs and four slots (the destinations mapped by shortModDest)
 };
 
 /** @brief The string machine; stereo out (the ensemble makes the width). */
@@ -68,12 +75,17 @@ public:
     void process(float* L, float* R, int n);
     /** @brief The name of registration @p i (0..7). */
     static const char* registrationName(int i);
+    /** @brief The piece's beat at the next sample and beats per sample (the synced LFOs); call at every cell. */
+    void setClock(double beat, double beatsPerSample) { beat0_ = beat; bps_ = beatsPerSample; clockAt_ = count_; }
+    /** @brief The matrix's pan offset (the engine adds it to the strip's pan). */
+    float panMod() const { return mod_.offset(mo_, ModDest::Pan); }
 
 private:
     struct Key {
         bool on = false, held = false;
         int pitch = 60, id = -1;
         float velocity = 0.8f, env = 0.0f;
+        bool decaying = false;               ///< past the crescendo, on the way to the sustain level
         uint32_t order = 0;
         int pc = 0;                          ///< pitch class: the top-octave generator the key divides
         double inv16 = 1.0, inv8 = 1.0, inv4 = 1.0;   ///< 1 / the 16', 8' and 4' dividers (powers of two, so exact)
@@ -100,6 +112,14 @@ private:
     float apX_[2][4] = {}, apY_[2][4] = {};
     float apCoef_[2] = { 0.0f, 0.0f }, phFb_[2] = { 0.0f, 0.0f };
     double phPhase_ = 0.0;
+    // The machine's LFOs and matrix.
+    Modulator mod_;
+    float mo_[kModDests] = {};
+    double pitchMul_ = 1.0;       ///< the matrix's pitch on the top-octave generator
+    float toneMul_ = 1.0f;        ///< ... and on the tone
+    double beat0_ = 0.0, bps_ = 0.0;   ///< the clock (setClock)
+    int64_t clockAt_ = 0;
+    double beatAt(int64_t at) const { return beat0_ + static_cast<double>(at - clockAt_) * bps_; }
 };
 
 } // namespace eph

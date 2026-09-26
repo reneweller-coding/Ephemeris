@@ -199,20 +199,40 @@ namespace poly {
 enum : int { Table, Position, Scan, ScanRate, Detune, Spread, Drift, Cutoff, Resonance, EnvAmount, Attack, Release, Chorus,
              Level, Pan, EchoSend, ReverbSend, LowCut, Distance, BlendSend, EarlySend, ShimmerSend,
              // 26.09.2026: the filter model (Filters.h) and its mode.
-             Filter, FilterMode, Count };
+             Filter, FilterMode,
+             // 26.09.2026, modulation (Poly.h, Modulation.h): the amplitude envelope's decay and sustain (Attack and
+             // Release above), the filter's own envelope (or the amplitude's: FiltLink), a modulation envelope, four
+             // LFOs, eight slots of a modulation matrix.
+             AmpDecay, AmpSustain, FiltLink, FiltAttack, FiltDecay, FiltSustain, FiltRelease, EnvVelocity,
+             ModAttack, ModDecay, ModSustain, ModRelease,
+             Lfo1Rate, Lfo1Shape, Lfo1Sync, Lfo1Retrig, Lfo1Fade,
+             Lfo2Rate, Lfo2Shape, Lfo2Sync, Lfo2Retrig, Lfo2Fade,
+             Lfo3Rate, Lfo3Shape, Lfo3Sync, Lfo3Retrig, Lfo3Fade,
+             Lfo4Rate, Lfo4Shape, Lfo4Sync, Lfo4Retrig, Lfo4Fade,
+             Mod1Src, Mod1Dst, Mod1Amt, Mod2Src, Mod2Dst, Mod2Amt, Mod3Src, Mod3Dst, Mod3Amt, Mod4Src, Mod4Dst, Mod4Amt,
+             Mod5Src, Mod5Dst, Mod5Amt, Mod6Src, Mod6Dst, Mod6Amt, Mod7Src, Mod7Dst, Mod7Amt, Mod8Src, Mod8Dst, Mod8Amt, Count };
 }
 /** @brief The LFOs' shapes, tempo divisions, and the modulation matrix's sources and destinations (Modulation.h). */
 extern const char* const kLfoShapeNames[];
 extern const char* const kLfoSyncNames[];
 extern const char* const kModSourceNames[];
 extern const char* const kModDestNames[];
+/** @brief The smaller matrix of the tape keys and the strings: two LFOs; pitch, tone, level, pan (kShortModDest). */
+extern const char* const kShortModSourceNames[];
+extern const char* const kShortModDestNames[];
 /** @brief The names of the filter models (Filters.h, FilterModel order). */
 extern const char* const kFilterNames[];
 /** @brief Parameters of the tape keyboard (module Tape; PLAN 5.4, TapeKeys.h). */
 namespace tape {
 enum : int { Set, Vowel, Wow, Flutter, Sag, Tone, Age, Level, Pan, EchoSend, ReverbSend,
              // 25.09.2026: the strip's low cut; the distance macro; the allpass spread of the mono keyboard.
-             LowCut, Distance, Spread, BlendSend, EarlySend, ShimmerSend, Count };
+             LowCut, Distance, Spread, BlendSend, EarlySend, ShimmerSend,
+             // 26.09.2026: an envelope over the machine's (the swell at its minimum is the pressure pad's own rise, the
+             // release is its fall), two LFOs and four slots (Modulation.h: pitch, tone, level, pan).
+             AmpAttack, AmpDecay, AmpSustain, AmpRelease,
+             Lfo1Rate, Lfo1Shape, Lfo1Sync, Lfo1Retrig, Lfo1Fade,
+             Lfo2Rate, Lfo2Shape, Lfo2Sync, Lfo2Retrig, Lfo2Fade,
+             Mod1Src, Mod1Dst, Mod1Amt, Mod2Src, Mod2Dst, Mod2Amt, Mod3Src, Mod3Dst, Mod3Amt, Mod4Src, Mod4Dst, Mod4Amt, Count };
 }
 extern const char* const kTapeSetNames[];       ///< names of tape.set
 /** @brief The drone's parameters are the lead's table with other defaults (module Drone). */
@@ -223,7 +243,13 @@ enum : int { Attack, Release, Feet, Tone, Ensemble, Level, Pan, EchoSend, Reverb
              // 25.09.2026, after Waldorf's Streichfett: the registration, its animation, the ensemble's type, the phaser.
              Registration, Animate, AnimateRate, EnsembleType, Phaser,
              // the strip's low cut, the distance macro, the send into the blend room
-             LowCut, Distance, BlendSend, EarlySend, ShimmerSend, Count };
+             LowCut, Distance, BlendSend, EarlySend, ShimmerSend,
+             // 26.09.2026: the envelope's decay and sustain (Attack and Release above), two LFOs and four slots
+             // (Modulation.h: pitch, tone, level, pan).
+             AmpDecay, AmpSustain,
+             Lfo1Rate, Lfo1Shape, Lfo1Sync, Lfo1Retrig, Lfo1Fade,
+             Lfo2Rate, Lfo2Shape, Lfo2Sync, Lfo2Retrig, Lfo2Fade,
+             Mod1Src, Mod1Dst, Mod1Amt, Mod2Src, Mod2Dst, Mod2Amt, Mod3Src, Mod3Dst, Mod3Amt, Mod4Src, Mod4Dst, Mod4Amt, Count };
 }
 /** @brief Parameters of the springs (module Spring; Spring.h): fed from the echo's send. */
 namespace spring {
