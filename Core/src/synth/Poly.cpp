@@ -25,6 +25,7 @@ void PolySynth::prepare(double sampleRate, uint64_t seed)
     for (int i = 0; i < kKeys; ++i) {
         keys_[i] = Key{};
         keys_[i].rng.seed(mixSeed(seed, 100 + static_cast<uint64_t>(i)));
+        for (FilterLane& f : keys_[i].filt) f.allocate(2048);   // the comb's lines (24 Hz at 48 kHz)
     }
     size_t len = 1;
     while (len < static_cast<size_t>(0.05 * sampleRate)) len <<= 1;
@@ -40,6 +41,9 @@ void PolySynth::prepare(double sampleRate, uint64_t seed)
 
 void PolySynth::set(const PolySettings& s)
 {
+    // A new filter model starts from rest.
+    if (s.filter != s_.filter)
+        for (Key& k : keys_) for (FilterLane& f : k.filt) f.clear();
     s_ = s;
     table_ = &wavetable(s.table);
     times_.setTimes(std::max(0.005f, s.attackS), 1.0f, 1.0f, std::max(0.05f, s.releaseS));
@@ -77,7 +81,8 @@ void PolySynth::noteOn(int pitch, float velocity, int id)
         k->phase[1] = rng_.uniform();
         k->drift[0] = s_.driftCents * rng_.bipolar();
         k->drift[1] = s_.driftCents * rng_.bipolar();
-        k->filt[0].ic1 = k->filt[0].ic2 = k->filt[1].ic1 = k->filt[1].ic2 = 0.0f;
+        k->filt[0].clear();
+        k->filt[1].clear();
         k->level[0] = k->level[1] = -1;
     }
     k->scanOffset = rng_.uniform();
@@ -115,6 +120,8 @@ void PolySynth::process(float* L, float* R, int n)
     const float wet = 0.7f * chorus, norm = 1.0f / (1.0f + 0.5f * chorus);
     const float keyGain = 0.3f / (1.0f + cross);
     const bool hasTable = table_ != nullptr && !table_->empty();
+    const FilterModel model = static_cast<FilterModel>(std::clamp(s_.filter, 0, kFilterModels - 1));
+    const float fk = FilterVoicing::feedback(model, std::clamp(s_.resonance, 0.0f, 1.0f));
     for (int i = 0; i < n; ++i) {
         const int64_t t = count_ + i;
         const bool control = t % kControl == 0, drift = t % kDrift == 0;
@@ -133,8 +140,8 @@ void PolySynth::process(float* L, float* R, int n)
                 const float scan = 0.5f * s_.scan * static_cast<float>(std::sin(6.283185307179586 * (scanPhase_ + k.scanOffset)));
                 k.position = std::clamp(s_.position + scan, 0.0f, 1.0f);
                 const float octs = 0.5f * static_cast<float>(k.pitch - 60) / 12.0f + s_.envOctaves * k.env.level();
-                k.filt[0].set(s_.cutoffHz * std::exp2(octs), s_.resonance, static_cast<float>(sr_));
-                k.filt[1].copyCoefficients(k.filt[0]);
+                const float fc = std::min(s_.cutoffHz * std::exp2(octs), static_cast<float>(0.45 * sr_));
+                k.g = std::tan(3.14159265f * fc / static_cast<float>(sr_));
             }
             const float env = k.env.process();
             if (!k.env.isActive()) { k.on = false; continue; }
@@ -145,8 +152,8 @@ void PolySynth::process(float* L, float* R, int n)
                 if (k.phase[o] >= 1.0) k.phase[o] -= 1.0;
             }
             const float amp = env * k.velocity * keyGain;
-            l += k.filt[0].lp((a + cross * b) * amp);
-            r += k.filt[1].lp((cross * a + b) * amp);
+            l += k.filt[0].tick(model, (a + cross * b) * amp, k.g, fk, s_.filterMode);
+            r += k.filt[1].tick(model, (cross * a + b) * amp, k.g, fk, s_.filterMode);
         }
         // The ensemble: one line, read on either side with the sweep turned against itself.
         line_[write_] = 0.5f * (l + r);

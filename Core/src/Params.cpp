@@ -443,6 +443,8 @@ const ParamDesc kPolyParams[poly::Count] = {
     { "blend",      "Blend Send",   "",      0.0f,     1.0f,   0.0f, Curve::Linear },
     { "early",      "Early Send",   "",      0.0f,     1.0f,   0.0f, Curve::Linear },
     { "shimmer",    "Shimmer Send", "",      0.0f,     1.0f,   0.1f, Curve::Linear },
+    { "filter",     "Filter",       "",      0.0f,     9.0f,   3.0f, Curve::Choice, kFilterNames },   // the SEM by default
+    { "filter_mode","Filter Mode",  "",      0.0f,     1.0f,   0.0f, Curve::Linear },
 };
 
 const ModuleSpec kModules[static_cast<int>(Module::Count)] = {

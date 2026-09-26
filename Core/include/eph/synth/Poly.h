@@ -19,6 +19,7 @@
 #pragma once
 #include "eph/Dsp.h"
 #include "eph/synth/Wavetable.h"
+#include "eph/synth/Filters.h"
 #include <cstdint>
 #include <vector>
 
@@ -39,6 +40,8 @@ struct PolySettings {
     float attackS = 1.5f;        ///< swell
     float releaseS = 4.0f;       ///< fade after the key
     float chorus = 0.5f;         ///< 0..1 the ensemble's depth and mix
+    int filter = 3;              ///< the filter model (Filters.h; 3: the Oberheim SEM)
+    float filterMode = 0.0f;     ///< its mode (the SEM's morph, the Xpander's response ...)
 };
 
 /** @brief The pad synth; stereo out. */
@@ -66,7 +69,8 @@ private:
         float drift[2] = { 0.0f, 0.0f };
         float scanOffset = 0.0f;   ///< the key's own place in the scan's cycle
         float position = 0.3f;     ///< where in the table it reads (the scan's value of the moment)
-        Svf filt[2];
+        FilterLane filt[2];        ///< left and right (Filters.h)
+        float g = 0.1f;            ///< the filter's tan(pi fc / fs) of the moment
         Rng rng;                   ///< its own drift, so the order of the keys does not matter
     };
     void retune(Key& k);   ///< the oscillators' increments and levels from the pitch, detune and drift

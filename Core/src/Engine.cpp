@@ -384,6 +384,8 @@ void Engine::updateCell()
     ps.attackS = knob(Module::Poly, poly::Attack);
     ps.releaseS = knob(Module::Poly, poly::Release);
     ps.chorus = knob(Module::Poly, poly::Chorus);
+    ps.filter = static_cast<int>(std::lround(knob(Module::Poly, poly::Filter)));
+    ps.filterMode = knob(Module::Poly, poly::FilterMode);
     if (changed(cache_.poly, ps, cache_.valid)) poly_.set(ps);
     strips_[kSrcPoly].running = poly_.active();
     setStrip(kSrcPoly, knob(Module::Poly, poly::Level) + 0.3f * wave(1.37) + 0.2f * wave(1.13), knob(Module::Poly, poly::Pan),

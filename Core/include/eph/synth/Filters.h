@@ -27,7 +27,10 @@
  */
 #pragma once
 #include "eph/Vec.h"
+#include <algorithm>
+#include <cmath>
 #include <cstdint>
+#include <vector>
 
 #ifndef EPH_FORCE_INLINE
   #if defined(_MSC_VER)
@@ -287,6 +290,72 @@ struct FilterVoicing {
         case FilterModel::Diode: return 1.0f + 0.3f * k;
         default: return 1.0f;
         }
+    }
+};
+
+/** @brief The Xpander's pole mixes (FilterModel::Xpander): weights of the cascade's input and its four stages. */
+inline const float* poleMix(float mode)
+{
+    static const float kMix[8][5] = { { 0, 0, 0, 0, 1 }, { 0, 0, 1, 0, 0 }, { 0, 2, -2, 0, 0 }, { 0, 0, 4, -8, 4 },
+                                      { 1, -2, 1, 0, 0 }, { 1, -4, 6, -4, 1 }, { 1, -2, 2, 0, 0 }, { 1, -4, 4, 0, 0 } };
+    return kMix[std::clamp(static_cast<int>(std::lround(mode * 7.0f)), 0, 7)];
+}
+
+/**
+ * @brief One filter of any model on one lane (the pad synth's; the voice bank's kernel runs the same models in its
+ *        registers): its nodes, its states and, for the comb, its line.
+ */
+struct FilterLane {
+    float v[4] = {}, s[4] = {};
+    std::vector<float> line;   ///< the comb's line (allocate(); a power of two)
+    int pos = 0;
+    float damp = 0.0f;
+    void allocate(int length) { line.assign(static_cast<size_t>(length), 0.0f); pos = 0; }   ///< not on the audio thread
+    void clear() { for (int i = 0; i < 4; ++i) v[i] = s[i] = 0.0f; std::fill(line.begin(), line.end(), 0.0f); damp = 0.0f; }
+    /**
+     * @brief One sample through model @p m: @p g tan(pi fc / fs), @p k the model's feedback (FilterVoicing::feedback),
+     *        @p mode its mode; the pass band's makeup applied.
+     */
+    float tick(FilterModel m, float x, float g, float k, float mode)
+    {
+        float y = 0.0f;
+        switch (m) {
+        case FilterModel::Moog: y = ladderMoog<float>(v, s, x, g, k); break;
+        case FilterModel::Prophet: case FilterModel::Juno:
+            y = otaCascade<float>(v, s, x, g, k, FilterVoicing::otaDrive(m), FilterVoicing::otaRes(m));
+            break;
+        case FilterModel::Xpander: {
+            otaCascade<float>(v, s, x, g, k, FilterVoicing::otaDrive(m), FilterVoicing::otaRes(m));
+            const float r = FilterVoicing::otaRes(m);
+            const float a0 = x - k * ftanh<float>(r * v[3]) / r;
+            const float* w = poleMix(mode);
+            y = w[0] * a0 + w[1] * v[0] + w[2] * v[1] + w[3] * v[2] + w[4] * v[3];
+            break;
+        }
+        case FilterModel::Sem: case FilterModel::Wasp:
+            y = svfNonlinear<float>(v, s, x, g, k, FilterVoicing::svfRange(m), FilterVoicing::svfAsym(m), mode);
+            break;
+        case FilterModel::Polivoks: y = svfNonlinear<float>(v, s, x, g, k, FilterVoicing::svfRange(m), 0.0f, mode, true); break;
+        case FilterModel::Diode: y = diodeLadder<float>(v, s, x, g * 0.70710678f, k); break;
+        case FilterModel::Korg35: y = korg35<float>(v, s, x, g, k); break;
+        case FilterModel::Comb: {
+            if (line.empty()) return 0.0f;
+            const int len = static_cast<int>(line.size());
+            const float period = std::min(static_cast<float>(len - 2), 3.14159265f / std::atan(std::max(g, 1e-4f)));
+            float rp = static_cast<float>(pos) - period;
+            if (rp < 0.0f) rp += static_cast<float>(len);
+            const int i0 = static_cast<int>(rp);
+            const float d = line[static_cast<size_t>(i0)] + (rp - static_cast<float>(i0)) * (line[static_cast<size_t>((i0 + 1) & (len - 1))] - line[static_cast<size_t>(i0)]);
+            damp += 0.5f * (d - damp);
+            const float yv = x + (mode >= 0.5f ? -k : k) * damp;
+            line[static_cast<size_t>(pos)] = yv;
+            pos = (pos + 1) & (len - 1);
+            y = 0.5f * yv;
+            break;
+        }
+        default: break;
+        }
+        return y * FilterVoicing::makeup(m, k);
     }
 };
 

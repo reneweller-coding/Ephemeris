@@ -175,7 +175,9 @@ enum : int { Wave, Detune, PulseWidth, Drift, Drive, Cutoff, Resonance, EnvAmoun
 /** @brief Parameters of the pad synth (module Poly, 25.09.2026; Poly.h, Wavetable.h). */
 namespace poly {
 enum : int { Table, Position, Scan, ScanRate, Detune, Spread, Drift, Cutoff, Resonance, EnvAmount, Attack, Release, Chorus,
-             Level, Pan, EchoSend, ReverbSend, LowCut, Distance, BlendSend, EarlySend, ShimmerSend, Count };
+             Level, Pan, EchoSend, ReverbSend, LowCut, Distance, BlendSend, EarlySend, ShimmerSend,
+             // 26.09.2026: the filter model (Filters.h) and its mode.
+             Filter, FilterMode, Count };
 }
 /** @brief The names of the filter models (Filters.h, FilterModel order). */
 extern const char* const kFilterNames[];
