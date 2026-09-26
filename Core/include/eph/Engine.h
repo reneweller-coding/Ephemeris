@@ -22,6 +22,7 @@
  */
 #pragma once
 #include <array>
+#include <atomic>
 #include "eph/synth/Atmos.h"
 #include "eph/synth/Drums.h"
 #include "eph/fx/Dynamics.h"
@@ -53,8 +54,14 @@ public:
 
     /** @brief Sets the sample rate and the largest block; call before load(). */
     void prepare(double sampleRate, int maxBlock);
-    /** @brief Replaces the score (not from the audio thread) and returns to its start. */
-    void load(const Score& score);
+    /**
+     * @brief Replaces the score (not from the audio thread) and returns to its start.
+     * @param sounds put the knob settings of the score's start (Score::knobs, the composer's sounds) on the knobs
+     *               now; false where the knobs already hold them (the plugin decides which synths take a new sound,
+     *               a restored state or a loaded set already has them). Later ones -- a concert's next pieces -- the
+     *               engine puts on the knobs where they begin, on the sample.
+     */
+    void load(const Score& score, bool sounds = true);
     /**
      * @brief The quality level's one setting so far: the singers per choir key (TapeKeys::setSingers), 6 on
      *        the desktop, 3 on the Quest. Kept across load().
@@ -71,6 +78,11 @@ public:
      *        gesture are found again, the settings are read at once. The rooms ring on.
      */
     void seek(double beat);
+    /** @brief Counts the knob settings the engine has put on the knobs while playing or seeking (a concert's next
+     *         piece): the plugin tells the host and the pages when it moves. */
+    uint32_t soundsVersion() const { return soundsVersion_.load(std::memory_order_relaxed); }
+    /** @brief The beat of the knob settings that hold (0: the first piece's; -1: none). */
+    double soundGroup() const { return soundGroup_.load(std::memory_order_relaxed); }
 
     /** @brief The score being played. */
     const Score& score() const { return score_; }
@@ -204,6 +216,11 @@ private:
     int maxBlock_ = 512;
     int64_t sample_ = 0;
     bool cellDirty_ = false;   ///< read the settings at the next sample, not only at the raster (after a seek)
+    size_t knobCursor_ = 0;    ///< the next of the score's knob settings to put on the knobs
+    std::atomic<double> soundGroup_ { -1.0 };   ///< the beat of the knob settings that hold (the piece whose sounds these are)
+    std::atomic<uint32_t> soundsVersion_ { 0 };   ///< soundsVersion()
+    /** @brief Puts the score's knob settings up to @p beat on the knobs, from the cursor on. */
+    void applyKnobs(double beat);
     std::vector<Ev> events_;
     size_t evCursor_ = 0;
     std::vector<Track> tracks_;

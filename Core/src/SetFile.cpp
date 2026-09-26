@@ -22,6 +22,7 @@ bool saveSet(const char* path, const SetFile& set, const ParamStore& params)
     f << "minutes=" << buf << "\n";
     std::snprintf(buf, sizeof(buf), "%.9g", set.concert);
     f << "concert=" << buf << "\n";
+    f << "sounds=knobs\n";   // the parameters hold the composer's sounds (SetFile::soundsInParams)
     for (const auto& r : set.curation.rerolls)
         if (r.second != 0) f << "reroll " << r.first << "=" << r.second << "\n";
     std::istringstream lines(params.toText(true));
@@ -45,6 +46,7 @@ bool loadSet(const char* path, SetFile& set, ParamStore& params, std::string* er
         if (line.rfind("seed=", 0) == 0) set.seed = std::strtoull(value(5).c_str(), nullptr, 10);
         else if (line.rfind("minutes=", 0) == 0) set.minutes = std::atof(value(8).c_str());
         else if (line.rfind("concert=", 0) == 0) set.concert = std::atof(value(8).c_str());
+        else if (line.rfind("sounds=", 0) == 0) set.soundsInParams = value(7) == "knobs";
         else if (line.rfind("reroll ", 0) == 0) {
             const size_t eq = line.find('=');
             if (eq == std::string::npos) { if (error) *error = "line " + std::to_string(n) + ": reroll without '='"; return false; }

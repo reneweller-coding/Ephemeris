@@ -190,6 +190,15 @@ private:
     eph::Score current_;                    ///< what the engine plays (for reloading and the arrange view)
     std::atomic<bool> composing_{ false }, playing_{ false }, exporting_{ false };
     std::atomic<bool> again_{ false };   ///< compose was asked for while composing: once more when done
+    // The composer's sounds (Score::knobs, 26.09.2026): a new piece puts them on the knobs of the synths whose sound it
+    // changes; after a restored state or a loaded set the knobs already hold them.
+    std::atomic<bool> adoptNext_{ false };   ///< the next composition's sounds are already on the knobs
+    bool pendingAdopt_ = false;              ///< ... and the one in pending_ was such a composition
+    uint32_t toldSounds_ = 0;                ///< the engine's soundsVersion() the host and the pages were last told
+    /** @brief Puts @p next's sounds at its start on the knobs of every synth whose sound differs from the playing score's. */
+    void takeSounds(const eph::Score& next);
+    /** @brief Tells the host and the pages the values of the knobs @p s sets (the engine set them). */
+    void tellSounds(const eph::Score& s);
     std::atomic<double> position_{ 0.0 }, seekRequest_{ -1.0 };
     double sampleRate_ = 48000.0;
     int blockSize_ = 512;

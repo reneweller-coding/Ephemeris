@@ -640,14 +640,33 @@ void writeAtmosphere(Piece& c)
 }
 
 /**
+ * @brief Sets knob @p id of synth @p m / @p instance for the piece (compose.pick_sounds, 26.09.2026): on the piece's copy of
+ *        the parameters, so every move written after it moves from there, and in the score's knob settings, which the
+ *        engine puts on the knobs where the piece begins. A step of the same knob at the piece's start goes: the knob
+ *        now is that value.
+ */
+void setKnob(Piece& c, Module m, int instance, int id, float v)
+{
+    const ParamDesc& d = c.p.desc(id);
+    v = std::clamp(v, d.minValue, d.maxValue);
+    c.p.set(id, v);
+    auto& g = c.s.gestures;
+    g.erase(std::remove_if(g.begin(), g.end(), [id](const Gesture& x) { return x.param == id && x.beat <= 1e-9 && x.shape == GestureShape::Step; }),
+            g.end());
+    for (KnobSet& k : c.s.knobs) if (k.param == id && k.beat <= 1e-9) { k.value = v; return; }
+    c.s.knobs.push_back({ 0.0, id, v, static_cast<int>(m), instance });
+}
+
+/**
  * @brief The piece's sounds (compose.pick_sounds, 25.09.2026): a factory preset for every synth, from the groups that
  *        fit its part -- the bass row a bass, the main sequence a squelchy, resonant or plucked one, the other counter
  *        rows glass, hollow or plucked, the lead and the kit the style's, the tape keys a group of the style's tape
- *        set -- on a row of the dark-to-bright grid near the style's darkness. Set as steps at the start (the knobs
- *        stay the user's), nudged where the part needs it (a bass not too bright, a main sequence with resonance and
- *        a deep envelope), and noted in the score for the pages. Its own stream: "reroll sounds" draws them again.
+ *        set -- on a row of the dark-to-bright grid near the style's darkness. Set on the knobs themselves as the piece
+ *        begins (setKnob, 26.09.2026: a program change, no longer an offset), nudged where the part needs it (a bass not
+ *        too bright, a main sequence with resonance and a deep envelope), and noted in the score for the pages. Its own
+ *        stream: "reroll sounds" draws them again.
  */
-void writeSounds(Piece& c, const std::function<void(int, float)>& setTo)
+void writeSounds(Piece& c)
 {
     ParamStore& p = c.p;
     Rng r = c.stream(sSounds);
@@ -676,7 +695,7 @@ void writeSounds(Piece& c, const std::function<void(int, float)>& setTo)
             values.push_back({ k, v });
         }
         if (nudge) nudge(values);
-        for (const auto& [k, v] : values) setTo(p.id(m, inst, k), v);
+        for (const auto& [k, v] : values) setKnob(c, m, inst, p.id(m, inst, k), v);
         c.s.sounds.push_back({ 0.0, static_cast<int>(m), inst, index });
     };
     // The rows: the bass round and not too bright, the main sequence squelchy (resonance, a deep envelope, accents,
@@ -737,9 +756,9 @@ void writeSounds(Piece& c, const std::function<void(int, float)>& setTo)
             const char* name = kChoice[wt.below(static_cast<int>(sizeof(kChoice) / sizeof(kChoice[0])))];
             int index = 0;
             for (int i = 0; i < kWavetableCount; ++i) if (std::string(kWavetableNames[i]) == name) index = i;
-            setTo(p.id(Module::Voice, r, voice::Table), static_cast<float>(index + 1));
-            setTo(p.id(Module::Voice, r, voice::TablePos), 0.1f + 0.6f * wt.uniform());
-            setTo(p.id(Module::Voice, r, voice::TableMod), 0.3f + 0.5f * wt.uniform());
+            setKnob(c, Module::Voice, r, p.id(Module::Voice, r, voice::Table), static_cast<float>(index + 1));
+            setKnob(c, Module::Voice, r, p.id(Module::Voice, r, voice::TablePos), 0.1f + 0.6f * wt.uniform());
+            setKnob(c, Module::Voice, r, p.id(Module::Voice, r, voice::TableMod), 0.3f + 0.5f * wt.uniform());
         };
         for (int k = 1; k < c.counters; ++k) if (wt.uniform() < kTable[si]) table(k + 1);
         if (c.counters > 0 && c.style == Style::Modern && wt.uniform() < 0.25f) table(1);
@@ -936,7 +955,7 @@ void writeSettings(Piece& c)
     // nudged to the same ends (writeSounds).
     const bool pick = p.getBool(p.id(Module::Compose, 0, compose::PickSounds));
     auto voiceTo = [&](int r, int index, float v) { if (!pick) setTo(p.id(Module::Voice, r, index), v); };
-    if (pick) writeSounds(c, setTo);
+    if (pick) writeSounds(c);
     voiceTo(0, voice::Resonance, 0.3f); voiceTo(0, voice::EnvAmount, 2.5f); voiceTo(0, voice::Decay, 260.0f); voiceTo(0, voice::Cutoff, 320.0f);
     voiceTo(0, voice::Accent, 0.6f);
     setTo(p.id(Module::Row, 0, row::Sweep), 0.3f);
@@ -956,7 +975,8 @@ void writeSettings(Piece& c)
     const float into0 = p.get(into);
     alongForm(into, into0, [&](SectionType t) { return t == SectionType::Peak ? 0.05f : into0; });
     // The foundation in pure intervals (the addon's 3): the bass row's two oscillators without detune.
-    setTo(p.id(Module::Voice, 0, voice::Detune), 0.0f);
+    if (pick) setKnob(c, Module::Voice, 0, p.id(Module::Voice, 0, voice::Detune), 0.0f);
+    else setTo(p.id(Module::Voice, 0, voice::Detune), 0.0f);
     // The pads step back 3 dB while the lead plays (7.2): its section and the peak after it.
     for (int ph = 0; ph < c.phases; ++ph) {
         const Section* lead = c.form.find(SectionType::Lead, ph);
@@ -1275,6 +1295,10 @@ void toOtherBank(Score& s)
     for (RackEvent& e : s.rack) if (e.row >= 0) e.row = (e.row + kRows / 2) % kRows;
     for (RowShape& r : s.rowShapes) r.row = (r.row + kRows / 2) % kRows;
     for (SoundPick& k : s.sounds) if (k.module == static_cast<int>(Module::Voice)) k.instance = (k.instance + kRows / 2) % kRows;
+    for (KnobSet& k : s.knobs) {
+        if (k.param >= 0 && k.param < static_cast<int>(rp.other.size())) k.param = rp.other[static_cast<size_t>(k.param)];
+        if (k.module == static_cast<int>(Module::Voice)) k.instance = (k.instance + kRows / 2) % kRows;
+    }
 }
 
 /**
@@ -1431,6 +1455,7 @@ void mixInto(Score& dst, const Score& src, double overlap, int rootOffset, int s
     }
     std::stable_sort(dst.rowShapes.begin(), dst.rowShapes.end(), [](const RowShape& a, const RowShape& b) { return a.from < b.from; });
     for (SoundPick k : src.sounds) { k.beat += at; dst.sounds.push_back(k); }
+    for (KnobSet k : src.knobs) { k.beat += at; dst.knobs.push_back(k); }
     dst.lengthBeats = at + src.lengthBeats;
     dst.sort();
 }
@@ -1504,7 +1529,8 @@ Score composeConcert(const ParamStore& p, uint64_t seed, double minutes, const C
                                    "piece" + std::to_string(i + 1) + ".", album ? &own : (shaped ? &prof : nullptr));
         for (Marker& mk : piece.markers) mk.text = "Stueck " + std::to_string(i + 1) + ": " + mk.text;
         if (i == 0) { out = piece; out.rootShifts.clear(); out.scaleShifts.clear(); out.lengthBeats = 0.0; out.notes.clear(); out.gestures.clear();
-                      out.rack.clear(); out.markers.clear(); out.rowShapes.clear(); out.sounds.clear(); }
+                      out.rack.clear(); out.markers.clear(); out.rowShapes.clear(); out.sounds.clear();
+                      out.knobs.clear(); }
         const double before = out.tempo.secondsAt(out.lengthBeats);
         appendScore(out, piece, shift);
         elapsed += out.tempo.secondsAt(out.lengthBeats) - before;
@@ -1600,7 +1626,8 @@ Score composeNightSet(const ParamStore& p, uint64_t seed, double minutes, const 
         if (bank == 1) toOtherBank(piece);
         for (Marker& mk : piece.markers) mk.text = "Stueck " + std::to_string(i + 1) + " (" + prof.name + "): " + mk.text;
         if (i == 0) { out = piece; out.rootShifts.clear(); out.scaleShifts.clear(); out.lengthBeats = 0.0; out.notes.clear(); out.gestures.clear();
-                      out.rack.clear(); out.markers.clear(); out.rowShapes.clear(); out.sounds.clear(); }
+                      out.rack.clear(); out.markers.clear(); out.rowShapes.clear(); out.sounds.clear();
+                      out.knobs.clear(); }
         mixInto(out, piece, overlapIn * kBeatsPerBar, shift, bank);
         elapsed = out.tempo.secondsAt(out.lengthBeats);
         endBpm = out.tempo.bpmAt(out.lengthBeats);

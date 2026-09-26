@@ -120,6 +120,8 @@ int main(int argc, char** argv)
 
     Engine engine;
     engine.setTapeSingers(singers);
+    bool soundsKept = false;   // a set whose parameters hold the composer's sounds
+    double setMinutes = 0.0;   // the piece's length, for --save-set
     ParamStore& p = engine.params();
     if (!setIn.empty()) {
         // A saved set: its seed, lengths, parameters and rerolls; the command line's rerolls come on top.
@@ -127,6 +129,7 @@ int main(int argc, char** argv)
         std::string err;
         if (!loadSet(setIn.c_str(), sf, p, &err)) { std::fprintf(stderr, "--set-file: %s\n", err.c_str()); return 2; }
         seed = sf.seed;
+        soundsKept = sf.soundsInParams;
         if (minutes <= 0.0) minutes = sf.minutes;
         if (concert <= 0.0) concert = sf.concert;
         for (const auto& r : curation.rerolls) sf.curation.rerolls[r.first] += r.second;
@@ -181,14 +184,7 @@ int main(int argc, char** argv)
         else if (sketch) score = buildSketch(p, seed, mins);
         else if (concert > 0.0) score = composeConcert(p, seed, concert, &curation);
         else score = composePiece(p, seed, mins, 0, &curation);
-        if (!setOut.empty()) {
-            SetFile sf;
-            sf.seed = seed;
-            sf.minutes = mins;
-            sf.concert = concert;
-            sf.curation = curation;
-            if (!saveSet(setOut.c_str(), sf, p)) { std::fprintf(stderr, "cannot write %s\n", setOut.c_str()); return 1; }
-        }
+        setMinutes = mins;
         bars = score.lengthBeats / kBeatsPerBar;
     } else {
         // The frame of Phase 0: a tempo map, a length and two markers.
@@ -209,7 +205,17 @@ int main(int argc, char** argv)
         score.markers.push_back({ score.lengthBeats, "End" });
     }
     engine.prepare(rate, block);
-    engine.load(score);
+    // The composer's sounds onto the knobs, as the plugin does with a new piece -- unless a saved set's parameters
+    // already hold them (SetFile::soundsInParams).
+    engine.load(score, !soundsKept);
+    if (!setOut.empty() && !frame) {
+        SetFile sf;
+        sf.seed = seed;
+        sf.minutes = setMinutes;
+        sf.concert = concert;
+        sf.curation = curation;
+        if (!saveSet(setOut.c_str(), sf, p)) { std::fprintf(stderr, "cannot write %s\n", setOut.c_str()); return 1; }
+    }
     if (!cuesOut.empty()) {
         FILE* f = std::fopen(cuesOut.c_str(), "w");
         if (f == nullptr) { std::fprintf(stderr, "cannot write %s\n", cuesOut.c_str()); return 1; }

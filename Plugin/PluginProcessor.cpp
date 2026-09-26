@@ -3,6 +3,7 @@
  * @brief The plugin's processor.
  */
 #include "PluginProcessor.h"
+#include <map>
 #include "PluginEditor.h"
 #include "eph/Loudness.h"
 #include "eph/Presets.h"
@@ -179,12 +180,50 @@ juce::String EphemerisProcessor::curationText() const
 
 void EphemerisProcessor::run()
 {
+    const bool adopt = adoptNext_.exchange(false);
     auto score = std::make_unique<Score>(composeNow());
     {
         std::lock_guard<std::mutex> g(lock_);
         pending_ = std::move(score);
+        pendingAdopt_ = adopt;
     }
     composing_ = false;
+}
+
+void EphemerisProcessor::takeSounds(const Score& next)
+{
+    // Per synth: the values the new piece sets at its start against those of the piece playing. A synth whose sound
+    // stays (a reroll of the rows, say) keeps its knobs as the player left them; one with a new sound takes it, as a
+    // program change.
+    using Key = std::pair<int, int>;
+    auto startOf = [](const Score& s) {
+        std::map<Key, std::vector<std::pair<int, float>>> m;
+        for (const KnobSet& k : s.knobs) if (k.beat <= 1e-9) m[{ k.module, k.instance }].push_back({ k.param, k.value });
+        return m;
+    };
+    std::map<Key, std::vector<std::pair<int, float>>> was;
+    if (engine_.soundGroup() <= 1e-9) {   // (a concert's later piece on the knobs: every synth takes the new start)
+        std::lock_guard<std::mutex> g(lock_);
+        was = startOf(current_);
+    }
+    for (const auto& [synth, values] : startOf(next)) {
+        const auto old = was.find(synth);
+        if (old != was.end() && old->second == values) continue;
+        for (const auto& [id, v] : values) {
+            store().set(id, v);
+            if (StoreParameter* p = parameter(id)) p->sendValueChangedMessageToListeners(p->getValue());
+        }
+    }
+}
+
+void EphemerisProcessor::tellSounds(const Score& s)
+{
+    std::vector<bool> told(static_cast<size_t>(store().count()), false);
+    for (const KnobSet& k : s.knobs) {
+        if (k.param < 0 || k.param >= static_cast<int>(told.size()) || told[static_cast<size_t>(k.param)]) continue;
+        told[static_cast<size_t>(k.param)] = true;
+        if (StoreParameter* p = parameter(k.param)) p->sendValueChangedMessageToListeners(p->getValue());
+    }
 }
 
 void EphemerisProcessor::timerCallback()
@@ -203,9 +242,30 @@ void EphemerisProcessor::timerCallback()
         }
     }
     std::unique_ptr<Score> next;
+    bool adopt = false;
     {
         std::lock_guard<std::mutex> g(lock_);
         next = std::move(pending_);
+        adopt = pendingAdopt_;
+    }
+    // A piece asked for again while it was composed is out of date: the next one comes (and inherits its word on the
+    // sounds -- a state restored right after the start must not be overwritten by the first piece's).
+    if (next && again_ && !composing_) {
+        next.reset();
+        again_ = false;
+        if (adopt) adoptNext_ = true;
+        compose();
+        return;
+    }
+    // A concert's next piece brought its sounds (the engine put them on the knobs): the host and the pages are told.
+    if (const uint32_t v = engine_.soundsVersion(); v != toldSounds_) {
+        toldSounds_ = v;
+        Score s;
+        {
+            std::lock_guard<std::mutex> g(lock_);
+            s.knobs = current_.knobs;
+        }
+        tellSounds(s);
     }
     if (!next) {
         // In a host the piece plays at the host's tempo. A new tempo means new sample positions for every
@@ -221,7 +281,7 @@ void EphemerisProcessor::timerCallback()
             suspendProcessing(true);
             const double beat = engine_.beat();
             engine_.prepare(sampleRate_, blockSize_);
-            engine_.load(s);
+            engine_.load(s, false);   // the knobs hold the sounds as they are
             engine_.seek(beat);
             playedBpm_ = bpm;
             suspendProcessing(false);
@@ -231,8 +291,10 @@ void EphemerisProcessor::timerCallback()
     }
     // The engine allocates when it loads: never on the audio thread.
     suspendProcessing(true);
+    if (!adopt) takeSounds(*next);
     engine_.prepare(sampleRate_, blockSize_);
-    engine_.load(forPlayback(*next));
+    engine_.load(forPlayback(*next), false);
+    toldSounds_ = engine_.soundsVersion();
     playedBpm_ = wrapperType != wrapperType_Standalone ? hostBpm_.load() : 0.0;
     {
         std::lock_guard<std::mutex> g(lock_);
@@ -285,7 +347,7 @@ void EphemerisProcessor::prepareToPlay(double sampleRate, int samplesPerBlock)
         recordPos_ = 0;
     }
     std::lock_guard<std::mutex> g(lock_);
-    engine_.load(forPlayback(current_));
+    engine_.load(forPlayback(current_), false);   // the knobs hold the sounds as they are
     playedBpm_ = wrapperType != wrapperType_Standalone ? hostBpm_.load() : 0.0;
 }
 
@@ -389,6 +451,7 @@ bool EphemerisProcessor::loadSet(const juce::File& file)
     SetFile sf;
     std::string err;
     if (!eph::loadSet(file.getFullPathName().toRawUTF8(), sf, store(), &err)) return false;
+    adoptNext_ = sf.soundsInParams;   // its parameters hold the sounds as they were played
     {
         std::lock_guard<std::mutex> g(lock_);
         seed_ = sf.seed;
@@ -411,12 +474,13 @@ void EphemerisProcessor::exportTo(const juce::File& wav, bool stems)
     }
     auto params = std::make_shared<ParamStore>();
     params->copyValuesFrom(store());
+    const bool fresh = engine_.soundGroup() > 1e-9;   // a concert's later piece on the knobs: the export starts with the first's
     const juce::File mid = wav.withFileExtension(".mid");
-    exporter_ = std::make_unique<std::thread>([this, score, params, wav, mid, stems]() {
+    exporter_ = std::make_unique<std::thread>([this, score, params, wav, mid, stems, fresh]() {
         Engine e;
         e.params().copyValuesFrom(*params);
         e.prepare(48000.0, 512);
-        e.load(score);
+        e.load(score, fresh);   // the knobs as they are, the piece's sounds on them -- unless a concert's later piece holds them
         WavWriter w;
         bool ok = w.open(wav.getFullPathName().toRawUTF8(), 48000, 2, WavFormat::Pcm24);
         // The stems: a WAV per channel strip and one for the rooms, in a folder beside the mix.
@@ -609,6 +673,7 @@ void EphemerisProcessor::getStateInformation(juce::MemoryBlock& destData)
         xml.setAttribute("rerolls", rerolls);
     }
     xml.setAttribute("params", juce::String(store().toText(true)));
+    xml.setAttribute("sounds", "knobs");   // the parameters hold the composer's sounds (26.09.2026)
     juce::String cc;
     for (int c = 0; c < 128; ++c)
         if (const int id = ccMap_[static_cast<size_t>(c)].load(); id >= 0) cc << c << "=" << juce::String(store().key(id)) << ";";
@@ -637,6 +702,7 @@ void EphemerisProcessor::setStateInformation(const void* data, int sizeInBytes)
         for (const auto& item : juce::StringArray::fromTokens(xml->getStringAttribute("rerolls"), ";", ""))
             if (item.contains("=")) curation_.rerolls[item.upToFirstOccurrenceOf("=", false, false).toStdString()] = item.fromFirstOccurrenceOf("=", false, false).getIntValue();
     }
+    adoptNext_ = xml->getStringAttribute("sounds") == "knobs";   // the knobs as they were saved, the sounds among them
     compose();
 }
 

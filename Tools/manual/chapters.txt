@@ -252,9 +252,12 @@ Arp, Resonant Sweep, Pluck Sequence, Tape Sequence, Staccato Pulse or Accent Rat
 deep envelope; the other counter rows from the glass, hollow and plucked groups; the lead and the kit by the
 style, the tape keys from the style's tape set -- darker in Doom, brighter in Melodic. The preset bar of
 each synth page shows "this piece: ..." with the name where the piece now plays, the mixer shows it under
-each strip's name, and reroll sounds draws others while every note stays. The presets act as the
-composer's settings do, as offsets at the start of the piece: your knobs stay yours, and the choice is not
-written into them. Off, every piece plays your knobs.
+each strip's name, and reroll sounds draws others while every note stays. The composer sets the preset on the
+synth's knobs as the piece begins, as a program change: the page shows what plays, and a knob you turn moves from
+the preset's value. A synth whose sound a new piece keeps -- after a reroll of the rows or the form, say -- keeps
+your knobs as you left them; a new sound replaces them. In a concert each piece brings its sounds as it begins (a
+jump into another piece takes that piece's, a jump inside one leaves your knobs). A saved set and a saved session
+keep the knobs as they were, the sounds among them. Off, every piece plays your knobs as they are.
 
 The knobs the player's hands move during a piece -- cutoff, resonance, envelope amount, decay -- are
 moved by the composer's gestures as offsets from where the piece's settings put them, so the ranges you

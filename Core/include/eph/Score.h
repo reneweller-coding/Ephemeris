@@ -117,6 +117,19 @@ struct SoundPick {
     int preset = -1;     ///< its index in factoryPresets(module)
 };
 
+/**
+ * @brief A knob the composer sets, from a beat on (26.09.2026): the sound of a synth as a program change -- the preset it
+ *        chose for the piece (compose.pick_sounds), set on the knob itself where the piece begins. Unlike a gesture it
+ *        is no offset: the page shows it, and a hand that turns the knob turns it from there.
+ */
+struct KnobSet {
+    double beat = 0.0;    ///< from where it holds (each piece of a concert brings its own)
+    int param = -1;       ///< the parameter
+    float value = 0.0f;   ///< its value
+    int module = 0;       ///< the synth it belongs to (Module, as an int): a program change is per synth
+    int instance = 0;     ///< ... and its instance (the row, for the voices)
+};
+
 /** @brief A named position: a phase of a piece, the start of a piece. */
 struct Marker {
     double beat = 0.0;   ///< position in beats
@@ -137,7 +150,8 @@ struct Score {
     std::vector<RackEvent> rack;       ///< rack events, sorted by beat after sort()
     std::vector<Marker> markers;       ///< markers, sorted by beat after sort()
     std::vector<RowShape> rowShapes;   ///< the rows as composed (Composer), in beat order; nothing plays from it
-    std::vector<SoundPick> sounds;     ///< the composer's presets, in beat order; nothing plays from it (the gestures do)
+    std::vector<SoundPick> sounds;     ///< the composer's presets, in beat order: what the pages show
+    std::vector<KnobSet> knobs;        ///< the knobs the composer sets to its presets, in beat order (Engine::load, updateCell)
     /** The transposer's roots over time as (beat, semitones), written by whoever ran the rack; the
      *  atmosphere's bleeps and anything else that must be in the rows' root read it. */
     std::vector<std::pair<double, int>> rootShifts;

@@ -34,13 +34,22 @@ void Engine::prepare(double sampleRate, int maxBlock)
     sample_ = 0;
 }
 
-void Engine::load(const Score& score)
+void Engine::load(const Score& score, bool sounds)
 {
     score_ = score;
     score_.sort();
     cueMarks_ = cueMarksOf(score_);
     sample_ = 0;
     evCursor_ = 0;
+    // The composer's sounds at the start (Score::knobs): on the knobs now, or already there (the caller's word).
+    knobCursor_ = 0;
+    soundGroup_ = -1.0;
+    if (sounds) {
+        applyKnobs(0.0);
+    } else {
+        while (knobCursor_ < score_.knobs.size() && score_.knobs[knobCursor_].beat <= 1e-9) ++knobCursor_;
+        if (knobCursor_ > 0) soundGroup_ = 0.0;
+    }
 
     // Notes onto the sample grid. A note whose predecessor on the same source slides into it is legato:
     // the voice glides instead of retriggering.
@@ -313,6 +322,8 @@ void Engine::updateCell()
 {
     // Gesture offsets at this cell's beat.
     const double beat = score_.tempo.beatAt(seconds());
+    // A concert's next piece brings its sounds: the composer's knob settings on the knobs, where it begins.
+    if (knobCursor_ < score_.knobs.size() && score_.knobs[knobCursor_].beat <= beat + 1e-9) applyKnobs(beat);
     auto knob = [&](Module m, int index) { return played(params_.id(m, 0, index)); };
     // Hold (perform.hold): the hands let go, every gesture stands where it is until they take the knobs again.
     const bool hold = knob(Module::Perform, perform::Hold) >= 0.5f;
@@ -979,8 +990,32 @@ void Engine::renderSpan(float* L, float* R, int n)
         for (int i = 0; i < n; ++i) L[i] = R[i] = 0.5f * (L[i] + R[i]);
 }
 
+void Engine::applyKnobs(double beat)
+{
+    bool any = false;
+    while (knobCursor_ < score_.knobs.size() && score_.knobs[knobCursor_].beat <= beat + 1e-9) {
+        const KnobSet& k = score_.knobs[knobCursor_++];
+        if (k.param >= 0 && k.param < params_.count()) params_.set(k.param, k.value);
+        soundGroup_ = k.beat;
+        any = true;
+    }
+    if (any) soundsVersion_.fetch_add(1, std::memory_order_relaxed);
+}
+
 void Engine::seek(double beat)
 {
+    // A jump into another piece (a concert) takes that piece's sounds, as playing into it would have; a jump inside the
+    // piece leaves the knobs as the player has them.
+    {
+        double group = -1.0;
+        for (const KnobSet& k : score_.knobs) if (k.beat <= beat + 1e-9) group = k.beat;
+        if (group != soundGroup_) {
+            knobCursor_ = 0;
+            applyKnobs(beat);
+        }
+        knobCursor_ = static_cast<size_t>(std::upper_bound(score_.knobs.begin(), score_.knobs.end(), beat + 1e-9,
+            [](double b, const KnobSet& k) { return b < k.beat; }) - score_.knobs.begin());
+    }
     sample_ = std::llround(score_.tempo.secondsAt(std::max(0.0, beat)) * sampleRate_);
     evCursor_ = static_cast<size_t>(std::lower_bound(events_.begin(), events_.end(), sample_,
         [](const Ev& e, int64_t s) { return e.sample < s; }) - events_.begin());

@@ -39,6 +39,7 @@ void Score::sort()
     std::stable_sort(gestures.begin(), gestures.end(), [](const Gesture& a, const Gesture& b) { return a.beat < b.beat; });
     std::stable_sort(rack.begin(), rack.end(), [](const RackEvent& a, const RackEvent& b) { return a.beat < b.beat; });
     std::stable_sort(markers.begin(), markers.end(), [](const Marker& a, const Marker& b) { return a.beat < b.beat; });
+    std::stable_sort(knobs.begin(), knobs.end(), [](const KnobSet& a, const KnobSet& b) { return a.beat < b.beat; });
 }
 
 void Score::clear(double bpm)
@@ -53,6 +54,7 @@ void Score::clear(double bpm)
     scaleShifts.clear();
     rowShapes.clear();
     sounds.clear();
+    knobs.clear();
 }
 
 int rootShiftAt(const std::vector<std::pair<double, int>>& shifts, double beat)

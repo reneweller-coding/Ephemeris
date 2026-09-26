@@ -2012,7 +2012,10 @@ void testSounds()
     // Where the knobs stand at the start: the bass's cutoff at most 420 Hz, the main sequence's resonance at least 0.45.
     // The settings' offset of a knob at the start (hand 1's steps; the hands' own start after them).
     auto setting = [](const Score& s, int id) { float v = 0.0f; for (const Gesture& g : s.gestures) if (g.param == id && g.hand == 1 && g.beat <= 0.0) v = g.to; return v; };
-    auto at0 = [&](const Score& s, int id) { return p.fromNormalised(id, std::clamp(p.toNormalised(id, p.get(id)) + setting(s, id), 0.0f, 1.0f)); };
+    auto at0 = [&](const Score& s, int id) {
+        for (const KnobSet& k : s.knobs) if (k.param == id && k.beat <= 0.0) return k.value;   // the knob itself (26.09.2026)
+        return p.fromNormalised(id, std::clamp(p.toNormalised(id, p.get(id)) + setting(s, id), 0.0f, 1.0f));
+    };
     const float cut = at0(a, p.id(Module::Voice, 0, voice::Cutoff)), res = at0(a, p.id(Module::Voice, 1, voice::Resonance));
     check(cut <= 421.0f && res >= 0.449f, "nudged to the part: a dark enough bass, a resonant main sequence", fmt("%.0f Hz, resonance %.2f", cut, res));
     std::vector<int> basses;
@@ -2042,6 +2045,45 @@ void testSounds()
     bool high = false;
     for (const SoundPick& k : n.sounds) high = high || (k.module == static_cast<int>(Module::Voice) && k.instance >= 4);
     check(high, "a night set: the second bank's rows get their own sounds", fmt("%zu picks", n.sounds.size()));
+    // The sounds are the knobs themselves (26.09.2026): no offset of a knob the piece sets, the engine puts them on the
+    // knobs as it loads the piece, and a concert's next piece puts its own on as it begins -- and back on a jump back.
+    std::string why;
+    for (const KnobSet& k : a.knobs)
+        for (const Gesture& g : a.gestures)
+            if (g.param == k.param && g.hand == 1 && g.beat <= 1e-9 && g.shape == GestureShape::Step && why.empty()) why = "offset on " + p.key(k.param);
+    Engine e;
+    e.params().parseText("compose.style=Melodic");
+    e.prepare(48000.0, 512);
+    e.load(a);
+    for (const KnobSet& k : a.knobs)
+        if (e.params().get(k.param) != k.value && why.empty()) why = fmt("%s is %g, not %g", p.key(k.param).c_str(), e.params().get(k.param), k.value);
+    check(why.empty() && !a.knobs.empty(), "the sounds are set on the knobs, not as offsets", why.empty() ? fmt("%zu knobs set", a.knobs.size()) : why);
+    // A concert's next piece puts its sounds on the knobs as it begins, on the sample's cell; a jump back into the first
+    // piece puts the first's on again, a jump inside a piece leaves the knobs as the player has them.
+    Score con;
+    con.clear(120.0);
+    con.lengthBeats = 32.0;
+    const int cutId = p.id(Module::Voice, 0, voice::Cutoff), vcoId = p.id(Module::Voice, 0, voice::Vco);
+    con.knobs = { { 0.0, cutId, 300.0f, static_cast<int>(Module::Voice), 0 }, { 0.0, vcoId, 1.0f, static_cast<int>(Module::Voice), 0 },
+                  { 16.0, cutId, 900.0f, static_cast<int>(Module::Voice), 0 }, { 16.0, vcoId, 3.0f, static_cast<int>(Module::Voice), 0 } };
+    Engine ce;
+    ce.prepare(48000.0, 512);
+    ce.load(con);
+    std::vector<float> l(512), r(512);
+    const bool atFirst = ce.params().get(cutId) == 300.0f && ce.params().get(vcoId) == 1.0f;
+    ce.params().set(cutId, 450.0f);   // the player's hand in the first piece
+    while (ce.beat() < 15.9) ce.process(l.data(), r.data(), 512);
+    const bool atKept = ce.params().get(cutId) == 450.0f;
+    while (ce.beat() < 16.1) ce.process(l.data(), r.data(), 512);
+    const bool atSecond = ce.params().get(cutId) == 900.0f && ce.params().get(vcoId) == 3.0f;
+    ce.seek(20.0);
+    ce.params().set(cutId, 700.0f);
+    ce.seek(24.0);   // inside the second piece: the hand's value stays
+    const bool atInside = ce.params().get(cutId) == 700.0f;
+    ce.seek(4.0);    // back into the first: its sounds
+    const bool atBack = ce.params().get(cutId) == 300.0f && ce.params().get(vcoId) == 1.0f;
+    check(atFirst && atKept && atSecond && atInside && atBack, "a concert's next piece brings its sounds on the knobs, a jump back the first's",
+          fmt("start %d, hand kept %d, next piece %d, jump inside %d, jump back %d", atFirst, atKept, atSecond, atInside, atBack));
 }
 
 /**
@@ -2176,9 +2218,9 @@ void testRowTables()
         ParamStore q;
         q.parseText("compose.style=Modern");
         const Score sc = composePiece(q, seed, 6.0);
-        for (const Gesture& g : sc.gestures)
+        for (const KnobSet& k : sc.knobs)
             for (int r = 0; r < kRows; ++r)
-                if (g.param == q.id(Module::Voice, r, voice::Table) && g.to > 0.0f) ++rows;
+                if (k.param == q.id(Module::Voice, r, voice::Table) && k.value > 0.0f) ++rows;
     }
     check(rows > 0, "the composer gives counter rows a wavetable", fmt("%d rows in six Modern pieces", rows));
 }

@@ -46,6 +46,9 @@ struct SetFile {
     double concert = 0.0;    ///< concert length (0: one piece)
     Curation curation;       ///< the rerolls
     std::string params;      ///< the parameters that differ from their defaults, as ParamStore text
+    /** 26.09.2026: the parameters hold the composer's sounds (Score::knobs) as they were played; an older set has
+     *  them as offsets in its score, so its piece puts them on the knobs when it loads. */
+    bool soundsInParams = false;
 };
 
 /** @brief Writes a set; @p params' changed values are taken as they are now. */
