@@ -140,20 +140,12 @@ void testVoiceKernel()
     for (int l = 0; l < kBankLanes; ++l) {
         vec.ph1[l] = 0.05f * static_cast<float>(l);
         vec.ph2[l] = 0.5f;
-        vec.wave[l] = l % 3 == 0 ? 0.0f : 0.3f * static_cast<float>(l % 4);
-        vec.pw[l] = 0.2f + 0.04f * static_cast<float>(l);
         vec.drive[l] = 1.0f + 0.5f * static_cast<float>(l);
         vec.norm[l] = 1.0f / std::sqrt(vec.drive[l]);
-        vec.k[l] = 0.25f * static_cast<float>(l % 16);
         vec.dcR[l] = 0.999f;
         vec.tbl[l] = l % 2 == 0 ? 1.0f : 0.0f;   // every other lane on its wavetable oscillators (25.09.2026)
         // The filter models (26.09.2026): every model but the comb on some lane, with its modes and filter FM.
-        const FilterModel fmodel = static_cast<FilterModel>(l % 9);
         vec.fmodel[l] = static_cast<float>(l % 9);
-        vec.k[l] = FilterVoicing::feedback(fmodel, 0.3f + 0.04f * static_cast<float>(l));
-        vec.fmk[l] = FilterVoicing::makeup(fmodel, vec.k[l]);
-        vec.fmode[l] = static_cast<float>(l % 4) / 3.0f;
-        vec.ffm[l] = l % 3 == 0 ? 1.5f : 0.0f;
         const float mixes[5] = { 0.0f, 2.0f, -2.0f, 0.0f, 0.0f };   // the Xpander's lanes: a band pass
         for (int j = 0; j < 5; ++j) vec.pm[j][l] = mixes[j];
     }
@@ -174,8 +166,20 @@ void testVoiceKernel()
                 vec.inv2[j] = 1.0f / vec.dt2[j];
                 vec.g[j] = 0.02f + 0.7f * (0.5f + 0.5f * std::sin(0.0007f * t * static_cast<float>(l + 1)));
                 vec.gain[j] = 0.5f + 0.5f * std::sin(0.001f * t);
+                // The knobs the modulation matrix moves, per sample (26.09.2026): slow sweeps of their own per lane.
+                const float sw = 0.5f + 0.5f * std::sin(0.0005f * t + static_cast<float>(l));
+                vec.wave[j] = l % 3 == 0 ? 0.0f : sw;
+                vec.pw[j] = 0.1f + 0.8f * sw;
+                const FilterModel fmodel = static_cast<FilterModel>(l % 9);
+                vec.k[j] = FilterVoicing::feedback(fmodel, 0.3f + 0.04f * static_cast<float>(l) * sw);
+                vec.fmk[j] = FilterVoicing::makeup(fmodel, vec.k[j]);
+                vec.fmode[j] = sw;
+                vec.ffm[j] = l % 3 == 0 ? 1.5f * sw : 0.0f;
             }
         }
+        auto same = [](const float* a, float* b) { std::copy(a, a + kBankSpan * kBankLanes, b); };
+        same(vec.wave, sca.wave); same(vec.pw, sca.pw); same(vec.k, sca.k);
+        same(vec.fmk, sca.fmk); same(vec.fmode, sca.fmode); same(vec.ffm, sca.ffm);
         std::copy(std::begin(vec.dt1), std::end(vec.dt1), std::begin(sca.dt1));
         std::copy(std::begin(vec.dt2), std::end(vec.dt2), std::begin(sca.dt2));
         std::copy(std::begin(vec.inv1), std::end(vec.inv1), std::begin(sca.inv1));

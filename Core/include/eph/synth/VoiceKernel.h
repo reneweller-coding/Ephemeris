@@ -74,16 +74,10 @@ struct VoiceLanes {
     /** @} */
     /** @name Constant over a span
      *  @{ */
-    alignas(32) float wave[kBankLanes] = {};    ///< 0 saw .. 1 pulse
-    alignas(32) float pw[kBankLanes] = {};      ///< pulse width
     alignas(32) float drive[kBankLanes] = {};   ///< mixer drive, linear
     alignas(32) float norm[kBankLanes] = {};    ///< level after the saturator
-    alignas(32) float k[kBankLanes] = {};       ///< the filter's feedback (FilterVoicing::feedback: k, R or the comb's)
     alignas(32) float fmodel[kBankLanes] = {};  ///< the filter model (FilterModel) as a number
-    alignas(32) float fmode[kBankLanes] = {};   ///< the SEM's morph, the Polivoks' band pass, the comb's sign
-    alignas(32) float ffm[kBankLanes] = {};     ///< filter FM: oscillator 1 on the cutoff, in octaves at full swing / 3
-    alignas(32) float fmk[kBankLanes] = {};     ///< the pass band's makeup (FilterVoicing::makeup)
-    alignas(32) float pm[5][kBankLanes] = {};   ///< the Xpander's pole mix: weights of the input and the four stages
+    alignas(32) float pm[5][kBankLanes] = {};   ///< the Xpander's pole mix: weights of the input and the four stages (the knob's)
     alignas(32) float dcR[kBankLanes] = {};     ///< DC blocker pole
     alignas(32) float tbl[kBankLanes] = {};     ///< 1: the lane plays its wavetable oscillators (wt1, wt2) instead
     /** @} */
@@ -93,6 +87,13 @@ struct VoiceLanes {
     alignas(32) float dt2[kBankSpan * kBankLanes] = {}, inv2[kBankSpan * kBankLanes] = {};   ///< VCO 2 step at 2x, 1 / step
     alignas(32) float g[kBankSpan * kBankLanes] = {};      ///< ladder integrator gain tan(pi fc / 2 fs)
     alignas(32) float gain[kBankSpan * kBankLanes] = {};   ///< VCA
+    // 26.09.2026: what the modulation matrix moves (Modulation.h) runs per sample too.
+    alignas(32) float wave[kBankSpan * kBankLanes] = {};   ///< 0 saw .. 1 pulse
+    alignas(32) float pw[kBankSpan * kBankLanes] = {};     ///< pulse width
+    alignas(32) float k[kBankSpan * kBankLanes] = {};      ///< the filter's feedback (FilterVoicing::feedback: k, R or the comb's)
+    alignas(32) float fmk[kBankSpan * kBankLanes] = {};    ///< the pass band's makeup (FilterVoicing::makeup)
+    alignas(32) float fmode[kBankSpan * kBankLanes] = {};  ///< the SEM's morph, the Polivoks' band pass, the comb's sign
+    alignas(32) float ffm[kBankSpan * kBankLanes] = {};    ///< filter FM: oscillator 1 on the cutoff, in octaves at full swing / 3
     /** @} */
     /** @name Per sample at twice the rate (index (2 i + h) * kBankLanes + lane): the wavetable oscillators (ModVoice)
      *  @{ */
@@ -180,14 +181,14 @@ void voiceKernel(VoiceLanes& s, const HalfbandDesign& hbd, int lane, int n, bool
     constexpr int width = laneWidth<V>();
     auto at = [lane](const float* a, int r) { return loadLanes<V>(a + lane + r * width); };
     const V one = lanes<V>(1.0f), half = lanes<V>(0.5f);
-    V dcr[R], wave[R], pw[R], drive[R], k[R], cin[R], tb[R], model[R], mode[R], fmd[R], mk[R], pmw[R][5];
+    V dcr[R], drive[R], cin[R], tb[R], model[R], pmw[R][5];
     V ph1[R], ph2[R], sx[R], ss[R], dcx[R], dcy[R], fv[R][4], fs[R][4];
     HalfbandDown<V> hb[R];
     for (int r = 0; r < R; ++r) {
-        dcr[r] = at(s.dcR, r); wave[r] = at(s.wave, r); pw[r] = at(s.pw, r); tb[r] = at(s.tbl, r);
-        drive[r] = at(s.drive, r); k[r] = at(s.k, r);
+        dcr[r] = at(s.dcR, r); tb[r] = at(s.tbl, r);
+        drive[r] = at(s.drive, r);
         cin[r] = at(s.norm, r);   // the level after the saturator
-        model[r] = at(s.fmodel, r); mode[r] = at(s.fmode, r); fmd[r] = at(s.ffm, r); mk[r] = at(s.fmk, r);
+        model[r] = at(s.fmodel, r);
         for (int j = 0; j < 5; ++j) pmw[r][j] = at(s.pm[j], r);
         ph1[r] = at(s.ph1, r); ph2[r] = at(s.ph2, r); sx[r] = at(s.satX, r); ss[r] = at(s.satS, r);
         dcx[r] = at(s.dcX, r); dcy[r] = at(s.dcY, r);
@@ -198,6 +199,12 @@ void voiceKernel(VoiceLanes& s, const HalfbandDesign& hbd, int lane, int n, bool
 
     for (int i = 0; i < n; ++i) {
         const int row = i * kBankLanes;
+        // The knobs the modulation matrix moves, this sample's (26.09.2026).
+        V wave[R], pw[R], k[R], mode[R], fmd[R], mk[R];
+        for (int r = 0; r < R; ++r) {
+            wave[r] = at(s.wave + row, r); pw[r] = at(s.pw + row, r); k[r] = at(s.k + row, r);
+            mode[r] = at(s.fmode + row, r); fmd[r] = at(s.ffm + row, r); mk[r] = at(s.fmk + row, r);
+        }
         V hi[2][R];
         for (int h = 0; h < 2; ++h) {
             for (int r = 0; r < R; ++r) {
@@ -268,7 +275,7 @@ void voiceKernel(VoiceLanes& s, const HalfbandDesign& hbd, int lane, int n, bool
                             float* line = s.comb.data() + static_cast<size_t>(L) * VoiceLanes::kCombLen;
                             const float d = line[i0] + fr * (line[(i0 + 1) & (VoiceLanes::kCombLen - 1)] - line[i0]);
                             s.combLp[L] += 0.5f * (d - s.combLp[L]);
-                            const float fb = (s.fmode[L] >= 0.5f ? -1.0f : 1.0f) * s.k[L];
+                            const float fb = (s.fmode[row + L] >= 0.5f ? -1.0f : 1.0f) * s.k[row + L];
                             const float yv = xin[w] + fb * s.combLp[L];
                             line[s.combPos[L]] = yv;
                             s.combPos[L] = (s.combPos[L] + 1) & (VoiceLanes::kCombLen - 1);

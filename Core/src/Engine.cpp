@@ -215,6 +215,39 @@ VoiceSettings Engine::voiceSettings(Module m, int instance, bool vibrato) const
     s.filter = static_cast<int>(std::lround(v(isVoice ? voice::Filter : lead::Filter)));
     s.filterMode = v(isVoice ? voice::FilterMode : lead::FilterMode);
     s.filterFm = v(isVoice ? voice::FilterFm : lead::FilterFm);
+    // The envelopes in full and the modulation (26.09.2026, Modulation.h): knobs no gesture moves, read as they stand.
+    auto raw = [&](int vi, int li) { return params_.get(params_.id(m, instance, isVoice ? vi : li)); };
+    auto choice = [&](int vi, int li) { return static_cast<int>(std::lround(raw(vi, li))); };
+    s.ampAttackMs = raw(voice::AmpAttack, lead::AmpAttack);
+    s.ampDecayMs = raw(voice::AmpDecay2, lead::AmpDecay2);
+    s.ampSustain = raw(voice::AmpSustain, lead::AmpSustain);
+    s.filtAttackMs = raw(voice::FiltAttack, lead::FiltAttack);
+    s.filtSustain = raw(voice::FiltSustain, lead::FiltSustain);
+    s.filtReleaseMs = raw(voice::FiltRelease, lead::FiltRelease);
+    s.filtLink = choice(voice::FiltLink, lead::FiltLink);
+    s.envVelocity = raw(voice::EnvVelocity, lead::EnvVelocity);
+    s.mod.attackMs = raw(voice::ModAttack, lead::ModAttack);
+    s.mod.decayMs = raw(voice::ModDecay, lead::ModDecay);
+    s.mod.sustain = raw(voice::ModSustain, lead::ModSustain);
+    s.mod.releaseMs = raw(voice::ModRelease, lead::ModRelease);
+    constexpr int kLfoStride = voice::Lfo2Rate - voice::Lfo1Rate, kSlotStride = voice::Mod2Src - voice::Mod1Src;
+    static_assert(kLfoStride == lead::Lfo2Rate - lead::Lfo1Rate && kSlotStride == lead::Mod2Src - lead::Mod1Src);
+    for (int l = 0; l < kLfos; ++l) {
+        const int o = l * kLfoStride;
+        LfoSettings& lf = s.mod.lfo[l];
+        lf.rateHz = raw(voice::Lfo1Rate + o, lead::Lfo1Rate + o);
+        lf.shape = choice(voice::Lfo1Shape + o, lead::Lfo1Shape + o);
+        lf.sync = choice(voice::Lfo1Sync + o, lead::Lfo1Sync + o);
+        lf.retrig = choice(voice::Lfo1Retrig + o, lead::Lfo1Retrig + o);
+        lf.fadeS = raw(voice::Lfo1Fade + o, lead::Lfo1Fade + o);
+    }
+    for (int k = 0; k < kModSlots; ++k) {
+        const int o = k * kSlotStride;
+        ModSlot& sl = s.mod.slot[k];
+        sl.src = choice(voice::Mod1Src + o, lead::Mod1Src + o);
+        sl.dst = choice(voice::Mod1Dst + o, lead::Mod1Dst + o);
+        sl.amount = raw(voice::Mod1Amt + o, lead::Mod1Amt + o);
+    }
     if (vibrato) {
         s.vibratoCents = v(lead::Vibrato);
         s.vibratoHz = v(lead::VibratoRate);
@@ -286,7 +319,8 @@ void Engine::updateCell()
     }
     transpose_ = static_cast<int>(std::lround(knob(Module::Perform, perform::Transpose)));
 
-    // The modular voices: the rows (their strips on the row module), the lead and the drone.
+    // The modular voices: the rows (their strips on the row module), the lead and the drone; the clock for their synced LFOs.
+    voices_.setClock(beat, score_.tempo.bpmAt(beat) / (60.0 * sampleRate_));
     for (int r = 0; r < kModVoices; ++r) {
         const bool row = r < kRows;
         const Module m = row ? Module::Voice : (r == kSrcLead ? Module::Lead : Module::Drone);
@@ -306,6 +340,7 @@ void Engine::updateCell()
             return row ? played(params_.id(Module::Row, r, rowIndex)) : played(params_.id(m, 0, leadIndex));
         };
         float pan = s(row::Pan, lead::Pan);
+        if (const float pm = voices_.panMod(r); pm != 0.0f) pan += pm;   // the voice's matrix (Modulation.h)
         if (!row) {
             // The drone (or the lead) wanders slowly across the stereo field: lead.auto_pan, a sine of 0.05 Hz on the
             // piece's clock (the style guide's 7.3).

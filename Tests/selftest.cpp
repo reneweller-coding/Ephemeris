@@ -14,6 +14,7 @@
 #include "eph/Cue.h"
 #include "eph/fx/Plate.h"
 #include "eph/synth/Atmos.h"
+#include "eph/synth/Modulation.h"
 #include "eph/synth/StringMachine.h"
 #include "eph/fx/Bbd.h"
 #if defined(_WIN32)
@@ -2349,6 +2350,115 @@ void testFilterVoices()
 }
 
 /**
+ * The voices' modulation (26.09.2026, Modulation.h): a synced LFO reads its phase off the beat, a fading one comes in
+ * over its time, a square LFO on the level opens and shuts a held note, the filter's sustain holds it brighter, and all
+ * of it is the same for any host block size.
+ */
+void testModulation()
+{
+    section("envelopes, LFOs and the modulation matrix");
+    {
+        // A one-bar saw, not retriggered, on the blend (span 1): -1 on the downbeat, 0 at beat 2, 0.5 at beat 3.
+        Modulator m;
+        m.prepare(48000.0, 1);
+        ModSettings ms;
+        ms.lfo[0].shape = static_cast<int>(LfoShape::SawUp);
+        ms.lfo[0].sync = 3;
+        ms.slot[0] = { static_cast<int>(ModSource::Lfo1), static_cast<int>(ModDest::Wave), 1.0f };
+        m.set(ms);
+        float ext[kModSources] = {}, out[kModDests] = {};
+        const int wave = static_cast<int>(ModDest::Wave);
+        m.evaluate(0, 4.0, ext, out);
+        const float a = out[wave];
+        m.evaluate(48000, 6.0, ext, out);
+        const float b = out[wave];
+        m.evaluate(72000, 7.0, ext, out);
+        const float c = out[wave];
+        check(std::fabs(a + 1.0f) < 1e-5f && std::fabs(b) < 1e-5f && std::fabs(c - 0.5f) < 1e-5f, "a synced LFO reads its phase off the beat",
+              fmt("%.4f %.4f %.4f", static_cast<double>(a), static_cast<double>(b), static_cast<double>(c)));
+        // A free square of 2 Hz, retriggered, fading in over a second: half its swing half a second after the note.
+        ms = ModSettings{};
+        ms.lfo[1] = { 2.0f, static_cast<int>(LfoShape::Square), 0, 1, 1.0f };
+        ms.slot[0] = { static_cast<int>(ModSource::Lfo2), static_cast<int>(ModDest::Level), 1.0f };
+        m.set(ms);
+        m.evaluate(1000, 0.0, ext, out);
+        m.noteOn(1000, 0.0);
+        m.evaluate(1000 + 6000, 0.0, ext, out);   // 1/8 s: the first half cycle, +1, faded to 1/8
+        const float f1 = out[static_cast<int>(ModDest::Level)];
+        m.evaluate(1000 + 24000 + 6000, 0.0, ext, out);   // 5/8 s: the second cycle's first half, faded to 5/8
+        const float f2 = out[static_cast<int>(ModDest::Level)];
+        check(std::fabs(f1 - 0.125f) < 1e-3f && std::fabs(f2 - 0.625f) < 1e-3f, "a retriggered LFO starts with the note and fades in",
+              fmt("%.4f %.4f", static_cast<double>(f1), static_cast<double>(f2)));
+    }
+    // A held note through the engine, 2 s.
+    auto render = [](const char* text, int block, double seconds, bool two = false) {
+        Score one;
+        one.clear(120.0);
+        one.notes.push_back({ 0.0, 4.0, Part::Row2, 45, 0.9f, false, false });
+        if (two) for (int k = 0; k < 8; ++k) one.notes.push_back({ 0.5 * k, 0.3, Part::Row3, 57 + k, 0.7f, k == 3, false });
+        one.lengthBeats = 5.0;
+        Engine e;
+        e.params().parseText(std::string("master.level=0 master.motion=0 row2.echo=0 row2.reverb=0 voice2.cutoff=500 voice2.env_amount=3 ") + text);
+        e.prepare(48000.0, block);
+        e.load(one);
+        std::vector<float> out, l(static_cast<size_t>(block)), r(static_cast<size_t>(block));
+        const int total = static_cast<int>(48000.0 * seconds);
+        for (int done = 0; done < total; done += block) {
+            const int n = std::min(block, total - done);
+            e.process(l.data(), r.data(), n);
+            out.insert(out.end(), l.begin(), l.begin() + n);
+        }
+        return out;
+    };
+    auto rms = [](const std::vector<float>& v, double from, double to) {
+        double e = 0.0;
+        const size_t a = static_cast<size_t>(from * 48000.0), b = static_cast<size_t>(to * 48000.0);
+        for (size_t i = a; i < b; ++i) e += static_cast<double>(v[i]) * v[i];
+        return std::sqrt(e / static_cast<double>(b - a));
+    };
+    {
+        // A square of 4 Hz on the level, amount -1: shut on its first half cycle, doubled on its second.
+        const std::vector<float> v = render("voice2.lfo1_rate=4 voice2.lfo1_shape=4 voice2.lfo1_retrig=1 voice2.mod1_src=1 voice2.mod1_dst=9 voice2.mod1_amt=-1", 256, 1.2);
+        double shut = 0.0, open = 0.0;
+        for (int k = 0; k < 4; ++k) {
+            shut += rms(v, 0.25 * k + 0.02, 0.25 * k + 0.105);
+            open += rms(v, 0.25 * k + 0.145, 0.25 * k + 0.23);
+        }
+        check(open > 0.01 && shut < 0.02 * open, "a square LFO on the level opens and shuts a held note",
+              fmt("rms %.5f shut, %.4f open", shut / 4.0, open / 4.0));
+    }
+    {
+        // The filter envelope's sustain (release unlinked) holds the held note brighter than its decay to nothing.
+        auto bright = [&](const char* text) {
+            const std::vector<float> v = render(text, 256, 1.8);
+            double en = 0.0, d = 0.0;
+            for (size_t i = 48000; i < 86400; ++i) { en += double(v[i]) * v[i]; d += double(v[i] - v[i - 1]) * (v[i] - v[i - 1]); }
+            return d / std::max(1e-30, en);
+        };
+        const double off = bright("voice2.filt_link=0"), on = bright("voice2.filt_link=0 voice2.filt_sustain=0.7");
+        check(on > 2.0 * off, "the filter envelope's sustain holds the note open", fmt("brightness %.5f without, %.5f with", off, on));
+    }
+    {
+        // Every source and destination at once on two voices, one of them on a wavetable: blocks of 37 equal blocks of 512.
+        const char* busy =
+            "voice2.lfo1_rate=3.3 voice2.lfo1_shape=5 voice2.mod1_src=1 voice2.mod1_dst=5 voice2.mod1_amt=0.4 "
+            "voice2.lfo2_sync=6 voice2.lfo2_shape=6 voice2.mod2_src=2 voice2.mod2_dst=1 voice2.mod2_amt=0.3 "
+            "voice2.mod3_src=5 voice2.mod3_dst=6 voice2.mod3_amt=0.5 voice2.mod_attack=80 voice2.mod_sustain=0.4 "
+            "voice2.lfo3_rate=0.7 voice2.lfo3_retrig=1 voice2.lfo3_fade=0.5 voice2.lfo3_shape=1 voice2.mod4_src=3 voice2.mod4_dst=10 voice2.mod4_amt=0.7 "
+            "voice2.mod5_src=4 voice2.mod5_dst=2 voice2.mod5_amt=0.5 voice2.lfo4_shape=2 voice2.lfo4_rate=6 voice2.mod6_src=4 voice2.mod6_dst=3 voice2.mod6_amt=0.6 "
+            "voice2.filter=3 voice2.mod7_src=6 voice2.mod7_dst=7 voice2.mod7_amt=0.8 voice2.mod8_src=7 voice2.mod8_dst=8 voice2.mod8_amt=0.5 "
+            "voice2.filt_link=0 voice2.filt_sustain=0.3 voice2.filt_release=90 voice2.amp_sustain=0.6 voice2.amp_decay2=200 voice2.env_velocity=0.5 "
+            "voice3.table=3 voice3.lfo1_rate=1.3 voice3.lfo1_shape=1 voice3.mod1_src=1 voice3.mod1_dst=4 voice3.mod1_amt=0.8 "
+            "voice3.lfo2_sync=5 voice3.lfo2_retrig=1 voice3.mod2_src=2 voice3.mod2_dst=9 voice3.mod2_amt=-0.5";
+        const std::vector<float> a = render(busy, 512, 2.5, true), b = render(busy, 37, 2.5, true);
+        size_t first = 0;
+        while (first < a.size() && first < b.size() && std::memcmp(&a[first], &b[first], sizeof(float)) == 0) ++first;
+        check(a.size() == b.size() && first == a.size() && rms(a, 0.1, 2.0) > 1e-3, "modulated voices are the same for any block size",
+              first < a.size() ? fmt("first difference at sample %zu", first) : fmt("rms %.4f", rms(a, 0.1, 2.0)));
+    }
+}
+
+/**
  * The offline render is the oracle only if a host's block size cannot change a sample: the study
  * rendered with blocks of 1, 37 and 512 must agree bit for bit (Engine.h).
  */
@@ -2513,6 +2623,7 @@ const TestSection kSections[] = {
     { "testTimbreDrift", testTimbreDrift },
     { "testFilters", testFilters },
     { "testFilterVoices", testFilterVoices },
+    { "testModulation", testModulation },
     { "testBlockSizes", testBlockSizes },
     { "testEcho", testEcho },
     { "testDrift", testDrift },

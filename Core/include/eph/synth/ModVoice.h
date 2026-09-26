@@ -31,6 +31,13 @@
  * an accent) and by key tracking. The knobs the player's hand moves -- cutoff, resonance, envelope
  * amount, decay -- come in already offset by the gestures (Engine.cpp).
  *
+ * **Envelopes and modulation** (26.09.2026). The amplitude and the filter have full ADSRs; the filter's release is
+ * linked to its decay by default (the Minimoog's habit, and the sound the voices had): with no sustain the decay then
+ * simply runs on through the note's end, so a sequencer's short gates leave the hand's decay alone. A third envelope,
+ * four LFOs and eight matrix slots (Modulation.h) reach pitch, pulse width, the blend, the table, cutoff, resonance,
+ * the filter's mode and FM, the level and the pan; they are evaluated at the control steps below, and what they move
+ * reaches the lanes per sample (VoiceKernel.h), so the modulation is the same for every host block size.
+ *
  * **Control rate.** Glide, vibrato and the envelopes run every sample; the oscillators' frequencies
  * and the ladder's cutoff follow them every 4 samples (12 kHz at 48 kHz) on the bank's absolute
  * sample raster, which saves two exponentials, an exp2 and a tan on three of four samples. The
@@ -39,6 +46,7 @@
  */
 #pragma once
 #include "eph/Dsp.h"
+#include "eph/synth/Modulation.h"
 #include "eph/synth/VoiceKernel.h"
 #include "eph/synth/Wavetable.h"
 #include <cstdint>
@@ -68,6 +76,17 @@ struct VoiceSettings {
     int filter = 0;            ///< the filter model (FilterModel, Filters.h)
     float filterMode = 0.0f;   ///< the SEM's morph, the Xpander's response, the Polivoks' band pass, the comb's sign
     float filterFm = 0.0f;     ///< oscillator 1 on the cutoff at audio rate, 0..1 (three octaves at full swing)
+    // 26.09.2026: the envelopes in full and the modulation (Modulation.h). Only 4-byte members: the engine compares
+    // settings bit for bit.
+    float ampAttackMs = 2.0f;      ///< the amplitude envelope's attack
+    float ampDecayMs = 50.0f;      ///< ... its decay to the sustain (its release: releaseMs)
+    float ampSustain = 1.0f;       ///< ... its sustain level
+    float filtAttackMs = 1.5f;     ///< the filter envelope's attack (its decay: decayMs)
+    float filtSustain = 0.0f;      ///< ... its sustain level
+    float filtReleaseMs = 180.0f;  ///< ... its release, when not linked to the decay
+    int filtLink = 1;              ///< 1: the filter's release takes the decay's time
+    float envVelocity = 0.0f;      ///< how far the velocity scales the filter envelope, 0..1
+    ModSettings mod;               ///< the modulation envelope, the LFOs, the matrix
 };
 
 /**
@@ -128,6 +147,17 @@ public:
     void process(const bool* run, int n);
     /** @brief Voice @p v's last rendered samples (valid for the voices that ran). */
     const float* output(int v) const { return out_[v]; }
+    /**
+     * @brief The piece's clock for the synced LFOs: @p beat at the next sample to render, @p beatsPerSample from there.
+     *        Call at every cell, before its notes.
+     */
+    void setClock(double beat, double beatsPerSample) { beat0_ = beat; bps_ = beatsPerSample; clockAt_ = count_; }
+    /** @brief Voice @p v's pan offset from its modulation matrix (-1..1; the engine adds it to the strip's pan). */
+    float panMod(int v) const
+    {
+        const Control& c = ctl_[v];
+        return c.mod.active() && c.mod.targets(ModDest::Pan) ? c.mo[static_cast<int>(ModDest::Pan)] : 0.0f;
+    }
 
 private:
     /** @brief What runs per voice on the scalar side. */
@@ -154,9 +184,20 @@ private:
         double vibCoef = 0.0;        ///< vibrato fade-in per sample
         float dt1 = 0.001f, inv1 = 1000.0f, dt2 = 0.001f, inv2 = 1000.0f, g = 0.1f;   ///< coefficients of the current control step
         bool fresh = true;           ///< a control step is due at the next sample whatever the raster (a new note)
+        Modulator mod;               ///< the modulation envelope, the LFOs, the matrix (Modulation.h)
+        float mo[kModDests] = {};    ///< the matrix's last sums per destination
+        /** @brief What the lanes get per sample: blend, pulse width, feedback, makeup, mode, FM depth; the level
+         *         factor and the place in the table (the knobs', moved by the matrix). */
+        float wv = 0.0f, pwv = 0.5f, kv = 0.0f, mkv = 1.0f, modev = 0.0f, ffmv = 0.0f, levelv = 1.0f, tposv = 0.0f;
     };
     /** @brief Voice @p v's scalar side for sample @p i of the span, written into the lanes. */
     void control(int v, int i);
+    /** @brief Voice @p v's per-sample values (Control::wv ..) from its knobs and its matrix's last sums. */
+    void shape(int v);
+    /** @brief The filter envelope's times from the knobs and the note's decay factor. */
+    static void filterTimes(Control& c);
+    /** @brief The piece's beat at sample @p at (setClock). */
+    double beatAt(int64_t at) const { return beat0_ + static_cast<double>(at - clockAt_) * bps_; }
 
     double sr_ = 48000.0;
     double stepBase_ = 0.0;      ///< log2 of the phase step at 2x of MIDI note 0
@@ -165,6 +206,9 @@ private:
     VoiceLanes lanes_;
     alignas(32) float mixed_[kBankSpan * kBankLanes] = {};   ///< the kernel's output, per sample and lane
     float out_[kBankLanes][kBankSpan] = {};                  ///< the same per voice
+    float tpos_[kBankLanes][kBankSpan] = {};                 ///< the place in the wavetable per voice and sample
+    double beat0_ = 0.0, bps_ = 0.0;                         ///< the clock (setClock)
+    int64_t clockAt_ = 0;                                    ///< ... anchored at this sample
 };
 
 } // namespace eph
