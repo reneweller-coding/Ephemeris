@@ -156,7 +156,18 @@ enum : int { Wave, Detune, PulseWidth, Drift, Drive, Cutoff, Resonance, EnvAmoun
              // the lead's and the drone's tables go on differently from here.
              Table, TablePos, TableMod,
              // 26.09.2026: the filter model (Filters.h), its mode, and filter FM from oscillator 1.
-             Filter, FilterMode, FilterFm, Count };
+             Filter, FilterMode, FilterFm,
+             // 26.09.2026, modulation (ModVoice.h, Modulation.h): the envelopes in full, a modulation envelope, four LFOs,
+             // eight slots of a modulation matrix.
+             AmpAttack, AmpDecay2, AmpSustain, FiltAttack, FiltSustain, FiltRelease, FiltLink, EnvVelocity,
+             ModAttack, ModDecay, ModSustain, ModRelease,
+             Lfo1Rate, Lfo1Shape, Lfo1Sync, Lfo1Retrig, Lfo1Fade,
+             Lfo2Rate, Lfo2Shape, Lfo2Sync, Lfo2Retrig, Lfo2Fade,
+             Lfo3Rate, Lfo3Shape, Lfo3Sync, Lfo3Retrig, Lfo3Fade,
+             Lfo4Rate, Lfo4Shape, Lfo4Sync, Lfo4Retrig, Lfo4Fade,
+             Mod1Src, Mod1Dst, Mod1Amt, Mod2Src, Mod2Dst, Mod2Amt, Mod3Src, Mod3Dst, Mod3Amt, Mod4Src, Mod4Dst, Mod4Amt,
+             Mod5Src, Mod5Dst, Mod5Amt, Mod6Src, Mod6Dst, Mod6Amt, Mod7Src, Mod7Dst, Mod7Amt, Mod8Src, Mod8Dst, Mod8Amt,
+             Count };
 }
 /**
  * @brief Parameters of the lead (module Lead, PLAN 5.3): the voice's table, then its place in the mix
@@ -170,7 +181,18 @@ enum : int { Wave, Detune, PulseWidth, Drift, Drive, Cutoff, Resonance, EnvAmoun
              // 25.09.2026: a slow sine (0.05 Hz) on the pan, the wandering drone of the style guide's 7.3.
              AutoPan, LowCut, Distance, BlendSend, EarlySend, ShimmerSend,
              // 26.09.2026: the filter model (Filters.h), its mode, and filter FM from oscillator 1.
-             Filter, FilterMode, FilterFm, Count };
+             Filter, FilterMode, FilterFm,
+             // 26.09.2026, modulation (ModVoice.h, Modulation.h): the envelopes in full, a modulation envelope, four LFOs,
+             // eight slots of a modulation matrix.
+             AmpAttack, AmpDecay2, AmpSustain, FiltAttack, FiltSustain, FiltRelease, FiltLink, EnvVelocity,
+             ModAttack, ModDecay, ModSustain, ModRelease,
+             Lfo1Rate, Lfo1Shape, Lfo1Sync, Lfo1Retrig, Lfo1Fade,
+             Lfo2Rate, Lfo2Shape, Lfo2Sync, Lfo2Retrig, Lfo2Fade,
+             Lfo3Rate, Lfo3Shape, Lfo3Sync, Lfo3Retrig, Lfo3Fade,
+             Lfo4Rate, Lfo4Shape, Lfo4Sync, Lfo4Retrig, Lfo4Fade,
+             Mod1Src, Mod1Dst, Mod1Amt, Mod2Src, Mod2Dst, Mod2Amt, Mod3Src, Mod3Dst, Mod3Amt, Mod4Src, Mod4Dst, Mod4Amt,
+             Mod5Src, Mod5Dst, Mod5Amt, Mod6Src, Mod6Dst, Mod6Amt, Mod7Src, Mod7Dst, Mod7Amt, Mod8Src, Mod8Dst, Mod8Amt,
+             Count };
 }
 /** @brief Parameters of the pad synth (module Poly, 25.09.2026; Poly.h, Wavetable.h). */
 namespace poly {
@@ -179,6 +201,11 @@ enum : int { Table, Position, Scan, ScanRate, Detune, Spread, Drift, Cutoff, Res
              // 26.09.2026: the filter model (Filters.h) and its mode.
              Filter, FilterMode, Count };
 }
+/** @brief The LFOs' shapes, tempo divisions, and the modulation matrix's sources and destinations (Modulation.h). */
+extern const char* const kLfoShapeNames[];
+extern const char* const kLfoSyncNames[];
+extern const char* const kModSourceNames[];
+extern const char* const kModDestNames[];
 /** @brief The names of the filter models (Filters.h, FilterModel order). */
 extern const char* const kFilterNames[];
 /** @brief Parameters of the tape keyboard (module Tape; PLAN 5.4, TapeKeys.h). */
