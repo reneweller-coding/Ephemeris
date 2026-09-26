@@ -10,6 +10,19 @@ verschiedener Länge um einen gemeinsamen Grundton, die nur selten wieder zusamm
 
 ## Stand der Umsetzung
 
+**Vorschlag (26.09.2026, wartet auf Zustimmung): Hüllkurven, LFOs und Modulationsmatrix für jeden Synth.** Frage des
+Nutzers: je eine volle ADSR für Amp und Filter, eine dritte für weitere Modulation, drei bis vier LFOs (z. B. durch die
+Wavetable), für jeden Synth. Einschätzung: ja -- heute hat die Reihenstimme nur ein festes Attack, den Filter-Decay und
+das Amp-Release. Entwurf: je Synth (Reihen, Lead, Drone, Poly, dazu Tape Keys und Strings mit ihren Hüllkurven) Amp-ADSR,
+Filter-ADSR (mit Velocity), Mod-ADSR, vier LFOs (Sinus, Dreieck, Säge auf/ab, Rechteck, S&H, geglätteter Zufall; frei in
+Hz oder im Tempo; frei laufend oder pro Note neu; Einblendzeit), und eine Matrix mit acht Plätzen Quelle -> Ziel -> Menge
+(Quellen: LFO 1-4, Mod-Hüllkurve, Velocity, Modulationsspur, Note; Ziele: Tonhöhe, Pulsbreite, Wellenform-Mix,
+Tabellenposition, Cutoff, Resonanz, Filter-Mode, Filter-FM, Pegel, Panorama). Die LFO-Phasen aus dem Sample-Zähler bzw.
+der Beat-Position, also deterministisch und blockgrößenunabhängig; im SIMD-Kern pro Stimme skalar zur Kontrollrate wie
+die Hüllkurven. Presets bekommen Hüllkurven und Modulationen je Gruppe (Plucks kurz, Flächen langsam, PWM-LFO bei
+Analog-Pads, Tabellen-LFO bei PPG); der Komponist nutzt sie sparsam nach Stil. Panel: Gruppen "Amp Envelope", "Filter
+Envelope", "Mod Envelope", "LFOs", "Mod Matrix".
+
 **Vorschlag (26.09.2026, wartet auf Zustimmung): klassische VCO-Modelle.** Frage des Nutzers: Moog (Model D/921),
 Sequential (Prophet-5, SSM2030/CEM3340), Oberheim SEM, ARP 2600 (4027), E-mu Modular zur Wahl. Einschätzung: sinnvoll, als
 `voice.vco` (Reihen, Lead, Drone) und als analoge Tabellen für den Poly. SOTA-Weg: die Wellenform jedes Kerns aus seiner
