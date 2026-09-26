@@ -10,7 +10,7 @@ verschiedener Länge um einen gemeinsamen Grundton, die nur selten wieder zusamm
 
 ## Stand der Umsetzung
 
-**In Arbeit (26.09.2026, nachts; freigegeben: "Das klingt alles super, bitte baue das ein. Wenn du für einen VCO oder so neue
+**Erledigt (26.09.2026, nachts; freigegeben: "Das klingt alles super, bitte baue das ein. Wenn du für einen VCO oder so neue
 GUI-Elemente oder neue Parameter brauchst, dann füge sie gerne hinzu."): erst Hüllkurven/LFOs/Matrix (M), dann VCO-Modelle (V).**
 Keine Agenten; nach jedem Schritt Selbsttest, Vektortest (Vektor = Skalar bitgenau), Referenz-Hashes, Commit.
 M1 Parameter je Synth: Voice/Lead/Drone (voice:: bzw. lead::, die drone-Tabelle mitziehen!) und Poly: amp_attack, amp_decay2,
@@ -45,7 +45,12 @@ Stand: M1-M5, V1-V3 erledigt. M1-M4 bitgenau neutral (Referenz-Hashes unverände
    Hörband -53 dB (naiv -19 dB). Modelle skalar neben den Lanes, "Analog" bleibt bitgenau in den Lanes. Ehrlich: die
    Wellenformen der Modelle unterscheiden sich um Zehntel-dB, hörbar vor allem Drift, Jitter, Sync und Cross Mod.
    V2 fünf Tabellen aus den Modellen für den Poly. V3 Presets (Modelle je Gruppe, Prophet-Sync-Sweeps über die Matrix,
-   Analog Pads auf den Modell-Tabellen), Handbuch "Oscillators" und "Modulation". Offen: Stilpegel nachkalibrieren, V4.
+   Analog Pads auf den Modell-Tabellen), Handbuch "Oscillators" und "Modulation". Stilpegel nachkalibriert (Seeds 7+8,
+   10 min: Cosmic 4.8, Doom 2.8, Melodic 3.3, Modern 4.5, Drift 4.0 dB). V4: Release (49/49 ctest, pluginval Strenge 10
+   mit jetzt rund 1250 Parametern), APK 5,5 MB. CPU: die VCO-Modelle kosten für alle zehn Stimmen rund 2 % eines Kerns
+   (Studie, analog 16,5 %, Moog 18-19 %); absolute Werte waren nicht sauber messbar (Maschine ohne Render bei 63 % Last).
+   Offen: Streuung der Lautheit von Stück zu Stück (Modern -13,3 / -17,5 LUFS), CPU auf ruhiger Maschine und auf der
+   Quest, und hören.
 
 **Vorschlag (26.09.2026): Hüllkurven, LFOs und Modulationsmatrix für jeden Synth.** Frage des
 Nutzers: je eine volle ADSR für Amp und Filter, eine dritte für weitere Modulation, drei bis vier LFOs (z. B. durch die
