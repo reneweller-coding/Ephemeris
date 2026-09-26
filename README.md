@@ -8,7 +8,12 @@ Windows, native on Meta Quest. Everything is synthesised; there are no samples.
 The plan, the musical specification and the literature behind each building block are in
 [docs/PLAN.md](docs/PLAN.md) (German); the user manual is [docs/manual](docs/manual/Ephemeris-Manual.pdf).
 
-**Status (25.09.2026):** Phases 0 to 7 in their first form.
+**Version 1.0.0 (26.09.2026)**, the first release ([release notes](docs/RELEASE_NOTES.md)). Windows 10/11 x64 with an
+AVX2 processor; Meta Quest 2 or later.
+- Five classic VCOs (Moog 921, Prophet-5, Oberheim SEM, ARP 2600, E-mu Modular) with hard sync and cross mod, and ten
+  circuit-modelled filters solved sample by sample, in SIMD lanes; full envelopes, four LFOs and a modulation matrix
+  on every synth; presets with generous modulation, set by the composer on the knobs themselves.
+- Every piece's loudest part levelled to its style's target (`Leveler.h`); an update check against GitHub's releases.
 - The rack with a transposer row; modular voices for the rows, the lead and the drone, running side by side
   in SIMD lanes; a synthesised tape keyboard (choir, strings, flute and the machine), a string machine, the
   atmosphere, tape echo with springs, hall, drums for the styles that have them.
@@ -28,7 +33,7 @@ The plan, the musical specification and the literature behind each building bloc
   counter rows, and concerts as albums with interludes.
 - A mix after a production guide for depth, width and clarity: a low cut per source, the bass mono under
   100 Hz, a guarded width, ducked echo and hall returns, level and width automated along the form, the
-  styles levelled to about -15.5 LUFS (Doom and Drift -19); eph_render reports loudness (EBU R128), true
+  styles levelled (and since 1.0 every piece's peak to its style's target); eph_render reports loudness (EBU R128), true
   peak, PSR, loudness range and the stereo correlation of every render.
 - From the dark-ambient practice: a distance macro per source (the bass approaches and recedes), cascaded
   ducking rows -> pads -> atmosphere, a foundation in pure intervals, an all-pass spread for the tape keys,
@@ -73,8 +78,15 @@ build/Tools/render/Release/eph_render.exe --list
 |---|---|
 | `Tools/manual/make_manual.py` | the manual out of the program: prose (`chapters.txt`), parameter tables (`eph_render --dump-params`), screenshots |
 | `Tools/analyze_ref.py` | statistics of reference recordings (tempogram, row lengths, filter sweeps, levels); the audio never enters the project |
-| `Deploy/build_release.ps1` | release build: static runtime, tests, manual, stage, checks, portable zip, Inno Setup installer |
+| `Deploy/build_release.ps1` | release build (Intel's icx where oneAPI is installed, else MSVC): static runtime, tests, pluginval, manual, stage, checks, optional signing, portable zip, Inno Setup installer |
+| `Deploy/publish_release.ps1` | the GitHub release: tag, installer, portable zip, Quest APK, release notes |
+| `eph_bench` (Tests/bench.cpp) | the voice bank's and the pad synth's cost per second of audio |
 | `Quest/build_apk.ps1` | the Quest APK without Gradle (see [Quest/README.md](Quest/README.md)) |
+
+## Updates
+
+Once a day the program asks GitHub's releases whether a newer version is out and shows it in the status row as a link
+to its page; nothing else is sent, nothing is downloaded. "Update check" in the status row turns it off.
 
 ## Licence
 

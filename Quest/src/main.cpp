@@ -66,6 +66,7 @@
 #include <thread>
 #include <vector>
 
+#include "eph/Leveler.h"
 #include "eph/Cue.h"
 #include "eph/Engine.h"
 #include "eph/compose/Composer.h"
@@ -378,7 +379,9 @@ private:
     {
         const ParamStore& p = engine_.params();
         const double concert = p.get(p.id(Module::Compose, 0, compose::ConcertMinutes));
-        return concert > 0.0 ? composeConcert(p, seed, concert) : composePiece(p, seed, minutes_);
+        Score s = concert > 0.0 ? composeConcert(p, seed, concert) : composePiece(p, seed, minutes_);
+        levelScore(s, p);   // every piece as loud as its style means (Leveler.h)
+        return s;
     }
 
     Engine engine_;

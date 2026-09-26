@@ -51,6 +51,7 @@ const StyleProfile kProfiles[] = {
         .hallSeconds = 6.0f,
         .levelDb = 4.8f,
         .grainChance = 0.6f,
+        .peakLufs = -14.5f,   // the loudest part's target (Leveler.h: the mean of four pieces, 26.09.2026)
     },
     // Doom: slow, low, dark, dissonant roots; strings tapes; few layers; much dynamics.
     {
@@ -82,6 +83,7 @@ const StyleProfile kProfiles[] = {
         .hallSeconds = 7.5f,
         .levelDb = 2.8f,
         .grainChance = 0.3f,
+        .peakLufs = -15.7f,   // the loudest part's target (Leveler.h: the mean of four pieces, 26.09.2026)
     },
     // Melodic: brighter, more rows and chord changes, leads, drums later in the piece, shorter pieces.
     {
@@ -113,6 +115,7 @@ const StyleProfile kProfiles[] = {
         .hallSeconds = 4.5f,
         .levelDb = 3.3f,
         .grainChance = 0.2f,
+        .peakLufs = -13.4f,   // the loudest part's target (Leveler.h: the mean of four pieces, 26.09.2026)
     },
     // Modern: hybrid and polished, cinematic pads, wider moves, sparse drums.
     {
@@ -144,6 +147,7 @@ const StyleProfile kProfiles[] = {
         .hallSeconds = 5.0f,
         .levelDb = 4.5f,
         .grainChance = 0.4f,
+        .peakLufs = -12.8f,   // the loudest part's target (Leveler.h: the mean of four pieces, 26.09.2026)
     },
     // Drift: long, improvised, ambient phases between sequence episodes, tempo and key drift.
     {
@@ -175,6 +179,7 @@ const StyleProfile kProfiles[] = {
         .hallSeconds = 8.0f,
         .levelDb = 4.0f,
         .grainChance = 0.7f,
+        .peakLufs = -15.7f,   // the loudest part's target (Leveler.h: the mean of four pieces, 26.09.2026)
     },
 };
 
@@ -222,6 +227,7 @@ StyleProfile morphProfile(const StyleProfile& a, const StyleProfile& b, float t)
     m.hallSeconds = mix(a.hallSeconds, b.hallSeconds);
     m.levelDb = mix(a.levelDb, b.levelDb);
     m.grainChance = mix(a.grainChance, b.grainChance);
+    m.peakLufs = mix(a.peakLufs, b.peakLufs);
     return m;
 }
 
@@ -287,6 +293,7 @@ StyleProfile customProfile(const ParamStore& p, const StyleProfile& base)
     m.darkness = v(custom::Darkness);
     m.hallSeconds = v(custom::Hall);
     m.levelDb = v(custom::Level);
+    m.peakLufs = base.peakLufs + (m.levelDb - base.levelDb);   // the user's level moves the target with it
     return m;
 }
 

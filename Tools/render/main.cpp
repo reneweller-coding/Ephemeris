@@ -15,6 +15,7 @@
  */
 #include "eph/Loudness.h"
 #include "eph/Engine.h"
+#include "eph/Leveler.h"
 #include "eph/compose/Composer.h"
 #include "eph/Midi.h"
 #include "eph/SetFile.h"
@@ -47,6 +48,9 @@ void usage()
                 "  --reroll UNIT    draw a unit again (form, tempo, rows, rack, layers, lead, pads, hands;\n"
                 "                   in a concert pieceN.UNIT or concert); may be repeated\n"
                 "  --set-file FILE  play a saved .ephset (seed, lengths, parameters, rerolls)\n"
+                "  --levels         print every piece's loudness correction (Leveler.h)\n"
+                "  --levels-only    ... and stop there, without rendering\n"
+                "  --no-level       leave the pieces as composed, without the correction\n"
                 "  --save-set FILE  save what is played as an .ephset\n"
                 "  --sketch         the sketch of Phases 2 and 3 instead of a composed piece\n"
                 "  --study          the study of Phase 1 instead of a composed piece\n"
@@ -79,6 +83,7 @@ int main(int argc, char** argv)
     int singers = 6;
     double concert = 0.0;
     std::string setIn, setOut;
+    bool noLevel = false, showLevels = false, levelsOnly = false;   // --no-level, --levels, --levels-only
     Curation curation;
     double bpmArg = 0.0, tail = 20.0;
     bool archive = false;
@@ -109,6 +114,9 @@ int main(int argc, char** argv)
         else if (a == "--concert") concert = std::atof(next("--concert"));
         else if (a == "--reroll") curation.reroll(next("--reroll"));
         else if (a == "--set-file") setIn = next("--set-file");
+        else if (a == "--no-level") noLevel = true;
+        else if (a == "--levels") showLevels = true;
+        else if (a == "--levels-only") showLevels = levelsOnly = true;
         else if (a == "--save-set") setOut = next("--save-set");
         else if (a == "--seed") seed = std::strtoull(next("--seed"), nullptr, 10);
         else if (a == "--tail") tail = std::atof(next("--tail"));
@@ -185,6 +193,15 @@ int main(int argc, char** argv)
         else if (concert > 0.0) score = composeConcert(p, seed, concert, &curation);
         else score = composePiece(p, seed, mins, 0, &curation);
         setMinutes = mins;
+        // Every piece as loud as its style means (Leveler.h), as the plugin does with a new piece.
+        if (!noLevel) {
+            for (const LevelReading& r : levelScore(score, p))
+                if (showLevels)
+                    std::printf("level: piece at beat %.0f: loudest part %.1f LUFS, target %.1f, correction %+.1f dB, then %.1f LUFS\n",
+                                r.beat, static_cast<double>(r.measured), static_cast<double>(r.target), static_cast<double>(r.trim),
+                                static_cast<double>(r.after));
+            if (levelsOnly) return 0;
+        }
         bars = score.lengthBeats / kBeatsPerBar;
     } else {
         // The frame of Phase 0: a tempo map, a length and two markers.

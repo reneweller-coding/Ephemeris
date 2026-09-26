@@ -77,6 +77,8 @@ void Engine::load(const Score& score, bool sounds)
     std::stable_sort(events_.begin(), events_.end(), [](const Ev& a, const Ev& b) {
         return a.sample != b.sample ? a.sample < b.sample : a.on < b.on;
     });
+    offAt_.assign(static_cast<size_t>(id) + 1, 0);
+    for (const Ev& e : events_) if (!e.on) offAt_[static_cast<size_t>(e.id)] = e.sample;
 
     // Gestures grouped by the knob they move.
     tracks_.clear();
@@ -611,7 +613,16 @@ void Engine::updateCell()
     const float springs[2] = { knob(Module::Spring, spring::Decay), knob(Module::Spring, spring::Tone) };
     if (changed(cache_.spring, springs, cache_.valid)) spring_.set(springs[0], springs[1]);
     springReturn_ = gain(knob(Module::Spring, spring::Return));
-    master_ = dbToGain(knob(Module::Master, master::Level));
+    // The piece's loudness correction (Score::levels, Leveler.h): from its start, gliding over eight bars from the one
+    // before it -- a concert's pieces meet at their own levels.
+    float trim = 0.0f;
+    for (size_t i = 0; i < score_.levels.size(); ++i) {
+        const LevelMark& m = score_.levels[i];
+        if (m.beat > beat + 1e-9) break;
+        const float before = i > 0 ? score_.levels[i - 1].trimDb : m.trimDb;
+        trim = before + (m.trimDb - before) * static_cast<float>(std::clamp((beat - m.beat) / (8.0 * kBeatsPerBar), 0.0, 1.0));
+    }
+    master_ = dbToGain(knob(Module::Master, master::Level) + trim);
     const float compress = knob(Module::Master, master::Compress), ceiling = knob(Module::Master, master::Ceiling);
     if (changed(cache_.compress, compress, cache_.valid)) comp_.set(-16.0f, 1.0f + 0.5f * compress, 6.0f, 30.0f, 300.0f);
     if (changed(cache_.ceiling, ceiling, cache_.valid)) limiter_.set(ceiling, 150.0f);
@@ -1028,6 +1039,41 @@ void Engine::seek(double beat)
     cache_.valid = false;   // the components were reset: every setter runs again
     for (Track& t : tracks_) t.cursor = t.gestures.size();
     cellDirty_ = true;
+    // The notes that sound on across the jump start again where it lands (26.09.2026): the drone held since the phase
+    // began, the pads, a long note of the lead -- as a player would find the keys still down. The drums' hits are gone.
+    updateCell();
+    cellDirty_ = false;
+    for (size_t i = 0; i < evCursor_; ++i) {
+        const Ev& e = events_[i];
+        if (e.on && e.source != kSrcDrums && offAt_[static_cast<size_t>(e.id)] > sample_) dispatch(e);
+    }
+}
+
+void Engine::dispatch(const Ev& e)
+{
+    switch (e.source) {
+    case kSrcDrums:
+        if (e.on) {
+            // The toms are tuned to the root of the moment, the high one a fifth above.
+            const float low = static_cast<float>(midiToHz(43 + pitchClass(score_.keyRoot + score_.rootAt(beat()) - 7)));
+            drums_.hit(e.pitch, e.velocity, e.pitch == 48 || e.pitch == 47 || e.pitch == 50 ? low * 1.5f : low);
+        }
+        break;
+    case kSrcStrings:
+        if (e.on) strings_.noteOn(std::clamp(e.pitch + transpose_, 0, 127), e.velocity, e.id); else strings_.noteOff(e.id);
+        break;
+    case kSrcPoly:
+        if (e.on) poly_.noteOn(std::clamp(e.pitch + transpose_, 0, 127), e.velocity, e.id); else poly_.noteOff(e.id);
+        break;
+    case kSrcTape:
+        if (e.on) tape_.noteOn(std::clamp(e.pitch + transpose_, 0, 127), e.velocity, e.id); else tape_.noteOff(e.id);
+        break;
+    default:
+        if (e.on) voices_.noteOn(e.source, std::clamp(e.pitch + transpose_, 0, 127), e.velocity, e.accent, e.legato, e.id, e.bright, e.decay);
+        else voices_.noteOff(e.source, e.id);
+        break;
+    }
+    if (e.on) strips_[e.source].running = true;
 }
 
 bool Engine::process(float* L, float* R, int n)
@@ -1038,32 +1084,7 @@ bool Engine::process(float* L, float* R, int n)
     while (done < n) {
         if ((sample_ % kCell) == 0 || cellDirty_) { updateCell(); cellDirty_ = false; }
         // Every event due at this sample, offs before ons.
-        while (evCursor_ < events_.size() && events_[evCursor_].sample <= sample_) {
-            const Ev& e = events_[evCursor_++];
-            switch (e.source) {
-            case kSrcDrums:
-                if (e.on) {
-                    // The toms are tuned to the root of the moment, the high one a fifth above.
-                    const float low = static_cast<float>(midiToHz(43 + pitchClass(score_.keyRoot + score_.rootAt(beat()) - 7)));
-                    drums_.hit(e.pitch, e.velocity, e.pitch == 48 || e.pitch == 47 || e.pitch == 50 ? low * 1.5f : low);
-                }
-                break;
-            case kSrcStrings:
-                if (e.on) strings_.noteOn(std::clamp(e.pitch + transpose_, 0, 127), e.velocity, e.id); else strings_.noteOff(e.id);
-                break;
-            case kSrcPoly:
-                if (e.on) poly_.noteOn(std::clamp(e.pitch + transpose_, 0, 127), e.velocity, e.id); else poly_.noteOff(e.id);
-                break;
-            case kSrcTape:
-                if (e.on) tape_.noteOn(std::clamp(e.pitch + transpose_, 0, 127), e.velocity, e.id); else tape_.noteOff(e.id);
-                break;
-            default:
-                if (e.on) voices_.noteOn(e.source, std::clamp(e.pitch + transpose_, 0, 127), e.velocity, e.accent, e.legato, e.id, e.bright, e.decay);
-                else voices_.noteOff(e.source, e.id);
-                break;
-            }
-            if (e.on) strips_[e.source].running = true;
-        }
+        while (evCursor_ < events_.size() && events_[evCursor_].sample <= sample_) dispatch(events_[evCursor_++]);
         int64_t end = std::min<int64_t>(sample_ + (n - done), (sample_ / kCell + 1) * kCell);
         if (evCursor_ < events_.size()) end = std::min(end, events_[evCursor_].sample);
         const int len = static_cast<int>(end - sample_);

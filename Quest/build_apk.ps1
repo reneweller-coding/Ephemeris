@@ -18,6 +18,10 @@ $ndk = Join-Path $Sdk "ndk\$NdkVersion"
 $bt = Join-Path $Sdk "build-tools\$BuildTools"
 $androidJar = Join-Path $Sdk "platforms\$Platform\android.jar"
 $build = Join-Path $root "build-quest"
+# The version from the project() line of CMakeLists.txt; the version code 10000 major + 100 minor + patch.
+if ((Get-Content (Join-Path $root "CMakeLists.txt") -Raw) -notmatch 'project\(\s*Ephemeris\s+VERSION\s+(\d+)\.(\d+)\.(\d+)') { throw "no version in CMakeLists.txt" }
+$versionName = "$($Matches[1]).$($Matches[2]).$($Matches[3])"
+$versionCode = [int]$Matches[1] * 10000 + [int]$Matches[2] * 100 + [int]$Matches[3]
 $out = Join-Path $build "apk"
 
 if (-not (Test-Path (Join-Path $root "ThirdParty\openxr-loader\prefab"))) { throw "ThirdParty missing: run Quest\fetch_thirdparty.ps1 first" }
@@ -48,7 +52,7 @@ if (Test-Path $resZip) { Remove-Item $resZip -Force }
 if ($LASTEXITCODE -ne 0) { throw "aapt2 compile failed" }
 $base = Join-Path $out "base.apk"
 if (Test-Path $base) { Remove-Item $base -Force }
-& (Join-Path $bt "aapt2.exe") link -o $base --manifest (Join-Path $quest "AndroidManifest.xml") -R $resZip -I $androidJar --min-sdk-version 29 --target-sdk-version 32
+& (Join-Path $bt "aapt2.exe") link -o $base --manifest (Join-Path $quest "AndroidManifest.xml") -R $resZip -I $androidJar --min-sdk-version 29 --target-sdk-version 32 --version-code $versionCode --version-name $versionName --replace-version
 if ($LASTEXITCODE -ne 0) { throw "aapt2 link failed" }
 
 # 5. add the libraries (jar keeps the zip valid; extractNativeLibs=true allows compressed .so)

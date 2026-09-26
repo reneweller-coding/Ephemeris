@@ -1186,6 +1186,16 @@ Score composePiece(const ParamStore& params, uint64_t seed, double minutes, int 
     writeSettings(c);     // step 5
     writeHands(c);        // step 6
     settleMix(c);         // the mix's settings onto the faders
+    // Where the piece's loudness is measured (Leveler.h): its peak, else its section of the most energy.
+    {
+        double peak = -1.0;
+        float most = -1.0f;
+        for (const Section& sec : form.sections) {
+            if (sec.type == SectionType::Peak) { peak = sec.beat; break; }
+            if (std::max(sec.e0, sec.e1) > most) { most = std::max(sec.e0, sec.e1); peak = sec.beat; }
+        }
+        s.levels.push_back({ 0.0, std::max(0.0, peak), prof.peakLufs, 0.0f });
+    }
     s.sort();
     return s;
 }
@@ -1496,6 +1506,7 @@ void mixInto(Score& dst, const Score& src, double overlap, int rootOffset, int s
     std::stable_sort(dst.rowShapes.begin(), dst.rowShapes.end(), [](const RowShape& a, const RowShape& b) { return a.from < b.from; });
     for (SoundPick k : src.sounds) { k.beat += at; dst.sounds.push_back(k); }
     for (KnobSet k : src.knobs) { k.beat += at; dst.knobs.push_back(k); }
+    for (LevelMark m : src.levels) { m.beat += at; m.peakBeat += at; dst.levels.push_back(m); }
     dst.lengthBeats = at + src.lengthBeats;
     dst.sort();
 }
@@ -1570,7 +1581,7 @@ Score composeConcert(const ParamStore& p, uint64_t seed, double minutes, const C
         for (Marker& mk : piece.markers) mk.text = "Stueck " + std::to_string(i + 1) + ": " + mk.text;
         if (i == 0) { out = piece; out.rootShifts.clear(); out.scaleShifts.clear(); out.lengthBeats = 0.0; out.notes.clear(); out.gestures.clear();
                       out.rack.clear(); out.markers.clear(); out.rowShapes.clear(); out.sounds.clear();
-                      out.knobs.clear(); }
+                      out.knobs.clear(); out.levels.clear(); }
         const double before = out.tempo.secondsAt(out.lengthBeats);
         appendScore(out, piece, shift);
         elapsed += out.tempo.secondsAt(out.lengthBeats) - before;
@@ -1667,7 +1678,7 @@ Score composeNightSet(const ParamStore& p, uint64_t seed, double minutes, const 
         for (Marker& mk : piece.markers) mk.text = "Stueck " + std::to_string(i + 1) + " (" + prof.name + "): " + mk.text;
         if (i == 0) { out = piece; out.rootShifts.clear(); out.scaleShifts.clear(); out.lengthBeats = 0.0; out.notes.clear(); out.gestures.clear();
                       out.rack.clear(); out.markers.clear(); out.rowShapes.clear(); out.sounds.clear();
-                      out.knobs.clear(); }
+                      out.knobs.clear(); out.levels.clear(); }
         mixInto(out, piece, overlapIn * kBeatsPerBar, shift, bank);
         elapsed = out.tempo.secondsAt(out.lengthBeats);
         endBpm = out.tempo.bpmAt(out.lengthBeats);

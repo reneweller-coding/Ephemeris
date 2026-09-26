@@ -61,8 +61,18 @@ Stand: M1-M5, V1-V3 erledigt. M1-M4 bitgenau neutral (Referenz-Hashes unverände
    Stückbeginn (Pegel, Pan, Sends, Low Cut, Distanz, Punch, Spread, Auto Pan) zum Reglerwert (KnobSet kind 1) und
    verschiebt alle späteren Bewegungen desselben Reglers um denselben Betrag: gespielt wird dasselbe (Cosmic Seed 8 vorher
    und nachher -15,9 LUFS), der Mixer zeigt die Mischung des Stücks. Das Plugin vergleicht Klang und Mischung je Zug getrennt.
-   Offen: Streuung der Lautheit von Stück zu Stück (Modern -13,1 / -17,4 LUFS), CPU auf ruhiger Maschine und auf der
-   Quest, und hören.
+   Hör- und DAW-Test durch den Nutzer: alles in Ordnung. Dann die Vorbereitung der Veröffentlichung (Nutzer: "Den Rest
+   sollten wir natürlich noch umsetzen"): privates GitHub-Repository reneweller-coding/Ephemeris; Filter-SIMD (jedes
+   Register der Stimmenbank rechnet nur seine Modelle; die 16 Filter des Pad-Synths in Lanes; die Kehrwerte der
+   Pivots zuerst, nach Noctuarys Port) -- eph_bench: Stimmenbank mit vier Modellen 13,2 -> 7,5 %, mit neun 32,3 -> 11,2 %,
+   Pad-Synth 12,7 -> 2,2 % eines Kerns, Lanes bitgleich; Intel icx: die ganze Engine rund 10-15 % schneller, pluginval
+   Strenge 10 bestanden, statische Laufzeit ohne Intel-DLLs -> das Release baut mit icx, wo oneAPI installiert ist
+   (sonst MSVC), Ausgabe nicht bitgleich zu MSVC, aber in sich deterministisch; Update-Prüfung (einmal täglich die
+   neueste GitHub-Release, abschaltbar, eigene Einstellungsdatei); Lautheitsausgleich je Stück (Leveler.h: der Höhepunkt
+   gerendert und gemessen, zwei Durchgänge, höchstens 4 dB, Ziel je Stil = Mittel von vier Stücken); Note-Chase beim
+   Springen; Signieren vorbereitet (EPH_SIGN_THUMBPRINT/EPH_SIGN_PFX, sonst unsigniert); publish_release.ps1; Version
+   1.0.0 (auch die APK aus CMakeLists.txt), Release Notes.
+   Offen: Code-Zertifikat (Kosten, Entscheidung des Nutzers), das Repository öffentlich machen (AGPL), CPU auf der Quest.
 
 **Vorschlag (26.09.2026): Hüllkurven, LFOs und Modulationsmatrix für jeden Synth.** Frage des
 Nutzers: je eine volle ADSR für Amp und Filter, eine dritte für weitere Modulation, drei bis vier LFOs (z. B. durch die

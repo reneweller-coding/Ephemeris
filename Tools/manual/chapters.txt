@@ -82,7 +82,10 @@ control does, the same on every page -- they are the logo's five planets: amber 
 tapes, registers), copper for the filters, sage for the envelopes, teal for everything that moves by itself (LFOs,
 scans, ensembles, the echoes' time), steel blue for the room and the mix; the sun's amber marks the page in front
 and the transport. A page taller than the window scrolls. The standalone's window can be maximised, and Full
-screen (or F11; Esc leaves it) fills the screen; the whole panel grows with the window.
+screen (or F11; Esc leaves it) fills the screen; the whole panel grows with the window. Update check, in the status row, asks GitHub once a day
+whether a newer Ephemeris is out and shows it there as a link to its page -- nothing else is sent, nothing is
+downloaded; switched off, it asks nothing. A jump on the arrange view finds the notes that sound on across it -- the
+drone, the pads, a long lead note -- and starts them where it lands.
 
 Below, the arrange view shows the sections of the piece -- the atmosphere at the start, the entry of the
 rows, the builds, the lead, the peak, the bridges, the fade -- with the playhead. Click to jump.
@@ -578,7 +581,13 @@ strings step back 3 dB.
 
 The styles are levelled to the loudness a streamed release is played at (EBU R128, measured with the
 offline renderer on ten-minute pieces): Cosmic, Melodic and Modern about -15 LUFS integrated, Doom and
-Drift about -17.5 -- one piece a dB or two either way, with the sounds the composer chose for it; the loudest three seconds around -12 LUFS, the true peak at -1 dBTP, the peak-to-loudness
+Drift about -17.5. Since the pieces are drawn anew each time -- how many rows, which presets, whether the drums come
+in -- two pieces of one style could lie four dB apart; now every piece's loudest part is measured before it plays
+and brought to its style's level (at most 4 dB either way): the composer marks the peak, the program renders twenty
+seconds of it, measures them, sets the correction on the master, measures again with it (the bus compressor and the
+limiter come after the gain) and puts the rest right. It takes a few seconds when a piece is composed; a concert's
+pieces each get their own, gliding from one to the next over eight bars. The correction is part of the piece:
+played live or rendered offline, it is the same, and your master level comes on top. The loudest three seconds around -12 LUFS, the true peak at -1 dBTP, the peak-to-loudness
 ratio 11 to 14 dB and the loudness range 8 to 13 LU -- the dynamics are the product. eph_render prints these
 figures for everything it renders, with the stereo correlation and how far the side lies under the mid.
 Below, the composer's settings -- the style, key, scale, tempo, lengths and whether the style chooses the

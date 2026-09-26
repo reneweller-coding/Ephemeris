@@ -26,6 +26,7 @@ add_library(EphemerisCore STATIC
     src/Engine.cpp
     src/Cue.cpp
     src/Loudness.cpp
+    src/Leveler.cpp
     src/Presets.cpp
     src/fx/Plate.cpp
     src/fx/Bbd.cpp

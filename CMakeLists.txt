@@ -9,7 +9,7 @@
 #
 # Built after Phosphene's root CMakeLists.txt at 9a2f615; the rules below are its rules.
 cmake_minimum_required(VERSION 3.22)
-project(Ephemeris VERSION 0.1.0 LANGUAGES C CXX)
+project(Ephemeris VERSION 1.0.0 LANGUAGES C CXX)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)

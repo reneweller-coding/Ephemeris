@@ -5,12 +5,18 @@
 .DESCRIPTION
     After Phosphene's Deploy\build_release.ps1, without its data download (Ephemeris has no data files).
 
-      1. configure and build build-release (Release, static MSVC runtime, AVX2)
+      1. configure and build build-release (Release, static runtime, AVX2) -- with Intel's icx where oneAPI is
+         installed (26.09.2026: the whole engine 10 to 15 % faster than MSVC's, pluginval passes; -Compiler msvc
+         builds as before)
       2. run the tests (ctest), unless -SkipTests; pluginval at strictness 10 where it is unpacked
       3. the manual: Tools\manual\make_manual.py with the release's eph_render
       4. stage what is installed under Deploy\stage, and nothing else
       5. check the stage: every file there, the binaries without a DLL dependency on the MSVC runtime
       6. SHA256SUMS.txt, the portable zip, and the setup with Inno Setup (ISCC), unless -NoSetup
+
+    Signing: with EPH_SIGN_THUMBPRINT (a certificate in the user's store) or EPH_SIGN_PFX and EPH_SIGN_PASSWORD (a .pfx
+    file), the binaries and the setup are signed with signtool (SHA-256, timestamped: EPH_SIGN_TIMESTAMP, else
+    DigiCert's server); without them the release is built unsigned (Windows' SmartScreen then warns once).
 
     The version comes from the project() line of CMakeLists.txt, the one source of truth.
 
@@ -21,7 +27,8 @@
 param(
     [switch]$NoSetup,
     [switch]$SkipTests,
-    [string]$Generator = "Visual Studio 18 2026"
+    [string]$Generator = "Visual Studio 18 2026",
+    [ValidateSet("", "icx", "msvc")][string]$Compiler = ""
 )
 $ErrorActionPreference = "Stop"
 $root = Split-Path -Parent $PSScriptRoot
@@ -33,11 +40,51 @@ if ($project -notmatch 'project\(\s*Ephemeris\s+VERSION\s+([0-9.]+)') { throw "n
 $Version = $Matches[1]
 Write-Host "Ephemeris $Version"
 
-# 1. Build.
-& cmake -S $root -B $build -G $Generator -A x64 -DEPH_STATIC_RUNTIME=ON -DEPH_BUILD_PLUGIN=ON -DEPH_BUILD_TOOLS=ON
-if ($LASTEXITCODE -ne 0) { throw "configure failed" }
-& cmake --build $build --config Release --parallel
-if ($LASTEXITCODE -ne 0) { throw "build failed" }
+# 1. Build: with icx where oneAPI is installed (its environment and Visual Studio's, Ninja from Visual Studio), else MSVC.
+$icxVars = Get-ChildItem "C:\Program Files (x86)\Intel\oneAPI\compiler\*\env\vars.bat" -ErrorAction SilentlyContinue | Sort-Object FullName | Select-Object -Last 1
+if ($Compiler -eq "") { $Compiler = if ($icxVars) { "icx" } else { "msvc" } }
+Write-Host "compiler: $Compiler"
+if ($Compiler -eq "icx") {
+    if (-not $icxVars) { throw "oneAPI's icx not found" }
+    $build = Join-Path $root "build-release-icx"
+    $vcvars = Get-ChildItem "C:\Program Files\Microsoft Visual Studio\*\*\VC\Auxiliary\Build\vcvars64.bat" | Select-Object -First 1
+    $ninja = Get-ChildItem "C:\Program Files\Microsoft Visual Studio\*\*\Common7\IDE\CommonExtensions\Microsoft\CMake\Ninja\ninja.exe" | Select-Object -First 1
+    $installer = "C:\Program Files (x86)\Microsoft Visual Studio\Installer"
+    $script = Join-Path $env:TEMP "ephemeris_icx_build.cmd"
+    @(
+        "@echo off",
+        "call `"$($vcvars.FullName)`" > nul",
+        "set PATH=$installer;%PATH%",
+        "call `"$($icxVars.FullName)`" intel64 > nul",
+        "set PATH=$($ninja.DirectoryName);%PATH%",
+        "cmake -S `"$root`" -B `"$build`" -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER=icx -DCMAKE_CXX_COMPILER=icx -DEPH_STATIC_RUNTIME=ON -DEPH_BUILD_PLUGIN=ON -DEPH_BUILD_TOOLS=ON || exit /b 1",
+        "cmake --build `"$build`" --parallel || exit /b 1"
+    ) | Set-Content -Encoding ascii $script
+    & cmd /c $script
+    if ($LASTEXITCODE -ne 0) { throw "build failed" }
+    $render = Join-Path $build "Tools\render\eph_render.exe"
+} else {
+    & cmake -S $root -B $build -G $Generator -A x64 -DEPH_STATIC_RUNTIME=ON -DEPH_BUILD_PLUGIN=ON -DEPH_BUILD_TOOLS=ON
+    if ($LASTEXITCODE -ne 0) { throw "configure failed" }
+    & cmake --build $build --config Release --parallel
+    if ($LASTEXITCODE -ne 0) { throw "build failed" }
+    $render = Join-Path $build "Tools\render\Release\eph_render.exe"
+}
+
+# Signing where a certificate is given (see the description); a no-op without one.
+function Sign-Files([string[]]$files) {
+    $thumb = $env:EPH_SIGN_THUMBPRINT
+    $pfx = $env:EPH_SIGN_PFX
+    if (-not $thumb -and -not $pfx) { return }
+    $signtool = Get-ChildItem "C:\Program Files (x86)\Windows Kits\10\bin\*\x64\signtool.exe" -ErrorAction SilentlyContinue | Sort-Object FullName | Select-Object -Last 1
+    if (-not $signtool) { throw "signtool not found (Windows SDK)" }
+    $stamp = if ($env:EPH_SIGN_TIMESTAMP) { $env:EPH_SIGN_TIMESTAMP } else { "http://timestamp.digicert.com" }
+    $signArgs = @("sign", "/fd", "sha256", "/tr", $stamp, "/td", "sha256")
+    if ($thumb) { $signArgs += @("/sha1", $thumb) } else { $signArgs += @("/f", $pfx, "/p", $env:EPH_SIGN_PASSWORD) }
+    & $signtool.FullName @signArgs @files
+    if ($LASTEXITCODE -ne 0) { throw "signing failed" }
+    Write-Host "signed $($files.Count) files"
+}
 
 # 2. Tests (they run muted where they may: EPH_MUTE; the host test lifts it for itself).
 if (-not $SkipTests) {
@@ -59,7 +106,6 @@ if (Test-Path $pluginval) {
 }
 
 # 3. The manual, from this build's eph_render (the screenshots in docs\screenshots are committed).
-$render = Join-Path $build "Tools\render\Release\eph_render.exe"
 & python (Join-Path $root "Tools\manual\make_manual.py") --render $render
 if ($LASTEXITCODE -ne 0) { throw "manual failed" }
 
@@ -84,10 +130,11 @@ if ($dumpbin) {
     $binaries = @((Join-Path $stage "Ephemeris.exe"), (Join-Path $stage "eph_render.exe")) +
                 @(Get-ChildItem -Recurse (Join-Path $stage "Ephemeris.vst3") -Filter *.vst3 -File | ForEach-Object { $_.FullName })
     foreach ($b in $binaries) {
-        $deps = & $dumpbin.FullName /DEPENDENTS $b | Select-String -Pattern "(?i)(vcruntime|msvcp)\d+.*\.dll"
-        if ($deps) { throw "$b depends on the dynamic MSVC runtime: $deps" }
+        $deps = & $dumpbin.FullName /DEPENDENTS $b | Select-String -Pattern "(?i)((vcruntime|msvcp)\d+.*|libmmd|svml_disp\w*|libirngmd|libiomp\w*)\.dll"
+        if ($deps) { throw "$b depends on a runtime DLL (MSVC's or Intel's): $deps" }
     }
-    Write-Host "no dynamic MSVC runtime in $($binaries.Count) binaries"
+    Write-Host "no dynamic MSVC or Intel runtime in $($binaries.Count) binaries"
+    Sign-Files $binaries
 } else {
     Write-Host "dumpbin not found: the runtime check is skipped"
 }
@@ -110,5 +157,6 @@ if (-not $NoSetup) {
     if (-not $iscc) { throw "Inno Setup not found. winget install JRSoftware.InnoSetup, or run with -NoSetup." }
     & $iscc.FullName "/DVersion=$Version" (Join-Path $deploy "Ephemeris.iss")
     if ($LASTEXITCODE -ne 0) { throw "setup failed" }
+    Sign-Files @((Join-Path $out "Ephemeris-$Version-Setup.exe"))
     Write-Host "wrote $(Join-Path $out "Ephemeris-$Version-Setup.exe")"
 }

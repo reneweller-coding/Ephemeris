@@ -132,6 +132,17 @@ struct KnobSet {
     int kind = 0;         ///< 0 a sound (a preset's knob), 1 a setting of the mix (a fader, a pan, a send ...)
 };
 
+/**
+ * @brief Where a piece's loudness is set (26.09.2026, Leveler.h): its start, where its loudest part begins, what that part
+ *        should measure, and the correction found for it -- the master gain from the piece's start on.
+ */
+struct LevelMark {
+    double beat = 0.0;          ///< the piece's start
+    double peakBeat = 0.0;      ///< where its loudest part begins (its peak)
+    float targetLufs = -12.0f;  ///< what that part should measure (the style's)
+    float trimDb = 0.0f;        ///< the correction (levelScore); 0 until measured
+};
+
 /** @brief A named position: a phase of a piece, the start of a piece. */
 struct Marker {
     double beat = 0.0;   ///< position in beats
@@ -154,6 +165,7 @@ struct Score {
     std::vector<RowShape> rowShapes;   ///< the rows as composed (Composer), in beat order; nothing plays from it
     std::vector<SoundPick> sounds;     ///< the composer's presets, in beat order: what the pages show
     std::vector<KnobSet> knobs;        ///< the knobs the composer sets to its presets, in beat order (Engine::load, updateCell)
+    std::vector<LevelMark> levels;     ///< every piece's loudness mark, in beat order (Leveler.h)
     /** The transposer's roots over time as (beat, semitones), written by whoever ran the rack; the
      *  atmosphere's bleeps and anything else that must be in the rows' root read it. */
     std::vector<std::pair<double, int>> rootShifts;

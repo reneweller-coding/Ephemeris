@@ -3,6 +3,7 @@
  * @brief The plugin's processor.
  */
 #include "PluginProcessor.h"
+#include "eph/Leveler.h"
 #include <map>
 #include <tuple>
 #include "PluginEditor.h"
@@ -141,7 +142,9 @@ Score EphemerisProcessor::composeNow()
     }
     const double concert = snapshot.get(snapshot.id(Module::Compose, 0, compose::ConcertMinutes));
     const double minutes = snapshot.get(snapshot.id(Module::Compose, 0, compose::PieceMinutes));
-    return concert > 0.0 ? composeConcert(snapshot, seed, concert, &cur) : composePiece(snapshot, seed, minutes, 0, &cur);
+    Score s = concert > 0.0 ? composeConcert(snapshot, seed, concert, &cur) : composePiece(snapshot, seed, minutes, 0, &cur);
+    levelScore(s, snapshot);   // every piece as loud as its style means (Leveler.h)
+    return s;
 }
 
 void EphemerisProcessor::compose()

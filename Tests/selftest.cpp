@@ -10,6 +10,7 @@
 #include "eph/compose/Composer.h"
 #include "eph/Engine.h"
 #include "eph/Loudness.h"
+#include "eph/Leveler.h"
 #include "eph/Presets.h"
 #include "eph/Cue.h"
 #include "eph/fx/Plate.h"
@@ -670,7 +671,7 @@ void testPerform()
     section("perform controls");
     ParamStore base;
     // The voices as the settings make them (not a drawn preset), and only the rows: the brightness is theirs.
-    base.parseText("compose.style=Melodic compose.pick_sounds=0 drone.level=-60 tape.level=-60 strings.level=-60 lead.level=-60 atmos.level=-60 drums.level=-60");
+    base.parseText("compose.style=Melodic compose.pick_sounds=0 drone.level=-60 tape.level=-60 strings.level=-60 lead.level=-60 atmos.level=-60 drums.level=-60 poly.level=-60");
     const Score score = composePiece(base, 5, 4.0);
     auto render = [&](const char* setting) {
         Engine e;
@@ -2752,6 +2753,69 @@ void testVcos()
 }
 
 /**
+ * The loudness per piece (26.09.2026, Leveler.h): a jump finds the notes sounding on across it again; the leveler
+ * brings a piece's loudest part to its style's target, within a dB, the same every time, and the engine plays the
+ * correction from the piece's start.
+ */
+void testLeveler()
+{
+    section("every piece as loud as its style means");
+    {
+        // A drone held from the start: a jump into its middle hears it at once.
+        Score held;
+        held.clear(120.0);
+        held.notes.push_back({ 0.0, 64.0, Part::Drone, 45, 0.9f, false, false });
+        held.lengthBeats = 64.0;
+        Engine e;
+        e.params().parseText("master.motion=0");
+        e.prepare(48000.0, 512);
+        e.load(held);
+        e.seek(32.0);
+        std::vector<float> l(512), r(512);
+        double en = 0.0;
+        for (int b = 0; b < 94; ++b) {
+            e.process(l.data(), r.data(), 512);
+            if (b >= 20) for (float x : l) en += static_cast<double>(x) * x;
+        }
+        check(en > 1e-3, "a jump finds the notes that sound on across it", fmt("energy %.4f after the jump", en));
+    }
+    ParamStore p;
+    p.parseText("compose.style=Melodic");
+    Score a = composePiece(p, 21, 4.0), b = a;
+    const std::vector<LevelReading> ra = levelScore(a, p), rb = levelScore(b, p);
+    bool ok = ra.size() == 1 && rb.size() == 1, same = ok;
+    std::string info;
+    for (size_t i = 0; ok && i < ra.size(); ++i) {
+        ok = ok && std::fabs(ra[i].after - ra[i].target) < 1.0f && std::fabs(ra[i].trim) <= 4.0f;
+        same = same && ra[i].trim == rb[i].trim;
+        info += fmt("loudest part %.1f LUFS, target %.1f, correction %+.1f dB, then %.1f", static_cast<double>(ra[i].measured),
+                    static_cast<double>(ra[i].target), static_cast<double>(ra[i].trim), static_cast<double>(ra[i].after));
+    }
+    check(ok && same && a.levels[0].trimDb == ra[0].trim, "the loudest part comes to its style's target, the same every time", info);
+    // The engine plays the correction: the same piece with and without, the same place, apart by the correction.
+    auto loud = [](const Score& sc, const ParamStore& q) {
+        Engine e;
+        e.params().copyValuesFrom(q);
+        e.prepare(48000.0, 512);
+        e.load(sc);
+        e.seek(sc.levels[0].peakBeat);
+        std::vector<float> l(512), r(512);
+        LoudnessMeter m;
+        m.prepare(48000.0);
+        for (int k = 0; k < 900; ++k) {
+            e.process(l.data(), r.data(), 512);
+            if (k >= 300) m.process(l.data(), r.data(), 512);
+        }
+        return m.report().integrated;
+    };
+    Score plain = a;
+    plain.levels[0].trimDb = 0.0f;
+    const double with = loud(a, p), without = loud(plain, p);
+    check(std::fabs((with - without) - a.levels[0].trimDb) < 1.0, "the engine plays the correction from the piece's start",
+          fmt("%.1f LUFS with it, %.1f without, the correction %+.1f dB", with, without, static_cast<double>(a.levels[0].trimDb)));
+}
+
+/**
  * The offline render is the oracle only if a host's block size cannot change a sample: the study
  * rendered with blocks of 1, 37 and 512 must agree bit for bit (Engine.h).
  */
@@ -2919,6 +2983,7 @@ const TestSection kSections[] = {
     { "testModulation", testModulation },
     { "testSynthModulation", testSynthModulation },
     { "testVcos", testVcos },
+    { "testLeveler", testLeveler },
     { "testBlockSizes", testBlockSizes },
     { "testEcho", testEcho },
     { "testDrift", testDrift },

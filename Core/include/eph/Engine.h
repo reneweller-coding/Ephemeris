@@ -151,6 +151,8 @@ private:
         float bright = 0.0f;   ///< the note's cutoff offset in octaves (NoteEvent::bright)
         float decay = 0.0f;    ///< the note's filter decay in octaves of its time (NoteEvent::decay)
     };
+    /** @brief Hands event @p e to its source. */
+    void dispatch(const Ev& e);
     /** @brief The gestures on one parameter, in time order, with a cursor. */
     struct Track {
         int param;                     ///< the knob
@@ -221,6 +223,7 @@ private:
     std::atomic<uint32_t> soundsVersion_ { 0 };   ///< soundsVersion()
     /** @brief Puts the score's knob settings up to @p beat on the knobs, from the cursor on. */
     void applyKnobs(double beat);
+    std::vector<int64_t> offAt_;   ///< every note's off sample, by its id (a seek chases the notes that sound on)
     std::vector<Ev> events_;
     size_t evCursor_ = 0;
     std::vector<Track> tracks_;
