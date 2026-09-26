@@ -49,8 +49,16 @@ Stand: M1-M5, V1-V3 erledigt. M1-M4 bitgenau neutral (Referenz-Hashes unverände
    10 min: Cosmic 4.8, Doom 2.8, Melodic 3.3, Modern 4.5, Drift 4.0 dB). V4: Release (49/49 ctest, pluginval Strenge 10
    mit jetzt rund 1250 Parametern), APK 5,5 MB. CPU: die VCO-Modelle kosten für alle zehn Stimmen rund 2 % eines Kerns
    (Studie, analog 16,5 %, Moog 18-19 %); absolute Werte waren nicht sauber messbar (Maschine ohne Render bei 63 % Last).
-   Offen: Streuung der Lautheit von Stück zu Stück (Modern -13,3 / -17,5 LUFS), CPU auf ruhiger Maschine und auf der
-   Quest, und hören.
+   Danach (Nutzer: "Die Presets sollen ruhig ordentlich Gebrauch von den Modulationen machen" und "der Komponist wählt
+   Presets aus. Dann kann er die Werte doch absolut setzen"): Klänge als Programmwechsel (Score::knobs; der Komponist
+   setzt sie auf seine Parameterkopie, alle späteren Bewegungen relativ dazu; das Plugin setzt die Regler der Synths,
+   deren Klang sich ändert, und meldet sie Host und Seiten; Konzerte wechseln am Stückanfang auf der Zelle; Sprung in ein
+   anderes Stück nimmt dessen Klänge; Sitzung und Set behalten ihre Regler, "sounds=knobs"). Presets: je Gruppe ihre
+   Modulation plus ein bis drei aus dem Vorrat des Synths (freie LFOs und Plätze der Reihe nach, das Fundament ohne
+   Tonhöhe): rund 90 % mit Modulation, im Schnitt zwei Plätze, zehn Ziele bei den Stimmen. Lautheit danach im Ziel
+   (±0,25 dB), Stilpegel unverändert. Release 49/49, APK 5,6 MB.
+   Offen: Streuung der Lautheit von Stück zu Stück (Modern -13,1 / -17,4 LUFS), CPU auf ruhiger Maschine und auf der
+   Quest, die Mixer-Einstellungen des Komponisten (Pan, Sends, Low Cut) sind noch Offsets, und hören.
 
 **Vorschlag (26.09.2026): Hüllkurven, LFOs und Modulationsmatrix für jeden Synth.** Frage des
 Nutzers: je eine volle ADSR für Amp und Filter, eine dritte für weitere Modulation, drei bis vier LFOs (z. B. durch die
