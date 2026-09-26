@@ -551,7 +551,7 @@ const ParamDesc kCustomParams[custom::Count] = {
     { "hand_rest",    "Hands: a Rest",    "s",    4.0f,  40.0f,  14.0f, Curve::Log },
     { "darkness",     "Darkness",         "",    -0.5f,   0.5f,  -0.05f, Curve::Linear },
     { "hall",         "Hall",             "s",    1.0f,  15.0f,   6.0f, Curve::Log },
-    { "level",        "Level",            "dB", -12.0f,  12.0f,   4.5f, Curve::Linear },
+    { "level",        "Level",            "dB", -12.0f,  12.0f,   4.8f, Curve::Linear },
 };
 
 /** The hall: long and dark, as the style's spaces are (a first setting, to be judged by ear). */
