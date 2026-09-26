@@ -4,6 +4,7 @@
  */
 #include "PluginProcessor.h"
 #include <map>
+#include <tuple>
 #include "PluginEditor.h"
 #include "eph/Loudness.h"
 #include "eph/Presets.h"
@@ -192,13 +193,13 @@ void EphemerisProcessor::run()
 
 void EphemerisProcessor::takeSounds(const Score& next)
 {
-    // Per synth: the values the new piece sets at its start against those of the piece playing. A synth whose sound
-    // stays (a reroll of the rows, say) keeps its knobs as the player left them; one with a new sound takes it, as a
-    // program change.
-    using Key = std::pair<int, int>;
+    // Per synth, its sound and its mix apart: the values the new piece sets at its start against those of the piece
+    // playing. What stays (a synth's sound after a reroll of the rows, say) keeps its knobs as the player left them;
+    // what is new is taken, as a program change.
+    using Key = std::tuple<int, int, int>;
     auto startOf = [](const Score& s) {
         std::map<Key, std::vector<std::pair<int, float>>> m;
-        for (const KnobSet& k : s.knobs) if (k.beat <= 1e-9) m[{ k.module, k.instance }].push_back({ k.param, k.value });
+        for (const KnobSet& k : s.knobs) if (k.beat <= 1e-9) m[{ k.module, k.instance, k.kind }].push_back({ k.param, k.value });
         return m;
     };
     std::map<Key, std::vector<std::pair<int, float>>> was;

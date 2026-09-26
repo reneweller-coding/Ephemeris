@@ -658,6 +658,44 @@ void setKnob(Piece& c, Module m, int instance, int id, float v)
 }
 
 /**
+ * @brief The piece's mix on the faders themselves (26.09.2026): every setting of a source's strip the piece makes at its
+ *        start -- level, pan, the sends, the low cut, the distance, the punch, the spread, the auto pan -- becomes the
+ *        knob's value (a KnobSet), and every later move of that knob along the form is rebased onto it, so what plays
+ *        stays as it was while the mixer shows the piece's settings and a hand turns them from there.
+ */
+void settleMix(Piece& c)
+{
+    static const char* const kMix[] = { "level", "pan", "echo", "echo2", "reverb", "blend", "early", "shimmer", "low_cut",
+                                        "distance", "punch", "spread", "auto_pan" };
+    ParamStore& p = c.p;
+    auto& gestures = c.s.gestures;
+    for (Module m : { Module::Row, Module::Lead, Module::Drone, Module::Tape, Module::Strings, Module::Poly, Module::Drums, Module::Atmos }) {
+        const int instances = m == Module::Row ? kRows : 1;
+        for (int inst = 0; inst < instances; ++inst) {
+            for (int k = 0; k < ParamStore::moduleCount(m); ++k) {
+                const int id = p.id(m, inst, k);
+                const std::string key = p.desc(id).key;
+                if (std::find_if(std::begin(kMix), std::end(kMix), [&](const char* x) { return key == x; }) == std::end(kMix)) continue;
+                // The setting at the start: the last step at beat 0 (in the order the engine reads them).
+                const Gesture* at0 = nullptr;
+                for (const Gesture& g : gestures)
+                    if (g.param == id && g.beat <= 1e-9 && (g.shape == GestureShape::Step || g.length <= 0.0)) at0 = &g;
+                if (at0 == nullptr) continue;
+                const float knob = p.toNormalised(id, p.get(id));
+                const float value = p.fromNormalised(id, std::clamp(knob + at0->to, 0.0f, 1.0f));
+                const float shift = p.toNormalised(id, value) - knob;
+                gestures.erase(std::remove_if(gestures.begin(), gestures.end(), [id](const Gesture& g) {
+                    return g.param == id && g.beat <= 1e-9 && (g.shape == GestureShape::Step || g.length <= 0.0);
+                }), gestures.end());
+                for (Gesture& g : gestures) if (g.param == id) { g.from -= shift; g.to -= shift; }
+                p.set(id, value);
+                c.s.knobs.push_back({ 0.0, id, value, static_cast<int>(m), inst, 1 });
+            }
+        }
+    }
+}
+
+/**
  * @brief The piece's sounds (compose.pick_sounds, 25.09.2026): a factory preset for every synth, from the groups that
  *        fit its part -- the bass row a bass, the main sequence a squelchy, resonant or plucked one, the other counter
  *        rows glass, hollow or plucked, the lead and the kit the style's, the tape keys a group of the style's tape
@@ -1147,6 +1185,7 @@ Score composePiece(const ParamStore& params, uint64_t seed, double minutes, int 
     writeEvents(c);       // (the addon's events in the stages without a sequence)
     writeSettings(c);     // step 5
     writeHands(c);        // step 6
+    settleMix(c);         // the mix's settings onto the faders
     s.sort();
     return s;
 }
@@ -1217,6 +1256,7 @@ Score composeInterlude(const ParamStore& params, uint64_t seed, double minutes, 
     writeEvents(c);
     writeSettings(c);
     writeHands(c);
+    settleMix(c);
     s.sort();
     return s;
 }

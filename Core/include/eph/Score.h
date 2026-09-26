@@ -119,8 +119,9 @@ struct SoundPick {
 
 /**
  * @brief A knob the composer sets, from a beat on (26.09.2026): the sound of a synth as a program change -- the preset it
- *        chose for the piece (compose.pick_sounds), set on the knob itself where the piece begins. Unlike a gesture it
- *        is no offset: the page shows it, and a hand that turns the knob turns it from there.
+ *        chose for the piece (compose.pick_sounds) -- and the mix it sets for the piece (the faders, pans, sends, low
+ *        cuts, distances), set on the knob itself where the piece begins. Unlike a gesture it is no offset: the page
+ *        shows it, and a hand that turns the knob turns it from there.
  */
 struct KnobSet {
     double beat = 0.0;    ///< from where it holds (each piece of a concert brings its own)
@@ -128,6 +129,7 @@ struct KnobSet {
     float value = 0.0f;   ///< its value
     int module = 0;       ///< the synth it belongs to (Module, as an int): a program change is per synth
     int instance = 0;     ///< ... and its instance (the row, for the voices)
+    int kind = 0;         ///< 0 a sound (a preset's knob), 1 a setting of the mix (a fader, a pan, a send ...)
 };
 
 /** @brief A named position: a phase of a piece, the start of a piece. */

@@ -99,7 +99,10 @@ the console shows level, pan and meter only, with long faders.
 The composer sets the stereo field for each piece: the bass in the middle, the main sequence near it, the
 other counter rows 30 to 50 % out to alternating sides, the lead a little off the middle. It keeps the bass
 dry and the tape keys and strings out of the echo, and sends the counter rows after the first into the
-second echo, so each layer of the sequence has a delay time of its own.
+second echo, so each layer of the sequence has a delay time of its own. It sets all this on the faders, pans and
+sends themselves as the piece begins -- the mixer shows the piece's mix, and a hand that moves a fader moves it from
+there; its moves along the form (the bass coming closer, the pads stepping back while the lead plays) run from those
+settings. As with the sounds, a new piece that keeps a strip's settings keeps your changes to it.
 
 Every source has a Low Cut on its own page: a gentle high pass (12 dB per octave) that keeps it out of the
 bands below its own, after the production guide's frequency plan. Only the bass row reaches down to 30 Hz;

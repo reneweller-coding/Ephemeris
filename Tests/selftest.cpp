@@ -71,6 +71,14 @@ using namespace ephtest;
 
 namespace {
 
+/** @brief Knob @p id where piece @p s begins: its setting on the knob (Score::knobs, 26.09.2026), else the knob in @p p. */
+float knobAt(const ParamStore& p, const Score& s, int id)
+{
+    float v = p.get(id);
+    for (const KnobSet& k : s.knobs) if (k.param == id && k.beat <= 1e-9) v = k.value;
+    return v;
+}
+
 /**
  * The tempo map converts beats to seconds in closed form. Measured against a numerical integral of
  * 60/bpm over a ramp that spans a whole 20-minute piece, the way a piece that speeds up from its
@@ -1232,7 +1240,7 @@ void testFormAndSpace()
             }
         drumPieces += drums ? 1 : 0;
         const int echo = p.id(Module::Row, 0, row::EchoSend);
-        dryBass += p.fromNormalised(echo, p.toNormalised(echo, p.get(echo)) + sc.gestureOffset(echo, 1.0)) < 0.01f ? 1 : 0;
+        dryBass += p.fromNormalised(echo, p.toNormalised(echo, knobAt(p, sc, echo)) + sc.gestureOffset(echo, 1.0)) < 0.01f ? 1 : 0;
         const int hall = p.id(Module::Reverb, 0, reverb::Decay);
         double peakEnd = -1.0, atmoMid = -1.0;
         for (size_t m = 0; m < sc.markers.size(); ++m) {
@@ -1308,7 +1316,7 @@ void testGuideExtras()
         const Score sc = composePiece(p, 3, 10.0);
         auto panAt = [&](Module m, int inst, int index) {
             const int id = p.id(m, inst, index);
-            return p.fromNormalised(id, p.toNormalised(id, p.get(id)) + sc.gestureOffset(id, 1.0));
+            return p.fromNormalised(id, p.toNormalised(id, knobAt(p, sc, id)) + sc.gestureOffset(id, 1.0));
         };
         const float bass = panAt(Module::Row, 0, row::Pan), third = panAt(Module::Row, 2, row::Pan);
         const float depth = panAt(Module::Drone, 0, lead::AutoPan);
@@ -1491,7 +1499,7 @@ void testMixBus()
     const Score sc = composePiece(p, 12, 12.0);
     auto valueAt = [&](Module m, int inst, int index, double beat) {
         const int id = p.id(m, inst, index);
-        return p.fromNormalised(id, p.toNormalised(id, p.get(id)) + sc.gestureOffset(id, beat));
+        return p.fromNormalised(id, p.toNormalised(id, knobAt(p, sc, id)) + sc.gestureOffset(id, beat));
     };
     const float bassCut = valueAt(Module::Row, 0, row::LowCut, 1.0), mainCut = valueAt(Module::Row, 1, row::LowCut, 1.0);
     const float counterCut = valueAt(Module::Row, 2, row::LowCut, 1.0);
@@ -1599,7 +1607,7 @@ void testAddon()
         if (sc.markers[m].text.rfind("Atmo", 0) == 0) atmoEnd = sc.markers[m + 1].beat;
     }
     const int dist = p.id(Module::Row, 0, row::Distance);
-    auto distAt = [&](double b) { return p.fromNormalised(dist, p.toNormalised(dist, p.get(dist)) + sc.gestureOffset(dist, b)); };
+    auto distAt = [&](double b) { return p.fromNormalised(dist, p.toNormalised(dist, knobAt(p, sc, dist)) + sc.gestureOffset(dist, b)); };
     const double later = entry + 45.0 * sc.tempo.bpmAt(entry) / 60.0 + 1.0;
     check(distAt(entry + 0.01) > 0.6f && distAt(later) < 0.05f, "the bass comes in from afar (the approach)",
           fmt("distance %.2f at the entry, %.2f 45 s later", distAt(entry + 0.01), distAt(later)));
@@ -2058,6 +2066,18 @@ void testSounds()
     for (const KnobSet& k : a.knobs)
         if (e.params().get(k.param) != k.value && why.empty()) why = fmt("%s is %g, not %g", p.key(k.param).c_str(), e.params().get(k.param), k.value);
     check(why.empty() && !a.knobs.empty(), "the sounds are set on the knobs, not as offsets", why.empty() ? fmt("%zu knobs set", a.knobs.size()) : why);
+    // The mix as well (the user, 26.09.2026): the piece's pans, sends, low cuts on the faders, no step at its start left;
+    // the counter rows out to alternating sides, the bass in the middle.
+    int mixKnobs = 0, steps = 0;
+    for (const KnobSet& k : a.knobs) mixKnobs += k.kind == 1;
+    for (int r = 0; r < kRows; ++r)
+        for (int idx : { row::Pan, row::EchoSend, row::LowCut, row::Distance })
+            for (const Gesture& g : a.gestures)
+                steps += g.param == p.id(Module::Row, r, idx) && g.beat <= 1e-9 && g.shape == GestureShape::Step;
+    const float pan0 = knobAt(p, a, p.id(Module::Row, 0, row::Pan)), pan2 = knobAt(p, a, p.id(Module::Row, 2, row::Pan));
+    const float pan3 = knobAt(p, a, p.id(Module::Row, 3, row::Pan));
+    check(mixKnobs > 10 && steps == 0 && pan0 == 0.0f && pan2 * pan3 < 0.0f, "the mix is set on the faders, the moves along the form from there",
+          fmt("%d mix knobs, %d steps left; pans %.2f, %.2f, %.2f", mixKnobs, steps, pan0, pan2, pan3));
     // A concert's next piece puts its sounds on the knobs as it begins, on the sample's cell; a jump back into the first
     // piece puts the first's on again, a jump inside a piece leaves the knobs as the player has them.
     Score con;
