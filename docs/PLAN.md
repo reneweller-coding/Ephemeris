@@ -10,7 +10,33 @@ verschiedener Länge um einen gemeinsamen Grundton, die nur selten wieder zusamm
 
 ## Stand der Umsetzung
 
-**Vorschlag (26.09.2026, wartet auf Zustimmung): Hüllkurven, LFOs und Modulationsmatrix für jeden Synth.** Frage des
+**In Arbeit (26.09.2026, nachts; freigegeben: "Das klingt alles super, bitte baue das ein. Wenn du für einen VCO oder so neue
+GUI-Elemente oder neue Parameter brauchst, dann füge sie gerne hinzu."): erst Hüllkurven/LFOs/Matrix (M), dann VCO-Modelle (V).**
+Keine Agenten; nach jedem Schritt Selbsttest, Vektortest (Vektor = Skalar bitgenau), Referenz-Hashes, Commit.
+M1 Parameter je Synth: Voice/Lead/Drone (voice:: bzw. lead::, die drone-Tabelle mitziehen!) und Poly: amp_attack, amp_decay2,
+   amp_sustain (amp_release = das bisherige amp_decay/AmpDecay), filt_attack, filt_sustain, filt_release (decay = bisheriges
+   Decay), env_velocity; mod_attack/decay/sustain/release; lfo1..4_rate (Hz, oder Tempo-Teilung bei lfoN_sync), lfoN_shape
+   (Sinus, Dreieck, Säge auf, Säge ab, Rechteck, S&H, Zufall glatt), lfoN_retrig, lfoN_fade; matrix: mod1..8_src, mod1..8_dst,
+   mod1..8_amt. Quellen: LFO1-4, Mod-Hüllkurve, Filter-Hüllkurve, Velocity, Modulationsspur (bright), Note (Keytrack).
+   Ziele: Tonhöhe, Pulsbreite, Wellenform-Mix, Tabellenposition, Cutoff, Resonanz, Filter-Mode, Filter-FM, Pegel, Pan.
+   Defaults so, dass der bisherige Klang bleibt (amp attack 2 ms, sustain 1; filt attack 1.5 ms, sustain 0; alles aus).
+M2 ModVoice: volle ADSR für Amp und Filter (Envelope-Klasse erweitern: Attack, Decay, Sustain, Release), Mod-ADSR, vier LFOs pro
+   Stimme zur Kontrollrate (kControl), Phasen aus dem Sample-Zähler (deterministisch, blockgrößenunabhängig), Matrix wirkt auf
+   dt1/dt2 (Tonhöhe), pw/wave (Lanes), Tabellenposition (skalar), g (Cutoff), k (Resonanz), fmode, ffm, gain, Pan (Engine).
+M3 Poly, Tape Keys, Strings: dieselben Hüllkurven/LFOs/Matrix, soweit sinnvoll (Poly voll; Tape/Strings Amp-ADSR + 2 LFOs +
+   4 Matrixplätze).
+M4 Panel: Gruppen "Amp Envelope", "Filter Envelope", "Mod Envelope", "LFO 1..4", "Mod Matrix" (Matrix als Zeilen aus zwei
+   Menüs und einem Knopf: neues GUI-Element ModSlot), EditorTheme layoutOf.
+M5 Presets: Hüllkurven und Modulationen je Gruppe (Plucks kurz, Flächen langsam, PWM-LFO bei Analog Pad, Tabellen-LFO bei PPG,
+   Vibrato-LFO beim Lead ...); Komponist sparsam nach Stil; Handbuchkapitel "Modulation".
+V1 VCO-Modelle voice.vco / lead.vco: Analog (bisher), Moog 921, Prophet SSM2030, Oberheim SEM, ARP 4027, E-mu: Wellen aus der
+   Schaltung (Rücklaufzeit, Krümmung, Pulsflanken, DC) als CycleTables (alias-frei), Driftprofil je Modell (OU-Parameter +
+   Jitter), Hard-Sync (Osz 2 auf Osz 1, bandbegrenzt) und Poly-Mod (Prophet); V2 Poly: analoge Tabellen der Modelle;
+   V3 Presets (Bass Moog, Leads Prophet-Sync, Flächen SEM, Arps ARP, Sub E-mu), Panel-Gruppe "Oscillators" mit VCO-Wahl,
+   Handbuch; V4 Release, APK.
+Stand: M1 als nächstes.
+
+**Vorschlag (26.09.2026): Hüllkurven, LFOs und Modulationsmatrix für jeden Synth.** Frage des
 Nutzers: je eine volle ADSR für Amp und Filter, eine dritte für weitere Modulation, drei bis vier LFOs (z. B. durch die
 Wavetable), für jeden Synth. Einschätzung: ja -- heute hat die Reihenstimme nur ein festes Attack, den Filter-Decay und
 das Amp-Release. Entwurf: je Synth (Reihen, Lead, Drone, Poly, dazu Tape Keys und Strings mit ihren Hüllkurven) Amp-ADSR,
@@ -23,7 +49,7 @@ die Hüllkurven. Presets bekommen Hüllkurven und Modulationen je Gruppe (Plucks
 Analog-Pads, Tabellen-LFO bei PPG); der Komponist nutzt sie sparsam nach Stil. Panel: Gruppen "Amp Envelope", "Filter
 Envelope", "Mod Envelope", "LFOs", "Mod Matrix".
 
-**Vorschlag (26.09.2026, wartet auf Zustimmung): klassische VCO-Modelle.** Frage des Nutzers: Moog (Model D/921),
+**Vorschlag (26.09.2026, freigegeben, siehe oben V1-V4): klassische VCO-Modelle.** Frage des Nutzers: Moog (Model D/921),
 Sequential (Prophet-5, SSM2030/CEM3340), Oberheim SEM, ARP 2600 (4027), E-mu Modular zur Wahl. Einschätzung: sinnvoll, als
 `voice.vco` (Reihen, Lead, Drone) und als analoge Tabellen für den Poly. SOTA-Weg: die Wellenform jedes Kerns aus seiner
 Schaltung (Sägezahn-Kern mit endlicher Rücklaufzeit und leichter Krümmung beim Moog, präzise Rampe beim SSM/CEM, die
