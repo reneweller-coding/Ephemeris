@@ -57,8 +57,12 @@ Stand: M1-M5, V1-V3 erledigt. M1-M4 bitgenau neutral (Referenz-Hashes unverände
    Modulation plus ein bis drei aus dem Vorrat des Synths (freie LFOs und Plätze der Reihe nach, das Fundament ohne
    Tonhöhe): rund 90 % mit Modulation, im Schnitt zwei Plätze, zehn Ziele bei den Stimmen. Lautheit danach im Ziel
    (±0,25 dB), Stilpegel unverändert. Release 49/49, APK 5,6 MB.
+   Danach (Nutzer: "auch die Mixer-Einstellungen auf Absolutwerte"): settleMix macht jede Einstellung eines Kanalzugs zu
+   Stückbeginn (Pegel, Pan, Sends, Low Cut, Distanz, Punch, Spread, Auto Pan) zum Reglerwert (KnobSet kind 1) und
+   verschiebt alle späteren Bewegungen desselben Reglers um denselben Betrag: gespielt wird dasselbe (Cosmic Seed 8 vorher
+   und nachher -15,9 LUFS), der Mixer zeigt die Mischung des Stücks. Das Plugin vergleicht Klang und Mischung je Zug getrennt.
    Offen: Streuung der Lautheit von Stück zu Stück (Modern -13,1 / -17,4 LUFS), CPU auf ruhiger Maschine und auf der
-   Quest, die Mixer-Einstellungen des Komponisten (Pan, Sends, Low Cut) sind noch Offsets, und hören.
+   Quest, und hören.
 
 **Vorschlag (26.09.2026): Hüllkurven, LFOs und Modulationsmatrix für jeden Synth.** Frage des
 Nutzers: je eine volle ADSR für Amp und Filter, eine dritte für weitere Modulation, drei bis vier LFOs (z. B. durch die
