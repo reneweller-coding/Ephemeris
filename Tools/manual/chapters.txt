@@ -387,9 +387,14 @@ synth, 32 on the tape keys and the strings), and what they move reaches the voic
 from a stream of their own, so modulation never shifts a voice's drift. A render is the same to the bit for any block
 size, and with the matrix empty every synth sounds exactly as it did without it.
 
-The factory presets use it where their instruments did, and sparingly: about a third of the voices' and the pad
-synth's presets carry an LFO or an envelope in the matrix, a fifth of the lead's and the drone's, fewer of the tape
-keys' and the strings'. Plucks and stabs decay under a held gate; the hollow pulses and the humming drones get their
+The factory presets use it generously: nine in ten carry modulation, on average two slots of the matrix, over ten
+different targets on the voices. Each group has its own -- the modulation that makes it what it is -- and every
+preset draws one to three more from its synth's pool: the cutoff drifting or pulsing with the bars, sample and hold,
+the velocity and the row's modulation lane on filter and timbre, a pluck of the mod envelope, pulse width modulation,
+a wobble or a late vibrato, the pan wandering, the SEM's morph and the resonance breathing, a gate of the level in
+time, a zap of filter FM; on the pad synth the table walking and every key its own place and pitch. Every one gets
+the next free LFO and slot, so they never step on each other; the foundation -- the bass groups and the drone --
+never moves its pitch. Among the groups' own: plucks and stabs decay under a held gate; the hollow pulses and the humming drones get their
 pulse width modulation; the resonant sweeps a filter sweep synced to two or four bars; the cosmic drips a
 sample-and-hold on the cutoff or a pitch blip from the mod envelope; the tape sequences and the dusty solos a wobble;
 the legato glides, the bowed pads and the violins a vibrato that comes in late; the PPG and morph pads a slow walk

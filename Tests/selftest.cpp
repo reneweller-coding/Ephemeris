@@ -2584,22 +2584,45 @@ void testSynthModulation()
         check(same, "the three synths' modulation is the same for any block size", "rms" + info);
     }
     {
-        // The presets carry their groups' modulation, sparingly: a share of every synth's, never most of them.
-        auto share = [](Module m, int slot) {
-            int n = 0;
-            for (const SoundPreset& pr : factoryPresets(m))
-                for (const auto& v : pr.values) if (v.first == slot && v.second != 0.0f) { ++n; break; }
-            return static_cast<double>(n) / static_cast<double>(factoryPresets(m).size());
+        // The presets use the modulation generously (the user, 26.09.2026: "ordentlich Gebrauch"): nearly all carry some,
+        // many two or three, on many targets -- and the foundation (the bass groups, the drone) never moves its pitch.
+        struct Use { double share = 0.0, slots = 0.0; int targets = 0; bool pitchOnGround = false; };
+        auto use = [](Module m, int firstSlot, int slots) {
+            Use u;
+            std::vector<int> targets;
+            int with = 0, total = 0;
+            ParamStore store;
+            for (const SoundPreset& pr : factoryPresets(m)) {
+                int n = 0;
+                for (int k = 0; k < slots; ++k) {
+                    float src = 0.0f, dst = 0.0f;
+                    for (const auto& v : pr.values) {
+                        if (v.first == firstSlot + 3 * k) src = v.second;
+                        if (v.first == firstSlot + 3 * k + 1) dst = v.second;
+                    }
+                    if (src == 0.0f || dst == 0.0f) continue;
+                    ++n;
+                    if (std::find(targets.begin(), targets.end(), static_cast<int>(dst)) == targets.end()) targets.push_back(static_cast<int>(dst));
+                    const bool ground = m == Module::Drone || pr.group == "Ladder Bass" || pr.group == "Deep Ostinato" || pr.group == "Dark Throb" || pr.group == "Warm Unison";
+                    if (ground && m != Module::Tape && m != Module::Strings && static_cast<int>(dst) == 1) u.pitchOnGround = true;
+                }
+                with += n > 0;
+                total += n;
+            }
+            const double count = static_cast<double>(factoryPresets(m).size());
+            u.share = with / count;
+            u.slots = total / count;
+            u.targets = static_cast<int>(targets.size());
+            return u;
         };
-        const double v = share(Module::Voice, voice::Mod1Src), l = share(Module::Lead, lead::Mod1Src), d = share(Module::Drone, lead::Mod1Src);
-        const double p = share(Module::Poly, poly::Mod1Src), t = share(Module::Tape, tape::Mod1Src), s = share(Module::Strings, strings::Mod1Src);
-        const double plucks = share(Module::Voice, voice::AmpSustain);
-        bool ok = true;
-        for (double x : { v, l, d, p }) ok = ok && x > 0.1 && x < 0.5;
-        for (double x : { t, s }) ok = ok && x > 0.03 && x < 0.3;
-        check(ok && plucks > 0.1, "the presets carry their groups' modulation, sparingly",
-              fmt("matrix in %.0f%% of the voices', %.0f%% lead, %.0f%% drone, %.0f%% pad, %.0f%% tape, %.0f%% strings; a decaying amp in %.0f%% of the voices'",
-                  100 * v, 100 * l, 100 * d, 100 * p, 100 * t, 100 * s, 100 * plucks));
+        const Use v = use(Module::Voice, voice::Mod1Src, 8), l = use(Module::Lead, lead::Mod1Src, 8), d = use(Module::Drone, lead::Mod1Src, 8);
+        const Use pd = use(Module::Poly, poly::Mod1Src, 8), t = use(Module::Tape, tape::Mod1Src, 4), st = use(Module::Strings, strings::Mod1Src, 4);
+        bool ok = v.targets >= 9 && pd.targets >= 6 && !v.pitchOnGround && !d.pitchOnGround && v.slots > 1.3;
+        for (const Use* u : { &v, &l, &d, &pd }) ok = ok && u->share > 0.75;
+        for (const Use* u : { &t, &st }) ok = ok && u->share > 0.6;
+        check(ok, "the presets use the modulation generously, on many targets, and leave the foundation's pitch",
+              fmt("in %.0f%% of the voices' presets (%.1f slots, %d targets), %.0f%% lead, %.0f%% drone, %.0f%% pad (%d targets), %.0f%% tape, %.0f%% strings",
+                  100 * v.share, v.slots, v.targets, 100 * l.share, 100 * d.share, 100 * pd.share, pd.targets, 100 * t.share, 100 * st.share));
     }
 }
 
