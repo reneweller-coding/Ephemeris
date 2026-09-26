@@ -215,8 +215,9 @@ VoiceSettings Engine::voiceSettings(Module m, int instance, bool vibrato) const
     s.filter = static_cast<int>(std::lround(v(isVoice ? voice::Filter : lead::Filter)));
     s.filterMode = v(isVoice ? voice::FilterMode : lead::FilterMode);
     s.filterFm = v(isVoice ? voice::FilterFm : lead::FilterFm);
-    // The envelopes in full and the modulation (26.09.2026, Modulation.h): knobs no gesture moves, read as they stand.
-    auto raw = [&](int vi, int li) { return params_.get(params_.id(m, instance, isVoice ? vi : li)); };
+    // The envelopes in full and the modulation (26.09.2026, Modulation.h): no hand moves these knobs, but the composer's
+    // sounds (compose.pick_sounds) set them as offsets like every other knob.
+    auto raw = [&](int vi, int li) { return played(params_.id(m, instance, isVoice ? vi : li)); };
     auto choice = [&](int vi, int li) { return static_cast<int>(std::lround(raw(vi, li))); };
     s.ampAttackMs = raw(voice::AmpAttack, lead::AmpAttack);
     s.ampDecayMs = raw(voice::AmpDecay2, lead::AmpDecay2);
@@ -238,7 +239,7 @@ VoiceSettings Engine::voiceSettings(Module m, int instance, bool vibrato) const
 ModSettings Engine::modSettings(Module m, int instance, int env, float envToMs, int lfo, int lfos, int slot, int slots, bool shortMatrix) const
 {
     // Every synth lays these out alike: the envelope's four times, then five knobs per LFO, then three per slot.
-    auto raw = [&](int index) { return params_.get(params_.id(m, instance, index)); };
+    auto raw = [&](int index) { return played(params_.id(m, instance, index)); };
     auto choice = [&](int index) { return static_cast<int>(std::lround(raw(index))); };
     ModSettings s;
     if (env >= 0) {
@@ -382,8 +383,8 @@ void Engine::updateCell()
     ts.toneHz = knob(Module::Tape, tape::Tone);
     ts.age = knob(Module::Tape, tape::Age);
     {
-        // The player's envelope and the keyboard's modulation (26.09.2026), as they stand.
-        auto raw = [&](int index) { return params_.get(params_.id(Module::Tape, 0, index)); };
+        // The player's envelope and the keyboard's modulation (26.09.2026).
+        auto raw = [&](int index) { return played(params_.id(Module::Tape, 0, index)); };
         ts.swellMs = raw(tape::AmpAttack);
         ts.decayMs = raw(tape::AmpDecay);
         ts.sustain = raw(tape::AmpSustain);
@@ -414,8 +415,8 @@ void Engine::updateCell()
     ss.animateHz = knob(Module::Strings, strings::AnimateRate);
     ss.ensembleType = static_cast<int>(std::lround(knob(Module::Strings, strings::EnsembleType)));
     ss.phaser = knob(Module::Strings, strings::Phaser);
-    ss.decayS = params_.get(params_.id(Module::Strings, 0, strings::AmpDecay));
-    ss.sustain = params_.get(params_.id(Module::Strings, 0, strings::AmpSustain));
+    ss.decayS = knob(Module::Strings, strings::AmpDecay);
+    ss.sustain = knob(Module::Strings, strings::AmpSustain);
     ss.mod = modSettings(Module::Strings, 0, -1, 1.0f, strings::Lfo1Rate, 2, strings::Mod1Src, 4, true);
     if (changed(cache_.strings, ss, cache_.valid)) strings_.set(ss);
     strips_[kSrcStrings].running = strings_.active();
@@ -447,8 +448,8 @@ void Engine::updateCell()
     ps.filter = static_cast<int>(std::lround(knob(Module::Poly, poly::Filter)));
     ps.filterMode = knob(Module::Poly, poly::FilterMode);
     {
-        // The envelopes in full and every key's modulation (26.09.2026), as they stand; the pad's times in seconds.
-        auto raw = [&](int index) { return params_.get(params_.id(Module::Poly, 0, index)); };
+        // The envelopes in full and every key's modulation (26.09.2026); the pad's times in seconds.
+        auto raw = [&](int index) { return played(params_.id(Module::Poly, 0, index)); };
         ps.ampDecayS = raw(poly::AmpDecay);
         ps.ampSustain = raw(poly::AmpSustain);
         ps.filtLink = static_cast<int>(std::lround(raw(poly::FiltLink)));

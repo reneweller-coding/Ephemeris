@@ -2538,6 +2538,24 @@ void testSynthModulation()
         }
         check(same, "the three synths' modulation is the same for any block size", "rms" + info);
     }
+    {
+        // The presets carry their groups' modulation, sparingly: a share of every synth's, never most of them.
+        auto share = [](Module m, int slot) {
+            int n = 0;
+            for (const SoundPreset& pr : factoryPresets(m))
+                for (const auto& v : pr.values) if (v.first == slot && v.second != 0.0f) { ++n; break; }
+            return static_cast<double>(n) / static_cast<double>(factoryPresets(m).size());
+        };
+        const double v = share(Module::Voice, voice::Mod1Src), l = share(Module::Lead, lead::Mod1Src), d = share(Module::Drone, lead::Mod1Src);
+        const double p = share(Module::Poly, poly::Mod1Src), t = share(Module::Tape, tape::Mod1Src), s = share(Module::Strings, strings::Mod1Src);
+        const double plucks = share(Module::Voice, voice::AmpSustain);
+        bool ok = true;
+        for (double x : { v, l, d, p }) ok = ok && x > 0.1 && x < 0.5;
+        for (double x : { t, s }) ok = ok && x > 0.03 && x < 0.3;
+        check(ok && plucks > 0.1, "the presets carry their groups' modulation, sparingly",
+              fmt("matrix in %.0f%% of the voices', %.0f%% lead, %.0f%% drone, %.0f%% pad, %.0f%% tape, %.0f%% strings; a decaying amp in %.0f%% of the voices'",
+                  100 * v, 100 * l, 100 * d, 100 * p, 100 * t, 100 * s, 100 * plucks));
+    }
 }
 
 /**

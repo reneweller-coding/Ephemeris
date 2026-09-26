@@ -75,8 +75,8 @@ choose so, the stems: a WAV per channel strip and one for the rooms in a folder 
 is the mix before the master.
 
 The panel. Every synth's page is laid out as an instrument's panel: its controls in titled groups --
-Oscillators, Wavetable, Filter, Envelopes, Mix, Sends, and on the string machine Registers, Tone, Crescendo and
-Ensemble as on a Streichfett -- and the controls a hand goes to first as large encoders: the cutoff and the
+Oscillators, Wavetable, Filter, the Amp, Filter and Mod Envelopes, the LFOs and the Mod Matrix, Mix, Sends, and on
+the string machine Registers, Tone, Envelope and Ensemble as on a Streichfett -- and the controls a hand goes to first as large encoders: the cutoff and the
 resonance, the registration and the ensemble, the pad synth's place in its table, the level. The colours say what a
 control does, the same on every page -- they are the logo's five planets: amber for the sources (oscillators,
 tapes, registers), copper for the filters, sage for the envelopes, teal for everything that moves by itself (LFOs,
@@ -218,8 +218,9 @@ can be let go on the Perform page (Hold Hands): every knob then stays where the 
 == Voices | voice | 4 ==
 
 Each row plays its own modular voice: two drifting oscillators (a sawtooth blended into a pulse, the
-second detuned), a mixer driven into a soft saturation, a four-pole transistor ladder at twice the
-sample rate, two envelopes and glide. The oscillators run freely and are never reset on a note, and
+second detuned), a mixer driven into a soft saturation, a four-pole transistor ladder (or one of nine other
+filters, see Filters) at twice the sample rate, envelopes for the amplitude and the filter and a third for
+modulation, four LFOs and a modulation matrix (see Modulation), and glide. The oscillators run freely and are never reset on a note, and
 each wanders slowly in pitch, as analogue oscillators do; the Drift knob sets how far.
 
 Instead of the two analogue oscillators a row can read a wavetable (Wavetable; Analog is the oscillators): the
@@ -295,6 +296,62 @@ The factory presets carry the filters of their instruments: the basses on the Mo
 diode ladder, the squelch on the diode ladder and the Korg35, glass on the Xpander's band and high passes, the
 Juno strings on the Juno, the Oberheim brass on the SEM, the dark and dusty sounds on the Polivoks and the Wasp, the
 cosmic drips on the comb and the phaser -- their cutoffs set so a group keeps its brightness whatever it drew.
+
+== Modulation | | - ==
+
+Every synth has full envelopes, LFOs and a modulation matrix: the rows' voices, the lead, the drone and the pad synth
+the whole set, the tape keys and the strings a smaller one.
+
+Envelopes. Amp Envelope: Attack, Decay, Sustain and Release (on the voices the Release is the Amp Release that was
+there before). Filter Envelope: Attack, Decay -- the large knob, the one the hands move -- Sustain, Release, and
+Release = Decay: on, as by default, the release takes the decay's time, as with the Minimoog's decay switch, and
+with no sustain the decay simply runs on through the note's end, so a sequencer's short gates leave the filter's
+decay to the hand; off, the Release knob counts. Env Velocity lets the note's velocity scale the filter envelope. On
+the pad synth the filter follows the amplitude envelope (Filter Follows Amp) until you switch it off; then it has
+four times of its own. Mod Envelope is a third ADSR, for the matrix.
+
+LFOs. Four per voice (two on the tape keys and the strings): Rate; Shape -- sine, triangle, saw up, saw down,
+square, sample & hold, smooth random; Sync -- free at Rate, or a division of the bar: 4, 2 or 1 bars, 1/2 to 1/16,
+quarter and eighth triplets, and a synced LFO keeps its phase on the piece's beat, so a one-bar sweep opens on every
+downbeat; Retrig -- every note starts it from the beginning; Fade -- it comes in over that many seconds after each
+note, as a hand reaching for the wheel. Every voice has its own LFOs, and on the pad synth every key has its own
+four, so the keys of a chord move apart.
+
+The matrix. Eight slots (four on the tape keys and the strings), each a source, a target and an amount from -1 to 1
+(double-click: none). The sources: LFO 1 to 4, Mod Env, Filter Env, Velocity, and Mod Lane -- the step of the row's
+modulation sequencer under the note. The targets, and what an amount of 1 means:
+
+    Pitch           12 semitones; the amount counts squared, so the first tenth of the knob holds a vibrato of a few cents
+    Pulse Width     0.45 of the duty cycle
+    Wave            the whole blend from saw to pulse
+    Table Position  the whole wavetable
+    Cutoff          five octaves
+    Resonance       the whole knob
+    Filter Mode     the SEM's morph, the Polivoks' band pass, the comb's sign (the Xpander's response stays the knob's)
+    Filter FM       the whole knob
+    Level           doubled at +1, shut at -1
+    Pan             from one side to the other
+
+Slots on the same target add up. A target a synth does not have does nothing: the pad synth has no pulse width,
+blend or filter FM; the tape keys and the strings reach Pitch, Tone, Level and Pan. The tape keys' envelope lies
+over the machine's own: Swell (at its minimum, 1 ms, only the pressure pad's rise), Decay, Sustain Level, and
+Release -- the fall after the key, the machine's 70 ms by default; the tapes still run out after eight seconds. The
+strings keep their Crescendo and Release and have a Decay and a Sustain Level between them.
+
+Everything runs on the piece's clock and the synth's own count of samples, never on the host's blocks: the envelopes
+every sample, the LFOs and the matrix at the synth's control steps (every 4 samples on the voices, 16 on the pad
+synth, 32 on the tape keys and the strings), and what they move reaches the voices per sample; the random shapes draw
+from a stream of their own, so modulation never shifts a voice's drift. A render is the same to the bit for any block
+size, and with the matrix empty every synth sounds exactly as it did without it.
+
+The factory presets use it where their instruments did, and sparingly: about a third of the voices' and the pad
+synth's presets carry an LFO or an envelope in the matrix, a fifth of the lead's and the drone's, fewer of the tape
+keys' and the strings'. Plucks and stabs decay under a held gate; the hollow pulses and the humming drones get their
+pulse width modulation; the resonant sweeps a filter sweep synced to two or four bars; the cosmic drips a
+sample-and-hold on the cutoff or a pitch blip from the mod envelope; the tape sequences and the dusty solos a wobble;
+the legato glides, the bowed pads and the violins a vibrato that comes in late; the PPG and morph pads a slow walk
+through their tables; the Oberheim brass a filter swell of its own. The composer's sounds bring them into a piece
+with the presets.
 
 == Lead | lead | 5 ==
 

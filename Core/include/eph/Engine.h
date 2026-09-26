@@ -183,7 +183,7 @@ private:
     /** @brief A voice's settings from a module laid out like the voice table (voice, lead, drone). */
     VoiceSettings voiceSettings(Module m, int instance, bool vibrato) const;
     /**
-     * @brief A synth's modulation from its parameters (Modulation.h), read as they stand (no gesture moves them): the
+     * @brief A synth's modulation from its parameters (Modulation.h), as played (the composer's sounds arrive as offsets): the
      *        modulation envelope at @p env (-1: none; its times times @p envToMs), @p lfos LFOs from @p lfo, @p slots
      *        slots from @p slot; @p shortMatrix: the destinations of the smaller matrix (shortModDest).
      */

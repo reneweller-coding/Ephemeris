@@ -614,6 +614,109 @@ const std::vector<FilterChoice>& filterChoices(Module m, const std::string& grou
     return none;
 }
 
+// --- The modulation of the groups (26.09.2026, Modulation.h) ---------------------------------------------------------
+/** @brief A knob a modulation recipe sets, by key, drawn from its range. */
+struct KnobRange { const char* key; float lo, hi; };
+/** @brief A modulation a group's presets may carry: how often (the rest stay plain), and its knobs. */
+struct ModRecipe { float chance; std::vector<KnobRange> knobs; };
+
+/**
+ * @brief The modulations a group draws from, after the instruments and players its sounds come from: plucks and stabs
+ *        that decay under a held gate, the pulse width moving on the hollow pulses and the humming drones (the PWM of
+ *        every analog string and pad), the sequencer's filter sweep synced to the bars, sample-and-hold drips, tape
+ *        wobble, a vibrato that comes in late, the PPG's and the morphing pads' tables walked by a slow LFO, the brass's
+ *        filter swell. Sources and targets by number (kModSourceNames, kModDestNames; the tape keys and the strings:
+ *        kShortModDestNames). Empty: the group stays plain.
+ */
+const std::vector<ModRecipe>& modRecipes(Module m, const std::string& group)
+{
+    using R = std::vector<ModRecipe>;
+    // The matrix's numbers: sources LFO 1..4 = 1..4, the mod envelope 5; targets pitch 1, pulse width 2, blend 3,
+    // table 4, cutoff 5, filter mode 7, level 9, pan 10 (the smaller matrix: pitch 1, tone 2, level 3).
+    static const std::vector<std::pair<std::string, R>> voice = {
+        { "Ladder Bass", { { 0.35f, { { "amp_sustain", 0.5f, 0.8f }, { "amp_decay2", 250.0f, 700.0f } } } } },
+        { "Pluck Sequence", { { 0.8f, { { "amp_sustain", 0.0f, 0.25f }, { "amp_decay2", 120.0f, 450.0f } } },
+                              { 0.8f, { { "amp_sustain", 0.0f, 0.2f }, { "amp_decay2", 150.0f, 400.0f }, { "env_velocity", 0.3f, 0.6f } } } } },
+        { "Resonant Sweep", { { 0.6f, { { "lfo3_shape", 1, 1 }, { "lfo3_sync", 1, 2 }, { "mod1_src", 3, 3 }, { "mod1_dst", 5, 5 }, { "mod1_amt", 0.08f, 0.2f } } } } },
+        { "Hollow Pulse", { { 0.75f, { { "lfo1_shape", 1, 1 }, { "lfo1_rate", 0.3f, 1.5f }, { "mod1_src", 1, 1 }, { "mod1_dst", 2, 2 }, { "mod1_amt", 0.2f, 0.45f } } } } },
+        { "Glass Arp", { { 0.5f, { { "amp_sustain", 0.1f, 0.4f }, { "amp_decay2", 200.0f, 600.0f } } },
+                         { 0.5f, { { "lfo3_rate", 0.05f, 0.2f }, { "mod1_src", 3, 3 }, { "mod1_dst", 5, 5 }, { "mod1_amt", 0.05f, 0.12f } } } } },
+        { "Tape Sequence", { { 0.6f, { { "lfo4_shape", 6, 6 }, { "lfo4_rate", 0.4f, 1.2f }, { "mod1_src", 4, 4 }, { "mod1_dst", 1, 1 }, { "mod1_amt", 0.06f, 0.09f } } } } },
+        { "Soft Pad Voice", { { 0.7f, { { "amp_attack", 60.0f, 300.0f }, { "lfo1_rate", 0.1f, 0.4f }, { "mod1_src", 1, 1 }, { "mod1_dst", 5, 5 }, { "mod1_amt", 0.04f, 0.1f } } } } },
+        { "Squelch Arp", { { 0.5f, { { "env_velocity", 0.3f, 0.7f } } } } },
+        { "Staccato Pulse", { { 0.8f, { { "amp_sustain", 0.0f, 0.2f }, { "amp_decay2", 60.0f, 200.0f } } } } },
+        { "Legato Glide", { { 0.5f, { { "lfo2_rate", 4.8f, 5.8f }, { "lfo2_fade", 0.5f, 1.5f }, { "lfo2_retrig", 1, 1 }, { "mod1_src", 2, 2 }, { "mod1_dst", 1, 1 }, { "mod1_amt", 0.08f, 0.12f } } } } },
+        { "Warm Unison", { { 0.4f, { { "lfo3_rate", 0.1f, 0.3f }, { "mod1_src", 3, 3 }, { "mod1_dst", 1, 1 }, { "mod1_amt", 0.05f, 0.08f } } } } },
+        { "Bright Stab", { { 0.6f, { { "amp_sustain", 0.3f, 0.6f }, { "amp_decay2", 200.0f, 500.0f } } } } },
+        { "Dark Throb", { { 0.5f, { { "lfo1_sync", 5, 6 }, { "mod1_src", 1, 1 }, { "mod1_dst", 9, 9 }, { "mod1_amt", -0.45f, -0.25f } } },
+                          { 0.5f, { { "lfo1_shape", 1, 1 }, { "lfo1_sync", 3, 4 }, { "mod1_src", 1, 1 }, { "mod1_dst", 5, 5 }, { "mod1_amt", 0.1f, 0.2f } } } } },
+        { "Accent Ratchet", { { 0.5f, { { "amp_sustain", 0.2f, 0.5f }, { "amp_decay2", 80.0f, 250.0f } } } } },
+        { "Cosmic Drip", { { 0.5f, { { "lfo2_shape", 5, 5 }, { "lfo2_sync", 7, 7 }, { "mod1_src", 2, 2 }, { "mod1_dst", 5, 5 }, { "mod1_amt", 0.1f, 0.2f } } },
+                           { 0.5f, { { "mod_attack", 0.5f, 2.0f }, { "mod_decay", 30.0f, 90.0f }, { "mod1_src", 5, 5 }, { "mod1_dst", 1, 1 }, { "mod1_amt", 0.25f, 0.4f } } } } },
+    };
+    static const std::vector<std::pair<std::string, R>> lead = {
+        { "Singing Pulse", { { 0.6f, { { "lfo1_shape", 1, 1 }, { "lfo1_rate", 0.2f, 0.8f }, { "mod1_src", 1, 1 }, { "mod1_dst", 2, 2 }, { "mod1_amt", 0.1f, 0.25f } } } } },
+        { "Flute Lead", { { 0.6f, { { "amp_attack", 20.0f, 60.0f } } } } },
+        { "Screaming Filter", { { 0.5f, { { "lfo3_shape", 1, 1 }, { "lfo3_rate", 0.3f, 1.0f }, { "mod1_src", 3, 3 }, { "mod1_dst", 5, 5 }, { "mod1_amt", 0.08f, 0.18f } } } } },
+        { "Soft Horn", { { 0.6f, { { "amp_attack", 20.0f, 80.0f }, { "filt_attack", 30.0f, 120.0f } } } } },
+        { "Brass Lead", { { 0.5f, { { "mod_attack", 0.5f, 2.0f }, { "mod_decay", 40.0f, 100.0f }, { "mod1_src", 5, 5 }, { "mod1_dst", 1, 1 }, { "mod1_amt", -0.15f, -0.1f } } } } },
+        { "Twin Oscillator", { { 0.5f, { { "lfo3_rate", 0.1f, 0.3f }, { "mod1_src", 3, 3 }, { "mod1_dst", 3, 3 }, { "mod1_amt", 0.2f, 0.35f } } } } },
+        { "Cosmic Siren", { { 0.5f, { { "lfo3_rate", 0.1f, 0.4f }, { "mod1_src", 3, 3 }, { "mod1_dst", 1, 1 }, { "mod1_amt", 0.25f, 0.4f } } } } },
+        { "Bell Lead", { { 0.7f, { { "amp_sustain", 0.2f, 0.5f }, { "amp_decay2", 400.0f, 1200.0f } } } } },
+        { "Dusty Solo", { { 0.5f, { { "lfo4_shape", 6, 6 }, { "lfo4_rate", 0.3f, 1.0f }, { "mod1_src", 4, 4 }, { "mod1_dst", 1, 1 }, { "mod1_amt", 0.07f, 0.1f } } } } },
+    };
+    static const std::vector<std::pair<std::string, R>> drone = {
+        { "Pulse Hum", { { 0.7f, { { "lfo1_shape", 1, 1 }, { "lfo1_rate", 0.05f, 0.2f }, { "mod1_src", 1, 1 }, { "mod1_dst", 2, 2 }, { "mod1_amt", 0.15f, 0.3f } } } } },
+        { "Resonant Earth", { { 0.5f, { { "lfo3_shape", 1, 1 }, { "lfo3_rate", 0.02f, 0.08f }, { "mod1_src", 3, 3 }, { "mod1_dst", 5, 5 }, { "mod1_amt", 0.1f, 0.2f } } } } },
+        { "Iron Drone", { { 0.4f, { { "lfo4_shape", 6, 6 }, { "lfo4_rate", 0.1f, 0.3f }, { "mod1_src", 4, 4 }, { "mod1_dst", 5, 5 }, { "mod1_amt", 0.05f, 0.1f } } } } },
+        { "Deep Current", { { 0.5f, { { "lfo3_shape", 1, 1 }, { "lfo3_sync", 1, 1 }, { "mod1_src", 3, 3 }, { "mod1_dst", 5, 5 }, { "mod1_amt", 0.1f, 0.2f } } } } },
+        { "Breathing Root", { { 0.7f, { { "lfo3_rate", 0.05f, 0.15f }, { "mod1_src", 3, 3 }, { "mod1_dst", 5, 5 }, { "mod1_amt", 0.1f, 0.2f } } } } },
+        { "Temple Hum", { { 0.5f, { { "lfo3_rate", 0.03f, 0.1f }, { "mod1_src", 3, 3 }, { "mod1_dst", 7, 7 }, { "mod1_amt", 0.08f, 0.15f } } } } },
+    };
+    static const std::vector<std::pair<std::string, R>> poly = {
+        { "Analog Pad", { { 0.5f, { { "lfo2_rate", 0.05f, 0.15f }, { "mod1_src", 2, 2 }, { "mod1_dst", 5, 5 }, { "mod1_amt", 0.05f, 0.12f } } },
+                          { 0.5f, { { "lfo1_rate", 0.2f, 0.5f }, { "mod1_src", 1, 1 }, { "mod1_dst", 1, 1 }, { "mod1_amt", 0.05f, 0.07f } } } } },
+        { "Oberheim Brass", { { 0.7f, { { "filt_link", 0, 0 }, { "filt_attack", 0.05f, 0.3f }, { "filt_decay", 0.5f, 1.5f }, { "filt_sustain", 0.3f, 0.5f }, { "filt_release", 0.5f, 2.0f } } } } },
+        { "Sync Sweep", { { 0.6f, { { "lfo1_shape", 1, 1 }, { "lfo1_sync", 2, 3 }, { "mod1_src", 1, 1 }, { "mod1_dst", 4, 4 }, { "mod1_amt", 0.3f, 0.5f } } } } },
+        { "Formant Pad", { { 0.5f, { { "lfo3_rate", 0.05f, 0.15f }, { "mod1_src", 3, 3 }, { "mod1_dst", 4, 4 }, { "mod1_amt", 0.2f, 0.4f } } } } },
+        { "Vocal Pad", { { 0.5f, { { "lfo3_rate", 0.05f, 0.15f }, { "mod1_src", 3, 3 }, { "mod1_dst", 4, 4 }, { "mod1_amt", 0.2f, 0.4f } } } } },
+        { "Glass Pad", { { 0.5f, { { "lfo1_rate", 0.1f, 0.3f }, { "mod1_src", 1, 1 }, { "mod1_dst", 10, 10 }, { "mod1_amt", 0.3f, 0.6f } } } } },
+        { "Bowed Pad", { { 0.4f, { { "lfo2_rate", 4.5f, 5.5f }, { "lfo2_fade", 1.0f, 2.0f }, { "lfo2_retrig", 1, 1 }, { "mod1_src", 2, 2 }, { "mod1_dst", 1, 1 }, { "mod1_amt", 0.06f, 0.09f } } } } },
+        { "PPG Choir", { { 0.6f, { { "lfo1_shape", 1, 1 }, { "lfo1_rate", 0.05f, 0.3f }, { "mod1_src", 1, 1 }, { "mod1_dst", 4, 4 }, { "mod1_amt", 0.2f, 0.5f } } } } },
+        { "PPG Upper", { { 0.6f, { { "filt_link", 0, 0 }, { "filt_attack", 1.0f, 3.0f }, { "filt_decay", 2.0f, 5.0f }, { "filt_sustain", 0.3f, 0.6f }, { "filt_release", 2.0f, 5.0f } } },
+                         { 0.6f, { { "lfo1_shape", 1, 1 }, { "lfo1_rate", 0.05f, 0.3f }, { "mod1_src", 1, 1 }, { "mod1_dst", 4, 4 }, { "mod1_amt", 0.2f, 0.5f } } } } },
+        { "Morph Pad", { { 0.6f, { { "lfo4_shape", 6, 6 }, { "lfo4_rate", 0.05f, 0.2f }, { "mod1_src", 4, 4 }, { "mod1_dst", 4, 4 }, { "mod1_amt", 0.2f, 0.4f } } } } },
+        { "Dark Drone Pad", { { 0.5f, { { "lfo3_shape", 1, 1 }, { "lfo3_sync", 1, 1 }, { "mod1_src", 3, 3 }, { "mod1_dst", 5, 5 }, { "mod1_amt", 0.08f, 0.15f } } } } },
+    };
+    static const std::vector<std::pair<std::string, R>> tape = {
+        { "Cathedral Choir", { { 0.4f, { { "amp_attack", 200.0f, 800.0f } } } } },
+        { "Ghost Choir", { { 0.5f, { { "lfo2_rate", 0.05f, 0.2f }, { "mod1_src", 2, 2 }, { "mod1_dst", 2, 2 }, { "mod1_amt", 0.08f, 0.15f } } } } },
+        { "Silk Strings", { { 0.4f, { { "amp_attack", 100.0f, 400.0f } } } } },
+        { "Warped Strings", { { 0.5f, { { "lfo2_shape", 6, 6 }, { "lfo2_rate", 0.5f, 1.5f }, { "mod1_src", 2, 2 }, { "mod1_dst", 1, 1 }, { "mod1_amt", 0.05f, 0.08f } } } } },
+        { "Breathy Flute", { { 0.5f, { { "lfo1_rate", 4.0f, 5.5f }, { "lfo1_fade", 0.3f, 0.8f }, { "lfo1_retrig", 1, 1 }, { "mod1_src", 1, 1 }, { "mod1_dst", 3, 3 }, { "mod1_amt", 0.08f, 0.15f } } } } },
+        { "Wobbly Flute", { { 0.5f, { { "lfo2_shape", 6, 6 }, { "lfo2_rate", 0.5f, 1.5f }, { "mod1_src", 2, 2 }, { "mod1_dst", 1, 1 }, { "mod1_amt", 0.05f, 0.08f } } } } },
+    };
+    static const std::vector<std::pair<std::string, R>> strings = {
+        { "Violin Section", { { 0.5f, { { "lfo1_rate", 5.0f, 6.0f }, { "lfo1_fade", 0.5f, 1.0f }, { "lfo1_retrig", 1, 1 }, { "mod1_src", 1, 1 }, { "mod1_dst", 1, 1 }, { "mod1_amt", 0.05f, 0.08f } } } } },
+        { "Brass Machine", { { 0.6f, { { "amp_sustain", 0.6f, 0.8f }, { "amp_decay", 0.5f, 1.5f } } } } },
+        { "Phased Strings", { { 0.5f, { { "lfo2_shape", 1, 1 }, { "lfo2_sync", 2, 2 }, { "mod1_src", 2, 2 }, { "mod1_dst", 2, 2 }, { "mod1_amt", 0.08f, 0.15f } } } } },
+        { "Short Bow", { { 0.7f, { { "amp_sustain", 0.3f, 0.6f }, { "amp_decay", 0.3f, 1.0f } } } } },
+    };
+    static const R none;
+    const std::vector<std::pair<std::string, R>>* table = nullptr;
+    switch (m) {
+    case Module::Voice: table = &voice; break;
+    case Module::Lead: table = &lead; break;
+    case Module::Drone: table = &drone; break;
+    case Module::Poly: table = &poly; break;
+    case Module::Tape: table = &tape; break;
+    case Module::Strings: table = &strings; break;
+    default: return none;
+    }
+    for (const auto& e : *table) if (e.first == group) return e.second;
+    return none;
+}
+
 /** @brief The sixty-four presets of every group of a synth, the knob values from the axes (Presets.h). */
 std::vector<SoundPreset> build(Module m, const Synth& s)
 {
@@ -658,6 +761,25 @@ std::vector<SoundPreset> build(Module m, const Synth& s)
                 const ParamDesc& cd = store.desc(store.id(m, 0, cutoff));
                 for (auto& e : p.values)
                     if (e.first == cutoff) e.second = std::clamp(e.second * kCutoffBy[fc.model], cd.minValue, cd.maxValue);
+            }
+            // The modulation (26.09.2026): drawn after the filter, so the knobs above keep their values; a plain preset
+            // keeps the defaults -- the envelopes as they were, nothing in the matrix.
+            const std::vector<ModRecipe>& recipes = modRecipes(m, grp.name);
+            if (!recipes.empty()) {
+                const ModRecipe& r = recipes[static_cast<size_t>(rng.below(static_cast<int>(recipes.size())))];
+                if (rng.uniform() < r.chance) {
+                    const int count = ParamStore::moduleCount(m);
+                    for (const KnobRange& kr : r.knobs) {
+                        int k = 0;
+                        while (k < count && std::string(store.desc(store.id(m, 0, k)).key) != kr.key) ++k;
+                        if (k == count) continue;
+                        const ParamDesc& d = store.desc(store.id(m, 0, k));
+                        const float t = rng.uniform();
+                        float value = d.curve == Curve::Log && kr.lo > 0.0f ? kr.lo * std::pow(kr.hi / kr.lo, t) : kr.lo + t * (kr.hi - kr.lo);
+                        if (d.curve == Curve::Choice || d.curve == Curve::Int || d.curve == Curve::Toggle) value = std::round(value);
+                        p.values.push_back({ k, std::clamp(value, d.minValue, d.maxValue) });
+                    }
+                }
             }
             out.push_back(std::move(p));
         }
