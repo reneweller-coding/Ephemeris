@@ -78,6 +78,12 @@ public:
      *        gesture are found again, the settings are read at once. The rooms ring on.
      */
     void seek(double beat);
+    /**
+     * @brief The loudness corrections of the score playing (a trim per LevelMark, Leveler.h), found after it began: the
+     *        plugin and the Quest measure a piece while it already plays. The difference to what played glides in over
+     *        a few seconds. Writes a few numbers, allocates nothing; not while process() runs.
+     */
+    void setLevelTrims(const std::vector<float>& trims);
     /** @brief Counts the knob settings the engine has put on the knobs while playing or seeking (a concert's next
      *         piece): the plugin tells the host and the pages when it moves. */
     uint32_t soundsVersion() const { return soundsVersion_.load(std::memory_order_relaxed); }
@@ -220,6 +226,9 @@ private:
     bool cellDirty_ = false;   ///< read the settings at the next sample, not only at the raster (after a seek)
     size_t knobCursor_ = 0;    ///< the next of the score's knob settings to put on the knobs
     std::atomic<double> soundGroup_ { -1.0 };   ///< the beat of the knob settings that hold (the piece whose sounds these are)
+    float lateDb_ = 0.0f;                        ///< setLevelTrims: what is left of the step to the new correction, dB
+    /** @brief The loudness correction the score sets at @p beat, dB (its LevelMarks, gliding from one to the next). */
+    float trimAt(double beat) const;
     std::atomic<uint32_t> soundsVersion_ { 0 };   ///< soundsVersion()
     /** @brief Puts the score's knob settings up to @p beat on the knobs, from the cursor on. */
     void applyKnobs(double beat);

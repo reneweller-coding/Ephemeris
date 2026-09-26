@@ -130,9 +130,8 @@ double EphemerisProcessor::concertMinutes() const
     return s.get(s.id(Module::Compose, 0, compose::ConcertMinutes));
 }
 
-Score EphemerisProcessor::composeNow()
+Score EphemerisProcessor::composeNow(ParamStore& snapshot)
 {
-    ParamStore snapshot;
     snapshot.copyValuesFrom(store());
     Curation cur;
     uint64_t seed;
@@ -143,16 +142,16 @@ Score EphemerisProcessor::composeNow()
     }
     const double concert = snapshot.get(snapshot.id(Module::Compose, 0, compose::ConcertMinutes));
     const double minutes = snapshot.get(snapshot.id(Module::Compose, 0, compose::PieceMinutes));
-    Score s = concert > 0.0 ? composeConcert(snapshot, seed, concert, &cur) : composePiece(snapshot, seed, minutes, 0, &cur);
-    levelScore(s, snapshot);   // every piece as loud as its style means (Leveler.h)
-    return s;
+    return concert > 0.0 ? composeConcert(snapshot, seed, concert, &cur) : composePiece(snapshot, seed, minutes, 0, &cur);
 }
 
 void EphemerisProcessor::compose()
 {
     // One at a time: a press while composing is remembered and composed when the first is done.
     if (composing_.exchange(true)) { again_ = true; return; }
-    if (isThreadRunning()) waitForThreadToExit(-1);   // the last run is past its end, only not yet gone
+    newer_ = true;   // the last piece's measuring, if it still runs, is broken off
+    if (isThreadRunning()) waitForThreadToExit(-1);
+    newer_ = false;
     startThread();
 }
 
@@ -186,13 +185,41 @@ juce::String EphemerisProcessor::curationText() const
 void EphemerisProcessor::run()
 {
     const bool adopt = adoptNext_.exchange(false);
-    auto score = std::make_unique<Score>(composeNow());
+    ParamStore snapshot;
+    Score s = composeNow(snapshot);
+    uint64_t id = 0;
     {
         std::lock_guard<std::mutex> g(lock_);
-        pending_ = std::move(score);
+        pending_ = std::make_unique<Score>(s);
         pendingAdopt_ = adopt;
+        id = pendingId_ = ++composed_;
     }
     composing_ = false;
+    // Then its loudness (Leveler.h), while it already plays: 48 seconds rendered, some seconds of work. The correction
+    // follows and glides in; a newer piece asked for, or the plugin closing, breaks the measuring off.
+    if (levelScore(s, snapshot, 20.0, [this] { return newer_.load() || threadShouldExit(); }).empty()) return;
+    std::lock_guard<std::mutex> g(lock_);
+    trims_.clear();
+    for (const LevelMark& m : s.levels) trims_.push_back(m.trimDb);
+    trimsFor_ = id;
+}
+
+void EphemerisProcessor::takeTrims()
+{
+    std::vector<float> trims;
+    {
+        std::lock_guard<std::mutex> g(lock_);
+        if (trimsFor_ == 0 || trimsFor_ > playingId_) return;   // (none, or for a piece not yet loaded)
+        const bool mine = trimsFor_ == playingId_;
+        trimsFor_ = 0;
+        if (!mine) return;
+        trims.swap(trims_);
+        for (size_t i = 0; i < current_.levels.size() && i < trims.size(); ++i) current_.levels[i].trimDb = trims[i];
+        levelled_ = true;
+    }
+    // A few numbers: the audio thread waits for them instead of losing a block (suspendProcessing would silence one).
+    const juce::ScopedLock sl(getCallbackLock());
+    engine_.setLevelTrims(trims);
 }
 
 void EphemerisProcessor::takeSounds(const Score& next)
@@ -248,10 +275,12 @@ void EphemerisProcessor::timerCallback()
     }
     std::unique_ptr<Score> next;
     bool adopt = false;
+    uint64_t nextId = 0;
     {
         std::lock_guard<std::mutex> g(lock_);
         next = std::move(pending_);
         adopt = pendingAdopt_;
+        nextId = pendingId_;
     }
     // A piece asked for again while it was composed is out of date: the next one comes (and inherits its word on the
     // sounds -- a state restored right after the start must not be overwritten by the first piece's).
@@ -292,6 +321,7 @@ void EphemerisProcessor::timerCallback()
             suspendProcessing(false);
         }
         if (again_ && !composing_) { again_ = false; compose(); }
+        takeTrims();
         return;
     }
     // The engine allocates when it loads: never on the audio thread.
@@ -304,11 +334,14 @@ void EphemerisProcessor::timerCallback()
     {
         std::lock_guard<std::mutex> g(lock_);
         current_ = std::move(*next);
+        playingId_ = nextId;
+        levelled_ = current_.levels.empty();
     }
     ++scoreVersion_;
     position_ = 0.0;
     if (autoPlay_) { autoPlay_ = false; playing_ = true; }
     suspendProcessing(false);
+    takeTrims();
 }
 
 int EphemerisProcessor::composedPreset(Module m, int instance) const
@@ -473,15 +506,18 @@ void EphemerisProcessor::exportTo(const juce::File& wav, bool stems)
     if (exporting_.exchange(true)) return;
     if (exporter_ && exporter_->joinable()) exporter_->join();
     Score score;
+    bool levelled = true;
     {
         std::lock_guard<std::mutex> g(lock_);
         score = current_;
+        levelled = levelled_;
     }
     auto params = std::make_shared<ParamStore>();
     params->copyValuesFrom(store());
     const bool fresh = engine_.soundGroup() > 1e-9;   // a concert's later piece on the knobs: the export starts with the first's
     const juce::File mid = wav.withFileExtension(".mid");
-    exporter_ = std::make_unique<std::thread>([this, score, params, wav, mid, stems, fresh]() {
+    exporter_ = std::make_unique<std::thread>([this, score, params, wav, mid, stems, fresh, levelled]() mutable {
+        if (!levelled) levelScore(score, *params);   // exported before its measuring was done: measured here
         Engine e;
         e.params().copyValuesFrom(*params);
         e.prepare(48000.0, 512);

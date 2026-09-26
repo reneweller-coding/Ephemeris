@@ -156,7 +156,7 @@ box(736, 540, 628, 90, "DC and subsonics out (20 Hz)  ->  mono under 100 Hz  -> 
     "the band under 80 Hz limited on its own  ->  a gentle compressor (1.5 : 1)  ->  soft clip  ->  true-peak limiter "
     "(-1 dBTP)", SPACE)
 box(736, 642, 628, 58, "Level: yours, the style's, and the piece's loudness correction -- its peak measured and brought "
-    "to its style's target before it plays", AMBER)
+    "to its style's target, the correction gliding in", AMBER)
 arrow([(1370, 206), (1392, 206), (1392, 560), (1364, 560)], SPACE)
 note(1300, 222, "dry", SPACE, F_SMALL)
 arrow([(1050, 490), (1050, 508)], SPACE)

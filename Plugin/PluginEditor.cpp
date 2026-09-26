@@ -673,7 +673,7 @@ EphemerisEditor::EphemerisEditor(EphemerisProcessor& p) : juce::AudioProcessorEd
     // Mute, as in Phosphene: silence at the output; EPH_MUTE (or the screenshot mode) holds it on.
     mute_.setClickingTogglesState(true);
     mute_.setToggleState(proc_.muted(), juce::dontSendNotification);
-    mute_.setEnabled(!proc_.muteForced());
+    mute_.setEnabled(!proc_.muteForced() || std::getenv("EPH_SHOT") != nullptr);   // (a picture shows it as a player finds it)
     mute_.setColour(juce::TextButton::buttonOnColourId, ephui::colour::red.withAlpha(0.55f));
     mute_.setTooltip(proc_.muteForced() ? "Muted by EPH_MUTE: an automated run makes no sound" : "Silence the output");
     mute_.onClick = [this] { proc_.setMuted(mute_.getToggleState()); };
@@ -851,7 +851,7 @@ void EphemerisEditor::layoutBody()
     load_.setBounds(second.removeFromRight(80).reduced(2));
     save_.setBounds(second.removeFromRight(80).reduced(2));
     second.removeFromRight(8);
-    mute_.setBounds(second.removeFromRight(proc_.muteForced() ? 100 : 70).reduced(2));
+    mute_.setBounds(second.removeFromRight(proc_.muteForced() && shotPath_.isEmpty() ? 100 : 70).reduced(2));
     area.removeFromTop(4);
     auto third = area.removeFromTop(20);
     if (full_.isVisible()) full_.setBounds(third.removeFromRight(100));
@@ -879,8 +879,10 @@ void EphemerisEditor::timerCallback()
         update_.setVisible(v.isNotEmpty());
     }
     play_.setButtonText(proc_.isPlaying() ? "Stop" : "Play");
-    mute_.setToggleState(proc_.muted(), juce::dontSendNotification);
-    mute_.setButtonText(proc_.muted() ? (proc_.muteForced() ? "Muted (env)" : "Muted") : "Mute");
+    // A screenshot shows the switch as a player finds it: the run is muted all the same (EPH_SHOT forces it).
+    const bool shown = proc_.muted() && shotPath_.isEmpty();
+    mute_.setToggleState(shown, juce::dontSendNotification);
+    mute_.setButtonText(shown ? (proc_.muteForced() ? "Muted (env)" : "Muted") : "Mute");
     compose_.setEnabled(!proc_.isComposing());
     arrange_.repaint();
     // The test mode: the recording, when full, is written and the standalone quits.

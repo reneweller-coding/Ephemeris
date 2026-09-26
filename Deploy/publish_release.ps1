@@ -1,7 +1,7 @@
 <#
 .SYNOPSIS
-    Ephemeris -- publishes a built release on GitHub: tag v<version>, the setup, the portable zip and the Quest APK,
-    with docs\RELEASE_NOTES.md as its text.
+    Ephemeris -- publishes a built release on GitHub: tag v<version>, the setup, the portable zip, the Quest APK, the
+    manual and the checksums of them all, with docs\RELEASE_NOTES.md as its text.
 
 .DESCRIPTION
     Run after Deploy\build_release.ps1 and Quest\build_apk.ps1. Needs the GitHub CLI (gh), logged in. The version comes
@@ -26,7 +26,14 @@ $files = @(
 foreach ($f in $files) { if (-not (Test-Path $f)) { throw "missing: $f" } }
 $apk = Join-Path $env:TEMP "EphemerisQuest-$Version.apk"
 Copy-Item $files[2] $apk -Force
-$assets = @($files[0], $files[1], $apk)
+$manual = Join-Path $root "docs\manual\Ephemeris-Manual.pdf"
+if (-not (Test-Path $manual)) { throw "missing: $manual" }
+$assets = @($files[0], $files[1], $apk, $manual)
+# The checksums of what is published, as Noctuary's releases carry them.
+$sums = Join-Path $env:TEMP "SHA256SUMS.txt"
+$assets | ForEach-Object { "{0}  {1}" -f (Get-FileHash -Algorithm SHA256 $_).Hash.ToLower(), (Split-Path -Leaf $_) } |
+    Set-Content -Encoding ascii $sums
+$assets += $sums
 $notes = Join-Path $root "docs\RELEASE_NOTES.md"
 $ghArgs = @("release", "create", "v$Version") + $assets + @("--title", "Ephemeris $Version", "--notes-file", $notes)
 if ($Draft) { $ghArgs += "--draft" }

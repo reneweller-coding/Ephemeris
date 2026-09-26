@@ -170,7 +170,9 @@ public:
 private:
     void run() override;          // the composer thread
     void timerCallback() override;   // loads a finished score on the message thread
-    eph::Score composeNow();
+    eph::Score composeNow(eph::ParamStore& snapshot);   ///< composes with the knobs as they are (copied into @p snapshot)
+    /** @brief Hands a piece's loudness corrections, measured while it plays, to the engine (message thread). */
+    void takeTrims();
     /**
      * @brief @p s as the engine plays it here: in a host at the host's tempo (constant, the piece's tempo
      *        changes come only through the export and its MIDI file), in the standalone as composed.
@@ -190,6 +192,12 @@ private:
     eph::Score current_;                    ///< what the engine plays (for reloading and the arrange view)
     std::atomic<bool> composing_{ false }, playing_{ false }, exporting_{ false };
     std::atomic<bool> again_{ false };   ///< compose was asked for while composing: once more when done
+    // The loudness (Leveler.h): measured on the composer thread once the piece is handed over, while it plays.
+    std::atomic<bool> newer_{ false };       ///< a newer piece is asked for: the measuring of the last one stops
+    uint64_t composed_ = 0, pendingId_ = 0, playingId_ = 0;   ///< counts the compositions; pending_'s, current_'s (lock_)
+    std::vector<float> trims_;               ///< the corrections found for the composition trimsFor_ (lock_)
+    uint64_t trimsFor_ = 0;
+    bool levelled_ = false;                  ///< current_ carries its corrections (lock_)
     // The composer's sounds (Score::knobs, 26.09.2026): a new piece puts them on the knobs of the synths whose sound it
     // changes; after a restored state or a loaded set the knobs already hold them.
     std::atomic<bool> adoptNext_{ false };   ///< the next composition's sounds are already on the knobs

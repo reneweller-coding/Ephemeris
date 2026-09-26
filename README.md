@@ -49,8 +49,8 @@ the plugin; Meta Quest 2 or later for the app. The installer is not code-signed:
 * **The sounds and the mix.** 1024 factory presets per synth, most of them with modulation; the composer chooses them
   for every piece and sets them, with the piece's mix, on the knobs themselves -- the pages show what plays, and a
   knob you turn moves from there.
-* **Every piece as loud as its style means:** its loudest part measured before it plays and brought to its style's
-  level.
+* **Every piece as loud as its style means:** its loudest part measured and brought to its style's level -- while
+  the piece already plays, the correction gliding in.
 * **Reroll any part on its own** -- form, tempo, rows, rack, layers, lead, pads, hands, sounds -- save a piece as a
   small set file, export WAV (with stems) and MIDI.
 

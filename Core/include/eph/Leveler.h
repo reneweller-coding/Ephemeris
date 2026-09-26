@@ -13,11 +13,14 @@
  * the measurement and comes on top.
  *
  * The correction is part of the score: live and offline play it alike, and a score saved or exported carries it. A
- * concert's pieces each get their own; the engine glides from one to the next over eight bars.
+ * concert's pieces each get their own; the engine glides from one to the next over eight bars. The measuring renders
+ * 48 seconds, some seconds of work: eph_render does it before it renders, the plugin and the Quest while the piece
+ * already plays -- the correction follows and glides in (Engine::setLevelTrims).
  */
 #pragma once
 #include "eph/Params.h"
 #include "eph/Score.h"
+#include <functional>
 #include <vector>
 
 namespace eph {
@@ -34,8 +37,10 @@ struct LevelReading {
 /**
  * @brief Measures every piece of @p score (its LevelMarks) with the knobs of @p params and sets their corrections.
  * @param seconds how much of each loudest part is measured
- * @return what was found, a reading per piece
+ * @param stop    asked between blocks: true breaks off, and @p score is left as it was
+ * @return what was found, a reading per piece (nothing if broken off)
  */
-std::vector<LevelReading> levelScore(Score& score, const ParamStore& params, double seconds = 20.0);
+std::vector<LevelReading> levelScore(Score& score, const ParamStore& params, double seconds = 20.0,
+                                     const std::function<bool()>& stop = {});
 
 } // namespace eph

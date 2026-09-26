@@ -271,6 +271,7 @@ public:
         auto score = std::make_shared<Score>(composeFor(seed_));
         engine_.load(*score);
         publish(score);
+        levelDue_ = true;   // measured once the stream runs (pump)
         ready_.store(true, std::memory_order_release);
         LOGI("piece ready: seed %llu, %.0f s", static_cast<unsigned long long>(seed_), score->tempo.secondsAt(score->lengthBeats));
     }
@@ -283,6 +284,10 @@ public:
             std::fill(L, L + n, 0.0f);
             std::fill(R, R + n, 0.0f);
             return;
+        }
+        if (trimsReady_.load(std::memory_order_acquire)) {   // the piece's loudness correction, measured while it plays
+            engine_.setLevelTrims(trimsIn_);
+            trimsReady_.store(false, std::memory_order_release);
         }
         const float target = playing_.load(std::memory_order_relaxed) ? 1.0f : 0.0f;
         if (target <= 0.0f && gain_ < 1.0e-4f) {
@@ -324,8 +329,14 @@ public:
     bool playing() const { return playing_.load(std::memory_order_relaxed); }
     /** @brief Asks for the next piece (any thread). */
     void requestNextPiece() { nextRequest_.store(true, std::memory_order_relaxed); }
-    /** @brief One round of composer work: a pending next piece. Composer thread. */
-    void pump() { if (nextRequest_.exchange(false, std::memory_order_relaxed)) nextPiece(); }
+    /** @brief One round of composer work: a pending next piece, else the loudness of the one playing. Composer thread. */
+    void pump()
+    {
+        if (nextRequest_.exchange(false, std::memory_order_relaxed)) nextPiece();
+        else if (levelDue_) { levelDue_ = false; level(); }
+    }
+    /** @brief Breaks off the composer's work (the app closes). */
+    void quit() { quit_.store(true, std::memory_order_relaxed); }
 
     /** @brief Where the audio thread is, in beats and seconds (render thread). */
     double beat() const { return beat_.load(std::memory_order_relaxed); }
@@ -361,6 +372,7 @@ private:
             std::this_thread::sleep_for(std::chrono::milliseconds(1));
         }
         engine_.load(*score);      // allocates: here, while the audio thread writes silence
+        trimsReady_.store(false, std::memory_order_relaxed);
         tap_.reset();
         gain_ = 0.0f;
         beat_.store(0.0, std::memory_order_relaxed);
@@ -369,7 +381,26 @@ private:
         piece_.store(next, std::memory_order_relaxed);
         publish(score);
         setPlaying(wasPlaying);
+        levelDue_ = true;
         LOGI("piece %d: seed %llu", next, static_cast<unsigned long long>(seed_ + static_cast<uint64_t>(next - 1)));
+    }
+
+    /**
+     * @brief The loudness of the piece playing (Leveler.h), measured while it plays -- on the headset's cores a good
+     *        many seconds: the correction goes to the audio thread, which glides it in (Engine::setLevelTrims). A
+     *        request for the next piece breaks it off.
+     */
+    void level()
+    {
+        const std::shared_ptr<const Score> playing = score();
+        if (!playing) return;
+        Score s = *playing;
+        auto stop = [this] { return nextRequest_.load(std::memory_order_relaxed) || quit_.load(std::memory_order_relaxed); };
+        if (levelScore(s, engine_.params(), 20.0, stop).empty() || trimsReady_.load(std::memory_order_acquire)) return;
+        trimsIn_.clear();
+        for (const LevelMark& m : s.levels) trimsIn_.push_back(m.trimDb);
+        trimsReady_.store(true, std::memory_order_release);
+        LOGI("piece %d: loudness corrected by %+.1f dB", piece(), s.levels.empty() ? 0.0 : static_cast<double>(s.levels[0].trimDb));
     }
 
     void publish(std::shared_ptr<const Score> s) { std::lock_guard<std::mutex> lock(scoreMutex_); score_ = std::move(s); }
@@ -379,16 +410,17 @@ private:
     {
         const ParamStore& p = engine_.params();
         const double concert = p.get(p.id(Module::Compose, 0, compose::ConcertMinutes));
-        Score s = concert > 0.0 ? composeConcert(p, seed, concert) : composePiece(p, seed, minutes_);
-        levelScore(s, p);   // every piece as loud as its style means (Leveler.h)
-        return s;
+        return concert > 0.0 ? composeConcert(p, seed, concert) : composePiece(p, seed, minutes_);
     }
 
     Engine engine_;
     uint64_t seed_ = 1;
     double minutes_ = 12.0;
     std::atomic<int> state_{ kIdle };
-    std::atomic<bool> ready_{ false }, playing_{ false }, nextRequest_{ false };
+    std::atomic<bool> ready_{ false }, playing_{ false }, nextRequest_{ false }, quit_{ false };
+    bool levelDue_ = false;                      ///< the piece playing is still to be measured (composer thread)
+    std::vector<float> trimsIn_;                 ///< its corrections, for the audio thread once trimsReady_ says so
+    std::atomic<bool> trimsReady_{ false };
     std::atomic<int> piece_{ 1 };
     std::atomic<double> beat_{ 0.0 }, seconds_{ 0.0 };
     std::atomic<float> level_{ 0.0f };
@@ -721,6 +753,7 @@ public:
     void shutdown()
     {
         stopComposer_.store(true);
+        player_.quit();
         if (composerThread_.joinable()) composerThread_.join();
         audio_.stop();
         cues_.stop();   // after the stream: the sender's thread reads the ring the audio thread fills

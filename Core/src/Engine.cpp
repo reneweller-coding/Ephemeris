@@ -39,6 +39,7 @@ void Engine::load(const Score& score, bool sounds)
     score_ = score;
     score_.sort();
     cueMarks_ = cueMarksOf(score_);
+    lateDb_ = 0.0f;
     sample_ = 0;
     evCursor_ = 0;
     // The composer's sounds at the start (Score::knobs): on the knobs now, or already there (the caller's word).
@@ -318,6 +319,27 @@ void Engine::setLowCut(int s, float hz)
         st.hpL.setQ(hz, 0.70710678f, static_cast<float>(sampleRate_));
         st.hpR.copyCoefficients(st.hpL);
     }
+}
+
+float Engine::trimAt(double beat) const
+{
+    // From a piece's start, gliding over eight bars from the one before it: a concert's pieces meet at their own levels.
+    float trim = 0.0f;
+    for (size_t i = 0; i < score_.levels.size(); ++i) {
+        const LevelMark& m = score_.levels[i];
+        if (m.beat > beat + 1e-9) break;
+        const float before = i > 0 ? score_.levels[i - 1].trimDb : m.trimDb;
+        trim = before + (m.trimDb - before) * static_cast<float>(std::clamp((beat - m.beat) / (8.0 * kBeatsPerBar), 0.0, 1.0));
+    }
+    return trim;
+}
+
+void Engine::setLevelTrims(const std::vector<float>& trims)
+{
+    const double now = beat();
+    const float was = trimAt(now) + lateDb_;
+    for (size_t i = 0; i < score_.levels.size() && i < trims.size(); ++i) score_.levels[i].trimDb = trims[i];
+    lateDb_ = was - trimAt(now);
 }
 
 void Engine::updateCell()
@@ -613,14 +635,11 @@ void Engine::updateCell()
     const float springs[2] = { knob(Module::Spring, spring::Decay), knob(Module::Spring, spring::Tone) };
     if (changed(cache_.spring, springs, cache_.valid)) spring_.set(springs[0], springs[1]);
     springReturn_ = gain(knob(Module::Spring, spring::Return));
-    // The piece's loudness correction (Score::levels, Leveler.h): from its start, gliding over eight bars from the one
-    // before it -- a concert's pieces meet at their own levels.
-    float trim = 0.0f;
-    for (size_t i = 0; i < score_.levels.size(); ++i) {
-        const LevelMark& m = score_.levels[i];
-        if (m.beat > beat + 1e-9) break;
-        const float before = i > 0 ? score_.levels[i - 1].trimDb : m.trimDb;
-        trim = before + (m.trimDb - before) * static_cast<float>(std::clamp((beat - m.beat) / (8.0 * kBeatsPerBar), 0.0, 1.0));
+    // The piece's loudness correction (Score::levels, Leveler.h), and what is left of one that came late.
+    const float trim = trimAt(beat) + lateDb_;
+    if (lateDb_ != 0.0f) {
+        lateDb_ *= static_cast<float>(std::exp(-kCell / (1.5 * sampleRate_)));
+        if (std::fabs(lateDb_) < 1.0e-3f) lateDb_ = 0.0f;
     }
     master_ = dbToGain(knob(Module::Master, master::Level) + trim);
     const float compress = knob(Module::Master, master::Compress), ceiling = knob(Module::Master, master::Ceiling);

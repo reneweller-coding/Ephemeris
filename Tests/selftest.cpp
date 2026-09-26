@@ -2792,27 +2792,39 @@ void testLeveler()
                     static_cast<double>(ra[i].target), static_cast<double>(ra[i].trim), static_cast<double>(ra[i].after));
     }
     check(ok && same && a.levels[0].trimDb == ra[0].trim, "the loudest part comes to its style's target, the same every time", info);
-    // The engine plays the correction: the same piece with and without, the same place, apart by the correction.
-    auto loud = [](const Score& sc, const ParamStore& q) {
+    // The engine plays the correction: the same piece with and without, the same place, apart by the correction. And
+    // one that comes late (the plugin measures while the piece plays) glides in: at first the level as it was.
+    auto loud = [](const Score& sc, const ParamStore& q, const std::vector<float>* late, double* first) {
         Engine e;
         e.params().copyValuesFrom(q);
         e.prepare(48000.0, 512);
         e.load(sc);
         e.seek(sc.levels[0].peakBeat);
+        if (late != nullptr) e.setLevelTrims(*late);
         std::vector<float> l(512), r(512);
         LoudnessMeter m;
         m.prepare(48000.0);
+        double en = 0.0;
         for (int k = 0; k < 900; ++k) {
             e.process(l.data(), r.data(), 512);
+            if (k < 10) for (float x : l) en += static_cast<double>(x) * x;
             if (k >= 300) m.process(l.data(), r.data(), 512);
         }
+        *first = 10.0 * std::log10(en + 1e-30);
         return m.report().integrated;
     };
     Score plain = a;
     plain.levels[0].trimDb = 0.0f;
-    const double with = loud(a, p), without = loud(plain, p);
+    const std::vector<float> found = { a.levels[0].trimDb };
+    double firstWith = 0.0, firstWithout = 0.0, firstLate = 0.0;
+    const double with = loud(a, p, nullptr, &firstWith), without = loud(plain, p, nullptr, &firstWithout),
+                 late = loud(plain, p, &found, &firstLate);
     check(std::fabs((with - without) - a.levels[0].trimDb) < 1.0, "the engine plays the correction from the piece's start",
           fmt("%.1f LUFS with it, %.1f without, the correction %+.1f dB", with, without, static_cast<double>(a.levels[0].trimDb)));
+    check(std::fabs(firstLate - firstWithout) < 0.5 && std::fabs(late - with) < 0.5,
+          "a correction that comes late glides in from the level that played",
+          fmt("first 0.1 s %+.2f dB from the level before (with it at once %+.2f), then %.1f LUFS against %.1f",
+              firstLate - firstWithout, firstWith - firstWithout, late, with));
 }
 
 /**

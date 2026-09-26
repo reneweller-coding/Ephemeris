@@ -225,10 +225,21 @@ def main():
             return 0
         pdf = os.path.splitext(a.out)[0] + ".pdf"
         url = "file:///" + os.path.abspath(a.out).replace("\\", "/")
-        # A profile of its own: otherwise the call hands the job to a running browser and returns without a file.
+        # The old one goes first, so that a PDF there is this one. The browser returns before its child process has
+        # written the file: it is waited for until its size holds. A profile of its own: otherwise the call hands the
+        # job to a running browser and returns without a file.
+        if os.path.exists(pdf):
+            os.remove(pdf)
         profile = tempfile.mkdtemp(prefix="eph_manual_")
         subprocess.run([browser, "--headless=new", "--disable-gpu", "--no-pdf-header-footer", "--user-data-dir=" + profile,
                         "--print-to-pdf=" + pdf, url], check=False, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=180)
+        size = -1
+        for _ in range(120):
+            now = os.path.getsize(pdf) if os.path.exists(pdf) else -1
+            if now > 0 and now == size:
+                break
+            size = now
+            time.sleep(0.5)
         print(("wrote " + pdf) if os.path.exists(pdf) else "the browser wrote no PDF")
     return 0
 
