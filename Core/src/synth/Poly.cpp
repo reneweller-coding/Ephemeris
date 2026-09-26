@@ -7,6 +7,7 @@
  * host cuts the blocks (the engine's rule).
  */
 #include "eph/synth/Poly.h"
+#include "eph/Vec.h"
 #include <algorithm>
 #include <cmath>
 #include <cstring>
@@ -16,6 +17,56 @@ namespace eph {
 namespace {
 constexpr int kControl = 16;    ///< samples between two control updates
 constexpr int kDrift = 512;     ///< samples between two steps of the drift
+
+/**
+ * @brief One sample of the keys' filter lanes of model @p m (not the comb), a register at a time: the arithmetic of
+ *        FilterLane::tick lane by lane, so the sound is the same to the bit; the makeup is the caller's.
+ */
+template <class V, int N>
+void runLanes(FilterModel m, float (*fv)[N], float (*fs)[N], const float* x, const float* g, const float* k, const float* mode, float* y)
+{
+    constexpr int W = laneWidth<V>();
+    for (int o = 0; o < N; o += W) {
+        V v[4], s[4];
+        for (int j = 0; j < 4; ++j) { v[j] = loadLanes<V>(fv[j] + o); s[j] = loadLanes<V>(fs[j] + o); }
+        const V xs = loadLanes<V>(x + o), gg = loadLanes<V>(g + o), kk = loadLanes<V>(k + o);
+        V out = lanes<V>(0.0f);
+        switch (m) {
+        case FilterModel::Moog: out = ladderMoog<V>(v, s, xs, gg, kk); break;
+        case FilterModel::Prophet: case FilterModel::Juno:
+            out = otaCascade<V>(v, s, xs, gg, kk, FilterVoicing::otaDrive(m), FilterVoicing::otaRes(m));
+            break;
+        case FilterModel::Xpander: {
+            otaCascade<V>(v, s, xs, gg, kk, FilterVoicing::otaDrive(m), FilterVoicing::otaRes(m));
+            const float r = FilterVoicing::otaRes(m);
+            const V a0 = xs - kk * ftanh<V>(lanes<V>(r) * v[3]) / lanes<V>(r);
+            alignas(32) float w[5][W];   // the pole mix of every lane's mode
+            for (int l = 0; l < W; ++l) {
+                const float* p = poleMix(mode[o + l]);
+                for (int j = 0; j < 5; ++j) w[j][l] = p[j];
+            }
+            out = loadLanes<V>(w[0]) * a0 + loadLanes<V>(w[1]) * v[0] + loadLanes<V>(w[2]) * v[1] + loadLanes<V>(w[3]) * v[2] + loadLanes<V>(w[4]) * v[3];
+            break;
+        }
+        case FilterModel::Sem: case FilterModel::Wasp:
+            out = svfNonlinear<V>(v, s, xs, gg, kk, FilterVoicing::svfRange(m), FilterVoicing::svfAsym(m), loadLanes<V>(mode + o));
+            break;
+        case FilterModel::Polivoks:
+            out = svfNonlinear<V>(v, s, xs, gg, kk, FilterVoicing::svfRange(m), 0.0f, loadLanes<V>(mode + o), true);
+            break;
+        case FilterModel::Diode: out = diodeLadder<V>(v, s, xs, gg * lanes<V>(0.70710678f), kk); break;
+        case FilterModel::Korg35: out = korg35<V>(v, s, xs, gg, kk); break;
+        default: break;
+        }
+        vstore(y + o, out);
+        for (int j = 0; j < 4; ++j) { vstore(fv[j] + o, v[j]); vstore(fs[j] + o, s[j]); }
+    }
+}
+}
+
+void PolySynth::clearLanes(int key)
+{
+    for (int j = 0; j < 4; ++j) fv_[j][2 * key] = fv_[j][2 * key + 1] = fs_[j][2 * key] = fs_[j][2 * key + 1] = 0.0f;
 }
 
 void PolySynth::prepare(double sampleRate, uint64_t seed)
@@ -32,6 +83,7 @@ void PolySynth::prepare(double sampleRate, uint64_t seed)
     }
     times_.setSampleRate(sampleRate);
     ftimes_.setSampleRate(sampleRate);
+    for (int i = 0; i < kKeys; ++i) clearLanes(i);
     size_t len = 1;
     while (len < static_cast<size_t>(0.05 * sampleRate)) len <<= 1;
     line_.assign(len, 0.0f);
@@ -47,8 +99,10 @@ void PolySynth::prepare(double sampleRate, uint64_t seed)
 void PolySynth::set(const PolySettings& s)
 {
     // A new filter model starts from rest.
-    if (s.filter != s_.filter)
+    if (s.filter != s_.filter) {
         for (Key& k : keys_) for (FilterLane& f : k.filt) f.clear();
+        for (int i = 0; i < kKeys; ++i) clearLanes(i);
+    }
     const bool modMoved = std::memcmp(&s.mod, &s_.mod, sizeof(ModSettings)) != 0;
     s_ = s;
     table_ = &wavetable(s.table);
@@ -95,6 +149,7 @@ void PolySynth::noteOn(int pitch, float velocity, int id)
         k->drift[1] = s_.driftCents * rng_.bipolar();
         k->filt[0].clear();
         k->filt[1].clear();
+        clearLanes(static_cast<int>(k - keys_));
         k->level[0] = k->level[1] = -1;
     }
     k->scanOffset = rng_.uniform();
@@ -145,7 +200,17 @@ void PolySynth::process(float* L, float* R, int n)
             if (scanPhase_ >= 1.0) scanPhase_ -= 1.0;
         }
         float l = 0.0f, r = 0.0f;
-        for (Key& k : keys_) {
+        // The filters' inputs and knobs per lane (runLanes after the keys): a key that sounds sets its two.
+        alignas(32) float xin[kLanes], gl[kLanes], kl[kLanes], ml[kLanes], yl[kLanes];
+        bool live[kKeys] = {}, moved[kKeys] = {};
+        for (int ki = 0; ki < kKeys; ++ki) {
+            xin[2 * ki] = xin[2 * ki + 1] = 0.0f;
+            gl[2 * ki] = gl[2 * ki + 1] = keys_[ki].g;
+            kl[2 * ki] = kl[2 * ki + 1] = fk;
+            ml[2 * ki] = ml[2 * ki + 1] = s_.filterMode;
+        }
+        for (int ki = 0; ki < kKeys; ++ki) {
+            Key& k = keys_[ki];
             if (!k.on) continue;
             if (drift && s_.driftCents > 0.0f) {
                 for (float& d : k.drift) d += 0.3f * (s_.driftCents * k.rng.bipolar() - d);
@@ -191,16 +256,37 @@ void PolySynth::process(float* L, float* R, int n)
                 if (k.phase[o] >= 1.0) k.phase[o] -= 1.0;
             }
             float amp = env * k.velocity * keyGain;
-            if (!mod) {
-                l += k.filt[0].tick(model, (a + cross * b) * amp, k.g, fk, s_.filterMode);
-                r += k.filt[1].tick(model, (cross * a + b) * amp, k.g, fk, s_.filterMode);
-            } else {
+            live[ki] = true;
+            moved[ki] = mod;
+            gl[2 * ki] = gl[2 * ki + 1] = k.g;
+            if (mod) {
                 // What the matrix moves: resonance, mode and level per key, and the key's place between the sides.
                 amp *= k.lv;
-                const float kf = k.mod.targets(ModDest::Resonance) ? k.fk : fk;
-                const float km = k.mod.targets(ModDest::FilterMode) ? k.mode : s_.filterMode;
-                l += k.panL * k.filt[0].tick(model, (a + cross * b) * amp, k.g, kf, km);
-                r += k.panR * k.filt[1].tick(model, (cross * a + b) * amp, k.g, kf, km);
+                kl[2 * ki] = kl[2 * ki + 1] = k.mod.targets(ModDest::Resonance) ? k.fk : fk;
+                ml[2 * ki] = ml[2 * ki + 1] = k.mod.targets(ModDest::FilterMode) ? k.mode : s_.filterMode;
+            }
+            xin[2 * ki] = (a + cross * b) * amp;
+            xin[2 * ki + 1] = (cross * a + b) * amp;
+        }
+        // The filters: every key's two in lanes, the comb key by key (its lines); then the keys summed in their order.
+        if (model == FilterModel::Comb) {
+            for (int ki = 0; ki < kKeys; ++ki) {
+                if (!live[ki]) continue;
+                yl[2 * ki] = keys_[ki].filt[0].tick(model, xin[2 * ki], gl[2 * ki], kl[2 * ki], ml[2 * ki]);
+                yl[2 * ki + 1] = keys_[ki].filt[1].tick(model, xin[2 * ki + 1], gl[2 * ki + 1], kl[2 * ki + 1], ml[2 * ki + 1]);
+            }
+        } else {
+            runLanes<VecF, kLanes>(model, fv_, fs_, xin, gl, kl, ml, yl);
+            for (int c = 0; c < kLanes; ++c) yl[c] *= FilterVoicing::makeup(model, kl[c]);
+        }
+        for (int ki = 0; ki < kKeys; ++ki) {
+            if (!live[ki]) continue;
+            if (!moved[ki]) {
+                l += yl[2 * ki];
+                r += yl[2 * ki + 1];
+            } else {
+                l += keys_[ki].panL * yl[2 * ki];
+                r += keys_[ki].panR * yl[2 * ki + 1];
             }
         }
         // The ensemble: one line, read on either side with the sweep turned against itself.

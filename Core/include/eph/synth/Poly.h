@@ -94,6 +94,11 @@ private:
         float fk = 0.0f, mode = 0.0f, lv = 1.0f, panL = 1.0f, panR = 1.0f;   ///< resonance, mode, level, pan as the matrix moves them
     };
     void retune(Key& k);   ///< the oscillators' increments and levels from the pitch, detune, drift and the matrix's pitch
+    /** @brief The keys' filters side by side (26.09.2026): key k's left channel in lane 2k, its right in lane 2k + 1, run
+     *         in SIMD registers as the voice bank's are (the comb keeps the keys' FilterLanes, whose lines it needs). */
+    static constexpr int kLanes = 2 * kKeys;
+    alignas(32) float fv_[4][kLanes] = {}, fs_[4][kLanes] = {};
+    void clearLanes(int key);   ///< the key's two lanes from rest (a fresh key, a new model)
     double beatAt(int64_t at) const { return beat0_ + static_cast<double>(at - clockAt_) * bps_; }   ///< setClock's beat
     double sr_ = 48000.0;
     PolySettings s_;
