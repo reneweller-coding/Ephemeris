@@ -34,7 +34,18 @@ V1 VCO-Modelle voice.vco / lead.vco: Analog (bisher), Moog 921, Prophet SSM2030,
    Jitter), Hard-Sync (Osz 2 auf Osz 1, bandbegrenzt) und Poly-Mod (Prophet); V2 Poly: analoge Tabellen der Modelle;
    V3 Presets (Bass Moog, Leads Prophet-Sync, Flächen SEM, Arps ARP, Sub E-mu), Panel-Gruppe "Oscillators" mit VCO-Wahl,
    Handbuch; V4 Release, APK.
-Stand: M1 als nächstes.
+Stand: M1-M5, V1-V3 erledigt. M1-M4 bitgenau neutral (Referenz-Hashes unverändert, Vektortest bitgleich). M2: die
+   gekoppelten Knöpfe laufen pro Sample durch die Lanes (wave, pw, k, fmk, fmode, ffm), damit alles blockgrößenunabhängig bleibt;
+   Filter-Release standardmäßig an den Decay gekoppelt ("Release = Decay", wie beim Minimoog): ohne Sustain läuft der Decay
+   einfach über das Notenende weiter, kurze Sequenzer-Gates lassen der Hand den Decay. M5: Rezepte je Gruppe nach dem Filter
+   gezogen; Fehler gefunden und behoben: die Engine las die neuen Knöpfe roh, die Preset-Wahl des Komponisten (als Offsets)
+   kam nicht an -- jetzt über played(). V1 anders als geplant: nicht als CycleTables (die tragen nur 128 Obertöne, ein Bass
+   verlöre alles über 7 kHz), sondern analytisch: Sägezahnkern mit Krümmung (Leckstrom) und Knie (Reset), jedes Ereignis
+   (Reset, Pulsflanke, Sync) exakt im Sampleschritt gefunden und mit BLEP und BLAMP geglättet, bei 2x; Sync-Aliasing im
+   Hörband -53 dB (naiv -19 dB). Modelle skalar neben den Lanes, "Analog" bleibt bitgenau in den Lanes. Ehrlich: die
+   Wellenformen der Modelle unterscheiden sich um Zehntel-dB, hörbar vor allem Drift, Jitter, Sync und Cross Mod.
+   V2 fünf Tabellen aus den Modellen für den Poly. V3 Presets (Modelle je Gruppe, Prophet-Sync-Sweeps über die Matrix,
+   Analog Pads auf den Modell-Tabellen), Handbuch "Oscillators" und "Modulation". Offen: Stilpegel nachkalibrieren, V4.
 
 **Vorschlag (26.09.2026): Hüllkurven, LFOs und Modulationsmatrix für jeden Synth.** Frage des
 Nutzers: je eine volle ADSR für Amp und Filter, eine dritte für weitere Modulation, drei bis vier LFOs (z. B. durch die

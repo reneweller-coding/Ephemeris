@@ -717,6 +717,93 @@ const std::vector<ModRecipe>& modRecipes(Module m, const std::string& group)
     return none;
 }
 
+// --- The oscillators of the groups (26.09.2026, Vco.h) ---------------------------------------------------------------
+/** @brief A VCO a group's presets may take: the model, hard sync (VCO 2's interval and the filter envelope's sweep of
+ *         it, the Prophet's Poly-Mod), and cross mod. */
+struct VcoChoice { int model; bool sync; float osc2Lo, osc2Hi, sweep, cross; };
+
+/**
+ * @brief The VCOs a group draws from, by the instruments its sounds come from: the basses on the Moog (the sub basses
+ *        on the steady E-mu), the sync sweeps on the Prophet, the round pulses and pads on the SEM, the plucks and the
+ *        squelch on the ARP, glass and bells on the E-mu (with cross mod now and then) -- and still the voices' own
+ *        analog oscillators here and there.
+ */
+const std::vector<VcoChoice>& vcoChoices(Module m, const std::string& group)
+{
+    enum { ANALOG, MOOG, PROPHET, SEM, ARP, EMU };
+    using L = std::vector<VcoChoice>;
+    const VcoChoice moog { MOOG, false, 0, 0, 0, 0 }, prophet { PROPHET, false, 0, 0, 0, 0 }, sem { SEM, false, 0, 0, 0, 0 };
+    const VcoChoice arp { ARP, false, 0, 0, 0, 0 }, emu { EMU, false, 0, 0, 0, 0 }, analog { ANALOG, false, 0, 0, 0, 0 };
+    const VcoChoice sweep { PROPHET, true, 5.0f, 19.0f, 0.4f, 0 }, emuX { EMU, false, 0, 0, 0, 0.3f }, arpX { ARP, false, 0, 0, 0, 0.3f };
+    static const std::vector<std::pair<std::string, L>> voice = {
+        { "Ladder Bass", { moog, moog, moog, analog, emu } },
+        { "Deep Ostinato", { moog, emu, analog } },
+        { "Pluck Sequence", { arp, prophet, analog } },
+        { "Resonant Sweep", { moog, prophet, arp } },
+        { "Hollow Pulse", { sem, arp } },
+        { "Glass Arp", { emu, arp, prophet } },
+        { "Tape Sequence", { sem, moog } },
+        { "Soft Pad Voice", { sem, sem, analog } },
+        { "Squelch Arp", { arp, moog } },
+        { "Staccato Pulse", { prophet, emu } },
+        { "Legato Glide", { moog } },
+        { "Warm Unison", { sem, moog } },
+        { "Bright Stab", { sweep, sweep, prophet } },
+        { "Dark Throb", { moog, sem } },
+        { "Accent Ratchet", { arp, analog } },
+        { "Cosmic Drip", { emu, arpX, emuX } },
+    };
+    static const std::vector<std::pair<std::string, L>> lead = {
+        { "Solo Saw", { moog, moog, prophet } },
+        { "Singing Pulse", { arp, prophet } },
+        { "Flute Lead", { sem, emu } },
+        { "Portamento", { moog } },
+        { "Glass Whistle", { emu } },
+        { "Theremin", { emu } },
+        { "Screaming Filter", { sweep, sweep, arp } },
+        { "Soft Horn", { sem, prophet } },
+        { "Ethereal Sine", { emu } },
+        { "Brass Lead", { prophet, sem } },
+        { "Hollow Oboe", { arp, sem } },
+        { "Twin Oscillator", { sem, moog } },
+        { "Cosmic Siren", { arpX, sweep } },
+        { "Warm Mono", { moog } },
+        { "Bell Lead", { emuX, arpX } },
+        { "Dusty Solo", { sem, moog } },
+    };
+    static const std::vector<std::pair<std::string, L>> drone = {
+        { "Dark Bordun", { moog } }, { "Organ Pedal", { emu } }, { "Pulse Hum", { sem, arp } }, { "Resonant Earth", { moog } },
+        { "Glowing Root", { sem } }, { "Hollow Pipe", { arp } }, { "Warm Floor", { moog, sem } }, { "Filtered Void", { emu } },
+        { "Singing Ground", { sem } }, { "Iron Drone", { arp, moog } }, { "Soft Monolith", { sem } }, { "Bright Axis", { prophet } },
+        { "Deep Current", { emu } }, { "Breathing Root", { moog } }, { "Temple Hum", { arp } }, { "Night Floor", { moog } },
+    };
+    static const L none;
+    const std::vector<std::pair<std::string, L>>* table = nullptr;
+    switch (m) {
+    case Module::Voice: table = &voice; break;
+    case Module::Lead: table = &lead; break;
+    case Module::Drone: table = &drone; break;
+    default: return none;
+    }
+    for (const auto& e : *table) if (e.first == group) return e.second;
+    return none;
+}
+
+/** @brief The pad synth's analog groups on the VCO models' waves (Wavetable.h): a table and the range of its place. */
+struct PolyTable { const char* table; float posLo, posHi; };
+const std::vector<PolyTable>& polyTables(const std::string& group)
+{
+    // The waves' frames: the ramp into the square over the first third, then the pulse narrowing.
+    static const std::vector<std::pair<std::string, std::vector<PolyTable>>> t = {
+        { "Analog Pad", { { "PWM", 0.05f, 0.5f }, { "SEM Waves", 0.35f, 0.8f }, { "921 Waves", 0.35f, 0.8f }, { "Prophet Waves", 0.35f, 0.8f } } },
+        { "Oberheim Brass", { { "Classic", 0.45f, 0.55f }, { "SEM Waves", 0.0f, 0.12f }, { "SEM Waves", 0.0f, 0.12f } } },
+        { "Juno Strings", { { "PWM", 0.2f, 0.6f }, { "Prophet Waves", 0.4f, 0.8f } } },
+    };
+    static const std::vector<PolyTable> none;
+    for (const auto& e : t) if (e.first == group) return e.second;
+    return none;
+}
+
 /** @brief The sixty-four presets of every group of a synth, the knob values from the axes (Presets.h). */
 std::vector<SoundPreset> build(Module m, const Synth& s)
 {
@@ -778,6 +865,35 @@ std::vector<SoundPreset> build(Module m, const Synth& s)
                         float value = d.curve == Curve::Log && kr.lo > 0.0f ? kr.lo * std::pow(kr.hi / kr.lo, t) : kr.lo + t * (kr.hi - kr.lo);
                         if (d.curve == Curve::Choice || d.curve == Curve::Int || d.curve == Curve::Toggle) value = std::round(value);
                         p.values.push_back({ k, std::clamp(value, d.minValue, d.maxValue) });
+                    }
+                }
+            }
+            // The VCO (26.09.2026, Vco.h), drawn after all of the above, which keeps its values. The sync sweep is the
+            // second slot of the matrix (the recipes use the first): the filter envelope on VCO 2's pitch.
+            const std::vector<VcoChoice>& vcos = vcoChoices(m, grp.name);
+            if (!vcos.empty()) {
+                const VcoChoice& vc = vcos[static_cast<size_t>(rng.below(static_cast<int>(vcos.size())))];
+                const bool isVoice = m == Module::Voice;
+                auto at = [isVoice](int vi, int li) { return isVoice ? vi : li; };
+                p.values.push_back({ at(voice::Vco, lead::Vco), static_cast<float>(vc.model) });
+                if (vc.sync) {
+                    p.values.push_back({ at(voice::Sync, lead::Sync), 1.0f });
+                    p.values.push_back({ at(voice::Osc2Pitch, lead::Osc2Pitch), std::round(vc.osc2Lo + (vc.osc2Hi - vc.osc2Lo) * rng.uniform()) });
+                    p.values.push_back({ at(voice::Mod2Src, lead::Mod2Src), 6.0f });   // the filter envelope
+                    p.values.push_back({ at(voice::Mod2Dst, lead::Mod2Dst), 11.0f });  // on VCO 2's pitch
+                    p.values.push_back({ at(voice::Mod2Amt, lead::Mod2Amt), vc.sweep * (0.6f + 0.4f * rng.uniform()) });
+                }
+                if (vc.cross > 0.0f) p.values.push_back({ at(voice::CrossMod, lead::CrossMod), vc.cross * (0.5f + 0.5f * rng.uniform()) });
+            }
+            // The pad synth's analog groups, on a VCO model's waves now and then (Wavetable.h).
+            if (m == Module::Poly) {
+                const std::vector<PolyTable>& tables = polyTables(grp.name);
+                if (!tables.empty()) {
+                    const PolyTable& pt = tables[static_cast<size_t>(rng.below(static_cast<int>(tables.size())))];
+                    const float pos = pt.posLo + (pt.posHi - pt.posLo) * rng.uniform();
+                    for (auto& e : p.values) {
+                        if (e.first == poly::Table) e.second = tableOf(pt.table);
+                        if (e.first == poly::Position) e.second = pos;
                     }
                 }
             }

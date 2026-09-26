@@ -297,6 +297,46 @@ diode ladder, the squelch on the diode ladder and the Korg35, glass on the Xpand
 Juno strings on the Juno, the Oberheim brass on the SEM, the dark and dusty sounds on the Polivoks and the Wasp, the
 cosmic drips on the comb and the phaser -- their cutoffs set so a group keeps its brightness whatever it drew.
 
+== Oscillators | | - ==
+
+Every voice -- the rows, the lead, the drone -- chooses its oscillators (VCO, in the group Oscillators): its own
+analog pair, or one of five classic VCOs.
+
+    Analog          the voices' own: ideal ramps and pulses
+    Moog 921        the Moog modular's oscillator: a discrete reset whose soft knee rounds the ramp's top; its pitch
+                    wanders the most and the slowest
+    Prophet-5       the SSM2030 of the Prophet-5: an integrated, nearly ideal core, steady -- and the sync sweeps
+    Oberheim SEM    a discrete core whose leakage bends the ramp towards the capacitor's charging curve: round, warm
+    ARP 2600        the 4027's fast reset, the ramp speeding up a little towards the top; the most jitter
+    E-mu Modular    precise and stable: ideal ramps, half the others' drift, a tenth of their jitter
+
+Every one of them is a sawtooth core -- a capacitor charged by the exponential converter's current until a comparator
+fires and a transistor empties it -- and a comparator on the ramp for the pulse. What sets the models apart is what
+the circuit does to that: the ramp's bow (the core's leakage), the knee at its top (the reset transistor starting to
+conduct early), and above all how the pitch moves -- the drift's spread and speed, how far a note lands off its
+pitch, and a fast jitter of a fraction of a cent correlated over a few milliseconds. Honestly: the waveforms differ by
+a few tenths of a dB in the upper harmonics and in the phases of the lower ones; what the ear notices first is the
+wandering. The magnitudes follow the circuits' principles and the instruments' reputations; they are not measured on
+the instruments.
+
+Sync restarts VCO 2 with every cycle of VCO 1 (hard sync, the Prophet's Osc A to Osc B). Osc 2 Pitch sets VCO 2's
+interval, -12 to +24 semitones; with sync it moves the timbre instead of the pitch, and the matrix's target Osc 2
+Pitch from the Filter Env is the Prophet's Poly-Mod sweep -- the tearing, vocal sync lead. Cross Mod puts VCO 1 on
+VCO 2's frequency at audio rate, up to three octaves: the clangorous edges of the ARP 2600's FM and of the Poly-Mod
+from Osc B.
+
+How they are made. The waveform's every discontinuity -- the reset, the pulse's edges, a sync restart -- is found
+exactly inside its sample step, and the jump and the change of slope there are smoothed with the polynomial BLEP and
+its integral, the BLAMP (Välimäki, Pekonen and Nam 2012; Esqueda, Välimäki and Bilbao 2016), at the voices' twice the
+sample rate. A synced tone of 1.2 kHz keeps its aliases 53 dB under its harmonics in the audible band (a naive
+restart: 19 dB). A voice on a model, with sync or cross mod runs its oscillators beside the SIMD lanes; the Analog
+pair stays in them.
+
+The factory presets carry the oscillators of their instruments: the basses on the Moog (the deep ones now and then on
+the steady E-mu), the sync sweeps on the Prophet (Bright Stab, Screaming Filter, Cosmic Siren), the round pulses and
+the soft pads on the SEM, the plucks and the squelch on the ARP, glass and bells on the E-mu, some with cross mod. The
+pad synth's analog pads read the models' waves (see Poly).
+
 == Modulation | | - ==
 
 Every synth has full envelopes, LFOs and a modulation matrix: the rows' voices, the lead, the drone and the pad synth
@@ -415,12 +455,14 @@ A wavetable is a stack of single cycles; Position chooses where in the stack the
 moves the position with a slow sine at Scan Rate, each key a little apart in its phase -- the one slow modulation
 a pad needs. On the PWM table (the default) the position is the pulse width, so the scan is the pulse width
 modulation of an analog pad; on a PPG or Waldorf table the timbre walks through its frames. The tables are read
-band-limited at eight resolutions, so a high note never aliases. Forty-six tables: eight from formulas --
+band-limited at eight resolutions, so a high note never aliases. Fifty-one tables: eight from formulas --
 Classic (sine, triangle, saw, square, pulse), PWM, Sync (a saw hard-synced to one to five times its master),
 Formant (a resonant peak climbing through a saw), Vocal, Organ, Glass and Metal -- and thirty-eight sampled
 single cycles from the AmbientSynth's library: its own bowed, tube, vocal, consonant, overtone, morph and
 sampled tables, nine of the PPG Wave's tables as the users of WaveEdit Online rebuilt them, and a few of the
-Adventure Kid waveforms (AKWF, by Kristoffer Ekstrand; WaveEdit Online and AKWF are CC0).
+Adventure Kid waveforms (AKWF, by Kristoffer Ekstrand; WaveEdit Online and AKWF are CC0); and the waves of the five
+classic VCOs (921, Prophet, SEM, 2600 and E-mu Waves; see Oscillators), each model's ramp morphing into its square
+and then into a narrowing pulse -- the analog pads read them now and then instead of the PWM table.
 
 The composer brings the pads in where the other planes leave room: in the atmosphere under the drone, from the
 first build until the tape keys come in, in the breakdowns and the bridges -- never as a third plane beside the

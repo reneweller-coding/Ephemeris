@@ -2650,6 +2650,20 @@ void testVcos()
         check(x.size() == y.size() && std::memcmp(x.data(), y.data(), x.size() * sizeof(float)) == 0 && e > 1.0,
               "voices on the VCO models are the same for any block size", fmt("energy %.1f", e));
     }
+    {
+        // The presets carry the models of their instruments: the voices' every model, sync sweeps on the leads, the
+        // pad synth's analog groups on the models' waves.
+        std::vector<int> models;
+        for (const SoundPreset& pr : factoryPresets(Module::Voice))
+            for (const auto& v : pr.values)
+                if (v.first == voice::Vco && std::find(models.begin(), models.end(), static_cast<int>(v.second)) == models.end()) models.push_back(static_cast<int>(v.second));
+        int synced = 0, waves = 0;
+        for (const SoundPreset& pr : factoryPresets(Module::Lead)) for (const auto& v : pr.values) synced += v.first == lead::Sync && v.second > 0.5f;
+        for (const SoundPreset& pr : factoryPresets(Module::Poly))
+            for (const auto& v : pr.values) waves += v.first == poly::Table && v.second >= static_cast<float>(kFormulaTableCount + kSampledTableCount);
+        check(models.size() == static_cast<size_t>(kVcoModels) && synced > 20 && waves > 20, "the presets carry the VCOs of their instruments",
+              fmt("%zu models in the voices' presets, %d synced leads, %d pads on the models' waves", models.size(), synced, waves));
+    }
 }
 
 /**
