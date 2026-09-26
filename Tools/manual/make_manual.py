@@ -36,6 +36,11 @@ p { margin: 0 0 3.2mm 0; text-align: justify; hyphens: auto; }
 pre { font: 9.5pt Consolas, monospace; background: #f5f2ec; padding: 2mm 3mm; }
 .cover { page-break-after: always; text-align: center; padding-top: 24mm; }
 .cover img, .shot { width: 100%; border: 1px solid #d8d2c4; border-radius: 3px; }
+/* A page taller than a sheet (the synths' pages with all their modulation) is shown whole, narrower. */
+.shot { width: auto; max-width: 100%; max-height: 255mm; display: block; margin-left: auto; margin-right: auto; }
+figure { margin: 2mm 0 5mm 0; page-break-inside: avoid; }
+figure img { width: 100%; border-radius: 3px; }
+figcaption { color: #5b5f68; font-size: 9pt; margin-top: 1.5mm; }
 .cover img.logo { width: 34mm; border: none; margin: 0 auto 6mm auto; display: block; }
 .cover p { text-align: center; }
 .cover img { margin-top: 10mm; }
@@ -73,6 +78,10 @@ def read_chapters(path):
     for c in chapters:
         paragraphs, para, pre = [], [], []
         for line in c["blocks"] + [""]:
+            m = re.match(r"^\[image\s+(\S+)(?:\s*:\s*(.*))?\]$", line.strip())
+            if m and not para and not pre:
+                paragraphs.append(("img", m.group(1), m.group(2) or ""))
+                continue
             if line.startswith("    ") and not para:
                 pre.append(line[4:])
                 continue
@@ -194,8 +203,13 @@ def main():
         parts.append("<div class='chapter' id='c%d'><h2>%s</h2>" % (i, html.escape(c["title"])))
         if c["shot"] is not None:
             parts.append("<img class='shot' src='%s/tab_%02d.png'>" % (shots, c["shot"]))
-        for kind, text in c["paragraphs"]:
-            parts.append("<pre>%s</pre>" % html.escape(text) if kind == "pre" else "<p>%s</p>" % html.escape(text))
+        for block in c["paragraphs"]:
+            kind, text = block[0], block[1]
+            if kind == "img":
+                src = os.path.relpath(os.path.join(ROOT, "docs", text), out_dir).replace("\\", "/")
+                parts.append("<figure><img src='%s'><figcaption>%s</figcaption></figure>" % (src, html.escape(block[2])))
+            else:
+                parts.append("<pre>%s</pre>" % html.escape(text) if kind == "pre" else "<p>%s</p>" % html.escape(text))
         for prefix in c["modules"]:
             parts.append(table(prefix, modules[prefix]["params"], modules[prefix]["instances"]))
         parts.append("</div>")

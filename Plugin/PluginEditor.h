@@ -10,7 +10,7 @@
  * anyone writing it there.
  *
  * `EPH_SHOT` (a PNG file) and `EPH_TAB` (a tab index) render the panel into a picture after the first piece is
- * composed and quit the standalone -- how the layout is checked without a person looking. `EPH_SHOT_SIZE` ("1600x2400") the window's size, `EPH_SHOT_AT` (a beat)
+ * composed and quit the standalone -- how the layout is checked without a person looking. `EPH_SHOT_SIZE` ("1600x2400") the window's size, `EPH_SHOT_FULL` a window as tall as the page in front needs, `EPH_SHOT_AT` (a beat)
  * jumps there first; with `EPH_PLAY` set, the mixer's meters then show that place of the piece.
  */
 #pragma once

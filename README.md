@@ -1,55 +1,93 @@
+<img src="docs/logo-128.png" width="96" align="left" alt="Ephemeris" />
+
 # Ephemeris
 
-A generator for long Berlin-school pieces and whole concerts: interlocking sequencer rows on analogue
-modelled voices, the gestures of a player on filters, echo and transposition, a synthesised tape
-keyboard, string machine, pads and drones, lead solos, tape echo and spring. Standalone and VST3 on
-Windows, native on Meta Quest. Everything is synthesised; there are no samples.
+A generator of Berlin School music: long pieces, whole concerts and night sets, composed and played by the program
+itself -- sequencer rows of different lengths turning against each other over a common root, a bass that holds the
+ground, tape choirs and string machines, a lead that sings over the peak, the hands of a player on the filters, and
+the room of a tape echo and a long hall. Everything is synthesised; nothing is played back from a recording.
+
+**VST3 plugin and standalone application** for Windows (x64), and a native app for **Meta Quest**. Licence: AGPL-3.0.
+
+<br clear="left" />
+
+![The rack: the rows as orbits around the root, the piece's form above](docs/screenshot.png)
+
+## Download
+
+**[Ephemeris-1.0.0-Setup.exe](https://github.com/reneweller-coding/Ephemeris/releases/download/v1.0.0/Ephemeris-1.0.0-Setup.exe)**
+installs the standalone, the VST3, the offline renderer and the manual. Nothing else has to be installed: the runtime
+is linked in. There is a
+**[portable zip](https://github.com/reneweller-coding/Ephemeris/releases/download/v1.0.0/Ephemeris-1.0.0-portable.zip)**
+for anyone who would rather not run an installer, the
+**[Quest app](https://github.com/reneweller-coding/Ephemeris/releases/download/v1.0.0/EphemerisQuest-1.0.0.apk)**
+(installed with `adb install -r`, developer mode), and the
+**[manual](https://github.com/reneweller-coding/Ephemeris/releases/download/v1.0.0/Ephemeris-Manual.pdf)** -- every
+page of the panel as a picture, what each control does, and why it is built the way it is.
+
+Requirements: Windows 10 or 11, a 64-bit processor with AVX2 (every x86-64 since 2013), and a VST3 host if you want
+the plugin; Meta Quest 2 or later for the app. The installer is not code-signed: Windows' SmartScreen may warn once.
+
+## How it is put together
+
+![The signal flow](docs/flow.png)
+
+## The composer
+
+* **Pieces, concerts, night sets.** Five styles -- Cosmic, Doom, Melodic, Modern, Drift -- and one of your own, each a
+  profile of tempo, form, layers, darkness and loudness. A piece is a seed: the same seed gives the same piece, sample
+  for sample. Concerts morph from one style to another along an arc of tension; night sets overlap their pieces as a
+  DJ mixes two tracks.
+* **Form and harmony after the modern Berlin School.** Atmosphere, entry, builds that end where the rows meet again,
+  the lead's section, the peak, breaks, bridges and the coda; a chord track the bass follows under the unchanged
+  sequence, sequencer transpositions, parallel changes of mode, eight modes.
+* **The rack.** Eight rows of different lengths and steps and a transposer row; sequence archetypes, probability
+  gates, ratchets, a doubled pulse, a pattern that loses its steps in the breakdown; two modulation lanes per row that
+  move the timbre against the notes.
+* **The hands.** Two of them, never more: the filters opening towards the peak and closing in the coda, the echo
+  thrown now and then, the wind rising and falling -- as offsets on the knobs you set.
+* **The sounds and the mix.** 1024 factory presets per synth, most of them with modulation; the composer chooses them
+  for every piece and sets them, with the piece's mix, on the knobs themselves -- the pages show what plays, and a
+  knob you turn moves from there.
+* **Every piece as loud as its style means:** its loudest part measured before it plays and brought to its style's
+  level.
+* **Reroll any part on its own** -- form, tempo, rows, rack, layers, lead, pads, hands, sounds -- save a piece as a
+  small set file, export WAV (with stems) and MIDI.
+
+## The instruments
+
+* **Ten modular voices** -- the eight rows, the lead and the drone -- running side by side in the SIMD lanes of the
+  processor at twice the sample rate: two oscillators after one of six designs (the voices' own, Moog 921,
+  Prophet-5, Oberheim SEM, ARP 2600, E-mu Modular) with hard sync and cross modulation, band-limited by BLEP and BLAMP;
+  or a wavetable; a driven mixer; one of **ten filters solved as their circuits** -- the Moog ladder, the Prophet's and
+  the Juno's cascades, the Oberheim SEM, the Xpander's pole mixing, the diode ladder, the Korg35, the Polivoks, the EDP
+  Wasp, a comb -- by Newton-Raphson every sample.
+* **Modulation on every synth:** full ADSRs for amplitude and filter, a mod envelope, four LFOs (synced to the bar or
+  free, retriggered, fading in) and an eight-slot matrix.
+* **A polyphonic wavetable pad synth** (51 tables: formulas, the PPG's, the classic VCOs' waves, sampled single
+  cycles), **a tape keyboard** (choir, strings, flute -- and the machine: wow, flutter, sag, the tape's end), **a string
+  machine** after the Streichfett, drums for the styles that have them, and an atmosphere of wind, sweeps, bleeps and
+  grains.
+
+## Rooms and mix
+
+Tape echo or a bucket-brigade delay, springs, a second echo for the counter rows, early reflections, a blend room
+that feeds an eight-line FDN hall (or a plate), a shimmer hall. A mix after a production guide for depth and
+clarity: a distance per source (level, highs and hall together), cascaded ducking in six bands, a resonance tamer, the
+bass mono under 100 Hz, a guarded width, a gentle compressor, a soft clipper and a true-peak limiter at -1 dBTP.
+
+## The pages
+
+| | |
+|---|---|
+| ![Voices](docs/screenshots/tab_04.png) | ![Mixer](docs/screenshots/tab_00.png) |
+| A row's voice: VCO, filter, envelopes, LFOs, matrix | The mixer: a strip per source, the composer's mix on the faders |
+| ![Poly](docs/screenshots/tab_09.png) | ![Gestures](docs/screenshots/tab_03.png) |
+| The pad synth | The hands: the gestures over the whole piece |
 
 The plan, the musical specification and the literature behind each building block are in
-[docs/PLAN.md](docs/PLAN.md) (German); the user manual is [docs/manual](docs/manual/Ephemeris-Manual.pdf).
-
-**Version 1.0.0 (26.09.2026)**, the first release ([release notes](docs/RELEASE_NOTES.md)). Windows 10/11 x64 with an
-AVX2 processor; Meta Quest 2 or later.
-- Five classic VCOs (Moog 921, Prophet-5, Oberheim SEM, ARP 2600, E-mu Modular) with hard sync and cross mod, and ten
-  circuit-modelled filters solved sample by sample, in SIMD lanes; full envelopes, four LFOs and a modulation matrix
-  on every synth; presets with generous modulation, set by the composer on the knobs themselves.
-- Every piece's loudest part levelled to its style's target (`Leveler.h`); an update check against GitHub's releases.
-- The rack with a transposer row; modular voices for the rows, the lead and the drone, running side by side
-  in SIMD lanes; a synthesised tape keyboard (choir, strings, flute and the machine), a string machine, the
-  atmosphere, tape echo with springs, hall, drums for the styles that have them.
-- Five style profiles, a form grammar whose builds end on conjunctions of the rows, and a composer that
-  writes whole pieces and concerts; rerolling any part on its own; `.ephset` files; WAV and MIDI export.
-- The plugin: a mixer with meters, a perform page (filter hand, transposition key, hold, echo throw; MIDI
-  keys, controllers and learn), the rack with the orrery, a page per source; the host's tempo in a host.
-- Concerts that morph from one style to another and follow an arc of tension; a style of your own.
-- Rooms: the hall or a plate, the tape echo or a bucket-brigade delay; a granular cloud in the atmosphere.
-- A string machine after Waldorf's Streichfett: five registers morphing through eight registrations, the
-  mix animated by a slow LFO, three ensembles and a phaser.
-- Harmony, sequencing and form after a style guide of the modern Berlin School: a chord track the bass
-  follows under the unchanged sequence, sequencer transpositions, parallel changes of mode, eight modes;
-  sequence archetypes, ratchets, probability gates, a doubled pulse, a sequence that loses its steps;
-  the open fifth at the end, the rooms and the lead's phrasing after the guide; a mode of its own for a
-  later phase, quantised random steps, the stereo field with a wandering drone, a second echo for the
-  counter rows, and concerts as albums with interludes.
-- A mix after a production guide for depth, width and clarity: a low cut per source, the bass mono under
-  100 Hz, a guarded width, ducked echo and hall returns, level and width automated along the form, the
-  styles levelled (and since 1.0 every piece's peak to its style's target); eph_render reports loudness (EBU R128), true
-  peak, PSR, loudness range and the stereo correlation of every render.
-- From the dark-ambient practice: a distance macro per source (the bass approaches and recedes), cascaded
-  ducking rows -> pads -> atmosphere, a foundation in pure intervals, an all-pass spread for the tape keys,
-  slow movements with irrational periods, near events where no sequence plays, export fades, an archive
-  master without a limiter.
-- 1024 factory presets for each synth (voices, lead, drone, tape keys, strings, drums, atmosphere), in
-  sixteen groups each, with names from dark to bright; they set the sound, never the mix or the tuning;
-  your own presets saved beside them.
-- A blend room (a short plate) that feeds the hall -- the serial far space; a soft clipper before the limiter,
-  a limiter for the band under 80 Hz, a punch for the main sequence; early reflections and a shimmer hall as
-  the production guide's sends A and D, spectral ducking in six bands, a resonance tamer on the rows.
-- Score cues over OSC for a visualiser (Kaleidoscope); stems; a gestures page and a style page.
-- The Quest app (built, not yet run on a headset), the release build with installer and pluginval, and the
-  manual generator.
-
-![The panel](docs/screenshot.png)
+[docs/PLAN.md](docs/PLAN.md) (German); the manual is built out of the program itself
+([docs/manual](docs/manual/Ephemeris-Manual.pdf)).
 
 ## Build
 

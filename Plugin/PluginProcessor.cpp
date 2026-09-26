@@ -70,7 +70,8 @@ juce::String StoreParameter::getText(float normalisedValue, int maximumStringLen
     else if (d.curve == Curve::Toggle) t = v >= 0.5f ? "On" : "Off";
     else if (d.curve == Curve::Linear && d.choices != nullptr) t = morphText(d, v);
     else if (d.curve == Curve::Int) t = juce::String(static_cast<int>(std::lround(v)));
-    else t = juce::String(v, std::fabs(v) >= 100.0f ? 0 : (std::fabs(v) >= 10.0f ? 1 : 2));
+    // (juce::String(v, 0) would mean "as precise as it gets", not "no decimals": 159.126 ms)
+    else t = std::fabs(v) >= 100.0f ? juce::String(juce::roundToInt(v)) : juce::String(v, std::fabs(v) >= 10.0f ? 1 : 2);
     return maximumStringLength > 0 ? t.substring(0, maximumStringLength) : t;
 }
 

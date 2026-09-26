@@ -26,6 +26,19 @@ An ephemeris is the table that gives the positions of the heavenly bodies for ev
 is such a table, and the music here is made of orbits of different lengths around one root that meet
 again only now and then. The Rack page draws them that way.
 
+== Signal flow | | - ==
+
+[image flow.png: The signal flow: every unit a box in the colour of its family, the groups as frames, the buses as arrows.]
+
+What plays the instruments comes in at the top: the composer, who writes the form, the harmony, the sounds and the mix
+of every piece; the rack, eight sequencer rows and the transposer that moves them; the hands, the gestures of a player
+on the knobs; and you, on the Perform page or with MIDI. The ten modular voices -- the rows, the lead and the drone --
+run side by side in the lanes of the processor's vector registers at twice the sample rate: two oscillators after one
+of six classic designs, a driven mixer, one of ten filters solved as circuits, envelopes, LFOs and a matrix. The other
+sources play beside them. Every source has a channel strip that places it in depth and in the stereo field and sends
+it into the rooms; the master bus keeps the lows mono, the width in check and the peaks under -1 dBTP, and a
+correction measured on the piece's loudest part brings every piece to its style's level.
+
 == The top bar | | - ==
 
 Style, key and scale choose the piece's character: Cosmic, Doom, Melodic, Modern and Drift are five
