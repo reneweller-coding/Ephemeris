@@ -4,6 +4,7 @@
  *        registry of every table.
  */
 #include "eph/synth/Wavetable.h"
+#include "eph/synth/Vco.h"
 #include <algorithm>
 #include <cmath>
 #include <cstring>
@@ -290,6 +291,18 @@ struct Tables {
             x.resize(static_cast<size_t>(s.frames) * 256);
             for (size_t n = 0; n < x.size(); ++n) x[n] = static_cast<float>(s.data[n]) / 32768.0f;
             t[kFormulaTableCount + i].build(x.data(), static_cast<int>(x.size()), 256);
+        }
+        // The VCO models' waves (Vco.h): sixteen frames, the model's ramp blended into its square over the first six,
+        // the pulse then narrowing to a twelfth -- a model's PWM pad, drawn as samples and analysed.
+        for (int m = 1; m <= kVcoTableCount; ++m) {
+            constexpr int L = 2048;
+            std::vector<float> y(static_cast<size_t>(16 * L));
+            for (int k = 0; k < 16; ++k) {
+                const float wave = std::min(1.0f, static_cast<float>(k) / 5.0f);
+                const float pw = k <= 5 ? 0.5f : 0.5f - 0.42f * static_cast<float>(k - 5) / 10.0f;
+                for (int n = 0; n < L; ++n) y[static_cast<size_t>(k * L + n)] = VcoOsc::value(vcoProfile(m), wave, pw, static_cast<double>(n) / L);
+            }
+            t[kFormulaTableCount + kSampledTableCount + m - 1].build(y.data(), static_cast<int>(y.size()), L);
         }
     }
 };

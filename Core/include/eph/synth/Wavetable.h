@@ -20,7 +20,8 @@
  * Vocal, Organ, Glass and Metal. The rest are sampled (WavetableData.cpp, Tools/wavetables/make_tables.py): the
  * AmbientSynth library's own tables -- bowed, tube, the four voices, consonant, overtone, morph, sampled -- the PPG
  * Wave's tables as the WaveEdit users rebuilt them, and a few of the Adventure Kid waveforms (AKWF and WaveEdit
- * Online are CC0).
+ * Online are CC0). Last, the waves of the classic VCO models (Vco.h, 26.09.2026): each model's ramp morphing into its
+ * square and narrowing into a pulse, the analog tables of the pad synth.
  *
  * All tables are built at once on first use (prepareWavetables(), which the engine's prepare calls), never on
  * the audio thread.
@@ -118,7 +119,8 @@ struct SampledTable {
 };
 constexpr int kFormulaTableCount = 8;    ///< Classic, PWM, Sync, Formant, Vocal, Organ, Glass, Metal
 constexpr int kSampledTableCount = 38;   ///< WavetableData.cpp
-constexpr int kWavetableCount = kFormulaTableCount + kSampledTableCount;   ///< every table, the formulas first
+constexpr int kVcoTableCount = 5;       ///< 26.09.2026: the VCO models' waves (Vco.h), after the sampled ones
+constexpr int kWavetableCount = kFormulaTableCount + kSampledTableCount + kVcoTableCount;   ///< every table, the formulas first
 extern const SampledTable kSampledTables[kSampledTableCount];
 /** @brief The names of all tables, in menu order (poly.table and voice.table read them). */
 extern const char* const kWavetableNames[kWavetableCount];

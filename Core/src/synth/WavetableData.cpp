@@ -9571,6 +9571,7 @@ const char* const kWavetableNames[kWavetableCount] = {
     "Drone Bank",
     "Organic",
     "Vox Synth",
+    "921 Waves", "Prophet Waves", "SEM Waves", "2600 Waves", "E-mu Waves",
 };
 
 // The same with "Analog" first: the choice of the row voices (voice.table; 0 plays the analog oscillators).
@@ -9614,6 +9615,7 @@ const char* const kVoiceTableNames[kWavetableCount + 1] = {
     "Drone Bank",
     "Organic",
     "Vox Synth",
+    "921 Waves", "Prophet Waves", "SEM Waves", "2600 Waves", "E-mu Waves",
 };
 
 } // namespace eph

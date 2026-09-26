@@ -21,6 +21,8 @@ import sys
 import numpy as np
 
 LIB = sys.argv[1] if len(sys.argv) > 1 else r'G:\Tools\VRAudio\AmbientSynth\Library\Wavetables'
+# The VCO models' tables (Vco.h), built in Wavetable.cpp after the sampled ones.
+VCO_NAMES = '    "921 Waves", "Prophet Waves", "SEM Waves", "2600 Waves", "E-mu Waves",'
 OUT = os.path.join(os.path.dirname(__file__), '..', '..', 'Core', 'src', 'synth', 'WavetableData.cpp')
 FRAMES, LEN, TOP = 32, 256, 127
 
@@ -119,10 +121,10 @@ def main():
               'static_assert(sizeof(kSampledTables) / sizeof(kSampledTables[0]) == %d, "the count in Wavetable.h");' % len(tables), '',
               '// The names as literals, so the parameter tables may point at them before any constructor has run.',
               'const char* const kWavetableNames[kWavetableCount] = {',
-              '    "Classic", "PWM", "Sync", "Formant", "Vocal", "Organ", "Glass", "Metal",'] +              ['    "%s",' % name for name, _, _, _ in tables] + ['};', '',
+              '    "Classic", "PWM", "Sync", "Formant", "Vocal", "Organ", "Glass", "Metal",'] +              ['    "%s",' % name for name, _, _, _ in tables] + [VCO_NAMES, '};', '',
               '// The same with "Analog" first: the choice of the row voices (voice.table; 0 plays the analog oscillators).',
               'const char* const kVoiceTableNames[kWavetableCount + 1] = {',
-              '    "Analog", "Classic", "PWM", "Sync", "Formant", "Vocal", "Organ", "Glass", "Metal",'] +              ['    "%s",' % name for name, _, _, _ in tables] + ['};',
+              '    "Analog", "Classic", "PWM", "Sync", "Formant", "Vocal", "Organ", "Glass", "Metal",'] +              ['    "%s",' % name for name, _, _, _ in tables] + [VCO_NAMES, '};',
               '', '} // namespace eph', '']
     open(OUT, 'w', encoding='utf-8', newline='\n').write('\n'.join(lines))
     print('%d tables -> %s (%d KB)' % (len(tables), os.path.normpath(OUT), os.path.getsize(OUT) // 1024))
