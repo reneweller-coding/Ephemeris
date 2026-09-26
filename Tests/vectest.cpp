@@ -193,8 +193,14 @@ void testVoiceKernel()
             vec.wt2[w] = sca.wt2[w] = 0.7f * std::sin(0.0013f * t + 1.0f);
         }
         const bool table = span % 2 == 1;
-        voiceKernel<VecF, regs>(vec, d, 0, kBankSpan, true, outV, table, 0x1ffu, true);
-        for (int l = 0; l < kBankLanes; ++l) voiceKernel<float, 1>(sca, d, l, kBankSpan, true, outS, table, 0x1ffu, true);
+        // Every register its own models (26.09.2026), the scalar reference its lane's.
+        unsigned regModels[kBankLanes] = {}, laneModel[kBankLanes] = {};
+        for (int l = 0; l < kBankLanes; ++l) {
+            laneModel[l] = 1u << static_cast<int>(vec.fmodel[l]);
+            regModels[l / W] |= laneModel[l];
+        }
+        voiceKernel<VecF, regs>(vec, d, 0, kBankSpan, true, outV, table, regModels, true);
+        for (int l = 0; l < kBankLanes; ++l) voiceKernel<float, 1>(sca, d, l, kBankSpan, true, outS, table, &laneModel[l], true);
         for (int j = 0; j < kBankSpan * kBankLanes; ++j) {
             if (!sameBits(outV[j], outS[j])) ++bad;
             maxAbs = std::max(maxAbs, std::fabs(outS[j]));

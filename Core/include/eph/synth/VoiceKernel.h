@@ -173,10 +173,12 @@ EPH_FORCE_INLINE V laneVco(V& ph, V dt, V inv, V wave, V pw, bool pulse)
  * @param pulse whether any lane mixes in the pulse (decided for the whole bank, so every path runs the
  *              same arithmetic; a lane with wave 0 gets exactly its saw either way)
  * @param out   per sample and lane (index i * kBankLanes + lane)
+ * @param models per register of this call: the filter models its lanes use, as bits (26.09.2026: a register computes only
+ *              its own models -- a lane takes its own model's output either way, so the lanes stay the same to the bit)
  */
 template <class V, int R>
-void voiceKernel(VoiceLanes& s, const HalfbandDesign& hbd, int lane, int n, bool pulse, float* out, bool table = false,
-                 unsigned models = 1u, bool fm = false)
+void voiceKernel(VoiceLanes& s, const HalfbandDesign& hbd, int lane, int n, bool pulse, float* out, bool table,
+                 const unsigned* models, bool fm = false)
 {
     constexpr int width = laneWidth<V>();
     auto at = [lane](const float* a, int r) { return loadLanes<V>(a + lane + r * width); };
@@ -288,7 +290,7 @@ void voiceKernel(VoiceLanes& s, const HalfbandDesign& hbd, int lane, int n, bool
                     }
                     take(m, out, tv, ts);
                 };
-                for (int m = 0; m < kFilterModels; ++m) if (models & (1u << m)) runModel(m);
+                for (int m = 0; m < kFilterModels; ++m) if (models[r] & (1u << m)) runModel(m);
                 for (int j = 0; j < 4; ++j) { fv[r][j] = nv[j]; fs[r][j] = ns[j]; }
                 hi[h][r] = y * mk[r];
             }

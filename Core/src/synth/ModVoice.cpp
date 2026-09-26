@@ -308,10 +308,11 @@ void ModVoiceBank::process(const bool* run, int n)
                 }
             }
         }
-        // The filter models the bank's voices use (the kernel computes those).
-        unsigned models = 0u;
-        for (int v = 0; v < kBankVoices; ++v) models |= 1u << std::clamp(static_cast<int>(lanes_.fmodel[v]), 0, kFilterModels - 1);
+        // The filter models each register's voices use: a register computes only its own (the lanes without a voice
+        // take none, their output unread).
         constexpr int regs = (kBankVoices + kVecWidth - 1) / kVecWidth;
+        unsigned models[regs] = {};
+        for (int v = 0; v < kBankVoices; ++v) models[v / kVecWidth] |= 1u << std::clamp(static_cast<int>(lanes_.fmodel[v]), 0, kFilterModels - 1);
         voiceKernel<VecF, regs>(lanes_, halfband(), 0, n, pulse, mixed_, table, models, fm);
         for (int v = 0; v < kBankVoices; ++v)
             if (run[v]) for (int i = 0; i < n; ++i) out_[v][i] = mixed_[i * kBankLanes + v];

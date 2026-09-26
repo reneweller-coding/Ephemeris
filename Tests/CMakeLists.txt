@@ -24,7 +24,10 @@ endforeach()
 add_executable(eph_vectest vectest.cpp)
 target_link_libraries(eph_vectest PRIVATE EphemerisCore)
 eph_add_test(vectest eph_vectest)
-set(EPH_TEST_TARGETS eph_selftest eph_vectest)
+# The filters' cost (bench.cpp): a measurement, not a test.
+add_executable(eph_bench bench.cpp)
+target_link_libraries(eph_bench PRIVATE EphemerisCore)
+set(EPH_TEST_TARGETS eph_selftest eph_vectest eph_bench)
 
 if(NOT ANDROID AND CMAKE_SYSTEM_PROCESSOR MATCHES "(x86_64|AMD64|x64)")
     if(EPH_AVX2)
