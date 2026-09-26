@@ -154,7 +154,9 @@ enum : int { Wave, Detune, PulseWidth, Drift, Drive, Cutoff, Resonance, EnvAmoun
              // 25.09.2026: a wavetable instead of the analog oscillators (0: analog), where in it, and how far the
              // row's modulation lane moves that place from note to note (Stürtzer's Iridium sequences). The rows only:
              // the lead's and the drone's tables go on differently from here.
-             Table, TablePos, TableMod, Count };
+             Table, TablePos, TableMod,
+             // 26.09.2026: the filter model (Filters.h), its mode, and filter FM from oscillator 1.
+             Filter, FilterMode, FilterFm, Count };
 }
 /**
  * @brief Parameters of the lead (module Lead, PLAN 5.3): the voice's table, then its place in the mix
@@ -166,13 +168,17 @@ enum : int { Wave, Detune, PulseWidth, Drift, Drive, Cutoff, Resonance, EnvAmoun
              // Phase 3: the send into the hall.
              ReverbSend,
              // 25.09.2026: a slow sine (0.05 Hz) on the pan, the wandering drone of the style guide's 7.3.
-             AutoPan, LowCut, Distance, BlendSend, EarlySend, ShimmerSend, Count };
+             AutoPan, LowCut, Distance, BlendSend, EarlySend, ShimmerSend,
+             // 26.09.2026: the filter model (Filters.h), its mode, and filter FM from oscillator 1.
+             Filter, FilterMode, FilterFm, Count };
 }
 /** @brief Parameters of the pad synth (module Poly, 25.09.2026; Poly.h, Wavetable.h). */
 namespace poly {
 enum : int { Table, Position, Scan, ScanRate, Detune, Spread, Drift, Cutoff, Resonance, EnvAmount, Attack, Release, Chorus,
              Level, Pan, EchoSend, ReverbSend, LowCut, Distance, BlendSend, EarlySend, ShimmerSend, Count };
 }
+/** @brief The names of the filter models (Filters.h, FilterModel order). */
+extern const char* const kFilterNames[];
 /** @brief Parameters of the tape keyboard (module Tape; PLAN 5.4, TapeKeys.h). */
 namespace tape {
 enum : int { Set, Vowel, Wow, Flutter, Sag, Tone, Age, Level, Pan, EchoSend, ReverbSend,

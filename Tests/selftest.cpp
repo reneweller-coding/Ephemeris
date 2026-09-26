@@ -2301,6 +2301,43 @@ void testFilters()
 }
 
 /**
+ * Every filter model through a row's voice (voice.filter): each sounds, stays finite, and is a sound of its own.
+ */
+void testFilterVoices()
+{
+    section("filter models in the voices");
+    std::vector<double> bright;
+    bool ok = true;
+    std::string info;
+    for (int m = 0; m < kFilterModels; ++m) {
+        Score one;
+        one.clear(120.0);
+        one.notes.push_back({ 0.0, 1.5, Part::Row2, 45, 0.9f, true, false });
+        one.lengthBeats = 2.0;
+        Engine e;
+        e.params().parseText(fmt("master.level=0 master.motion=0 row2.echo=0 row2.reverb=0 voice2.cutoff=700 voice2.resonance=0.6 voice2.filter=%d voice2.filter_mode=0.3", m));
+        e.prepare(48000.0, 256);
+        e.load(one);
+        std::vector<float> out, l(256), r(256);
+        for (int done = 0; done < 48000; done += 256) { e.process(l.data(), r.data(), 256); out.insert(out.end(), l.begin(), l.end()); }
+        double en = 0.0, d = 0.0;
+        for (size_t i = 4801; i < out.size(); ++i) { en += double(out[i]) * out[i]; d += double(out[i] - out[i - 1]) * (out[i] - out[i - 1]); }
+        const double rms = std::sqrt(en / double(out.size() - 4801));
+        ok = ok && std::isfinite(rms) && rms > 1e-3;
+        bright.push_back(d / std::max(1e-30, en));
+        info += fmt(" %d:%.3f", m, rms);
+    }
+    int distinct = 0;
+    for (size_t a = 0; a < bright.size(); ++a) {
+        bool own = true;
+        for (size_t b = 0; b < a; ++b) own = own && std::fabs(bright[a] / bright[b] - 1.0) > 0.03;
+        distinct += own;
+    }
+    check(ok, "every model sounds and stays finite in a voice", "rms" + info);
+    check(distinct >= 8, "and each is a sound of its own", fmt("%d of %d distinct", distinct, kFilterModels));
+}
+
+/**
  * The offline render is the oracle only if a host's block size cannot change a sample: the study
  * rendered with blocks of 1, 37 and 512 must agree bit for bit (Engine.h).
  */
@@ -2464,6 +2501,7 @@ const TestSection kSections[] = {
     { "testRowTables", testRowTables },
     { "testTimbreDrift", testTimbreDrift },
     { "testFilters", testFilters },
+    { "testFilterVoices", testFilterVoices },
     { "testBlockSizes", testBlockSizes },
     { "testEcho", testEcho },
     { "testDrift", testDrift },

@@ -20,10 +20,10 @@ constexpr int64_t kControl = 4;   ///< samples per control step of pitch and cut
 
 void ModVoiceBank::prepare(double sampleRate, const uint64_t* seeds)
 {
-    lanes_.comb.assign(static_cast<size_t>(kBankLanes) * VoiceLanes::kCombLen, 0.0f);   // the comb filters' lines
     sr_ = sampleRate > 0.0 ? sampleRate : 48000.0;
     stepBase_ = std::log2(440.0 / (2.0 * sr_)) - 69.0 / 12.0;
     lanes_ = VoiceLanes{};
+    lanes_.comb.assign(static_cast<size_t>(kBankLanes) * VoiceLanes::kCombLen, 0.0f);   // the comb filters' lines
     for (int l = 0; l < kBankLanes; ++l) {
         lanes_.dcR[l] = 1.0f - static_cast<float>(kTwoPi * 8.0 / sr_);
         // Lanes without a voice still compute (they share a register with voices): give them numbers.

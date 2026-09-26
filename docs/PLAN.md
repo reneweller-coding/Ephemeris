@@ -41,7 +41,7 @@ Rändern, Verzerrung steigt mit Pegel); F2 in den SIMD-Kern (Modelle nur rechnen
 Modell; F3 Parameter und Engine (Voice, Lead, Drone; drone-Tabelle mitziehen!); F4 Poly; F5 Presets (je Gruppe eine
 Filterliste, z. B. Squelch Arp: Diodenleiter/Korg35/Moog; Juno Strings: Juno; Oberheim Brass: SEM; Cosmic Drip: Kamm/
 Phaser) und Panel-Gruppe "Filter" mit Modellwahl; F6 Handbuchkapitel "Filters", Screenshots, Hashes, Release, APK.
-Stand: F1 erledigt (Filters.h: Moog, OTA-Kaskade Prophet/Juno, Xpander-Polmischung, SEM/Polivoks/Wasp-SVF, Diodenleiter, Korg35; Newton kNewton=3; Test: Kleinsignal gegen analytisch 0.15 dB, Oszillation 0-4 % am Cutoff, Stress < 6.4x). Weiter mit F2 (Kern), Kamm und Filter-FM dort.
+Stand: F1-F3 erledigt (F3: voice/lead/drone.filter, filter_mode, filter_fm; Engine-Test: alle 10 Modelle klingen und unterscheiden sich; F1: Filters.h: Moog, OTA-Kaskade Prophet/Juno, Xpander-Polmischung, SEM/Polivoks/Wasp-SVF, Diodenleiter, Korg35; Newton kNewton=3; Test: Kleinsignal gegen analytisch 0.15 dB, Oszillation 0-4 % am Cutoff, Stress < 6.4x). Weiter mit F4 (Poly), F5 (Presets, Panel), F6.
 
 **Erledigt (26.09.2026): Die Oberfläche als Instrumenten-Panel.** Auftrag: GUI und Synth-Tabs gefielen nicht, Funktionsgruppen
 wie in Phosphene, wichtige Encoder größer (Cutoff, Streichfett), ein stimmiges Farbschema für moderne Berlin School,

@@ -16,6 +16,8 @@ namespace eph {
 const char* const kKeyNames[12] = { "C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B" };
 const char* const kScaleNames[] = { "Aeolian", "Dorian", "Phrygian", "Harmonic Minor", "Minor Pentatonic",
                                     "Mixolydian", "Lydian", "Locrian" };
+const char* const kFilterNames[] = { "Moog Ladder", "Prophet (SSM2040/CEM3320)", "Juno (IR3109)", "Oberheim SEM",
+                                    "Xpander (pole mix)", "Diode Ladder (303)", "Korg35 (MS-20)", "Polivoks", "EDP Wasp", "Comb" };
 const char* const kStyleNames[] = { "Cosmic", "Doom", "Melodic", "Modern", "Drift" };
 const char* const kMorphNames[] = { "None", "Cosmic", "Doom", "Melodic", "Modern", "Drift" };
 const char* const kReverbTypeNames[] = { "Hall", "Plate" };
@@ -114,6 +116,9 @@ const ParamDesc kVoiceParams[voice::Count] = {
     { "table",      "Wavetable",    "",       0.0f, static_cast<float>(kWavetableCount), 0.0f, Curve::Choice, kVoiceTableNames },   // 0: analog
     { "table_pos",  "Table Position", "",     0.0f,     1.0f,    0.0f, Curve::Linear },
     { "table_mod",  "Table Mod",    "",       0.0f,     1.0f,    0.4f, Curve::Linear },   // the modulation lane on the position
+    { "filter",      "Filter",       "",      0.0f,     9.0f,    0.0f, Curve::Choice, kFilterNames },   // Filters.h
+    { "filter_mode", "Filter Mode",  "",      0.0f,     1.0f,    0.0f, Curve::Linear },   // SEM morph, Xpander response, Polivoks band pass, comb sign
+    { "filter_fm",   "Filter FM",    "",      0.0f,     1.0f,    0.0f, Curve::Linear },   // oscillator 1 on the cutoff at audio rate
 };
 
 /**
@@ -152,6 +157,9 @@ const ParamDesc kLeadParams[lead::Count] = {
     { "blend",    "Blend Send", "",  0.0f,   1.0f,   0.0f, Curve::Linear },   // into the blend room (the addon's send B)
     { "early",    "Early Send", "",  0.0f,   1.0f,   0.0f, Curve::Linear },   // into the early reflections (send A)
     { "shimmer",  "Shimmer Send", "", 0.0f,  1.0f,   0.0f, Curve::Linear },   // into the effect hall (send D)
+    { "filter",      "Filter",       "",      0.0f,     9.0f,    0.0f, Curve::Choice, kFilterNames },   // Filters.h
+    { "filter_mode", "Filter Mode",  "",      0.0f,     1.0f,    0.0f, Curve::Linear },   // SEM morph, Xpander response, Polivoks band pass, comb sign
+    { "filter_fm",   "Filter FM",    "",      0.0f,     1.0f,    0.0f, Curve::Linear },   // oscillator 1 on the cutoff at audio rate
 };
 
 /** The tape keyboard: a first setting of the machine (PLAN 5.4 wants it measured on recordings). */
@@ -202,6 +210,9 @@ const ParamDesc kDroneParams[lead::Count] = {
     { "blend",    "Blend Send", "",  0.0f,   1.0f,   0.0f, Curve::Linear },   // into the blend room (the addon's send B)
     { "early",    "Early Send", "",  0.0f,   1.0f,   0.0f, Curve::Linear },   // into the early reflections (send A)
     { "shimmer",  "Shimmer Send", "", 0.0f,  1.0f,   0.0f, Curve::Linear },   // into the effect hall (send D)
+    { "filter",      "Filter",       "",      0.0f,     9.0f,    0.0f, Curve::Choice, kFilterNames },   // Filters.h
+    { "filter_mode", "Filter Mode",  "",      0.0f,     1.0f,    0.0f, Curve::Linear },   // SEM morph, Xpander response, Polivoks band pass, comb sign
+    { "filter_fm",   "Filter FM",    "",      0.0f,     1.0f,    0.0f, Curve::Linear },   // oscillator 1 on the cutoff at audio rate
 };
 
 /** The atmosphere: all layers off until a piece or a hand brings them in. */

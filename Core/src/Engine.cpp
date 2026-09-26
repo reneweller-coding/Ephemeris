@@ -210,6 +210,11 @@ VoiceSettings Engine::voiceSettings(Module m, int instance, bool vibrato) const
         s.tablePos = v(voice::TablePos);
         s.tableMod = v(voice::TableMod);
     }
+    // The filter model and its knobs (26.09.2026, Filters.h): the rows' and the lead's and drone's tables each have them.
+    const bool isVoice = m == Module::Voice;
+    s.filter = static_cast<int>(std::lround(v(isVoice ? voice::Filter : lead::Filter)));
+    s.filterMode = v(isVoice ? voice::FilterMode : lead::FilterMode);
+    s.filterFm = v(isVoice ? voice::FilterFm : lead::FilterFm);
     if (vibrato) {
         s.vibratoCents = v(lead::Vibrato);
         s.vibratoHz = v(lead::VibratoRate);
