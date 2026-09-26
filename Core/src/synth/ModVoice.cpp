@@ -43,6 +43,7 @@ void ModVoiceBank::prepare(double sampleRate, const uint64_t* seeds)
         c.filt.setSampleRate(sr_);
         c.amp.setSampleRate(sr_);
         c.mod.prepare(sr_, mixSeed(v < kBankVoices ? seeds[v] : 0, 0x4D4F44ull));   // its own stream: the drift's stays
+        c.jrng.seed(mixSeed(v < kBankVoices ? seeds[v] : 0, 0x4A4954ull));
     }
     reset();
     for (int v = 0; v < kBankVoices; ++v) set(v, ctl_[v].s);
@@ -83,7 +84,9 @@ void ModVoiceBank::set(int v, const VoiceSettings& s)
         for (int j = 0; j < 5; ++j) lanes_.pm[j][v] = mix[j];
     }
     c.table = s.table > 0 ? &wavetable(s.table - 1) : nullptr;
-    lanes_.tbl[v] = c.table != nullptr ? 1.0f : 0.0f;
+    // A VCO model, sync or cross mod: the oscillators of Vco.h, handed in as a wavetable's (a wavetable wins).
+    c.model = s.vco != 0 || s.sync != 0 || s.crossMod > 0.0f;
+    lanes_.tbl[v] = c.table != nullptr || c.model ? 1.0f : 0.0f;
     shape(v);
 }
 
@@ -130,7 +133,7 @@ void ModVoiceBank::noteOn(int v, int pitch, float velocity, bool accent, bool le
         c.noteBright = bright;
         c.decayMul = std::exp2(decay);
         filterTimes(c);
-        c.noteCents = 0.15 * static_cast<double>(c.s.driftCents) * static_cast<double>(c.rng.bipolar());
+        c.noteCents = 0.15 * static_cast<double>(c.s.driftCents) * static_cast<double>(c.rng.bipolar()) * vcoProfile(c.s.vco).noteScatter;
         c.vibLevel = 0.0;
         c.fresh = true;
         c.mod.noteOn(count_, beatAt(count_));
@@ -155,10 +158,12 @@ void ModVoiceBank::control(int v, int i)
     Control& c = ctl_[v];
     const VoiceSettings& s = c.s;
     const int64_t at = count_ + i;
+    const VcoProfile& vp = vcoProfile(s.vco);
     if ((at & 31) == 0) {
+        // The drift, as the VCO model wanders (Vco.h; the voice's own oscillators as the knob says).
         const double dt = 32.0 / sr_;
-        c.drift1.step(dt, kDriftTau1, s.driftCents, c.rng);
-        c.drift2.step(dt, kDriftTau2, s.driftCents, c.rng);
+        c.drift1.step(dt, kDriftTau1 * vp.driftTau, s.driftCents * vp.driftSpread, c.rng);
+        c.drift2.step(dt, kDriftTau2 * vp.driftTau, s.driftCents * vp.driftSpread, c.rng);
     }
     c.pitch += (c.target - c.pitch) * c.glideCoef;
     double vib = 0.0;
@@ -191,8 +196,19 @@ void ModVoiceBank::control(int v, int i)
         };
         double pitch = c.pitch;
         if (mod && c.mod.targets(ModDest::Pitch)) pitch += static_cast<double>(c.mo[static_cast<int>(ModDest::Pitch)]);
-        step(pitch + (c.drift1.x + c.noteCents + vib) * 0.01, c.dt1, c.inv1);
-        step(pitch + (c.drift2.x + c.noteCents + vib + s.detuneCents) * 0.01, c.dt2, c.inv2);
+        double first = pitch + (c.drift1.x + c.noteCents + vib) * 0.01;
+        double second = pitch + (c.drift2.x + c.noteCents + vib + s.detuneCents) * 0.01;
+        if (vp.jitterCents > 0.0f) {
+            // The model's jitter: 4 ms of correlation, on the control raster.
+            const double dt = static_cast<double>(kControl) / sr_;
+            first += 0.01 * c.jitter1.step(dt, 0.004, vp.jitterCents, c.jrng);
+            second += 0.01 * c.jitter2.step(dt, 0.004, vp.jitterCents, c.jrng);
+        }
+        // VCO 2's own interval, and the matrix's on it (the sync sweep).
+        if (s.osc2Semis != 0.0f) second += static_cast<double>(s.osc2Semis);
+        if (mod && c.mod.targets(ModDest::Osc2Pitch)) second += static_cast<double>(c.mo[static_cast<int>(ModDest::Osc2Pitch)]);
+        step(first, c.dt1, c.inv1);
+        step(second, c.dt2, c.inv2);
         float env = s.envOctaves * fe * (1.0f + c.accentAmt);
         if (s.envVelocity > 0.0f) env *= 1.0f - s.envVelocity + s.envVelocity * c.velocity;
         float octs = env + s.keyTrack * static_cast<float>((c.pitch - 60.0) / 12.0) + c.noteOct;
@@ -265,6 +281,30 @@ void ModVoiceBank::process(const bool* run, int n)
                     lanes_.wt2[w] = 1.6f * c.table->at(c.wlev2, pos, c.wph2);
                     c.wph1 += d1; if (c.wph1 >= 1.0) c.wph1 -= 1.0;
                     c.wph2 += d2; if (c.wph2 >= 1.0) c.wph2 -= 1.0;
+                }
+            }
+        }
+        // The classic VCOs (Vco.h): a voice with a model, sync or cross mod plays these, at the lanes' twice the rate and
+        // on their steps, into the kernel's wavetable inputs (a wavetable, where one is chosen, wins).
+        for (int v = 0; v < kBankVoices; ++v) {
+            Control& c = ctl_[v];
+            if (!c.model || c.table != nullptr) continue;
+            table = true;
+            const VcoProfile& vp = vcoProfile(c.s.vco);
+            const bool sync = c.s.sync != 0;
+            const double xm = 3.0 * std::clamp(static_cast<double>(c.s.crossMod), 0.0, 1.0);
+            for (int i = 0; i < n; ++i) {
+                const int j = i * kBankLanes + v;
+                const double d1 = lanes_.dt1[j], d2 = lanes_.dt2[j];
+                const float wave = lanes_.wave[j], pw = lanes_.pw[j];
+                for (int h = 0; h < 2; ++h) {
+                    double wrap = -1.0;
+                    const float y1 = c.osc1.step(d1, vp, wave, pw, -1.0, sync ? &wrap : nullptr);
+                    const double d2x = xm > 0.0 ? std::min(0.45, d2 * std::exp2(xm * static_cast<double>(y1))) : d2;
+                    const float y2 = c.osc2.step(d2x, vp, wave, pw, sync ? wrap : -1.0, nullptr);
+                    const int w = (2 * i + h) * kBankLanes + v;
+                    lanes_.wt1[w] = y1;
+                    lanes_.wt2[w] = y2;
                 }
             }
         }

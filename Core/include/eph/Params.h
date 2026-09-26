@@ -167,7 +167,9 @@ enum : int { Wave, Detune, PulseWidth, Drift, Drive, Cutoff, Resonance, EnvAmoun
              Lfo4Rate, Lfo4Shape, Lfo4Sync, Lfo4Retrig, Lfo4Fade,
              Mod1Src, Mod1Dst, Mod1Amt, Mod2Src, Mod2Dst, Mod2Amt, Mod3Src, Mod3Dst, Mod3Amt, Mod4Src, Mod4Dst, Mod4Amt,
              Mod5Src, Mod5Dst, Mod5Amt, Mod6Src, Mod6Dst, Mod6Amt, Mod7Src, Mod7Dst, Mod7Amt, Mod8Src, Mod8Dst, Mod8Amt,
-             Count };
+             // 26.09.2026, the classic VCOs (Vco.h): the model, VCO 2 hard-synced to VCO 1, VCO 2's interval, VCO 1 on
+             // VCO 2's frequency.
+             Vco, Sync, Osc2Pitch, CrossMod, Count };
 }
 /**
  * @brief Parameters of the lead (module Lead, PLAN 5.3): the voice's table, then its place in the mix
@@ -192,7 +194,9 @@ enum : int { Wave, Detune, PulseWidth, Drift, Drive, Cutoff, Resonance, EnvAmoun
              Lfo4Rate, Lfo4Shape, Lfo4Sync, Lfo4Retrig, Lfo4Fade,
              Mod1Src, Mod1Dst, Mod1Amt, Mod2Src, Mod2Dst, Mod2Amt, Mod3Src, Mod3Dst, Mod3Amt, Mod4Src, Mod4Dst, Mod4Amt,
              Mod5Src, Mod5Dst, Mod5Amt, Mod6Src, Mod6Dst, Mod6Amt, Mod7Src, Mod7Dst, Mod7Amt, Mod8Src, Mod8Dst, Mod8Amt,
-             Count };
+             // 26.09.2026, the classic VCOs (Vco.h): the model, VCO 2 hard-synced to VCO 1, VCO 2's interval, VCO 1 on
+             // VCO 2's frequency.
+             Vco, Sync, Osc2Pitch, CrossMod, Count };
 }
 /** @brief Parameters of the pad synth (module Poly, 25.09.2026; Poly.h, Wavetable.h). */
 namespace poly {
@@ -220,6 +224,8 @@ extern const char* const kModDestNames[];
 /** @brief The smaller matrix of the tape keys and the strings: two LFOs; pitch, tone, level, pan (kShortModDest). */
 extern const char* const kShortModSourceNames[];
 extern const char* const kShortModDestNames[];
+/** @brief The names of the VCO models (Vco.h, VcoModel order). */
+extern const char* const kVcoNames[];
 /** @brief The names of the filter models (Filters.h, FilterModel order). */
 extern const char* const kFilterNames[];
 /** @brief Parameters of the tape keyboard (module Tape; PLAN 5.4, TapeKeys.h). */

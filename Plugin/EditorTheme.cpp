@@ -59,12 +59,12 @@ const std::vector<GroupSpec>& layoutOf(eph::Module m)
         { "Filter Envelope", F::Envelope, { "filt_attack", "*decay", "filt_sustain", "filt_release", "filt_link", "env_velocity" } },
         { "Mod Envelope", F::Envelope, { "mod_attack", "mod_decay", "mod_sustain", "mod_release" } } };
     static const std::vector<GroupSpec> voice = with(with({
-        { "Oscillators", F::Source, { "wave", "detune", "pw", "drift", "drive" } },
+        { "Oscillators", F::Source, { "vco", "wave", "detune", "pw", "drift", "drive", "osc2_pitch", "sync", "cross_mod" } },
         { "Wavetable", F::Source, { "table", "table_pos", "table_mod" } },
         { "Filter", F::Filter, { "filter", "*cutoff", "*resonance", "filter_mode", "env_amount", "keytrack", "accent", "filter_fm" } } },
         voiceEnvelopes), with({ { "Glide", F::Motion, { "glide" } } }, lfos4));
     static const std::vector<GroupSpec> lead = with(with(with({
-        { "Oscillators", F::Source, { "wave", "detune", "pw", "drift", "drive" } },
+        { "Oscillators", F::Source, { "vco", "wave", "detune", "pw", "drift", "drive", "osc2_pitch", "sync", "cross_mod" } },
         { "Filter", F::Filter, { "filter", "*cutoff", "*resonance", "filter_mode", "env_amount", "keytrack", "accent", "filter_fm" } } },
         voiceEnvelopes), with({
         { "Performance", F::Motion, { "glide", "vibrato", "vibrato_rate", "auto_pan" } } }, lfos4)), with({

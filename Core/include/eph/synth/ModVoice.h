@@ -38,6 +38,10 @@
  * the filter's mode and FM, the level and the pan; they are evaluated at the control steps below, and what they move
  * reaches the lanes per sample (VoiceKernel.h), so the modulation is the same for every host block size.
  *
+ * **Classic VCOs** (26.09.2026, Vco.h). A voice with a VCO model, hard sync or cross mod plays the oscillators of
+ * Vco.h instead of its own: on the scalar side, at the lanes' twice the rate and on their steps, handed to the
+ * kernel as a wavetable's are. The model also scales the drift and adds its jitter.
+ *
  * **Control rate.** Glide, vibrato and the envelopes run every sample; the oscillators' frequencies
  * and the ladder's cutoff follow them every 4 samples (12 kHz at 48 kHz) on the bank's absolute
  * sample raster, which saves two exponentials, an exp2 and a tan on three of four samples. The
@@ -47,6 +51,7 @@
 #pragma once
 #include "eph/Dsp.h"
 #include "eph/synth/Modulation.h"
+#include "eph/synth/Vco.h"
 #include "eph/synth/VoiceKernel.h"
 #include "eph/synth/Wavetable.h"
 #include <cstdint>
@@ -87,6 +92,11 @@ struct VoiceSettings {
     int filtLink = 1;              ///< 1: the filter's release takes the decay's time
     float envVelocity = 0.0f;      ///< how far the velocity scales the filter envelope, 0..1
     ModSettings mod;               ///< the modulation envelope, the LFOs, the matrix
+    // 26.09.2026, the classic VCOs (Vco.h).
+    int vco = 0;                   ///< the model (VcoModel); 0: the voice's own oscillators
+    int sync = 0;                  ///< 1: VCO 2 hard-synced to VCO 1
+    float osc2Semis = 0.0f;        ///< VCO 2's interval, semitones
+    float crossMod = 0.0f;         ///< VCO 1 on VCO 2's frequency at audio rate, 0..1 (three octaves at full swing)
 };
 
 /**
@@ -189,6 +199,10 @@ private:
         /** @brief What the lanes get per sample: blend, pulse width, feedback, makeup, mode, FM depth; the level
          *         factor and the place in the table (the knobs', moved by the matrix). */
         float wv = 0.0f, pwv = 0.5f, kv = 0.0f, mkv = 1.0f, modev = 0.0f, ffmv = 0.0f, levelv = 1.0f, tposv = 0.0f;
+        bool model = false;          ///< a VCO model, sync or cross mod: the oscillators of Vco.h play
+        VcoOsc osc1, osc2;           ///< ... and these are they
+        OuProcess jitter1, jitter2;  ///< the model's fast pitch jitter, cents
+        Rng jrng;                    ///< its own stream (the drift's stays as it was)
     };
     /** @brief Voice @p v's scalar side for sample @p i of the span, written into the lanes. */
     void control(int v, int i);

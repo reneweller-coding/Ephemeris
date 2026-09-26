@@ -229,6 +229,11 @@ VoiceSettings Engine::voiceSettings(Module m, int instance, bool vibrato) const
     s.envVelocity = raw(voice::EnvVelocity, lead::EnvVelocity);
     s.mod = modSettings(m, instance, isVoice ? voice::ModAttack : lead::ModAttack, 1.0f, isVoice ? voice::Lfo1Rate : lead::Lfo1Rate,
                         kLfos, isVoice ? voice::Mod1Src : lead::Mod1Src, kModSlots, false);
+    // The classic VCOs (26.09.2026, Vco.h).
+    s.vco = choice(voice::Vco, lead::Vco);
+    s.sync = choice(voice::Sync, lead::Sync);
+    s.osc2Semis = raw(voice::Osc2Pitch, lead::Osc2Pitch);
+    s.crossMod = raw(voice::CrossMod, lead::CrossMod);
     if (vibrato) {
         s.vibratoCents = v(lead::Vibrato);
         s.vibratoHz = v(lead::VibratoRate);

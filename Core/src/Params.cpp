@@ -22,7 +22,8 @@ const char* const kLfoShapeNames[] = { "Sine", "Triangle", "Saw Up", "Saw Down",
 const char* const kLfoSyncNames[] = { "Free", "4 bars", "2 bars", "1 bar", "1/2", "1/4", "1/8", "1/16", "1/4T", "1/8T" };
 const char* const kModSourceNames[] = { "Off", "LFO 1", "LFO 2", "LFO 3", "LFO 4", "Mod Env", "Filter Env", "Velocity", "Mod Lane" };
 const char* const kModDestNames[] = { "Off", "Pitch", "Pulse Width", "Wave", "Table Position", "Cutoff", "Resonance",
-                                      "Filter Mode", "Filter FM", "Level", "Pan" };
+                                      "Filter Mode", "Filter FM", "Level", "Pan", "Osc 2 Pitch" };
+const char* const kVcoNames[] = { "Analog", "Moog 921", "Prophet-5", "Oberheim SEM", "ARP 2600", "E-mu Modular" };
 const char* const kFilterNames[] = { "Moog Ladder", "Prophet (SSM2040/CEM3320)", "Juno (IR3109)", "Oberheim SEM",
                                     "Xpander (pole mix)", "Diode Ladder (303)", "Korg35 (MS-20)", "Polivoks", "EDP Wasp", "Comb" };
 const char* const kStyleNames[] = { "Cosmic", "Doom", "Melodic", "Modern", "Drift" };
@@ -159,29 +160,33 @@ const ParamDesc kVoiceParams[voice::Count] = {
     { "lfo4_retrig",  "LFO 4 Retrig",  "",     0.0f,     1.0f, 0.0f, Curve::Toggle },
     { "lfo4_fade",    "LFO 4 Fade",    "s",    0.0f,    10.0f, 0.0f, Curve::Linear },
     { "mod1_src",     "Mod 1 Source",  "",     0.0f,     8.0f, 0.0f, Curve::Choice, kModSourceNames },
-    { "mod1_dst",     "Mod 1 Target",  "",     0.0f,    10.0f, 0.0f, Curve::Choice, kModDestNames },
+    { "mod1_dst",     "Mod 1 Target",  "",     0.0f,    11.0f, 0.0f, Curve::Choice, kModDestNames },
     { "mod1_amt",     "Mod 1 Amount",  "",    -1.0f,     1.0f, 0.0f, Curve::Linear },
     { "mod2_src",     "Mod 2 Source",  "",     0.0f,     8.0f, 0.0f, Curve::Choice, kModSourceNames },
-    { "mod2_dst",     "Mod 2 Target",  "",     0.0f,    10.0f, 0.0f, Curve::Choice, kModDestNames },
+    { "mod2_dst",     "Mod 2 Target",  "",     0.0f,    11.0f, 0.0f, Curve::Choice, kModDestNames },
     { "mod2_amt",     "Mod 2 Amount",  "",    -1.0f,     1.0f, 0.0f, Curve::Linear },
     { "mod3_src",     "Mod 3 Source",  "",     0.0f,     8.0f, 0.0f, Curve::Choice, kModSourceNames },
-    { "mod3_dst",     "Mod 3 Target",  "",     0.0f,    10.0f, 0.0f, Curve::Choice, kModDestNames },
+    { "mod3_dst",     "Mod 3 Target",  "",     0.0f,    11.0f, 0.0f, Curve::Choice, kModDestNames },
     { "mod3_amt",     "Mod 3 Amount",  "",    -1.0f,     1.0f, 0.0f, Curve::Linear },
     { "mod4_src",     "Mod 4 Source",  "",     0.0f,     8.0f, 0.0f, Curve::Choice, kModSourceNames },
-    { "mod4_dst",     "Mod 4 Target",  "",     0.0f,    10.0f, 0.0f, Curve::Choice, kModDestNames },
+    { "mod4_dst",     "Mod 4 Target",  "",     0.0f,    11.0f, 0.0f, Curve::Choice, kModDestNames },
     { "mod4_amt",     "Mod 4 Amount",  "",    -1.0f,     1.0f, 0.0f, Curve::Linear },
     { "mod5_src",     "Mod 5 Source",  "",     0.0f,     8.0f, 0.0f, Curve::Choice, kModSourceNames },
-    { "mod5_dst",     "Mod 5 Target",  "",     0.0f,    10.0f, 0.0f, Curve::Choice, kModDestNames },
+    { "mod5_dst",     "Mod 5 Target",  "",     0.0f,    11.0f, 0.0f, Curve::Choice, kModDestNames },
     { "mod5_amt",     "Mod 5 Amount",  "",    -1.0f,     1.0f, 0.0f, Curve::Linear },
     { "mod6_src",     "Mod 6 Source",  "",     0.0f,     8.0f, 0.0f, Curve::Choice, kModSourceNames },
-    { "mod6_dst",     "Mod 6 Target",  "",     0.0f,    10.0f, 0.0f, Curve::Choice, kModDestNames },
+    { "mod6_dst",     "Mod 6 Target",  "",     0.0f,    11.0f, 0.0f, Curve::Choice, kModDestNames },
     { "mod6_amt",     "Mod 6 Amount",  "",    -1.0f,     1.0f, 0.0f, Curve::Linear },
     { "mod7_src",     "Mod 7 Source",  "",     0.0f,     8.0f, 0.0f, Curve::Choice, kModSourceNames },
-    { "mod7_dst",     "Mod 7 Target",  "",     0.0f,    10.0f, 0.0f, Curve::Choice, kModDestNames },
+    { "mod7_dst",     "Mod 7 Target",  "",     0.0f,    11.0f, 0.0f, Curve::Choice, kModDestNames },
     { "mod7_amt",     "Mod 7 Amount",  "",    -1.0f,     1.0f, 0.0f, Curve::Linear },
     { "mod8_src",     "Mod 8 Source",  "",     0.0f,     8.0f, 0.0f, Curve::Choice, kModSourceNames },
-    { "mod8_dst",     "Mod 8 Target",  "",     0.0f,    10.0f, 0.0f, Curve::Choice, kModDestNames },
+    { "mod8_dst",     "Mod 8 Target",  "",     0.0f,    11.0f, 0.0f, Curve::Choice, kModDestNames },
     { "mod8_amt",     "Mod 8 Amount",  "",    -1.0f,     1.0f, 0.0f, Curve::Linear },
+    { "vco",        "VCO",          "",      0.0f,     5.0f,   0.0f, Curve::Choice, kVcoNames },   // Vco.h: 0 the voice's own
+    { "sync",       "Sync",         "",      0.0f,     1.0f,   0.0f, Curve::Toggle },   // VCO 2 hard-synced to VCO 1
+    { "osc2_pitch", "Osc 2 Pitch",  "st",  -12.0f,    24.0f,   0.0f, Curve::Linear },   // VCO 2's interval
+    { "cross_mod",  "Cross Mod",    "",      0.0f,     1.0f,   0.0f, Curve::Linear },   // VCO 1 on VCO 2's frequency
 };
 
 /**
@@ -256,29 +261,33 @@ const ParamDesc kLeadParams[lead::Count] = {
     { "lfo4_retrig",  "LFO 4 Retrig",  "",     0.0f,     1.0f, 0.0f, Curve::Toggle },
     { "lfo4_fade",    "LFO 4 Fade",    "s",    0.0f,    10.0f, 0.0f, Curve::Linear },
     { "mod1_src",     "Mod 1 Source",  "",     0.0f,     8.0f, 0.0f, Curve::Choice, kModSourceNames },
-    { "mod1_dst",     "Mod 1 Target",  "",     0.0f,    10.0f, 0.0f, Curve::Choice, kModDestNames },
+    { "mod1_dst",     "Mod 1 Target",  "",     0.0f,    11.0f, 0.0f, Curve::Choice, kModDestNames },
     { "mod1_amt",     "Mod 1 Amount",  "",    -1.0f,     1.0f, 0.0f, Curve::Linear },
     { "mod2_src",     "Mod 2 Source",  "",     0.0f,     8.0f, 0.0f, Curve::Choice, kModSourceNames },
-    { "mod2_dst",     "Mod 2 Target",  "",     0.0f,    10.0f, 0.0f, Curve::Choice, kModDestNames },
+    { "mod2_dst",     "Mod 2 Target",  "",     0.0f,    11.0f, 0.0f, Curve::Choice, kModDestNames },
     { "mod2_amt",     "Mod 2 Amount",  "",    -1.0f,     1.0f, 0.0f, Curve::Linear },
     { "mod3_src",     "Mod 3 Source",  "",     0.0f,     8.0f, 0.0f, Curve::Choice, kModSourceNames },
-    { "mod3_dst",     "Mod 3 Target",  "",     0.0f,    10.0f, 0.0f, Curve::Choice, kModDestNames },
+    { "mod3_dst",     "Mod 3 Target",  "",     0.0f,    11.0f, 0.0f, Curve::Choice, kModDestNames },
     { "mod3_amt",     "Mod 3 Amount",  "",    -1.0f,     1.0f, 0.0f, Curve::Linear },
     { "mod4_src",     "Mod 4 Source",  "",     0.0f,     8.0f, 0.0f, Curve::Choice, kModSourceNames },
-    { "mod4_dst",     "Mod 4 Target",  "",     0.0f,    10.0f, 0.0f, Curve::Choice, kModDestNames },
+    { "mod4_dst",     "Mod 4 Target",  "",     0.0f,    11.0f, 0.0f, Curve::Choice, kModDestNames },
     { "mod4_amt",     "Mod 4 Amount",  "",    -1.0f,     1.0f, 0.0f, Curve::Linear },
     { "mod5_src",     "Mod 5 Source",  "",     0.0f,     8.0f, 0.0f, Curve::Choice, kModSourceNames },
-    { "mod5_dst",     "Mod 5 Target",  "",     0.0f,    10.0f, 0.0f, Curve::Choice, kModDestNames },
+    { "mod5_dst",     "Mod 5 Target",  "",     0.0f,    11.0f, 0.0f, Curve::Choice, kModDestNames },
     { "mod5_amt",     "Mod 5 Amount",  "",    -1.0f,     1.0f, 0.0f, Curve::Linear },
     { "mod6_src",     "Mod 6 Source",  "",     0.0f,     8.0f, 0.0f, Curve::Choice, kModSourceNames },
-    { "mod6_dst",     "Mod 6 Target",  "",     0.0f,    10.0f, 0.0f, Curve::Choice, kModDestNames },
+    { "mod6_dst",     "Mod 6 Target",  "",     0.0f,    11.0f, 0.0f, Curve::Choice, kModDestNames },
     { "mod6_amt",     "Mod 6 Amount",  "",    -1.0f,     1.0f, 0.0f, Curve::Linear },
     { "mod7_src",     "Mod 7 Source",  "",     0.0f,     8.0f, 0.0f, Curve::Choice, kModSourceNames },
-    { "mod7_dst",     "Mod 7 Target",  "",     0.0f,    10.0f, 0.0f, Curve::Choice, kModDestNames },
+    { "mod7_dst",     "Mod 7 Target",  "",     0.0f,    11.0f, 0.0f, Curve::Choice, kModDestNames },
     { "mod7_amt",     "Mod 7 Amount",  "",    -1.0f,     1.0f, 0.0f, Curve::Linear },
     { "mod8_src",     "Mod 8 Source",  "",     0.0f,     8.0f, 0.0f, Curve::Choice, kModSourceNames },
-    { "mod8_dst",     "Mod 8 Target",  "",     0.0f,    10.0f, 0.0f, Curve::Choice, kModDestNames },
+    { "mod8_dst",     "Mod 8 Target",  "",     0.0f,    11.0f, 0.0f, Curve::Choice, kModDestNames },
     { "mod8_amt",     "Mod 8 Amount",  "",    -1.0f,     1.0f, 0.0f, Curve::Linear },
+    { "vco",        "VCO",          "",      0.0f,     5.0f,   0.0f, Curve::Choice, kVcoNames },   // Vco.h: 0 the voice's own
+    { "sync",       "Sync",         "",      0.0f,     1.0f,   0.0f, Curve::Toggle },   // VCO 2 hard-synced to VCO 1
+    { "osc2_pitch", "Osc 2 Pitch",  "st",  -12.0f,    24.0f,   0.0f, Curve::Linear },   // VCO 2's interval
+    { "cross_mod",  "Cross Mod",    "",      0.0f,     1.0f,   0.0f, Curve::Linear },   // VCO 1 on VCO 2's frequency
 };
 
 /** The tape keyboard: a first setting of the machine (PLAN 5.4 wants it measured on recordings). */
@@ -391,29 +400,33 @@ const ParamDesc kDroneParams[lead::Count] = {
     { "lfo4_retrig",  "LFO 4 Retrig",  "",     0.0f,     1.0f, 0.0f, Curve::Toggle },
     { "lfo4_fade",    "LFO 4 Fade",    "s",    0.0f,    10.0f, 0.0f, Curve::Linear },
     { "mod1_src",     "Mod 1 Source",  "",     0.0f,     8.0f, 0.0f, Curve::Choice, kModSourceNames },
-    { "mod1_dst",     "Mod 1 Target",  "",     0.0f,    10.0f, 0.0f, Curve::Choice, kModDestNames },
+    { "mod1_dst",     "Mod 1 Target",  "",     0.0f,    11.0f, 0.0f, Curve::Choice, kModDestNames },
     { "mod1_amt",     "Mod 1 Amount",  "",    -1.0f,     1.0f, 0.0f, Curve::Linear },
     { "mod2_src",     "Mod 2 Source",  "",     0.0f,     8.0f, 0.0f, Curve::Choice, kModSourceNames },
-    { "mod2_dst",     "Mod 2 Target",  "",     0.0f,    10.0f, 0.0f, Curve::Choice, kModDestNames },
+    { "mod2_dst",     "Mod 2 Target",  "",     0.0f,    11.0f, 0.0f, Curve::Choice, kModDestNames },
     { "mod2_amt",     "Mod 2 Amount",  "",    -1.0f,     1.0f, 0.0f, Curve::Linear },
     { "mod3_src",     "Mod 3 Source",  "",     0.0f,     8.0f, 0.0f, Curve::Choice, kModSourceNames },
-    { "mod3_dst",     "Mod 3 Target",  "",     0.0f,    10.0f, 0.0f, Curve::Choice, kModDestNames },
+    { "mod3_dst",     "Mod 3 Target",  "",     0.0f,    11.0f, 0.0f, Curve::Choice, kModDestNames },
     { "mod3_amt",     "Mod 3 Amount",  "",    -1.0f,     1.0f, 0.0f, Curve::Linear },
     { "mod4_src",     "Mod 4 Source",  "",     0.0f,     8.0f, 0.0f, Curve::Choice, kModSourceNames },
-    { "mod4_dst",     "Mod 4 Target",  "",     0.0f,    10.0f, 0.0f, Curve::Choice, kModDestNames },
+    { "mod4_dst",     "Mod 4 Target",  "",     0.0f,    11.0f, 0.0f, Curve::Choice, kModDestNames },
     { "mod4_amt",     "Mod 4 Amount",  "",    -1.0f,     1.0f, 0.0f, Curve::Linear },
     { "mod5_src",     "Mod 5 Source",  "",     0.0f,     8.0f, 0.0f, Curve::Choice, kModSourceNames },
-    { "mod5_dst",     "Mod 5 Target",  "",     0.0f,    10.0f, 0.0f, Curve::Choice, kModDestNames },
+    { "mod5_dst",     "Mod 5 Target",  "",     0.0f,    11.0f, 0.0f, Curve::Choice, kModDestNames },
     { "mod5_amt",     "Mod 5 Amount",  "",    -1.0f,     1.0f, 0.0f, Curve::Linear },
     { "mod6_src",     "Mod 6 Source",  "",     0.0f,     8.0f, 0.0f, Curve::Choice, kModSourceNames },
-    { "mod6_dst",     "Mod 6 Target",  "",     0.0f,    10.0f, 0.0f, Curve::Choice, kModDestNames },
+    { "mod6_dst",     "Mod 6 Target",  "",     0.0f,    11.0f, 0.0f, Curve::Choice, kModDestNames },
     { "mod6_amt",     "Mod 6 Amount",  "",    -1.0f,     1.0f, 0.0f, Curve::Linear },
     { "mod7_src",     "Mod 7 Source",  "",     0.0f,     8.0f, 0.0f, Curve::Choice, kModSourceNames },
-    { "mod7_dst",     "Mod 7 Target",  "",     0.0f,    10.0f, 0.0f, Curve::Choice, kModDestNames },
+    { "mod7_dst",     "Mod 7 Target",  "",     0.0f,    11.0f, 0.0f, Curve::Choice, kModDestNames },
     { "mod7_amt",     "Mod 7 Amount",  "",    -1.0f,     1.0f, 0.0f, Curve::Linear },
     { "mod8_src",     "Mod 8 Source",  "",     0.0f,     8.0f, 0.0f, Curve::Choice, kModSourceNames },
-    { "mod8_dst",     "Mod 8 Target",  "",     0.0f,    10.0f, 0.0f, Curve::Choice, kModDestNames },
+    { "mod8_dst",     "Mod 8 Target",  "",     0.0f,    11.0f, 0.0f, Curve::Choice, kModDestNames },
     { "mod8_amt",     "Mod 8 Amount",  "",    -1.0f,     1.0f, 0.0f, Curve::Linear },
+    { "vco",        "VCO",          "",      0.0f,     5.0f,   0.0f, Curve::Choice, kVcoNames },   // Vco.h: 0 the voice's own
+    { "sync",       "Sync",         "",      0.0f,     1.0f,   0.0f, Curve::Toggle },   // VCO 2 hard-synced to VCO 1
+    { "osc2_pitch", "Osc 2 Pitch",  "st",  -12.0f,    24.0f,   0.0f, Curve::Linear },   // VCO 2's interval
+    { "cross_mod",  "Cross Mod",    "",      0.0f,     1.0f,   0.0f, Curve::Linear },   // VCO 1 on VCO 2's frequency
 };
 
 /** The atmosphere: all layers off until a piece or a hand brings them in. */

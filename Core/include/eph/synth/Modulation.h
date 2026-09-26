@@ -10,7 +10,7 @@
  * level and the pan. A slot's amount is -1..1 of the destination's span: 12 semitones for the pitch (the amount
  * squared, so a vibrato of a few cents sits on the first tenth of the knob), 0.45 of the pulse width, the whole of the
  * blend, the table, the resonance, the mode and the FM, five octaves of cutoff, the level doubled or shut, the pan from
- * one side to the other.
+ * one side to the other; and VCO 2's pitch alone, two octaves (Vco.h: the sync sweep, the Prophet's Poly-Mod).
  *
  * **Determinism.** Everything runs on the synth's absolute sample count and the piece's beat, never on the host's
  * blocks: the envelope per sample, the LFOs evaluated at the synth's control steps. A free LFO's phase advances by the
@@ -37,7 +37,8 @@ enum class LfoShape : int { Sine, Triangle, SawUp, SawDown, Square, SampleHold, 
 /** @brief The matrix's sources (kModSourceNames). */
 enum class ModSource : int { Off, Lfo1, Lfo2, Lfo3, Lfo4, ModEnv, FilterEnv, Velocity, ModLane, Count };
 /** @brief The matrix's destinations (kModDestNames). */
-enum class ModDest : int { Off, Pitch, PulseWidth, Wave, TablePos, Cutoff, Resonance, FilterMode, FilterFm, Level, Pan, Count };
+enum class ModDest : int { Off, Pitch, PulseWidth, Wave, TablePos, Cutoff, Resonance, FilterMode, FilterFm, Level, Pan, Osc2Pitch,
+                           Count };
 constexpr int kModSources = static_cast<int>(ModSource::Count);   ///< sources including Off
 constexpr int kModDests = static_cast<int>(ModDest::Count);       ///< destinations including Off
 
@@ -82,6 +83,7 @@ inline float modDestSpan(ModDest d)
 {
     switch (d) {
     case ModDest::Pitch: return 12.0f;
+    case ModDest::Osc2Pitch: return 24.0f;
     case ModDest::PulseWidth: return 0.45f;
     case ModDest::Cutoff: return 5.0f;
     case ModDest::Off: return 0.0f;

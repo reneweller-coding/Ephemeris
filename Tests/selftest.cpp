@@ -15,6 +15,9 @@
 #include "eph/fx/Plate.h"
 #include "eph/synth/Atmos.h"
 #include "eph/synth/Modulation.h"
+#include "eph/synth/Vco.h"
+#include "eph/synth/VoiceKernel.h"
+#include "eph/synth/Wavetable.h"
 #include "eph/synth/StringMachine.h"
 #include "eph/fx/Bbd.h"
 #if defined(_WIN32)
@@ -2559,6 +2562,97 @@ void testSynthModulation()
 }
 
 /**
+ * The classic VCOs (26.09.2026, Vco.h): the ideal model is the voices' own PolyBLEP saw; a hard-synced oscillator keeps
+ * its aliasing far below a naive restart's; and voices on the models, synced and cross-modulated, are the same for any
+ * block size.
+ */
+void testVcos()
+{
+    section("classic VCOs, hard sync and cross mod");
+    {
+        // The ideal model against the lanes' saw, on a step whose phases are exact in float and double.
+        VcoOsc o;
+        float ph = 0.0f, maxDiff = 0.0f;
+        const float dt = 3.0f / 256.0f;
+        for (int n = 0; n < 4000; ++n) {
+            const float a = laneVco<float>(ph, dt, 1.0f / dt, 0.0f, 0.5f, false);
+            const float b = o.step(dt, vcoProfile(0), 0.0f, 0.5f, -1.0, nullptr);
+            if (n > 0) maxDiff = std::max(maxDiff, std::fabs(a - b));   // the lanes take phase 0 as just after a wrap
+        }
+        check(maxDiff < 1e-5f, "the ideal model is the voices' own saw", fmt("max difference %.2g", static_cast<double>(maxDiff)));
+    }
+    {
+        // Hard sync, 1234.5 Hz at 96 kHz, VCO 2 at 2.37 times it: the energy between the master's harmonics under 20 kHz
+        // (the aliases the decimator leaves), band-limited against the naive restart.
+        constexpr int N = 1 << 16;
+        const double fs = 96000.0, f0 = 1234.5, dt1 = f0 / fs, dt2 = 2.37 * dt1;
+        std::vector<float> a(N), b(N);
+        VcoOsc m, sl;
+        double pm = 0.0, ps = 0.0;
+        for (int n = 0; n < N; ++n) {
+            double wrap = -1.0;
+            m.step(dt1, vcoProfile(0), 0.0f, 0.5f, -1.0, &wrap);
+            a[static_cast<size_t>(n)] = sl.step(dt2, vcoProfile(0), 0.0f, 0.5f, wrap, nullptr);
+            b[static_cast<size_t>(n)] = static_cast<float>(2.0 * ps - 1.0);
+            pm += dt1;
+            ps += dt2;
+            if (pm >= 1.0) { pm -= 1.0; ps = pm * dt2 / dt1; }
+            if (ps >= 1.0) ps -= 1.0;
+        }
+        auto aliasDb = [&](const std::vector<float>& x) {
+            std::vector<float> re(N), im(N, 0.0f);
+            for (int n = 0; n < N; ++n) {
+                const double w = 2.0 * 3.14159265358979 * n / N;
+                const double win = 0.35875 - 0.48829 * std::cos(w) + 0.14128 * std::cos(2 * w) - 0.01168 * std::cos(3 * w);
+                re[static_cast<size_t>(n)] = static_cast<float>(x[static_cast<size_t>(n)] * win);
+            }
+            Fft fft(N);
+            fft.transform(re.data(), im.data(), false);
+            double harm = 0.0, alias = 0.0;
+            for (int k = 20; k < static_cast<int>(20000.0 / fs * N); ++k) {   // the audible band: the decimator takes the rest
+                const double h = k * fs / N / f0;
+                const double off = std::fabs(h - std::round(h)) * f0 * N / fs;   // bins from the nearest harmonic
+                const double e = static_cast<double>(re[static_cast<size_t>(k)]) * re[static_cast<size_t>(k)] + static_cast<double>(im[static_cast<size_t>(k)]) * im[static_cast<size_t>(k)];
+                (off <= 6.0 ? harm : alias) += e;
+            }
+            return 10.0 * std::log10(alias / harm);
+        };
+        const double band = aliasDb(a), naive = aliasDb(b);
+        check(band < -35.0 && band < naive - 12.0, "hard sync keeps its aliases far down", fmt("%.1f dB between the harmonics, %.1f dB naive", band, naive));
+    }
+    {
+        // Voices on the models, one synced with its filter envelope sweeping VCO 2 (the Prophet's Poly-Mod), one
+        // cross-modulated with the pulse in: blocks of 37 equal blocks of 512.
+        auto render = [](int block) {
+            Score one;
+            one.clear(120.0);
+            one.notes.push_back({ 0.0, 3.0, Part::Row2, 45, 0.9f, false, false });
+            for (int k = 0; k < 8; ++k) one.notes.push_back({ 0.5 * k, 0.3, Part::Row3, 57 + k, 0.7f, k == 3, false });
+            one.lengthBeats = 5.0;
+            Engine e;
+            e.params().parseText("master.level=0 master.motion=0 row2.echo=0 row2.reverb=0 row3.echo=0 row3.reverb=0 "
+                                 "voice2.vco=3 voice2.sync=1 voice2.osc2_pitch=7 voice2.mod1_src=6 voice2.mod1_dst=11 voice2.mod1_amt=0.4 "
+                                 "voice3.vco=1 voice3.cross_mod=0.3 voice3.wave=0.5 voice3.pw=0.3 voice3.lfo1_rate=3 voice3.mod1_src=1 "
+                                 "voice3.mod1_dst=2 voice3.mod1_amt=0.3");
+            e.prepare(48000.0, block);
+            e.load(one);
+            std::vector<float> out, l(static_cast<size_t>(block)), r(static_cast<size_t>(block));
+            for (int done = 0; done < 48000 * 2; done += block) {
+                const int n = std::min(block, 48000 * 2 - done);
+                e.process(l.data(), r.data(), n);
+                out.insert(out.end(), l.begin(), l.begin() + n);
+            }
+            return out;
+        };
+        const std::vector<float> x = render(512), y = render(37);
+        double e = 0.0;
+        for (float v : x) e += static_cast<double>(v) * v;
+        check(x.size() == y.size() && std::memcmp(x.data(), y.data(), x.size() * sizeof(float)) == 0 && e > 1.0,
+              "voices on the VCO models are the same for any block size", fmt("energy %.1f", e));
+    }
+}
+
+/**
  * The offline render is the oracle only if a host's block size cannot change a sample: the study
  * rendered with blocks of 1, 37 and 512 must agree bit for bit (Engine.h).
  */
@@ -2725,6 +2819,7 @@ const TestSection kSections[] = {
     { "testFilterVoices", testFilterVoices },
     { "testModulation", testModulation },
     { "testSynthModulation", testSynthModulation },
+    { "testVcos", testVcos },
     { "testBlockSizes", testBlockSizes },
     { "testEcho", testEcho },
     { "testDrift", testDrift },
