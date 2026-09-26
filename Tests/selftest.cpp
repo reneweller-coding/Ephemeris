@@ -2335,6 +2335,17 @@ void testFilterVoices()
     }
     check(ok, "every model sounds and stays finite in a voice", "rms" + info);
     check(distinct >= 8, "and each is a sound of its own", fmt("%d of %d distinct", distinct, kFilterModels));
+    // The presets carry the filters of their instruments: the voices' use every model, the pad synth's several.
+    auto modelsIn = [](Module m, int index) {
+        std::vector<int> seen;
+        for (const SoundPreset& pr : factoryPresets(m))
+            for (const auto& v : pr.values)
+                if (v.first == index && std::find(seen.begin(), seen.end(), static_cast<int>(v.second)) == seen.end()) seen.push_back(static_cast<int>(v.second));
+        return seen.size();
+    };
+    const size_t voiceModels = modelsIn(Module::Voice, voice::Filter), polyModels = modelsIn(Module::Poly, poly::Filter);
+    check(voiceModels == static_cast<size_t>(kFilterModels) && polyModels >= 6, "the presets carry the filters of their instruments",
+          fmt("%zu models in the voices' presets, %zu in the pad synth's", voiceModels, polyModels));
 }
 
 /**

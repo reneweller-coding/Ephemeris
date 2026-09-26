@@ -259,6 +259,43 @@ The knobs the player's hands move during a piece -- cutoff, resonance, envelope 
 moved by the composer's gestures as offsets from where the piece's settings put them, so the ranges you
 choose keep their meaning.
 
+== Filters | | - ==
+
+Every voice -- the rows, the lead, the drone -- and the pad synth choose their filter from ten models of the
+classic voltage-controlled filters (Filter on the synth's page, in the group Filter):
+
+    Moog Ladder         the transistor ladder, 24 dB: round, fat, the bass and the main sequence
+    Prophet             the OTA cascade of the SSM2040 and CEM3320 (and its reissue SSI2140, the Microwave's CEM3389):
+                        present, its resonance saturating before its stages
+    Juno                the IR3109 of the Juno and Jupiter: cleaner, the pass band thinner with resonance
+    Oberheim SEM        the state-variable filter, 12 dB; Filter Mode morphs low pass -> notch -> high pass
+    Xpander             the pole mixing of the Xpander and Matrix-12 on the cascade; Filter Mode chooses the response:
+                        LP4, LP2, BP2, BP4, HP2, HP4, notch, phaser
+    Diode Ladder        the TB-303's and the EMS's: squelchy, its resonance rubbery
+    Korg35              the MS-20's Sallen-Key with its diode-limited feedback: screaming at high resonance
+    Polivoks            the Soviet filter whose op-amps are slew-limited on purpose: gritty; Filter Mode to band pass
+    EDP Wasp            CMOS inverters as integrators: asymmetric, raw
+    Comb                a delay line tuned to the cutoff, its feedback damped; Filter Mode flips its sign
+
+Filter FM lets the first oscillator move the cutoff at audio rate, as on the Xpander: metallic, bell-like edges.
+
+How they are made. Each model is its circuit's differential equation, with the nonlinearities where the circuit
+has them -- the transistor pairs of a ladder, the OTAs of a cascade, the diode pairs of the diode ladder, the diode
+limiter in the Korg35's feedback, the slew-limited op-amps of the Polivoks, the inverters of the Wasp. The
+capacitors are integrated by the trapezoidal rule in the form of the topology-preserving transform (Zavalishin, "The
+Art of VA Filter Design"; Simper's equivalent capacitor currents), and the implicit equation this gives is solved
+every sample by Newton-Raphson on its exact Jacobian -- the delay-free loop resolved rather than broken by a sample's
+delay (D'Angelo and Välimäki 2014 for the ladder; Holters and Zölzer 2015 for nonlinear state-space models of
+circuits; Stinchcombe's analyses of the ladder, the diode ladder and the MS-20). The voices run at twice the sample
+rate, which keeps the aliasing of the saturating stages low. In the small-signal range each model follows its
+circuit's linear response to within 0.15 dB; at full resonance the ladders, the cascades, the diode ladder and the
+Korg35 oscillate at their cutoff.
+
+The factory presets carry the filters of their instruments: the basses on the Moog ladder and now and then the
+diode ladder, the squelch on the diode ladder and the Korg35, glass on the Xpander's band and high passes, the
+Juno strings on the Juno, the Oberheim brass on the SEM, the dark and dusty sounds on the Polivoks and the Wasp, the
+cosmic drips on the comb and the phaser -- their cutoffs set so a group keeps its brightness whatever it drew.
+
 == Lead | lead | 5 ==
 
 The lead is the same voice as a row's, with vibrato that comes in over the first half second of a held

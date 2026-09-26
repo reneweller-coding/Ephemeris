@@ -47,12 +47,12 @@ const std::vector<GroupSpec>& layoutOf(eph::Module m)
     static const std::vector<GroupSpec> voice = {
         { "Oscillators", F::Source, { "wave", "detune", "pw", "drift", "drive" } },
         { "Wavetable", F::Source, { "table", "table_pos", "table_mod" } },
-        { "Filter", F::Filter, { "*cutoff", "*resonance", "env_amount", "keytrack", "accent" } },
+        { "Filter", F::Filter, { "filter", "*cutoff", "*resonance", "filter_mode", "env_amount", "keytrack", "accent", "filter_fm" } },
         { "Envelopes", F::Envelope, { "decay", "amp_decay" } },
         { "Glide", F::Motion, { "glide" } } };
     static const std::vector<GroupSpec> lead = with({
         { "Oscillators", F::Source, { "wave", "detune", "pw", "drift", "drive" } },
-        { "Filter", F::Filter, { "*cutoff", "*resonance", "env_amount", "keytrack", "accent" } },
+        { "Filter", F::Filter, { "filter", "*cutoff", "*resonance", "filter_mode", "env_amount", "keytrack", "accent", "filter_fm" } },
         { "Envelopes", F::Envelope, { "decay", "amp_decay" } },
         { "Performance", F::Motion, { "glide", "vibrato", "vibrato_rate", "auto_pan" } },
         { "Mix", F::Space, { "*level", "pan", "low_cut", "distance" } } }, sends);
@@ -70,7 +70,7 @@ const std::vector<GroupSpec>& layoutOf(eph::Module m)
     static const std::vector<GroupSpec> poly = with({
         { "Wavetable", F::Source, { "table", "*position", "scan", "scan_rate" } },
         { "Oscillators", F::Source, { "detune", "spread", "drift" } },
-        { "Filter", F::Filter, { "*cutoff", "*resonance", "env_amount" } },
+        { "Filter", F::Filter, { "filter", "*cutoff", "*resonance", "filter_mode", "env_amount" } },
         { "Envelope", F::Envelope, { "attack", "release" } },
         { "Ensemble", F::Motion, { "*chorus" } },
         { "Mix", F::Space, { "*level", "pan", "low_cut", "distance" } } }, sends);

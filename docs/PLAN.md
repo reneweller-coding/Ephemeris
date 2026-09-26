@@ -10,6 +10,16 @@ verschiedener Länge um einen gemeinsamen Grundton, die nur selten wieder zusamm
 
 ## Stand der Umsetzung
 
+**Vorschlag (26.09.2026, wartet auf Zustimmung): klassische VCO-Modelle.** Frage des Nutzers: Moog (Model D/921),
+Sequential (Prophet-5, SSM2030/CEM3340), Oberheim SEM, ARP 2600 (4027), E-mu Modular zur Wahl. Einschätzung: sinnvoll, als
+`voice.vco` (Reihen, Lead, Drone) und als analoge Tabellen für den Poly. SOTA-Weg: die Wellenform jedes Kerns aus seiner
+Schaltung (Sägezahn-Kern mit endlicher Rücklaufzeit und leichter Krümmung beim Moog, präzise Rampe beim SSM/CEM, die
+Pulsflanken, Asymmetrien, DC-Kopplung) als bandbegrenzte Zyklen in CycleTables (alias-frei, wie D), dazu je Modell ein
+Driftprofil (Ornstein-Uhlenbeck: Zeitkonstante, Streuung, schnelles Jitter; Moog instabil, E-mu fast still), Hard-Sync
+(Prophet: bandbegrenzt über BLEP/Tabellen-Überblendung) und Poly-Mod (Prophet: Osz B und Filterhüllkurve auf Osz A).
+Presets: Bässe Moog, Leads Prophet-Sync, Flächen SEM, Arpeggios ARP, Sub E-mu. Ehrlich: vieles vom "Charakter" dieser
+Instrumente machen Filter und Mischer, messbar sind vor allem Wellenform-Details und Stabilität.
+
 **In Arbeit (26.09.2026): Filtermodelle auf dem Stand der Technik.** Auftrag: "noch mehr verschiedene Filtermodelle"
 (SEM, SSM2040, CEM3320, SSI2140, Moog, IR3109, Korg35/MS-20, ARP 4075, Polivoks, Matrix-12, Kamm, CEM3389/3387), "weitere
 interessante Ideen gerne hinzufügen", "die Filter auch in die Presets", und ausdrücklich: "das absolute SOTA in der
@@ -41,7 +51,7 @@ Rändern, Verzerrung steigt mit Pegel); F2 in den SIMD-Kern (Modelle nur rechnen
 Modell; F3 Parameter und Engine (Voice, Lead, Drone; drone-Tabelle mitziehen!); F4 Poly; F5 Presets (je Gruppe eine
 Filterliste, z. B. Squelch Arp: Diodenleiter/Korg35/Moog; Juno Strings: Juno; Oberheim Brass: SEM; Cosmic Drip: Kamm/
 Phaser) und Panel-Gruppe "Filter" mit Modellwahl; F6 Handbuchkapitel "Filters", Screenshots, Hashes, Release, APK.
-Stand: F1-F3 erledigt (F3: voice/lead/drone.filter, filter_mode, filter_fm; Engine-Test: alle 10 Modelle klingen und unterscheiden sich; F1: Filters.h: Moog, OTA-Kaskade Prophet/Juno, Xpander-Polmischung, SEM/Polivoks/Wasp-SVF, Diodenleiter, Korg35; Newton kNewton=3; Test: Kleinsignal gegen analytisch 0.15 dB, Oszillation 0-4 % am Cutoff, Stress < 6.4x). Weiter mit F4 (Poly), F5 (Presets, Panel), F6.
+Stand: F1-F5 erledigt, Handbuchkapitel "Filters" (F5: Presets tragen die Filter ihrer Instrumente, Cutoff je Modell angeglichen; Panel-Gruppe Filter mit Modellwahl; F4: Poly; F3: voice/lead/drone.filter, filter_mode, filter_fm; Engine-Test: alle 10 Modelle klingen und unterscheiden sich; F1: Filters.h: Moog, OTA-Kaskade Prophet/Juno, Xpander-Polmischung, SEM/Polivoks/Wasp-SVF, Diodenleiter, Korg35; Newton kNewton=3; Test: Kleinsignal gegen analytisch 0.15 dB, Oszillation 0-4 % am Cutoff, Stress < 6.4x). Offen: Stilpegel neu kalibrieren (Cosmic +1.8 dB), CPU auf ruhiger Maschine (26-32 % eines Kerns unter Fremdlast; Quest ggf. EPH_FILTER_NEWTON=2), Release, APK.
 
 **Erledigt (26.09.2026): Die Oberfläche als Instrumenten-Panel.** Auftrag: GUI und Synth-Tabs gefielen nicht, Funktionsgruppen
 wie in Phosphene, wichtige Encoder größer (Cutoff, Streichfett), ein stimmiges Farbschema für moderne Berlin School,

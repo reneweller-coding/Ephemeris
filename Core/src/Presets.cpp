@@ -4,6 +4,7 @@
  */
 #include "eph/Presets.h"
 #include "eph/synth/Wavetable.h"
+#include "eph/synth/Filters.h"
 #include "eph/Dsp.h"
 #include <algorithm>
 #include <cmath>
@@ -513,6 +514,106 @@ const Synth* synthOf(Module m)
     }
 }
 
+// --- The filters of the groups (26.09.2026, Filters.h) -------------------------------------------------------------
+/** @brief A filter a group's presets may take: the model, the range of its mode, and how much filter FM. */
+struct FilterChoice { int model; float modeLo, modeHi, fm; };
+
+/**
+ * @brief The filters a group draws from, by the instruments its sounds come from: the basses on the Moog ladder (now
+ *        and then the diode ladder), the squelch on the diode ladder and the Korg35, glass on the Xpander's high and
+ *        band passes, the Juno's strings on the IR3109, the Oberheim's brass on the SEM, the dark and dusty ones on the
+ *        Polivoks and the Wasp, the cosmic drips on the comb and the phaser; empty for a synth without a filter model.
+ */
+const std::vector<FilterChoice>& filterChoices(Module m, const std::string& group)
+{
+    enum { MOOG, PROPHET, JUNO, SEM, XPANDER, DIODE, KORG, POLIVOKS, WASP, COMB };
+    const float BP2 = 2.0f / 7.0f, BP4 = 3.0f / 7.0f, HP2 = 4.0f / 7.0f, NOTCH = 6.0f / 7.0f, PHASER = 1.0f;
+    using L = std::vector<FilterChoice>;
+    static const std::vector<std::pair<std::string, L>> voice = {
+        { "Ladder Bass", { { MOOG, 0, 0, 0 }, { MOOG, 0, 0, 0 }, { MOOG, 0, 0, 0 }, { DIODE, 0, 0, 0 } } },
+        { "Deep Ostinato", { { MOOG, 0, 0, 0 }, { PROPHET, 0, 0, 0 } } },
+        { "Pluck Sequence", { { PROPHET, 0, 0, 0 }, { SEM, 0, 0, 0 }, { MOOG, 0, 0, 0 }, { JUNO, 0, 0, 0 } } },
+        { "Resonant Sweep", { { MOOG, 0, 0, 0 }, { DIODE, 0, 0, 0 }, { KORG, 0, 0, 0 }, { PROPHET, 0, 0, 0 } } },
+        { "Hollow Pulse", { { SEM, 0.3f, 0.5f, 0 }, { XPANDER, BP2, BP2, 0 }, { JUNO, 0, 0, 0 } } },
+        { "Glass Arp", { { XPANDER, HP2, HP2, 0.1f }, { XPANDER, BP4, BP4, 0 }, { SEM, 0.7f, 0.9f, 0 }, { COMB, 0, 0, 0 } } },
+        { "Tape Sequence", { { JUNO, 0, 0, 0 }, { PROPHET, 0, 0, 0 } } },
+        { "Soft Pad Voice", { { JUNO, 0, 0, 0 }, { SEM, 0, 0, 0 } } },
+        { "Squelch Arp", { { DIODE, 0, 0, 0 }, { DIODE, 0, 0, 0 }, { KORG, 0, 0, 0 }, { MOOG, 0, 0, 0 } } },
+        { "Staccato Pulse", { { PROPHET, 0, 0, 0 }, { JUNO, 0, 0, 0 } } },
+        { "Legato Glide", { { MOOG, 0, 0, 0 }, { PROPHET, 0, 0, 0 } } },
+        { "Warm Unison", { { PROPHET, 0, 0, 0 }, { SEM, 0, 0, 0 }, { MOOG, 0, 0, 0 } } },
+        { "Bright Stab", { { JUNO, 0, 0, 0 }, { XPANDER, HP2, HP2, 0 }, { PROPHET, 0, 0, 0 } } },
+        { "Dark Throb", { { POLIVOKS, 0, 0.3f, 0 }, { MOOG, 0, 0, 0 }, { WASP, 0, 0.2f, 0 } } },
+        { "Accent Ratchet", { { DIODE, 0, 0, 0 }, { KORG, 0, 0, 0 }, { MOOG, 0, 0, 0 } } },
+        { "Cosmic Drip", { { COMB, 0, 0.4f, 0 }, { COMB, 0.6f, 1.0f, 0 }, { XPANDER, PHASER, PHASER, 0.2f }, { WASP, 0.4f, 0.6f, 0.15f } } },
+    };
+    static const std::vector<std::pair<std::string, L>> lead = {
+        { "Solo Saw", { { MOOG, 0, 0, 0 }, { PROPHET, 0, 0, 0 } } },
+        { "Singing Pulse", { { SEM, 0, 0, 0 }, { PROPHET, 0, 0, 0 } } },
+        { "Flute Lead", { { SEM, 0, 0, 0 }, { JUNO, 0, 0, 0 } } },
+        { "Portamento", { { MOOG, 0, 0, 0 }, { PROPHET, 0, 0, 0 } } },
+        { "Glass Whistle", { { XPANDER, BP2, BP2, 0 }, { SEM, 0.35f, 0.45f, 0 } } },
+        { "Theremin", { { SEM, 0, 0, 0 }, { MOOG, 0, 0, 0 } } },
+        { "Screaming Filter", { { KORG, 0, 0, 0 }, { KORG, 0, 0, 0 }, { DIODE, 0, 0, 0 } } },
+        { "Soft Horn", { { PROPHET, 0, 0, 0 }, { SEM, 0, 0, 0 } } },
+        { "Ethereal Sine", { { SEM, 0, 0, 0 }, { JUNO, 0, 0, 0 } } },
+        { "Brass Lead", { { PROPHET, 0, 0, 0 }, { SEM, 0, 0, 0 } } },
+        { "Hollow Oboe", { { XPANDER, BP4, BP4, 0 }, { SEM, 0.42f, 0.5f, 0 } } },
+        { "Twin Oscillator", { { JUNO, 0, 0, 0 }, { PROPHET, 0, 0, 0 } } },
+        { "Cosmic Siren", { { KORG, 0, 0, 0.2f }, { COMB, 0, 0.4f, 0 }, { XPANDER, PHASER, PHASER, 0.3f } } },
+        { "Warm Mono", { { MOOG, 0, 0, 0 } } },
+        { "Bell Lead", { { XPANDER, HP2, HP2, 0.25f }, { SEM, 0.7f, 0.8f, 0.1f } } },
+        { "Dusty Solo", { { POLIVOKS, 0, 0.2f, 0 }, { WASP, 0, 0.2f, 0 }, { MOOG, 0, 0, 0 } } },
+    };
+    static const std::vector<std::pair<std::string, L>> drone = {
+        { "Dark Bordun", { { MOOG, 0, 0, 0 } } },
+        { "Organ Pedal", { { SEM, 0, 0, 0 } } },
+        { "Pulse Hum", { { PROPHET, 0, 0, 0 } } },
+        { "Resonant Earth", { { DIODE, 0, 0, 0 }, { MOOG, 0, 0, 0 } } },
+        { "Glowing Root", { { PROPHET, 0, 0, 0 } } },
+        { "Hollow Pipe", { { XPANDER, BP2, BP2, 0 } } },
+        { "Warm Floor", { { SEM, 0, 0, 0 } } },
+        { "Filtered Void", { { COMB, 0, 0.3f, 0 }, { MOOG, 0, 0, 0 } } },
+        { "Singing Ground", { { SEM, 0, 0.1f, 0 }, { XPANDER, BP2, BP2, 0 } } },
+        { "Iron Drone", { { POLIVOKS, 0, 0.2f, 0 }, { WASP, 0, 0.2f, 0 } } },
+        { "Soft Monolith", { { JUNO, 0, 0, 0 } } },
+        { "Bright Axis", { { SEM, 0.6f, 0.75f, 0 } } },
+        { "Deep Current", { { MOOG, 0, 0, 0 } } },
+        { "Breathing Root", { { PROPHET, 0, 0, 0 } } },
+        { "Temple Hum", { { SEM, 0.42f, 0.5f, 0 }, { XPANDER, NOTCH, NOTCH, 0 } } },
+        { "Night Floor", { { MOOG, 0, 0, 0 }, { DIODE, 0, 0, 0 } } },
+    };
+    static const std::vector<std::pair<std::string, L>> poly = {
+        { "Analog Pad", { { PROPHET, 0, 0, 0 }, { SEM, 0, 0, 0 } } },
+        { "Juno Strings", { { JUNO, 0, 0, 0 } } },
+        { "Oberheim Brass", { { SEM, 0, 0, 0 } } },
+        { "Sync Sweep", { { PROPHET, 0, 0, 0 }, { MOOG, 0, 0, 0 } } },
+        { "Formant Pad", { { XPANDER, BP2, BP2, 0 }, { SEM, 0.35f, 0.45f, 0 } } },
+        { "Vocal Pad", { { SEM, 0, 0, 0 }, { XPANDER, BP2, BP2, 0 } } },
+        { "Glass Pad", { { XPANDER, HP2, HP2, 0 }, { SEM, 0.7f, 0.8f, 0 } } },
+        { "Single Cycle Pad", { { JUNO, 0, 0, 0 }, { PROPHET, 0, 0, 0 } } },
+        { "Bowed Pad", { { SEM, 0, 0, 0 }, { PROPHET, 0, 0, 0 } } },
+        { "Tube Pad", { { PROPHET, 0, 0, 0 }, { MOOG, 0, 0, 0 } } },
+        { "PPG Choir", { { PROPHET, 0, 0, 0 } } },
+        { "PPG Upper", { { PROPHET, 0, 0, 0 }, { XPANDER, BP2, BP2, 0 } } },
+        { "Overtone Pad", { { SEM, 0, 0, 0 } } },
+        { "Morph Pad", { { COMB, 0, 0.3f, 0 }, { XPANDER, PHASER, PHASER, 0 } } },
+        { "Sampled Air", { { SEM, 0, 0, 0 }, { JUNO, 0, 0, 0 } } },
+        { "Dark Drone Pad", { { POLIVOKS, 0, 0.2f, 0 }, { MOOG, 0, 0, 0 }, { WASP, 0, 0.2f, 0 } } },
+    };
+    static const L none;
+    const std::vector<std::pair<std::string, L>>* table = nullptr;
+    switch (m) {
+    case Module::Voice: table = &voice; break;
+    case Module::Lead: table = &lead; break;
+    case Module::Drone: table = &drone; break;
+    case Module::Poly: table = &poly; break;
+    default: return none;
+    }
+    for (const auto& e : *table) if (e.first == group) return e.second;
+    return none;
+}
+
 /** @brief The sixty-four presets of every group of a synth, the knob values from the axes (Presets.h). */
 std::vector<SoundPreset> build(Module m, const Synth& s)
 {
@@ -539,6 +640,24 @@ std::vector<SoundPreset> build(Module m, const Synth& s)
                 if (d.curve == Curve::Choice || d.curve == Curve::Int || d.curve == Curve::Toggle) value = std::round(value);
                 value = std::clamp(value, d.minValue, d.maxValue);
                 p.values.push_back({ ax.k, value });
+            }
+            // The filter (26.09.2026): drawn after the axes, so every other knob keeps the value it had.
+            const std::vector<FilterChoice>& filters = filterChoices(m, grp.name);
+            if (!filters.empty()) {
+                const FilterChoice& fc = filters[static_cast<size_t>(rng.below(static_cast<int>(filters.size())))];
+                const float mode = fc.modeLo + (fc.modeHi - fc.modeLo) * rng.uniform();
+                const bool voice = m == Module::Voice, isPoly = m == Module::Poly;
+                p.values.push_back({ voice ? voice::Filter : (isPoly ? poly::Filter : lead::Filter), static_cast<float>(fc.model) });
+                p.values.push_back({ voice ? voice::FilterMode : (isPoly ? poly::FilterMode : lead::FilterMode), mode });
+                if (!isPoly) p.values.push_back({ voice ? voice::FilterFm : lead::FilterFm, fc.fm });
+                // The group's cutoffs were set for a 24 dB ladder: the 12 dB filters (SEM, Korg35, Polivoks, Wasp) are
+                // brighter at the same cutoff and go down, the diode ladder (steeper, its peak at the cutoff) and the Juno
+                // a little up -- so a group keeps its brightness whatever filter it drew.
+                static const float kCutoffBy[kFilterModels] = { 1.0f, 1.0f, 1.05f, 0.72f, 1.0f, 1.1f, 0.8f, 0.8f, 0.8f, 1.0f };
+                const int cutoff = voice ? voice::Cutoff : (isPoly ? poly::Cutoff : lead::Cutoff);
+                const ParamDesc& cd = store.desc(store.id(m, 0, cutoff));
+                for (auto& e : p.values)
+                    if (e.first == cutoff) e.second = std::clamp(e.second * kCutoffBy[fc.model], cd.minValue, cd.maxValue);
             }
             out.push_back(std::move(p));
         }
