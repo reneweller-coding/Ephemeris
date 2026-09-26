@@ -45,7 +45,10 @@ juce::Colour familyColour(Family f);
 /** @brief The colour of a mixer channel (Engine channel order), from the families of what plays on it. */
 juce::Colour channelColour(int channel);
 
-/** @brief One group of a synth's panel: its title, its family and its parameters by key ("*cutoff": a large one). */
+/**
+ * @brief One group of a synth's panel: its title, its family and its parameters by key ("*cutoff": a large one,
+ *        "~lfo1_shape": a narrow menu, "@mod1": a slot of the modulation matrix).
+ */
 struct GroupSpec {
     const char* title;
     Family family;

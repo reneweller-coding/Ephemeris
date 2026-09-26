@@ -44,36 +44,52 @@ const std::vector<GroupSpec>& layoutOf(eph::Module m)
     static const std::vector<GroupSpec> none;
     static const std::vector<GroupSpec> sends = { { "Sends", F::Space, { "echo", "echo2", "reverb", "blend", "early", "shimmer" } } };
     auto with = [](std::vector<GroupSpec> a, const std::vector<GroupSpec>& b) { a.insert(a.end(), b.begin(), b.end()); return a; };
-    static const std::vector<GroupSpec> voice = {
+    // 26.09.2026: the envelopes in full, the LFOs and the modulation matrix (Modulation.h); "@mod3" is a slot of the
+    // matrix (its source, target and amount in one control), "~lfo1_shape" a narrow menu.
+    static const std::vector<GroupSpec> lfos4 = { { "LFO 1", F::Motion, { "lfo1_rate", "~lfo1_shape", "~lfo1_sync", "lfo1_retrig", "lfo1_fade" } },
+        { "LFO 2", F::Motion, { "lfo2_rate", "~lfo2_shape", "~lfo2_sync", "lfo2_retrig", "lfo2_fade" } },
+        { "LFO 3", F::Motion, { "lfo3_rate", "~lfo3_shape", "~lfo3_sync", "lfo3_retrig", "lfo3_fade" } },
+        { "LFO 4", F::Motion, { "lfo4_rate", "~lfo4_shape", "~lfo4_sync", "lfo4_retrig", "lfo4_fade" } },
+        { "Mod Matrix", F::Motion, { "@mod1", "@mod2", "@mod3", "@mod4", "@mod5", "@mod6", "@mod7", "@mod8" } } };
+    static const std::vector<GroupSpec> lfos2 = { { "LFO 1", F::Motion, { "lfo1_rate", "~lfo1_shape", "~lfo1_sync", "lfo1_retrig", "lfo1_fade" } },
+        { "LFO 2", F::Motion, { "lfo2_rate", "~lfo2_shape", "~lfo2_sync", "lfo2_retrig", "lfo2_fade" } },
+        { "Mod Matrix", F::Motion, { "@mod1", "@mod2", "@mod3", "@mod4" } } };
+    static const std::vector<GroupSpec> voiceEnvelopes = {
+        { "Amp Envelope", F::Envelope, { "amp_attack", "amp_decay2", "amp_sustain", "amp_decay" } },
+        { "Filter Envelope", F::Envelope, { "filt_attack", "*decay", "filt_sustain", "filt_release", "filt_link", "env_velocity" } },
+        { "Mod Envelope", F::Envelope, { "mod_attack", "mod_decay", "mod_sustain", "mod_release" } } };
+    static const std::vector<GroupSpec> voice = with(with({
         { "Oscillators", F::Source, { "wave", "detune", "pw", "drift", "drive" } },
         { "Wavetable", F::Source, { "table", "table_pos", "table_mod" } },
-        { "Filter", F::Filter, { "filter", "*cutoff", "*resonance", "filter_mode", "env_amount", "keytrack", "accent", "filter_fm" } },
-        { "Envelopes", F::Envelope, { "decay", "amp_decay" } },
-        { "Glide", F::Motion, { "glide" } } };
-    static const std::vector<GroupSpec> lead = with({
+        { "Filter", F::Filter, { "filter", "*cutoff", "*resonance", "filter_mode", "env_amount", "keytrack", "accent", "filter_fm" } } },
+        voiceEnvelopes), with({ { "Glide", F::Motion, { "glide" } } }, lfos4));
+    static const std::vector<GroupSpec> lead = with(with(with({
         { "Oscillators", F::Source, { "wave", "detune", "pw", "drift", "drive" } },
-        { "Filter", F::Filter, { "filter", "*cutoff", "*resonance", "filter_mode", "env_amount", "keytrack", "accent", "filter_fm" } },
-        { "Envelopes", F::Envelope, { "decay", "amp_decay" } },
-        { "Performance", F::Motion, { "glide", "vibrato", "vibrato_rate", "auto_pan" } },
-        { "Mix", F::Space, { "*level", "pan", "low_cut", "distance" } } }, sends);
-    static const std::vector<GroupSpec> tape = with({
+        { "Filter", F::Filter, { "filter", "*cutoff", "*resonance", "filter_mode", "env_amount", "keytrack", "accent", "filter_fm" } } },
+        voiceEnvelopes), with({
+        { "Performance", F::Motion, { "glide", "vibrato", "vibrato_rate", "auto_pan" } } }, lfos4)), with({
+        { "Mix", F::Space, { "*level", "pan", "low_cut", "distance" } } }, sends));
+    static const std::vector<GroupSpec> tape = with(with({
         { "Tapes", F::Source, { "set", "*vowel", "age" } },
         { "Tone", F::Filter, { "*tone" } },
-        { "Transport", F::Motion, { "wow", "flutter", "sag" } },
-        { "Mix", F::Space, { "*level", "pan", "spread", "low_cut", "distance" } } }, sends);
-    static const std::vector<GroupSpec> strings = with({
+        { "Envelope", F::Envelope, { "amp_attack", "amp_decay", "amp_sustain", "amp_release" } },
+        { "Transport", F::Motion, { "wow", "flutter", "sag" } } }, lfos2), with({
+        { "Mix", F::Space, { "*level", "pan", "spread", "low_cut", "distance" } } }, sends));
+    static const std::vector<GroupSpec> strings = with(with({
         { "Registers", F::Source, { "*registration", "feet", "animate", "animate_rate" } },
         { "Tone", F::Filter, { "*tone" } },
-        { "Crescendo", F::Envelope, { "attack", "release" } },
-        { "Ensemble", F::Motion, { "ensemble_type", "*ensemble", "phaser" } },
-        { "Mix", F::Space, { "*level", "pan", "low_cut", "distance" } } }, sends);
-    static const std::vector<GroupSpec> poly = with({
+        { "Envelope", F::Envelope, { "attack", "amp_decay", "amp_sustain", "release" } },
+        { "Ensemble", F::Motion, { "ensemble_type", "*ensemble", "phaser" } } }, lfos2), with({
+        { "Mix", F::Space, { "*level", "pan", "low_cut", "distance" } } }, sends));
+    static const std::vector<GroupSpec> poly = with(with({
         { "Wavetable", F::Source, { "table", "*position", "scan", "scan_rate" } },
         { "Oscillators", F::Source, { "detune", "spread", "drift" } },
         { "Filter", F::Filter, { "filter", "*cutoff", "*resonance", "filter_mode", "env_amount" } },
-        { "Envelope", F::Envelope, { "attack", "release" } },
-        { "Ensemble", F::Motion, { "*chorus" } },
-        { "Mix", F::Space, { "*level", "pan", "low_cut", "distance" } } }, sends);
+        { "Amp Envelope", F::Envelope, { "attack", "amp_decay", "amp_sustain", "release" } },
+        { "Filter Envelope", F::Envelope, { "filt_link", "filt_attack", "filt_decay", "filt_sustain", "filt_release", "env_velocity" } },
+        { "Mod Envelope", F::Envelope, { "mod_attack", "mod_decay", "mod_sustain", "mod_release" } },
+        { "Ensemble", F::Motion, { "*chorus" } } }, lfos4), with({
+        { "Mix", F::Space, { "*level", "pan", "low_cut", "distance" } } }, sends));
     static const std::vector<GroupSpec> atmos = {
         { "Wind", F::Source, { "*wind", "wind_tone" } },
         { "Sweeps", F::Motion, { "sweeps", "sweep_level" } },
@@ -232,7 +248,11 @@ void LookAndFeel::drawLinearSlider(juce::Graphics& g, int x, int y, int width, i
     g.setColour(faint);
     g.fillRoundedRectangle(static_cast<float>(x), cy - 2.0f, static_cast<float>(width), 4.0f, 2.0f);
     g.setColour(slider.findColour(juce::Slider::trackColourId));
-    g.fillRoundedRectangle(static_cast<float>(x), cy - 2.0f, pos - static_cast<float>(x), 4.0f, 2.0f);
+    // A slider that spans zero (a matrix slot's amount) fills from its middle.
+    float from = static_cast<float>(x);
+    if (slider.getMinimum() < 0.0 && slider.getMaximum() > 0.0)
+        from = static_cast<float>(x) + static_cast<float>(slider.valueToProportionOfLength(0.0)) * static_cast<float>(width);
+    g.fillRoundedRectangle(std::min(from, pos), cy - 2.0f, std::fabs(pos - from), 4.0f, 2.0f);
     g.setColour(slider.findColour(juce::Slider::thumbColourId));
     g.fillEllipse(pos - 6.0f, cy - 6.0f, 12.0f, 12.0f);
 }

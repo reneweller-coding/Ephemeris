@@ -672,7 +672,7 @@ const ParamDesc kPolyParams[poly::Count] = {
     { "filter_mode","Filter Mode",  "",      0.0f,     1.0f,   0.0f, Curve::Linear },
     { "amp_decay",    "Amp Decay",     "s",    0.01f,   20.0f, 1.0f, Curve::Log },
     { "amp_sustain",  "Amp Sustain",   "",     0.0f,     1.0f, 1.0f, Curve::Linear },
-    { "filt_link",    "Filter Env = Amp", "",  0.0f,     1.0f, 1.0f, Curve::Toggle },   // the filter follows the amplitude envelope
+    { "filt_link",    "Filter Follows Amp", "", 0.0f,     1.0f, 1.0f, Curve::Toggle },   // the filter follows the amplitude envelope
     { "filt_attack",  "Filter Attack", "s",    0.01f,   20.0f, 2.0f, Curve::Log },
     { "filt_decay",   "Filter Decay",  "s",    0.01f,   20.0f, 3.0f, Curve::Log },
     { "filt_sustain", "Filter Sustain", "",    0.0f,     1.0f, 0.4f, Curve::Linear },

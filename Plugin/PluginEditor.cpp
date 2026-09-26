@@ -201,6 +201,38 @@ void ParamPage::choosePreset(int index)
         if (i == one || allRows_.getToggleState()) proc_.applyPreset(presetModule_, i, index);
 }
 
+ModSlotControl::ModSlotControl(int number, juce::Colour colour) : number_(number)
+{
+    for (juce::ComboBox* c : { &source, &target }) {
+        c->setColour(juce::ComboBox::arrowColourId, colour);
+        addAndMakeVisible(*c);
+    }
+    amount.setSliderStyle(juce::Slider::LinearHorizontal);
+    amount.setTextBoxStyle(juce::Slider::TextBoxRight, false, 46, 18);
+    amount.setColour(juce::Slider::trackColourId, colour);
+    amount.setColour(juce::Slider::thumbColourId, ephui::colour::ink);
+    amount.setDoubleClickReturnValue(true, 0.0);
+    amount.setTooltip("Amount (double-click: none)");
+    addAndMakeVisible(amount);
+}
+
+void ModSlotControl::resized()
+{
+    auto r = getLocalBounds().reduced(2, 0);
+    r.removeFromLeft(18);   // the slot's number
+    const int w = r.getWidth();
+    source.setBounds(r.removeFromLeft(w * 30 / 100).withSizeKeepingCentre(w * 30 / 100 - 4, 24));
+    target.setBounds(r.removeFromLeft(w * 34 / 100).withSizeKeepingCentre(w * 34 / 100 - 4, 24));
+    amount.setBounds(r.withSizeKeepingCentre(r.getWidth(), 24));
+}
+
+void ModSlotControl::paint(juce::Graphics& g)
+{
+    g.setColour(ephui::colour::dim);
+    g.setFont(juce::FontOptions(12.0f, juce::Font::bold));
+    g.drawText(juce::String(number_), 2, 0, 16, getHeight(), juce::Justification::centred);
+}
+
 void ParamPage::build()
 {
     sliders_.clear();
@@ -212,11 +244,18 @@ void ParamPage::build()
     const int inst = instances_ > 1 ? instance_.getSelectedId() - 1 : 0;
     ParamStore& s = proc_.store();
     // A control for parameter id, in a box of the given colour: a knob, a menu or a switch by its descriptor.
-    auto make = [&](int id, juce::Colour colour, bool big) {
+    // A control's name in its box, without the box's title in front ("Rate" in "LFO 1", "Attack" in "Amp Envelope").
+    auto shortName = [](const juce::String& name, const juce::String& title) {
+        if (name.startsWith(title + " ")) return name.substring(title.length() + 1);
+        const juce::String first = title.upToFirstOccurrenceOf(" ", false, false);
+        if (first != title && name.startsWith(first + " ")) return name.substring(first.length() + 1);
+        return name;
+    };
+    auto make = [&](int id, juce::Colour colour, bool big, const juce::String& title = {}, bool narrow = false) {
         StoreParameter* param = proc_.parameter(id);
         if (param == nullptr) return Cell{};
         const ParamDesc& d = s.desc(id);
-        auto* label = labels_.add(new juce::Label({}, d.name));
+        auto* label = labels_.add(new juce::Label({}, title.isEmpty() ? juce::String(d.name) : shortName(d.name, title)));
         label->setJustificationType(juce::Justification::centred);
         label->setColour(juce::Label::textColourId, big ? ephui::colour::ink : ephui::colour::dim);
         label->setFont(juce::FontOptions(big ? 13.0f : 12.0f));
@@ -231,6 +270,7 @@ void ParamPage::build()
             controls_.add(box);
             combos_.push_back(std::make_unique<juce::ComboBoxParameterAttachment>(*param, *box));
             cell.kind = 1;
+            cell.narrow = narrow;
         } else if (d.curve == Curve::Toggle) {
             auto* b = new juce::ToggleButton();
             b->setColour(juce::ToggleButton::tickColourId, colour);
@@ -260,16 +300,50 @@ void ParamPage::build()
             keys[static_cast<size_t>(i)] = k.substr(k.find('.') + 1);
         }
         std::vector<bool> placed(static_cast<size_t>(count), false);
+        auto indexOf = [&](const std::string& name) {
+            for (int i = 0; i < count; ++i) if (!placed[static_cast<size_t>(i)] && keys[static_cast<size_t>(i)] == name) return i;
+            return -1;
+        };
+        // A slot of the modulation matrix ("@mod3": mod3_src, mod3_dst, mod3_amt) as one control.
+        auto makeSlot = [&](const std::string& name, juce::Colour colour) {
+            const int src = indexOf(name + "_src"), dst = indexOf(name + "_dst"), amt = indexOf(name + "_amt");
+            if (src < 0 || dst < 0 || amt < 0) return Cell{};
+            StoreParameter* ps = proc_.parameter(s.id(g.first, instance, src));
+            StoreParameter* pd = proc_.parameter(s.id(g.first, instance, dst));
+            StoreParameter* pa = proc_.parameter(s.id(g.first, instance, amt));
+            if (ps == nullptr || pd == nullptr || pa == nullptr) return Cell{};
+            auto* slot = new ModSlotControl(std::atoi(name.c_str() + 3), colour);
+            for (const auto& [box, id] : { std::pair<juce::ComboBox*, int>{ &slot->source, src }, std::pair<juce::ComboBox*, int>{ &slot->target, dst } }) {
+                const ParamDesc& d = s.desc(s.id(g.first, instance, id));
+                for (int c = 0; c <= static_cast<int>(d.maxValue); ++c) box->addItem(d.choices[c], c + 1);
+            }
+            combos_.push_back(std::make_unique<juce::ComboBoxParameterAttachment>(*ps, slot->source));
+            combos_.push_back(std::make_unique<juce::ComboBoxParameterAttachment>(*pd, slot->target));
+            sliders_.push_back(std::make_unique<juce::SliderParameterAttachment>(*pa, slot->amount));
+            for (int i : { src, dst, amt }) placed[static_cast<size_t>(i)] = true;
+            addAndMakeVisible(labels_.add(new juce::Label()));   // none: the slot shows its number
+            controls_.add(slot);
+            addAndMakeVisible(slot);
+            Cell cell;
+            cell.kind = 3;
+            cell.control = controls_.size() - 1;
+            return cell;
+        };
         for (const ephui::GroupSpec& spec : ephui::layoutOf(g.first)) {
             Box box;
             box.title = spec.title;
             box.colour = ephui::familyColour(spec.family);
             for (const char* key : spec.keys) {
-                const bool big = key[0] == '*';
-                const std::string name = big ? key + 1 : key;
+                if (key[0] == '@') {
+                    const Cell c = makeSlot(key + 1, box.colour);
+                    if (c.control >= 0) box.cells.push_back(c);
+                    continue;
+                }
+                const bool big = key[0] == '*', narrow = key[0] == '~';
+                const std::string name = big || narrow ? key + 1 : key;
                 for (int i = 0; i < count; ++i) {
                     if (placed[static_cast<size_t>(i)] || keys[static_cast<size_t>(i)] != name) continue;
-                    const Cell c = make(s.id(g.first, instance, i), box.colour, big);
+                    const Cell c = make(s.id(g.first, instance, i), box.colour, big, box.title, narrow);
                     if (c.control >= 0) box.cells.push_back(c);
                     placed[static_cast<size_t>(i)] = true;
                 }
@@ -302,8 +376,9 @@ int ParamPage::layoutBoxes(juce::Rectangle<int> area, bool apply)
     constexpr int kTitle = 22, kPad = 8, kGap = 10;
     auto cellSize = [](const Cell& c) {
         switch (c.kind) {
-        case 1: return juce::Point<int>(140, 100);
+        case 1: return juce::Point<int>(c.narrow ? 112 : 140, 100);
         case 2: return juce::Point<int>(92, 100);
+        case 3: return juce::Point<int>(360, 34);
         default: return c.big ? juce::Point<int>(108, 136) : juce::Point<int>(82, 100);
         }
     };
@@ -347,8 +422,9 @@ int ParamPage::layoutBoxes(juce::Rectangle<int> area, bool apply)
                 juce::Component* comp = controls_[c.control];
                 juce::Label* label = labels_[c.control];
                 const auto r = c.bounds.reduced(3, 2);
-                label->setBounds(r.getX(), r.getY(), r.getWidth(), 16);
+                label->setBounds(r.getX(), r.getY(), r.getWidth(), c.kind == 3 ? 0 : 16);
                 if (c.kind == 0) comp->setBounds(r.withTrimmedTop(16));
+                else if (c.kind == 3) comp->setBounds(c.bounds);
                 else comp->setBounds(r.getX() + 2, r.getCentreY() - 12, r.getWidth() - 4, 24);
             }
         }
@@ -680,6 +756,11 @@ EphemerisEditor::EphemerisEditor(EphemerisProcessor& p) : juce::AudioProcessorEd
     if (const char* shot = std::getenv("EPH_SHOT")) {
         shotPath_ = shot;
         if (const char* tab = std::getenv("EPH_TAB")) tabs_.setCurrentTabIndex(juce::String(tab).getIntValue());
+        // EPH_SHOT_SIZE ("1600x2400"): a larger window, so a long page shows whole.
+        if (const char* size = std::getenv("EPH_SHOT_SIZE")) {
+            const juce::String sz(size);
+            setSize(sz.upToFirstOccurrenceOf("x", false, false).getIntValue(), sz.fromFirstOccurrenceOf("x", false, false).getIntValue());
+        }
     }
     startTimerHz(15);
 }

@@ -10,7 +10,7 @@
  * anyone writing it there.
  *
  * `EPH_SHOT` (a PNG file) and `EPH_TAB` (a tab index) render the panel into a picture after the first piece is
- * composed and quit the standalone -- how the layout is checked without a person looking. `EPH_SHOT_AT` (a beat)
+ * composed and quit the standalone -- how the layout is checked without a person looking. `EPH_SHOT_SIZE` ("1600x2400") the window's size, `EPH_SHOT_AT` (a beat)
  * jumps there first; with `EPH_PLAY` set, the mixer's meters then show that place of the piece.
  */
 #pragma once
@@ -20,6 +20,22 @@
 #include <functional>
 #include <memory>
 #include <vector>
+
+/**
+ * @brief One slot of a synth's modulation matrix (26.09.2026, Modulation.h): its number, a menu for the source, one
+ *        for the target, and the amount as a slider that fills from its middle.
+ */
+class ModSlotControl final : public juce::Component {
+public:
+    ModSlotControl(int number, juce::Colour colour);
+    void resized() override;
+    void paint(juce::Graphics& g) override;
+    juce::ComboBox source, target;
+    juce::Slider amount;
+
+private:
+    int number_;
+};
 
 /** @brief The parameters of one module instance as knobs, menus and switches. */
 class ParamPage final : public juce::Component, private juce::Timer {
@@ -68,7 +84,8 @@ private:
     struct Cell {
         int control = -1;          ///< index into controls_ and labels_
         bool big = false;          ///< a large encoder
-        int kind = 0;              ///< 0 a knob, 1 a menu, 2 a switch
+        bool narrow = false;       ///< a narrow menu (short entries: an LFO's shape and sync)
+        int kind = 0;              ///< 0 a knob, 1 a menu, 2 a switch, 3 a slot of the modulation matrix
         juce::Rectangle<int> bounds;
     };
     /** @brief A titled group of cells, drawn as a box. */
