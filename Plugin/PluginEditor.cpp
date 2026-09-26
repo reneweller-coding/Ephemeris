@@ -681,6 +681,14 @@ EphemerisEditor::EphemerisEditor(EphemerisProcessor& p) : juce::AudioProcessorEd
     play_.setColour(juce::TextButton::buttonColourId, kAccent.withAlpha(0.22f));
     compose_.setColour(juce::TextButton::buttonColourId, kAccent.withAlpha(0.14f));
     // The standalone's full screen (F11), as Phosphene's; hidden in a host, which owns its window.
+    // The update check: once a day it asks GitHub for the latest release (nothing else is sent); a newer one shows here.
+    checkUpdates_.setToggleState(updates_->enabled(), juce::dontSendNotification);
+    checkUpdates_.setTooltip("Once a day, ask GitHub whether a newer Ephemeris is out (nothing else is sent, nothing is downloaded)");
+    checkUpdates_.onClick = [this] { updates_->setEnabled(checkUpdates_.getToggleState()); };
+    body_.addAndMakeVisible(checkUpdates_);
+    update_.setColour(juce::HyperlinkButton::textColourId, ephui::colour::amber);
+    update_.setTooltip("Open the release page");
+    body_.addChildComponent(update_);
     full_.setTooltip("Full screen (F11; Esc leaves it)");
     full_.onClick = [this] { toggleFullScreen(); };
     body_.addChildComponent(full_);
@@ -847,6 +855,8 @@ void EphemerisEditor::layoutBody()
     area.removeFromTop(4);
     auto third = area.removeFromTop(20);
     if (full_.isVisible()) full_.setBounds(third.removeFromRight(100));
+    checkUpdates_.setBounds(third.removeFromRight(120));
+    update_.setBounds(third.removeFromRight(190));
     status_.setBounds(third.removeFromLeft(third.getWidth() / 2));
     rerolls_.setBounds(third);
     area.removeFromTop(4);
@@ -859,6 +869,15 @@ void EphemerisEditor::timerCallback()
 {
     status_.setText(proc_.status(), juce::dontSendNotification);
     rerolls_.setText(proc_.curationText(), juce::dontSendNotification);
+    {
+        // A newer version, where the check found one.
+        const juce::String v = checkUpdates_.getToggleState() ? updates_->newer() : juce::String();
+        if (v.isNotEmpty() && update_.getButtonText() != "Version " + v + " available") {
+            update_.setButtonText("Version " + v + " available");
+            update_.setURL(juce::URL(updates_->page()));
+        }
+        update_.setVisible(v.isNotEmpty());
+    }
     play_.setButtonText(proc_.isPlaying() ? "Stop" : "Play");
     mute_.setToggleState(proc_.muted(), juce::dontSendNotification);
     mute_.setButtonText(proc_.muted() ? (proc_.muteForced() ? "Muted (env)" : "Muted") : "Mute");

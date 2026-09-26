@@ -17,6 +17,7 @@
 #include "PluginProcessor.h"
 #include <juce_gui_basics/juce_gui_basics.h>
 #include "EditorTheme.h"
+#include "UpdateCheck.h"
 #include <functional>
 #include <memory>
 #include <vector>
@@ -167,6 +168,10 @@ private:
     juce::TooltipWindow tooltips_{ nullptr, 700 };
     EditorBody body_;
     juce::TextButton full_{ "Full screen" };
+    // The update check (UpdateCheck.h): a link where a newer version is out, and the switch.
+    juce::SharedResourcePointer<UpdateCheck> updates_;
+    juce::HyperlinkButton update_;
+    juce::ToggleButton checkUpdates_{ "Update check" };
     juce::Label title_, status_, rerolls_;
     juce::Rectangle<float> logo_;   ///< where the logo is drawn, left of the title
     juce::ComboBox style_, key_, scale_;
