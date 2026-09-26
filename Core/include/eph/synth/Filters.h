@@ -13,7 +13,10 @@
  * the delay-free loop resolved exactly rather than broken by a unit delay (D'Angelo and Välimäki 2014 for the Moog
  * ladder; Holters and Zölzer 2015 for the general nonlinear state-space form). The Jacobians are solved by their
  * structure: a cascade is bidiagonal with the resonance feedback in one corner (forward substitution and one scalar
- * division), the diode ladder tridiagonal with that corner (Thomas and Sherman-Morrison). A fixed number of iterations
+ * division), the diode ladder tridiagonal with that corner (Thomas and Sherman-Morrison). The pivots' reciprocals are
+ * taken first, side by side, and the substitution multiplies (26.09.2026, after Noctuary's port of these filters): the
+ * divider, which bounds the lanes, does four divisions a step instead of seven (the ladders and cascades) or twelve
+ * (the diode ladder). A fixed number of iterations
  * (kNewton) keeps every lane path bit for bit the same and the sound independent of the host's blocks; the voices run
  * at twice the rate, which keeps the aliasing of the nonlinear stages low.
  *
@@ -90,10 +93,11 @@ EPH_FORCE_INLINE V ladderMoog(V* v, V* s, V x, V g, V k)
         const V F0 = v[0] - s[0] - g * (tx - t0), F1 = v[1] - s[1] - g * (t0 - t1);
         const V F2 = v[2] - s[2] - g * (t1 - t2), F3 = v[3] - s[3] - g * (t2 - t3);
         const V d0 = one - t0 * t0, d1 = one - t1 * t1, d2 = one - t2 * t2, d3 = one - t3 * t3, dx = one - tx * tx;
-        const V J11 = vfmadd(g, d1, one), J22 = vfmadd(g, d2, one), J33 = vfmadd(g, d3, one);
-        const V a1 = -F1 / J11, b1 = g * d0 / J11;
-        const V a2 = vfmadd(g * d1, a1, -F2) / J22, b2 = g * d1 * b1 / J22;
-        const V a3 = vfmadd(g * d2, a2, -F3) / J33, b3 = g * d2 * b2 / J33;
+        // The diagonal's reciprocals first: three divisions side by side, off the chain of the substitution.
+        const V i1 = one / vfmadd(g, d1, one), i2 = one / vfmadd(g, d2, one), i3 = one / vfmadd(g, d3, one);
+        const V a1 = -F1 * i1, b1 = g * d0 * i1;
+        const V a2 = vfmadd(g * d1, a1, -F2) * i2, b2 = g * d1 * b1 * i2;
+        const V a3 = vfmadd(g * d2, a2, -F3) * i3, b3 = g * d2 * b2 * i3;
         const V J00 = vfmadd(g, d0, one), J03 = g * dx * k;
         const V D0 = vfnmadd(J03, a3, -F0) / vfmadd(J03, b3, J00);
         v[0] = v[0] + D0;
@@ -123,10 +127,10 @@ EPH_FORCE_INLINE V otaCascade(V* v, V* s, V x, V g, V k, float d, float r, int m
         const V F0 = v[0] - s[0] - g * e0 * Di, F1 = v[1] - s[1] - g * e1 * Di;
         const V F2 = v[2] - s[2] - g * e2 * Di, F3 = v[3] - s[3] - g * e3 * Di;
         const V q0 = g * (one - e0 * e0), q1 = g * (one - e1 * e1), q2 = g * (one - e2 * e2), q3 = g * (one - e3 * e3);
-        const V J11 = one + q1, J22 = one + q2, J33 = one + q3;
-        const V a1 = -F1 / J11, b1 = q1 / J11;
-        const V a2 = vfmadd(q2, a1, -F2) / J22, b2 = q2 * b1 / J22;
-        const V a3 = vfmadd(q3, a2, -F3) / J33, b3 = q3 * b2 / J33;
+        const V i1 = one / (one + q1), i2 = one / (one + q2), i3 = one / (one + q3);   // the diagonal's reciprocals first
+        const V a1 = -F1 * i1, b1 = q1 * i1;
+        const V a2 = vfmadd(q2, a1, -F2) * i2, b2 = q2 * b1 * i2;
+        const V a3 = vfmadd(q3, a2, -F3) * i3, b3 = q3 * b2 * i3;
         const V J00 = one + q0, J03 = q0 * k * (one - tr * tr);
         const V D0 = vfnmadd(J03, a3, -F0) / vfmadd(J03, b3, J00);
         v[0] = v[0] + D0;
@@ -210,14 +214,15 @@ EPH_FORCE_INLINE V diodeLadder(V* v, V* s, V x, V g, V k)
         const V T21 = T12, T22 = vfmadd(g, d12 + d23, one), T23 = -g * d23;
         const V T32 = -g2 * d23, T33 = vfmadd(g2, d23, one);
         const V J03 = g * di * k;   // the corner: the feedback into the first node
-        // Thomas, for the residual and for the unit vector e0 at once.
-        const V c0 = T01 / T00, x0 = r0 / T00, z0 = one / T00;
-        const V m1 = vfnmadd(T10, c0, T11);
-        const V c1 = T12 / m1, x1 = vfnmadd(T10, x0, r1) / m1, z1 = -(T10 * z0) / m1;
-        const V m2 = vfnmadd(T21, c1, T22);
-        const V c2 = T23 / m2, x2 = vfnmadd(T21, x1, r2) / m2, z2 = -(T21 * z1) / m2;
-        const V m3 = vfnmadd(T32, c2, T33);
-        const V X3 = vfnmadd(T32, x2, r3) / m3, Z3 = -(T32 * z2) / m3;
+        // Thomas, for the residual and for the unit vector e0 at once; every pivot's reciprocal once, the rest multiplied.
+        const V z0 = one / T00;
+        const V c0 = T01 * z0, x0 = r0 * z0;
+        const V n1 = one / vfnmadd(T10, c0, T11);
+        const V c1 = T12 * n1, x1 = vfnmadd(T10, x0, r1) * n1, z1 = -(T10 * z0) * n1;
+        const V n2 = one / vfnmadd(T21, c1, T22);
+        const V c2 = T23 * n2, x2 = vfnmadd(T21, x1, r2) * n2, z2 = -(T21 * z1) * n2;
+        const V n3 = one / vfnmadd(T32, c2, T33);
+        const V X3 = vfnmadd(T32, x2, r3) * n3, Z3 = -(T32 * z2) * n3;
         const V X2 = vfnmadd(c2, X3, x2), Z2 = vfnmadd(c2, Z3, z2);
         const V X1 = vfnmadd(c1, X2, x1), Z1 = vfnmadd(c1, Z2, z1);
         const V X0 = vfnmadd(c0, X1, x0), Z0 = vfnmadd(c0, Z1, z0);
@@ -247,8 +252,8 @@ EPH_FORCE_INLINE V korg35(V* v, V* s, V x, V g, V K)
         const V F0 = v[0] - s[0] - g * (x - two * A + v[1]), F1 = v[1] - s[1] - g * (A - v[1]);
         const V kd = K * (one - dq * dq);                            // dA / dq1
         const V J00 = vfmadd(two, g, one), J01 = g * (two * kd - one), J10 = -g, J11 = one + g - g * kd;
-        const V det = J00 * J11 - J01 * J10;
-        const V D0 = (J01 * F1 - J11 * F0) / det, D1 = (J10 * F0 - J00 * F1) / det;
+        const V idet = one / (J00 * J11 - J01 * J10);
+        const V D0 = (J01 * F1 - J11 * F0) * idet, D1 = (J10 * F0 - J00 * F1) * idet;
         v[0] = v[0] + D0;
         v[1] = v[1] + D1;
     }
