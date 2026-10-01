@@ -65,9 +65,12 @@ struct ModSlot {
 };
 /** @brief A voice's modulation settings: the modulation envelope, the LFOs, the matrix. */
 struct ModSettings {
-    float attackMs = 10.0f, decayMs = 500.0f, sustain = 0.0f, releaseMs = 300.0f;   ///< the modulation envelope
-    LfoSettings lfo[kLfos];
-    ModSlot slot[kModSlots];
+    float attackMs = 10.0f;   ///< the modulation envelope's attack, ms
+    float decayMs = 500.0f;   ///< its decay, ms
+    float sustain = 0.0f;   ///< its sustain, 0..1
+    float releaseMs = 300.0f;   ///< its release, ms
+    LfoSettings lfo[kLfos];   ///< the four LFOs
+    ModSlot slot[kModSlots];   ///< the matrix
 };
 
 /** @brief The smaller matrix's destinations (the tape keys', the strings': kShortModDestNames) as ModDest. */
@@ -188,16 +191,23 @@ public:
     float offset(const float* sums, ModDest d) const { return active() && targets(d) ? sums[static_cast<int>(d)] : 0.0f; }
 
 private:
+    /** @brief One LFO's running state. */
     struct LfoState {
         double cyc = 0.0;       ///< a free LFO's cycles
         double offset = 0.0;    ///< a synced one's shift against the beat (retrig)
         double inc = 0.0;       ///< cycles per sample, free
         double cpb = 0.0;       ///< cycles per beat, synced (0: free)
         int64_t cycle = std::numeric_limits<int64_t>::min();   ///< the whole cycle last read (the random shapes draw on a new one)
-        float from = 0.0f, to = 0.0f;   ///< the random shapes' last two values
-        Rng rng;
+        float from = 0.0f;   ///< the random shapes' last value
+        float to = 0.0f;   ///< ... and the next
+        Rng rng;   ///< the random shapes' stream
     };
-    struct Live { int src = 0, dst = 0; float amount = 0.0f; };
+    /** @brief A slot that reaches something, with its amount already scaled by the span. */
+    struct Live {
+        int src = 0;           ///< its source (ModSource)
+        int dst = 0;           ///< its destination (ModDest)
+        float amount = 0.0f;   ///< its amount, scaled by the destination's span
+    };
 
     /** @brief The free LFOs run on to sample @p at (read or not). */
     void advance(int64_t at)
@@ -206,6 +216,7 @@ private:
         for (LfoState& s : lfo_) if (s.cpb <= 0.0) s.cyc += n * s.inc;
         lastAt_ = at;
     }
+    /** @brief LFO @p l's value at sample @p at, beat @p beat. */
     float value(int l, int64_t at, double beat)
     {
         LfoState& s = lfo_[l];
@@ -237,16 +248,17 @@ private:
         return v;
     }
 
-    double sr_ = 48000.0;
-    ModSettings m_;
-    Envelope env_;
-    LfoState lfo_[kLfos];
-    Live liveSlots_[kModSlots];
-    int live_ = 0;
-    unsigned lfoUsed_ = 0u, dstMask_ = 0u;
-    bool envUsed_ = false;
-    int64_t lastAt_ = 0;
-    int64_t noteAt_ = 0;
+    double sr_ = 48000.0;   ///< sample rate
+    ModSettings m_;   ///< the settings
+    Envelope env_;   ///< the modulation envelope
+    LfoState lfo_[kLfos];   ///< the LFOs
+    Live liveSlots_[kModSlots];   ///< the slots that reach something
+    int live_ = 0;   ///< how many
+    unsigned lfoUsed_ = 0u;   ///< which LFOs a slot reads (bit l)
+    unsigned dstMask_ = 0u;   ///< which destinations a slot reaches (bit d)
+    bool envUsed_ = false;   ///< a slot reads the envelope
+    int64_t lastAt_ = 0;   ///< the sample the free LFOs ran to
+    int64_t noteAt_ = 0;   ///< the last note's sample (the fades)
 };
 
 } // namespace eph

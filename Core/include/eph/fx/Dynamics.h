@@ -102,8 +102,15 @@ public:
     float reduction() const { return reduction_; }
 
 private:
-    double sr_ = 48000.0, aA_ = 0.99, aR_ = 0.999, y1_ = 0.0, yL_ = 0.0;
-    float T_ = -12.0f, R_ = 2.0f, W_ = 6.0f, reduction_ = 0.0f;
+    double sr_ = 48000.0;   ///< the sample rate, Hz
+    double aA_ = 0.99;   ///< the detector's attack coefficient
+    double aR_ = 0.999;   ///< the detector's release coefficient
+    double y1_ = 0.0;   ///< the detector's peak stage, dB of reduction
+    double yL_ = 0.0;   ///< its smoothed stage: the reduction applied
+    float T_ = -12.0f;   ///< the threshold, dB
+    float R_ = 2.0f;   ///< the ratio
+    float W_ = 6.0f;   ///< the knee's width, dB
+    float reduction_ = 0.0f;   ///< the reduction of the last sample, dB
 };
 
 /** @brief 8x interpolation for true-peak estimates: seven phases of twenty-four taps each. */
@@ -157,8 +164,8 @@ public:
         return std::max(a, b);
     }
 private:
-    double h_[kPhases - 1][kTaps] = {};
-    double bound_ = 1.0;
+    double h_[kPhases - 1][kTaps] = {};   ///< the fractional-delay filters, one per interpolated phase
+    double bound_ = 1.0;   ///< gainBound()
 };
 
 /** @brief Stereo lookahead true-peak limiter. */
@@ -178,29 +185,32 @@ public:
     float reduction() const { return reduction_; }
 
 private:
-    TruePeakInterpolator interp_;
-    double sr_ = 48000.0;
-    int window_ = 72;
-    float ceiling_ = 0.891f;
-    double release_ = 0.999;
+    TruePeakInterpolator interp_;   ///< the true-peak interpolator
+    double sr_ = 48000.0;   ///< the sample rate, Hz
+    int window_ = 72;   ///< the lookahead window, samples
+    float ceiling_ = 0.891f;   ///< the ceiling, linear
+    double release_ = 0.999;   ///< the gain's per-sample recovery factor
     // Input history for the interpolator (both channels): 2 * kTaps slots, every sample written into
     // both halves, so the kTaps the filter needs are always contiguous (see process()).
-    std::vector<float> histL_, histR_;
-    int histPos_ = 0;
-    double prevBetween_ = 0.0;
-    // Required gains, the sliding-minimum deque and the moving average.
+    std::vector<float> histL_;   ///< the interpolator's input history, left
+    std::vector<float> histR_;   ///< ... right
+    int histPos_ = 0;   ///< where the history is written
+    double prevBetween_ = 0.0;   ///< the last sample's interpolated peak (a peak between two samples counts for both)
+    /// Required gains, the sliding-minimum deque and the moving average.
     std::vector<double> req_;
-    std::vector<int> dq_;
-    int dqHead_ = 0, dqTail_ = 0;
-    std::vector<double> minRing_;
-    double minSum_ = 0.0;
-    long long t_ = 0;
-    int sinceRecompute_ = 0;
-    double gain_ = 1.0;
+    std::vector<int> dq_;   ///< the sliding minimum's deque: positions of required gains
+    int dqHead_ = 0;   ///< the deque's head
+    int dqTail_ = 0;   ///< the deque's tail
+    std::vector<double> minRing_;   ///< the sliding minima of the last window
+    double minSum_ = 0.0;   ///< their sum: the moving average times the window
+    long long t_ = 0;   ///< samples processed
+    int sinceRecompute_ = 0;   ///< samples since minSum_ was summed afresh (rounding)
+    double gain_ = 1.0;   ///< the gain applied
     // The audio delay.
-    std::vector<float> delayL_, delayR_;
-    int delayPos_ = 0;
-    float reduction_ = 0.0f;
+    std::vector<float> delayL_;   ///< the audio delay, left
+    std::vector<float> delayR_;   ///< the audio delay, right
+    int delayPos_ = 0;   ///< where the delay is written
+    float reduction_ = 0.0f;   ///< the reduction of the last sample, dB
 };
 
 } // namespace eph

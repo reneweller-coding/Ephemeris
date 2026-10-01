@@ -239,6 +239,14 @@ filters, the expression pedal (11) throws the echo, the sustain pedal (64) holds
 in every generator of the family. Learn binds any controller to any of the four; the bindings are saved with the
 plugin's state. While a headset sends its hands, a box beside the controls shows what they do (The panel).
 
+The keyboard (the Keyboard group): Keyboard Plays sends the keys of a MIDI keyboard to a voice instead of the
+transposition -- the lead, the drone, the poly synth, the tape keys, the strings, the drums (General MIDI's drum map), a
+row, or by channel (1 to 8 the rows, 9 the lead, 10 the drums, 11 the drone, 12 the poly synth, 13 the tape keys, 14 the
+strings) -- with the sound its page has, untransposed. Replace leaves that voice's
+generated notes out, Layer plays over them; Composer off leaves every generated note out, and only what is played
+sounds, through the mix and the effects as composed. The keys play while the music runs, each on its sample; an export
+plays what was composed.
+
 A row cannot be mutated live: the piece is composed before it plays. To hear the rack with other
 patterns, reroll the rack.
 

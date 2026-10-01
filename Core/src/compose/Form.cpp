@@ -43,6 +43,7 @@ const Section* PieceForm::find(SectionType type, int phase) const
 
 namespace {
 
+/** @brief The fewest bars a section of type @p t has. */
 int minBars(SectionType t)
 {
     switch (t) {

@@ -2,7 +2,7 @@
 PROJECT_NAME           = Ephemeris
 PROJECT_BRIEF          = "Generator for long Berlin-school pieces and concerts"
 OUTPUT_DIRECTORY       = build/doxygen
-INPUT                  = Core/include Core/src Plugin Tools/render Tests README.md
+INPUT                  = Core/include Core/src Plugin Quest/src Tools/render Tests README.md
 FILE_PATTERNS          = *.h *.cpp *.md
 RECURSIVE              = YES
 EXCLUDE                = Tests/neonshim

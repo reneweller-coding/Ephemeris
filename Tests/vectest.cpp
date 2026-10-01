@@ -25,7 +25,7 @@ using namespace ephtest;
 
 namespace {
 
-constexpr int W = kVecWidth;
+constexpr int W = kVecWidth;   ///< the lanes of the vector type compiled here
 
 /** @brief Deterministic test values covering signs, tiny and large magnitudes. */
 float testValue(uint32_t i)
@@ -42,8 +42,10 @@ float testValue(uint32_t i)
     }
 }
 
+/** @brief Whether @p a and @p b are the same float, bit for bit. */
 bool sameBits(float a, float b) { return std::memcmp(&a, &b, sizeof(float)) == 0; }
 
+/** @brief The vector type's operations against the scalar ones, lane by lane, bit for bit. */
 void testOps()
 {
     section("vector operations, lane by lane");
@@ -71,6 +73,7 @@ void testOps()
     check(bad == 0, "12 operations identical to scalar", fmt("%d of %d lanes differ", bad, total));
 }
 
+/** @brief The ladder filters on vectors against the scalar ones, bit for bit. */
 void testLadder()
 {
     section("ladder lanes against the scalar ladder");
@@ -101,6 +104,7 @@ void testLadder()
     check(std::isfinite(maxAbs) && maxAbs < 50.0f, "ladder bounded under drive and resonance", fmt("max |y| = %.3f", static_cast<double>(maxAbs)));
 }
 
+/** @brief The half-band decimator on vectors against the scalar one, bit for bit. */
 void testHalfband()
 {
     section("half-band lanes against scalar");
@@ -129,6 +133,7 @@ void testHalfband()
     check(bad == 0, "decimator and interpolator identical to scalar", fmt("%d differing samples", bad));
 }
 
+/** @brief The voice kernel on vectors against the scalar one, bit for bit. */
 void testVoiceKernel()
 {
     section("modular voice kernel lanes against scalar");
@@ -212,6 +217,7 @@ void testVoiceKernel()
 
 } // namespace
 
+/** @brief Runs the tests; the exit code is the number of failures. */
 int main()
 {
     std::printf("eph_vectest: path %s, %d lanes\n", kVecPathName, W);

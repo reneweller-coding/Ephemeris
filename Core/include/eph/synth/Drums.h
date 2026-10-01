@@ -41,21 +41,26 @@ public:
     void process(float* L, float* R, int n);
 
 private:
+    /** @brief The kit's instruments. */
     enum Inst { Kick, Snare, Closed, Open, TomLow, TomHigh, Rim, Shaker, kInsts };
+    /** @brief One instrument sounding. */
     struct Voice {
         double age = 1e9;          ///< seconds since the hit
-        float velocity = 0.0f;
-        double phase = 0.0, phase2 = 0.0;
-        float hz = 100.0f;
-        Svf bp;
+        float velocity = 0.0f;   ///< its velocity, 0..1
+        double phase = 0.0;   ///< its tone's phase
+        double phase2 = 0.0;   ///< its second tone's phase
+        float hz = 100.0f;   ///< its pitch, Hz
+        Svf bp;   ///< its noise's band pass
     };
+    /** @brief White noise, -1 .. 1. */
     float noise() { return rng_.bipolar(); }
-    double sr_ = 48000.0;
-    DrumSettings s_;
-    Voice v_[kInsts];
+    double sr_ = 48000.0;   ///< the sample rate, Hz
+    DrumSettings s_;   ///< the settings
+    Voice v_[kInsts];   ///< the instruments
     double metal_[6] = {};         ///< the hats' six square phases
-    Svf hatBp_, hatHp_;
-    Rng rng_;
+    Svf hatBp_;   ///< the hats' band pass
+    Svf hatHp_;   ///< the hats' high pass
+    Rng rng_;   ///< the noise's stream
 };
 
 } // namespace eph

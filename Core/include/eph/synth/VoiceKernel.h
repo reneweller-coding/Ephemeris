@@ -97,7 +97,8 @@ struct VoiceLanes {
     /** @} */
     /** @name Per sample at twice the rate (index (2 i + h) * kBankLanes + lane): the wavetable oscillators (ModVoice)
      *  @{ */
-    alignas(32) float wt1[2 * kBankSpan * kBankLanes] = {}, wt2[2 * kBankSpan * kBankLanes] = {};
+    alignas(32) float wt1[2 * kBankSpan * kBankLanes] = {};   ///< the first wavetable oscillator, per sample at twice the rate and lane
+    alignas(32) float wt2[2 * kBankSpan * kBankLanes] = {};   ///< the second
     /** @} */
 
     /** @name The comb filters (unaligned, last)

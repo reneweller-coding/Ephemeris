@@ -9,12 +9,14 @@
 namespace eph {
 
 namespace {
+/** @brief The half-band filter back down to the rate, designed once. */
 const HalfbandDesign& halfband()
 {
     static const HalfbandDesign d = designHalfband(96.0, 0.1);
     return d;
 }
-constexpr double kDriftTau1 = 14.0, kDriftTau2 = 19.0;   ///< seconds; two, so the VCOs wander apart
+constexpr double kDriftTau1 = 14.0;   ///< VCO 1's wander time constant, s
+constexpr double kDriftTau2 = 19.0;   ///< VCO 2's, so the two wander apart
 constexpr int64_t kControl = 4;   ///< samples per control step of pitch and cutoff (a power of two)
 }
 

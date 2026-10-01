@@ -11,17 +11,18 @@ namespace eph {
 
 namespace {
 
-// Formants of a mixed choir: "aah" and "ooh" (after Klatt 1980; male and female values averaged and
-// rounded). Frequency in Hz, bandwidth in Hz, level in dB.
+/// Formants of a mixed choir: "aah" and "ooh" (after Klatt 1980; male and female values averaged and
+/// rounded). Frequency in Hz, bandwidth in Hz, level in dB.
 constexpr float kAahF[5] = { 730.0f, 1090.0f, 2440.0f, 3400.0f, 4200.0f };
-constexpr float kAahB[5] = { 80.0f, 90.0f, 120.0f, 180.0f, 250.0f };
-constexpr float kAahG[5] = { 0.0f, -5.0f, -15.0f, -22.0f, -28.0f };
-constexpr float kOohF[5] = { 330.0f, 870.0f, 2240.0f, 3200.0f, 4100.0f };
-constexpr float kOohB[5] = { 60.0f, 80.0f, 110.0f, 170.0f, 240.0f };
-constexpr float kOohG[5] = { 0.0f, -10.0f, -26.0f, -32.0f, -36.0f };
+constexpr float kAahB[5] = { 80.0f, 90.0f, 120.0f, 180.0f, 250.0f };   ///< "aah": bandwidths, Hz
+constexpr float kAahG[5] = { 0.0f, -5.0f, -15.0f, -22.0f, -28.0f };   ///< "aah": levels, dB
+constexpr float kOohF[5] = { 330.0f, 870.0f, 2240.0f, 3200.0f, 4100.0f };   ///< "ooh": frequencies, Hz
+constexpr float kOohB[5] = { 60.0f, 80.0f, 110.0f, 170.0f, 240.0f };   ///< "ooh": bandwidths, Hz
+constexpr float kOohG[5] = { 0.0f, -10.0f, -26.0f, -32.0f, -36.0f };   ///< "ooh": levels, dB
 
-constexpr int kStringSaws = 5;
+constexpr int kStringSaws = 5;   ///< saws of a strings tape
 
+/** @brief The pressure pad's rise time constant for tape set @p set, s. */
 double riseTau(TapeSet set) { return set == TapeSet::Strings ? 0.08 : (set == TapeSet::Flute ? 0.05 : 0.06); }
 
 } // namespace

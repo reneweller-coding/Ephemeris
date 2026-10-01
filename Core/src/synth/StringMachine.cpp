@@ -20,7 +20,13 @@ constexpr double kModulus = 256.0;         ///< the counter wraps after eight oc
  *        machine"; a saw and a square of one footage are phase-locked and partly cancel, which the plain
  *        normalisation by the weights cannot know).
  */
-struct Registration { const char* name; float w[StringMachine::kRegisters]; float tone; float trim; };
+struct Registration {
+    const char* name;                   ///< its name
+    float w[StringMachine::kRegisters];   ///< the registers' weights
+    float tone;                         ///< the tone's factor
+    float trim;                         ///< the loudness trim
+};
+/** @brief The registrations, in the order of the knob. */
 const Registration kRegTable[StringMachine::kRegistrations] = {
     { "Violins", { 0.00f, 1.00f, 0.55f, 0.00f, 0.00f }, 1.25f, 1.000f },
     { "Violas",  { 0.00f, 0.85f, 0.20f, 0.45f, 0.00f }, 1.00f, 2.100f },
@@ -32,6 +38,7 @@ const Registration kRegTable[StringMachine::kRegistrations] = {
     { "Organ",   { 0.45f, 0.00f, 0.00f, 1.00f, 0.70f }, 0.90f, 0.885f },
 };
 
+/** @brief The fraction of @p x. */
 float frac(double x) { return static_cast<float>(x - std::floor(x)); }
 } // namespace
 

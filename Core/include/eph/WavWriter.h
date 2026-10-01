@@ -70,6 +70,7 @@ private:
     std::vector<std::pair<uint64_t, std::string>> cues_;   ///< frame, label
     std::vector<std::pair<std::string, std::string>> info_; ///< four-letter id, text
     uint64_t trailing_ = 0;                                  ///< bytes after the data chunk (pad byte included)
+    /** @brief Writes the RIFF header (@p final: with the sizes and the chunks after the data); false on a write error. */
     bool writeHeader(bool final);
     /** @brief The dither's uniform draw in [0, 1) (xorshift64*). */
     double uniform()
@@ -77,13 +78,14 @@ private:
         rng_ ^= rng_ >> 12; rng_ ^= rng_ << 25; rng_ ^= rng_ >> 27;
         return static_cast<double>((rng_ * 2685821657736338717ull) >> 11) * (1.0 / 9007199254740992.0);
     }
-    bool dither_ = true;
-    uint64_t rng_ = 0x9E3779B97F4A7C15ull;
-    FILE* f_ = nullptr;
-    int sampleRate_ = 48000, channels_ = 2;
-    WavFormat format_ = WavFormat::Float32;
-    uint64_t frames_ = 0;
-    uint32_t clipped_ = 0;
+    bool dither_ = true;   ///< TPDF dither on the integer formats
+    uint64_t rng_ = 0x9E3779B97F4A7C15ull;   ///< the dither's state
+    FILE* f_ = nullptr;   ///< the file, null while closed
+    int sampleRate_ = 48000;   ///< the sample rate, Hz
+    int channels_ = 2;   ///< how many channels
+    WavFormat format_ = WavFormat::Float32;   ///< the sample format
+    uint64_t frames_ = 0;   ///< frames written
+    uint32_t clipped_ = 0;   ///< samples clipped on the way to an integer format
 };
 
 } // namespace eph

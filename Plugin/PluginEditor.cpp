@@ -21,8 +21,11 @@ using namespace eph;
 
 namespace {
 
-const juce::Colour kBack = ephui::colour::bg, kPanel = ephui::colour::panel, kInk = ephui::colour::ink, kDim = ephui::colour::dim,
-                   kAccent = ephui::colour::amber;
+const juce::Colour kBack = ephui::colour::bg;   ///< the window: midnight
+const juce::Colour kPanel = ephui::colour::panel;   ///< a page (the orrery shows faintly through it)
+const juce::Colour kInk = ephui::colour::ink;   ///< text: parchment
+const juce::Colour kDim = ephui::colour::dim;   ///< names, secondary text
+const juce::Colour kAccent = ephui::colour::amber;   ///< the sun: the accent
 
 /**
  * @brief Colour of a section by the first word of its marker: the families' colours, darkened -- the spaces (the

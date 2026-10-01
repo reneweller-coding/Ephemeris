@@ -373,6 +373,11 @@ void Engine::updateCell()
         t.offset = c == none ? 0.0f : gestureValue(t.gestures[c], beat);
     }
     transpose_ = static_cast<int>(std::lround(knob(Module::Perform, perform::Transpose)));
+    // The keyboard (live play only, 01.10.2026): what it plays, whether that replaces the composer's notes, whether the
+    // composer plays at all.
+    keyTarget_ = live_ ? params_.getInt(params_.id(Module::Perform, 0, perform::KeyboardPart)) : perform::keys::Off;
+    keyReplace_ = !live_ || params_.getInt(params_.id(Module::Perform, 0, perform::KeyboardMode)) == 0;
+    composerOff_ = live_ && !params_.getBool(params_.id(Module::Perform, 0, perform::Composer));
 
     // The modular voices: the rows (their strips on the row module), the lead and the drone; the clock for the synths'
     // synced LFOs.
@@ -1080,6 +1085,7 @@ void Engine::seek(double beat)
 
 void Engine::dispatch(const Ev& e)
 {
+    if (e.on && !liveEvent_ && silenced(e.source)) return;   // the keyboard's or nobody's (01.10.2026)
     switch (e.source) {
     case kSrcDrums:
         if (e.on) {
@@ -1112,17 +1118,106 @@ bool Engine::process(float* L, float* R, int n)
     int done = 0;
     while (done < n) {
         if ((sample_ % kCell) == 0 || cellDirty_) { updateCell(); cellDirty_ = false; }
-        // Every event due at this sample, offs before ons.
+        // Every event due at this sample, offs before ons; then the keys played on a MIDI keyboard (queueLive).
         while (evCursor_ < events_.size() && events_[evCursor_].sample <= sample_) dispatch(events_[evCursor_++]);
+        while (liveCursor_ < liveCount_ && liveQueue_[liveCursor_].at <= sample_) playLive(liveQueue_[liveCursor_++]);
         int64_t end = std::min<int64_t>(sample_ + (n - done), (sample_ / kCell + 1) * kCell);
         if (evCursor_ < events_.size()) end = std::min(end, events_[evCursor_].sample);
+        if (liveCursor_ < liveCount_) end = std::min(end, liveQueue_[liveCursor_].at);
         const int len = static_cast<int>(end - sample_);
         spanAt_ = done;
         renderSpan(L + done, R + done, len);
         sample_ += len;
         done += len;
     }
+    while (liveCursor_ < liveCount_) playLive(liveQueue_[liveCursor_++]);   // a key past the block's end: now
+    liveCount_ = liveCursor_ = 0;
     return seconds() < lengthSeconds();
+}
+
+int Engine::sourceOf(int target)
+{
+    switch (target) {
+    case perform::keys::Lead: return kSrcLead;
+    case perform::keys::Drone: return kSrcDrone;
+    case perform::keys::Poly: return kSrcPoly;
+    case perform::keys::TapeKeys: return kSrcTape;
+    case perform::keys::Strings: return kSrcStrings;
+    case perform::keys::Drums: return kSrcDrums;
+    default: return target >= perform::keys::Row1 && target <= perform::keys::Row8 ? target - perform::keys::Row1 : -1;
+    }
+}
+
+int Engine::targetOf(int source)
+{
+    for (int t = perform::keys::Lead; t < perform::keys::ByChannel; ++t)
+        if (sourceOf(t) == source) return t;
+    return perform::keys::Off;
+}
+
+bool Engine::silenced(int source) const
+{
+    if (composerOff_) return true;
+    if (keyTarget_ == perform::keys::Off || !keyReplace_) return false;
+    const int t = targetOf(source);
+    if (t == perform::keys::Off) return false;
+    // By channel, a voice is the player's from its first played key on (until liveAllOff).
+    if (keyTarget_ == perform::keys::ByChannel) return ((keyPlayed_ >> t) & 1u) != 0;
+    return keyTarget_ == t;
+}
+
+int Engine::keyboardTarget(int channel) const
+{
+    const int part = params_.getInt(params_.id(Module::Perform, 0, perform::KeyboardPart));
+    if (part != perform::keys::ByChannel) return std::clamp(part, 0, static_cast<int>(perform::keys::ByChannel) - 1);
+    // By channel: 1 .. 8 the rows, 9 the lead, 10 the drums (General MIDI's), 11 the drone, 12 the poly synth, 13 the tape
+    // keys, 14 the strings.
+    if (channel >= 0 && channel < kRows) return perform::keys::Row1 + channel;
+    static const int kChannel[6] = { perform::keys::Lead, perform::keys::Drums, perform::keys::Drone, perform::keys::Poly,
+                                     perform::keys::TapeKeys, perform::keys::Strings };
+    return channel >= kRows && channel < kRows + 6 ? kChannel[channel - kRows] : perform::keys::Off;
+}
+
+void Engine::queueLive(int offset, int pitch, int velocity, int channel, bool on)
+{
+    if (!live_ || pitch < 0 || pitch > 127 || liveCount_ >= kLiveQueue) return;
+    LiveKey k;
+    k.at = sample_ + std::max(0, offset);
+    k.pitch = pitch;
+    k.velocity = static_cast<float>(std::clamp(velocity, 1, 127)) / 127.0f;
+    k.target = on ? keyboardTarget(channel) : liveTarget_[pitch] - 1;
+    k.on = on;
+    if (k.target <= perform::keys::Off) return;
+    liveQueue_[liveCount_++] = k;
+}
+
+void Engine::playLive(const LiveKey& k)
+{
+    const int source = sourceOf(k.target);
+    if (source < 0) return;
+    if (k.on && liveTarget_[k.pitch] != 0) playLive(LiveKey{ k.at, k.pitch, 0.0f, liveTarget_[k.pitch] - 1, false });
+    Ev e{};
+    e.sample = sample_;
+    e.on = k.on ? 1 : 0;
+    e.source = static_cast<uint8_t>(source);
+    e.accent = k.velocity > 0.86f;
+    // Untransposed: dispatch() adds the transposition the composer's notes get.
+    e.pitch = source == kSrcDrums ? k.pitch : k.pitch - transpose_;
+    e.velocity = k.velocity;
+    e.id = 0x40000000 + k.pitch;   // a key's own id: its release finds its note
+    liveEvent_ = true;
+    dispatch(e);
+    liveEvent_ = false;
+    liveTarget_[k.pitch] = k.on ? static_cast<uint8_t>(k.target + 1) : 0;
+    if (k.on) keyPlayed_ |= 1u << k.target;
+}
+
+void Engine::liveAllOff()
+{
+    liveCount_ = liveCursor_ = 0;
+    for (int k = 0; k < 128; ++k)
+        if (liveTarget_[k] != 0) playLive(LiveKey{ sample_, k, 0.0f, liveTarget_[k] - 1, false });
+    keyPlayed_ = 0;
 }
 
 } // namespace eph

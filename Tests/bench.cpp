@@ -18,8 +18,10 @@ using namespace eph;
 
 namespace {
 
-constexpr double kRate = 48000.0;
-constexpr int kSeconds = 2, kRuns = 5, kBlock = 32;
+constexpr double kRate = 48000.0;   ///< the sample rate, Hz
+constexpr int kSeconds = 2;   ///< audio a run renders, s
+constexpr int kRuns = 5;   ///< runs; the fastest counts
+constexpr int kBlock = 32;   ///< the block, samples
 
 /** @brief The fastest of kRuns runs of @p render (kSeconds of audio), as the share of a core. */
 template <class F>
@@ -80,6 +82,7 @@ double pad(int model, int keys)
 
 } // namespace
 
+/** @brief Times the engine's parts and the whole; prints each as the share of a core. */
 int main()
 {
     prepareWavetables();

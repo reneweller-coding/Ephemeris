@@ -14,13 +14,15 @@ namespace {
 
 /** @brief One event of a track before it is serialised: absolute tick, order for equal ticks, bytes. */
 struct Ev {
-    int64_t tick;
+    int64_t tick;   ///< when, in ticks
     int order;   ///< at equal ticks: meta first, note-offs before note-ons
-    std::vector<uint8_t> bytes;
+    std::vector<uint8_t> bytes;   ///< the status and data bytes
 };
 
+/** @brief Beat @p beat in ticks (kMidiPpq per beat). */
 int64_t toTick(double beat) { return static_cast<int64_t>(std::llround(beat * kMidiPpq)); }
 
+/** @brief Appends @p v as a variable-length quantity. */
 void putVarLen(std::vector<uint8_t>& out, uint32_t v)
 {
     uint8_t buf[5];
@@ -30,11 +32,13 @@ void putVarLen(std::vector<uint8_t>& out, uint32_t v)
     while (n > 0) out.push_back(buf[--n]);
 }
 
+/** @brief Appends @p v big-endian. */
 void put32(std::vector<uint8_t>& out, uint32_t v)
 {
     for (int s = 24; s >= 0; s -= 8) out.push_back(static_cast<uint8_t>((v >> s) & 0xFF));
 }
 
+/** @brief A meta event of @p type with @p data at @p tick. */
 Ev meta(int64_t tick, uint8_t type, const std::vector<uint8_t>& data)
 {
     Ev e{ tick, 0, { 0xFF, type } };
@@ -43,11 +47,13 @@ Ev meta(int64_t tick, uint8_t type, const std::vector<uint8_t>& data)
     return e;
 }
 
+/** @brief A text meta event of @p type (a marker, a track name) at @p tick. */
 Ev metaText(int64_t tick, uint8_t type, const std::string& s)
 {
     return meta(tick, type, std::vector<uint8_t>(s.begin(), s.end()));
 }
 
+/** @brief A tempo meta event of @p bpm at @p tick. */
 Ev tempoEvent(int64_t tick, double bpm)
 {
     const uint32_t us = static_cast<uint32_t>(std::llround(60.0e6 / bpm));
@@ -62,6 +68,7 @@ int minorKeySharps(int root)
     return kMajorSharps[((root % 12) + 12 + 3) % 12];
 }
 
+/** @brief Sorts @p evs and appends them to @p file as a track chunk (delta times, end of track). */
 void appendTrack(std::vector<uint8_t>& file, std::vector<Ev>& evs)
 {
     std::stable_sort(evs.begin(), evs.end(), [](const Ev& a, const Ev& b) {

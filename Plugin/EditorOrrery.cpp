@@ -12,7 +12,11 @@ using namespace eph;
 
 namespace {
 
-const juce::Colour kBack = ephui::colour::bg, kInk = ephui::colour::ink, kDim = ephui::colour::dim, kFaint = ephui::colour::faint, kSun = ephui::colour::amber;
+const juce::Colour kBack = ephui::colour::bg;   ///< the window: midnight
+const juce::Colour kInk = ephui::colour::ink;   ///< text: parchment
+const juce::Colour kDim = ephui::colour::dim;   ///< names, secondary text
+const juce::Colour kFaint = ephui::colour::faint;   ///< tracks, axes, the off state
+const juce::Colour kSun = ephui::colour::amber;   ///< the sun: the accent
 
 /** @brief A colour per row, warm inside, cool outside. */
 juce::Colour rowColour(int r)
@@ -21,7 +25,7 @@ juce::Colour rowColour(int r)
     return juce::Colour(c[r & 7]);
 }
 
-const char* const kNoteNames[12] = { "C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B" };
+const char* const kNoteNames[12] = { "C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B" };   ///< the notes' names
 
 /** @brief A step length in beats as a note value. */
 juce::String noteValue(double beats)

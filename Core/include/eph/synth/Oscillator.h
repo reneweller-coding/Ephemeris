@@ -89,15 +89,20 @@ public:
     }
 
 private:
+    /** @brief The naive wave at phase @p t: the saw blended into the pulse by wave_. */
     float shapeAt(float t) const
     {
         const float saw = 2.0f * t - 1.0f;
         const float pulse = t < pw_ ? -1.0f : 1.0f;
         return saw + wave_ * (pulse - saw);
     }
-    float phase_ = 0.5f, dt_ = 0.001f, wave_ = 0.0f, pw_ = 0.5f;
-    float lastValue_ = 0.0f, pendingJump_ = 0.0f;
-    bool  hasJump_ = false;
+    float phase_ = 0.5f;   ///< the phase, 0..1
+    float dt_ = 0.001f;   ///< the phase step per sample
+    float wave_ = 0.0f;   ///< the wave: 0 saw .. 1 pulse
+    float pw_ = 0.5f;   ///< the pulse's width
+    float lastValue_ = 0.0f;   ///< the last sample before its correction
+    float pendingJump_ = 0.0f;   ///< a jump still to be smoothed in the next sample (its PolyBLEP's second half)
+    bool  hasJump_ = false;   ///< pendingJump_ holds one
 };
 
 } // namespace eph

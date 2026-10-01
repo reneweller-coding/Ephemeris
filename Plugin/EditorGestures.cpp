@@ -11,10 +11,14 @@
 using namespace eph;
 
 namespace {
-const juce::Colour kBack = ephui::colour::bg, kInk = ephui::colour::ink, kDim = ephui::colour::dim, kFaint = ephui::colour::edge, kPlayhead = ephui::colour::amber;
+const juce::Colour kBack = ephui::colour::bg;   ///< the window: midnight
+const juce::Colour kInk = ephui::colour::ink;   ///< text: parchment
+const juce::Colour kDim = ephui::colour::dim;   ///< names, secondary text
+const juce::Colour kFaint = ephui::colour::edge;   ///< hairlines
+const juce::Colour kPlayhead = ephui::colour::amber;   ///< the sun: the accent
 const juce::Colour kHand[2] = { ephui::familyColour(ephui::Family::Source), ephui::familyColour(ephui::Family::Motion) };   ///< left hand warm, right hand cool
-constexpr float kNameWidth = 150.0f;
-constexpr float kHandsHeight = 22.0f;
+constexpr float kNameWidth = 150.0f;   ///< the lanes' names' column, px
+constexpr float kHandsHeight = 22.0f;   ///< the hands' strip at the top, px
 }
 
 GestureView::GestureView(EphemerisProcessor& p) : proc_(p)

@@ -11,6 +11,7 @@ namespace eph {
 
 namespace {
 
+/** @brief A player's hands: a gesture's median length and the rest between, seconds. */
 HandStyle hands(double medianSeconds, double restSeconds)
 {
     HandStyle h;
@@ -19,7 +20,7 @@ HandStyle hands(double medianSeconds, double restSeconds)
     return h;
 }
 
-// Designated initializers (C++20): every value stands by its name, in the order of Style.h.
+/// Designated initializers (C++20): every value stands by its name, in the order of Style.h.
 const StyleProfile kProfiles[] = {
     // Cosmic: the seventies' sound, no drums, choir tapes, long intros, slow builds.
     {

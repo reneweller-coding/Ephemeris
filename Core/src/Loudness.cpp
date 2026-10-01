@@ -10,8 +10,9 @@ namespace eph {
 
 namespace {
 
-constexpr double kPiD = 3.14159265358979323846;
+constexpr double kPiD = 3.14159265358979323846;   ///< pi
 
+/** @brief A K-weighted mean square in LUFS, -120 for silence. */
 double lufs(double meanSquareSum) { return meanSquareSum > 0.0 ? -0.691 + 10.0 * std::log10(meanSquareSum) : -120.0; }
 
 } // namespace

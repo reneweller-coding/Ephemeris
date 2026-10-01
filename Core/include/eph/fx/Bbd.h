@@ -30,18 +30,28 @@ public:
     void process(const float* inL, const float* inR, float* outL, float* outR, int n);
 
 private:
+    /** @brief @p buf read @p delaySamples ago (interpolated). */
     float read(const std::vector<float>& buf, double delaySamples) const;
-    double sr_ = 48000.0;
-    std::vector<float> bufL_, bufR_;
-    size_t mask_ = 0, write_ = 0;
-    EchoSettings s_;
-    Smoother delay_;
-    double target_ = 0.0;
-    bool fresh_ = true;
-    double lfo_ = 0.0;
-    Svf lp1L_, lp2L_, lp1R_, lp2R_, hpL_, hpR_;
-    float drive_ = 1.5f, driveNorm_ = 0.66f, hiss_ = 0.0f;
-    Rng rng_;
+    double sr_ = 48000.0;   ///< the sample rate, Hz
+    std::vector<float> bufL_;   ///< the bucket chain, left
+    std::vector<float> bufR_;   ///< ... right
+    size_t mask_ = 0;   ///< its size - 1
+    size_t write_ = 0;   ///< where the next sample goes
+    EchoSettings s_;   ///< the settings
+    Smoother delay_;   ///< the delay in samples, gliding to its target (the clock)
+    double target_ = 0.0;   ///< the delay asked for, samples
+    bool fresh_ = true;   ///< no settings taken since prepare() or reset()
+    double lfo_ = 0.0;   ///< the clock's wander: its phase
+    Svf lp1L_;   ///< the chain's fourth-order low pass: its first section, left
+    Svf lp2L_;   ///< ... its second section, left
+    Svf lp1R_;   ///< ... first section, right
+    Svf lp2R_;   ///< ... second section, right
+    Svf hpL_;   ///< the feedback's high pass, left
+    Svf hpR_;   ///< ... right
+    float drive_ = 1.5f;   ///< the chain's drive
+    float driveNorm_ = 0.66f;   ///< the gain that keeps the level after it
+    float hiss_ = 0.0f;   ///< the chain's hiss, linear
+    Rng rng_;   ///< the hiss's stream
 };
 
 } // namespace eph

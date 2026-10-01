@@ -173,8 +173,10 @@ private:
     /** @brief What runs per voice on the scalar side. */
     struct Control {
         VoiceSettings s;             ///< current settings
-        Envelope filt, amp;          ///< filter and amplitude envelopes
-        OuProcess drift1, drift2;    ///< the VCOs' wandering, in cents
+        Envelope filt;   ///< the filter envelope
+        Envelope amp;   ///< the amplitude envelope
+        OuProcess drift1;   ///< VCO 1's wandering, cents
+        OuProcess drift2;   ///< VCO 2's
         Rng rng;                     ///< the voice's own stream
         double pitch = 45.0;         ///< sounding pitch (glides towards target)
         double target = 45.0;        ///< pitch of the held note
@@ -187,21 +189,36 @@ private:
         float decayMul = 1.0f;      ///< the note's filter decay factor (the second lane), 2^decay
         float noteBright = 0.0f;    ///< the note's modulation step, which also moves its place in a wavetable
         const CycleTable* table = nullptr;   ///< the wavetable, if the voice reads one
-        double wph1 = 0.0, wph2 = 0.0;       ///< the table oscillators' phases
-        int wlev1 = -1, wlev2 = -1;          ///< their band-limited levels
+        double wph1 = 0.0;   ///< table oscillator 1's phase
+        double wph2 = 0.0;   ///< table oscillator 2's phase
+        int wlev1 = -1;   ///< table oscillator 1's band-limited level
+        int wlev2 = -1;   ///< table oscillator 2's
         double vibPhase = 0.0;       ///< vibrato phase in cycles
         double vibLevel = 0.0;       ///< 0..1, rises while a note is held
         double vibCoef = 0.0;        ///< vibrato fade-in per sample
-        float dt1 = 0.001f, inv1 = 1000.0f, dt2 = 0.001f, inv2 = 1000.0f, g = 0.1f;   ///< coefficients of the current control step
+        float dt1 = 0.001f;   ///< VCO 1's phase step
+        float inv1 = 1000.0f;   ///< ... and its inverse
+        float dt2 = 0.001f;   ///< VCO 2's phase step
+        float inv2 = 1000.0f;   ///< ... and its inverse
+        float g = 0.1f;   ///< the filter's tan(pi fc / fs) of the moment
         bool fresh = true;           ///< a control step is due at the next sample whatever the raster (a new note)
         Modulator mod;               ///< the modulation envelope, the LFOs, the matrix (Modulation.h)
         float mo[kModDests] = {};    ///< the matrix's last sums per destination
         /** @brief What the lanes get per sample: blend, pulse width, feedback, makeup, mode, FM depth; the level
          *         factor and the place in the table (the knobs', moved by the matrix). */
-        float wv = 0.0f, pwv = 0.5f, kv = 0.0f, mkv = 1.0f, modev = 0.0f, ffmv = 0.0f, levelv = 1.0f, tposv = 0.0f;
+        float wv = 0.0f;   ///< what the lanes get: the blend
+        float pwv = 0.5f;   ///< ... the pulse width
+        float kv = 0.0f;   ///< ... the feedback
+        float mkv = 1.0f;   ///< ... the makeup
+        float modev = 0.0f;   ///< ... the filter's mode
+        float ffmv = 0.0f;   ///< ... the filter FM depth
+        float levelv = 1.0f;   ///< ... the level factor
+        float tposv = 0.0f;   ///< ... the place in the table
         bool model = false;          ///< a VCO model, sync or cross mod: the oscillators of Vco.h play
-        VcoOsc osc1, osc2;           ///< ... and these are they
-        OuProcess jitter1, jitter2;  ///< the model's fast pitch jitter, cents
+        VcoOsc osc1;   ///< the first VCO model
+        VcoOsc osc2;   ///< the second
+        OuProcess jitter1;   ///< the first model's fast pitch jitter, cents
+        OuProcess jitter2;   ///< the second's
         Rng jrng;                    ///< its own stream (the drift's stays as it was)
     };
     /** @brief Voice @p v's scalar side for sample @p i of the span, written into the lanes. */
@@ -213,15 +230,16 @@ private:
     /** @brief The piece's beat at sample @p at (setClock). */
     double beatAt(int64_t at) const { return beat0_ + static_cast<double>(at - clockAt_) * bps_; }
 
-    double sr_ = 48000.0;
+    double sr_ = 48000.0;   ///< the sample rate, Hz
     double stepBase_ = 0.0;      ///< log2 of the phase step at 2x of MIDI note 0
     int64_t count_ = 0;          ///< samples rendered, for the drift and control rasters
-    Control ctl_[kBankLanes];
-    VoiceLanes lanes_;
+    Control ctl_[kBankLanes];   ///< every voice's scalar side
+    VoiceLanes lanes_;   ///< the voices in lanes (the kernel)
     alignas(32) float mixed_[kBankSpan * kBankLanes] = {};   ///< the kernel's output, per sample and lane
     float out_[kBankLanes][kBankSpan] = {};                  ///< the same per voice
     float tpos_[kBankLanes][kBankSpan] = {};                 ///< the place in the wavetable per voice and sample
-    double beat0_ = 0.0, bps_ = 0.0;                         ///< the clock (setClock)
+    double beat0_ = 0.0;   ///< the clock: the beat at clockAt_
+    double bps_ = 0.0;   ///< beats per sample
     int64_t clockAt_ = 0;                                    ///< ... anchored at this sample
 };
 

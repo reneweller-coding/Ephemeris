@@ -9,7 +9,9 @@
 using namespace eph;
 
 namespace {
-const juce::Colour kInk = ephui::colour::ink, kDim = ephui::colour::dim, kAccent = ephui::colour::amber;
+const juce::Colour kInk = ephui::colour::ink;   ///< text: parchment
+const juce::Colour kDim = ephui::colour::dim;   ///< names, secondary text
+const juce::Colour kAccent = ephui::colour::amber;   ///< the sun: the accent
 }
 
 PerformPage::PerformPage(EphemerisProcessor& p, std::unique_ptr<ParamPage> params) : proc_(p), params_(std::move(params))

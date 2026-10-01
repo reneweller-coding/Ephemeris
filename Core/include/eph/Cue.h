@@ -84,9 +84,10 @@ public:
     }
 
 private:
-    static constexpr uint32_t kSize = 512;
-    std::array<Cue, kSize> slots_{};
-    std::atomic<uint32_t> write_{ 0 }, read_{ 0 };
+    static constexpr uint32_t kSize = 512;   ///< slots in the ring
+    std::array<Cue, kSize> slots_{};   ///< the ring
+    std::atomic<uint32_t> write_{ 0 };   ///< the next slot to write (audio thread)
+    std::atomic<uint32_t> read_{ 0 };   ///< the next slot to read (sender thread)
 };
 
 /** @brief Turns the beat range of a block into cues (audio thread: arithmetic and pushes only). */
@@ -144,12 +145,14 @@ public:
     static int64_t nowNanos();
 
 private:
+    /** @brief The thread: takes the cues off the ring and sends each as an OSC message when its time comes. */
     void loop();
-    CueRing ring_;
-    std::thread thread_;
-    std::atomic<bool> running_{ false }, stop_{ false };
-    std::atomic<uint64_t> dropped_{ 0 };
-    intptr_t socket_ = -1;
+    CueRing ring_;   ///< the ring the audio thread fills
+    std::thread thread_;   ///< the sender thread
+    std::atomic<bool> running_{ false };   ///< the thread runs
+    std::atomic<bool> stop_{ false };   ///< the thread is asked to end
+    std::atomic<uint64_t> dropped_{ 0 };   ///< cues that could not be sent
+    intptr_t socket_ = -1;   ///< the UDP socket, -1 closed
     uint8_t address_[16] = {};   ///< a sockaddr_in, kept opaque so this header needs no socket headers
 };
 

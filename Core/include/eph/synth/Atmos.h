@@ -52,31 +52,44 @@ public:
     void process(float* L, float* R, float* bleepL, float* bleepR, int n);
 
 private:
-    double sr_ = 48000.0;
-    AtmosSettings s_;
-    Rng rng_;
-    Svf windL_, windR_;
-    OuProcess wanderL_, wanderR_;
-    float pinkL_ = 0.0f, pinkR_ = 0.0f;
-    // One sweep at a time.
+    double sr_ = 48000.0;   ///< the sample rate, Hz
+    AtmosSettings s_;   ///< the settings
+    Rng rng_;   ///< the noise's stream
+    Svf windL_;   ///< the wind's band pass, left
+    Svf windR_;   ///< ... right
+    OuProcess wanderL_;   ///< the wind's slow wandering, left
+    OuProcess wanderR_;   ///< ... right
+    float pinkL_ = 0.0f;   ///< the pinking filter's state, left
+    float pinkR_ = 0.0f;   ///< ... right
+    /// One sweep at a time.
     Svf sweep_;
-    double sweepAge_ = -1.0, sweepLen_ = 0.0, sweepFrom_ = 0.0, sweepTo_ = 0.0;
-    float sweepPan_ = 0.0f;
-    // One bleep burst at a time.
+    double sweepAge_ = -1.0;   ///< seconds into the sweep, -1 none
+    double sweepLen_ = 0.0;   ///< its length, s
+    double sweepFrom_ = 0.0;   ///< its start frequency, Hz
+    double sweepTo_ = 0.0;   ///< its end frequency, Hz
+    float sweepPan_ = 0.0f;   ///< its place, -1 .. 1
+    /// One bleep burst at a time.
     int bleepsLeft_ = 0;
-    double bleepAge_ = 0.0, bleepHz_ = 1000.0, bleepPhase_ = 0.0, bleepEvery_ = 0.1;
-    float bleepPan_ = 0.0f;
-    int64_t count_ = 0;
+    double bleepAge_ = 0.0;   ///< seconds since the last bleep
+    double bleepHz_ = 1000.0;   ///< the bleep's pitch, Hz
+    double bleepPhase_ = 0.0;   ///< the bleep's phase
+    double bleepEvery_ = 0.1;   ///< seconds between the bleeps of the burst
+    float bleepPan_ = 0.0f;   ///< the burst's place, -1 .. 1
+    int64_t count_ = 0;   ///< samples rendered
     float windNow_ = 0.0f;   ///< smoothed wind gain, so a knob's step does not click
     /** @brief One grain of the cloud. */
     struct Grain {
-        bool on = false;
-        double phase = 0.0, inc = 0.0;   ///< the sine's phase and step (cycles)
-        double age = 0.0, length = 0.1;  ///< seconds
-        float amp = 0.0f, gainL = 0.0f, gainR = 0.0f;
+        bool on = false;   ///< it sounds
+        double phase = 0.0;   ///< the sine's phase, cycles
+        double inc = 0.0;   ///< its step, cycles per sample
+        double age = 0.0;   ///< seconds since it began
+        double length = 0.1;   ///< its length, s
+        float amp = 0.0f;   ///< its amplitude
+        float gainL = 0.0f;   ///< its place: gain left
+        float gainR = 0.0f;   ///< ... gain right
     };
-    static constexpr int kGrains = 24;
-    Grain grains_[kGrains];
+    static constexpr int kGrains = 24;   ///< grains at most
+    Grain grains_[kGrains];   ///< the grains
     int grainsOn_ = 0;       ///< grains sounding
     Rng grainRng_;           ///< the grains' own stream
 };

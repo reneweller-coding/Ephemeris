@@ -34,6 +34,7 @@ inline float dbToGain(float db) { return std::pow(10.0f, db * 0.05f); }
 /** @brief The pitch class 0..11 of a note or interval, for negative values too. (Added in Ephemeris.) */
 inline int pitchClass(int n) { return ((n % 12) + 12) % 12; }
 
+/** @brief The frequency of MIDI note @p note (A4 = 440 Hz), Hz. */
 inline double midiToHz(double note) { return 440.0 * std::pow(2.0, (note - 69.0) / 12.0); }
 
 /**
@@ -191,15 +192,19 @@ public:
     }
 
 private:
+    /** @brief The one-pole coefficient of a stage of @p seconds, @p k time constants long. */
     float coef(float seconds, float k) const
     {
         const float tau = std::max(seconds, 0.0005f) / k;
         return 1.0f - std::exp(-1.0f / (tau * static_cast<float>(sr_)));
     }
-    double sr_ = 48000.0;
-    float aCoef_ = 0.01f, dCoef_ = 0.001f, rCoef_ = 0.0005f, sus_ = 1.0f;
-    float level_ = 0.0f;
-    Stage stage_ = Stage::Idle;
+    double sr_ = 48000.0;   ///< the sample rate, Hz
+    float aCoef_ = 0.01f;   ///< the attack's coefficient
+    float dCoef_ = 0.001f;   ///< the decay's coefficient
+    float rCoef_ = 0.0005f;   ///< the release's coefficient
+    float sus_ = 1.0f;   ///< the sustain level
+    float level_ = 0.0f;   ///< the level as it stands
+    Stage stage_ = Stage::Idle;   ///< where it is
 };
 
 /**

@@ -37,6 +37,7 @@ private:
         double start = 0.0;     ///< the beat it last started at
         double cycle = 0.0;     ///< position in its cycle, 0..1
     };
+    /** @brief Follows the piece: the rows at the playhead. */
     void timerCallback() override;
     /** @brief The rows at @p beat. */
     std::vector<RowState> rowsAt(double beat) const;

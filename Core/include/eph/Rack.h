@@ -146,54 +146,62 @@ public:
     void run(Score& score, double endBeat);
 
 private:
+    /** @brief One row of the rack: its pattern, its settings, where it is, its lanes and its streams. */
     struct Row {
-        Step steps[kMaxSteps];
-        int length = 16;
-        double divBeats = 0.25;
-        RowDirection direction = RowDirection::Forward;
-        int octave = 0;
-        int transpose = 0;
+        Step steps[kMaxSteps];   ///< the pattern
+        int length = 16;   ///< its length, steps
+        double divBeats = 0.25;   ///< beats a step
+        RowDirection direction = RowDirection::Forward;   ///< how it runs through the pattern
+        int octave = 0;   ///< its octave offset
+        int transpose = 0;   ///< its transposition, semitones
         int chord = 0;            ///< degrees the steps move by (RackOp::Chord)
-        float mutation = 0.0f;
-        float gate = 0.5f;
-        bool running = false;
+        float mutation = 0.0f;   ///< how much it mutates (row.mutation)
+        float gate = 0.5f;   ///< a step's length, a share of the step
+        bool running = false;   ///< it plays
         double startBeat = 0.0;   ///< beat of step 0 of the current run
         int64_t step = 0;         ///< steps played since startBeat
         int pos = 0;              ///< index of the next step to play
         int dir = 1;              ///< pendulum direction
-        int mutations = 0;
+        int mutations = 0;   ///< mutations since setup()
         bool transposer = false;  ///< row.mode = Transposer
         double nextMutation = 64.0;   ///< the next 16-bar mark a mutation may fall on
         bool thinned[kMaxSteps] = {}; ///< steps a thinning silenced (RackOp::Thin), which a Fill may bring back
         // The modulation sequencer (25.09.2026, after Stuertzer's Stepic "8 Modulationssequencer mit
         // unterschiedlichen Laengen"): a lane of cutoff offsets with a length of its own, stepping with the row.
-        float mod[kMaxSteps] = {};
-        int modLength = 1, modPos = 0;
-        // The second lane (25.09.2026, the style guide's 4.3 "Hüllkurven-Modulation"): the filter envelope's decay
-        // per step, in octaves of its time, a length of its own again.
+        float mod[kMaxSteps] = {};   ///< the modulation lane: a cutoff offset per step
+        int modLength = 1;   ///< the lane's own length
+        int modPos = 0;   ///< where in it the row is
+        /// The second lane (25.09.2026, the style guide's 4.3 "Hüllkurven-Modulation"): the filter envelope's decay
+        /// per step, in octaves of its time, a length of its own again.
         float decay[kMaxSteps] = {};
-        int decayLength = 1, decayPos = 0;
+        int decayLength = 1;   ///< the second lane's own length
+        int decayPos = 0;   ///< where in it the row is
         Step theme[kMaxSteps];    ///< the pattern as drawn (RackOp::Theme brings it back)
         Rng lanes;                ///< the second lane's stream, apart from the patterns and the dice
-        Figure figure = Figure::Classic;
-        Rng rng;
+        Figure figure = Figure::Classic;   ///< the figure it was last drawn from
+        Rng rng;   ///< the patterns' stream
         Rng dice;                 ///< probability gates, ratchets and thinning: apart from the patterns' stream
     };
+    /** @brief The beat of row @p r's next step. */
     double nextStepBeat(const Row& r) const { return r.startBeat + static_cast<double>(r.step) * r.divBeats; }
+    /** @brief Writes the note of row @p r's next step (row @p index) into @p score; what it does goes to @p log. */
     void playStep(int index, Row& r, Score& score, std::vector<RackEvent>& log);
+    /** @brief Moves row @p r on a step at @p beat: its direction, its lanes, a mutation where one is due. */
     void advance(Row& r, int index, double beat, std::vector<RackEvent>& log);
+    /** @brief Mutates row @p r at @p beat (a step changed within its rules) and logs it. */
     void mutate(Row& r, int index, double beat, std::vector<RackEvent>& log);
+    /** @brief The MIDI note of row @p r's root: the key, the row's octave and transposition, the transposer's shift. */
     int rootNote(const Row& r) const;
 
-    Row rows_[kRows];
-    int keyRoot_ = 9;
-    int scale_ = 0;
-    Style style_ = Style::Cosmic;
+    Row rows_[kRows];   ///< the rows
+    int keyRoot_ = 9;   ///< the key's pitch class
+    int scale_ = 0;   ///< the scale (compose.scale order)
+    Style style_ = Style::Cosmic;   ///< the style the rows are drawn in
     int shift_ = 0;           ///< the transposer's offset plus the key's, applied to every note row
     int base_ = 0;            ///< the key's offset from the piece's key (RackOp::Key)
     int degree_ = 0;          ///< the transposer's own offset
-    std::vector<std::pair<double, int>> shiftLog_;
-    std::vector<std::pair<double, int>> scaleLog_;
+    std::vector<std::pair<double, int>> shiftLog_;   ///< every change of the transposer's offset, as (beat, semitones)
+    std::vector<std::pair<double, int>> scaleLog_;   ///< every change of the scale, as (beat, scale)
     double position_ = 0.0;   ///< beat up to which the rack has run
 };
 

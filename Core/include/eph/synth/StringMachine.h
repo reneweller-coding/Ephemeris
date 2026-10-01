@@ -81,44 +81,56 @@ public:
     float panMod() const { return mod_.offset(mo_, ModDest::Pan); }
 
 private:
+    /** @brief One key: its divider taps, its envelope. */
     struct Key {
-        bool on = false, held = false;
-        int pitch = 60, id = -1;
-        float velocity = 0.8f, env = 0.0f;
+        bool on = false;   ///< it sounds
+        bool held = false;   ///< it is held
+        int pitch = 60;   ///< MIDI note
+        int id = -1;   ///< the note id it plays, -1 none
+        float velocity = 0.8f;   ///< its velocity, 0..1
+        float env = 0.0f;   ///< its envelope
         bool decaying = false;               ///< past the crescendo, on the way to the sustain level
-        uint32_t order = 0;
+        uint32_t order = 0;   ///< when it was pressed (the oldest is taken)
         int pc = 0;                          ///< pitch class: the top-octave generator the key divides
-        double inv16 = 1.0, inv8 = 1.0, inv4 = 1.0;   ///< 1 / the 16', 8' and 4' dividers (powers of two, so exact)
+        double inv16 = 1.0;   ///< 1 / the 16' divider
+        double inv8 = 1.0;   ///< 1 / the 8' divider
+        double inv4 = 1.0;   ///< 1 / the 4' divider (powers of two, so exact)
     };
     /** @brief The registration at @p position (0..7): register weights, tone factor and loudness. */
     void registrationAt(float position);
-    double sr_ = 48000.0;
-    StringSettings s_;
-    Key keys_[kKeys];
+    double sr_ = 48000.0;   ///< the sample rate, Hz
+    StringSettings s_;   ///< the settings
+    Key keys_[kKeys];   ///< the keys
     double counter_[12] = {};   ///< top-octave phase counters per pitch class, modulo 256
-    uint32_t order_ = 0;
-    Svf tone_;
-    std::vector<float> line_;
-    size_t mask_ = 0, write_ = 0;
-    double slow_ = 0.0, fast_ = 0.0;   ///< the ensemble's LFO phases
-    Svf bbd_[3];
+    uint32_t order_ = 0;   ///< counts the keys pressed
+    Svf tone_;   ///< the tone low pass on the sum
+    std::vector<float> line_;   ///< the ensemble's delay line
+    size_t mask_ = 0;   ///< its size - 1
+    size_t write_ = 0;   ///< where the next sample goes
+    double slow_ = 0.0;   ///< the ensemble's slow LFO phase
+    double fast_ = 0.0;   ///< ... its fast one
+    Svf bbd_[3];   ///< the ensemble's three taps' low passes (the BBD's)
     float ring_ = 0.0f;               ///< decaying peak of the output, for active()
     // The registration, renewed every 32 samples.
-    float weight_[kRegisters] = { 0.0f, 1.0f, 0.4f, 0.0f, 0.0f };
-    float regGain_ = 1.0f;
-    double animPhase_ = 0.0;
-    int64_t count_ = 0;
+    float weight_[kRegisters] = { 0.0f, 1.0f, 0.4f, 0.0f, 0.0f };   ///< the registers' weights at the registration
+    float regGain_ = 1.0f;   ///< the registration's loudness
+    double animPhase_ = 0.0;   ///< the registration's animation: its LFO phase
+    int64_t count_ = 0;   ///< samples rendered
     // The phaser: four all-passes per side.
-    float apX_[2][4] = {}, apY_[2][4] = {};
-    float apCoef_[2] = { 0.0f, 0.0f }, phFb_[2] = { 0.0f, 0.0f };
-    double phPhase_ = 0.0;
-    // The machine's LFOs and matrix.
+    float apX_[2][4] = {};   ///< the phaser's all-passes: last inputs, per side
+    float apY_[2][4] = {};   ///< ... last outputs, per side
+    float apCoef_[2] = { 0.0f, 0.0f };   ///< the phaser's all-pass coefficient, per side
+    float phFb_[2] = { 0.0f, 0.0f };   ///< the phaser's feedback, per side
+    double phPhase_ = 0.0;   ///< the phaser's LFO phase
+    /// The machine's LFOs and matrix.
     Modulator mod_;
-    float mo_[kModDests] = {};
+    float mo_[kModDests] = {};   ///< the matrix's last sums
     double pitchMul_ = 1.0;       ///< the matrix's pitch on the top-octave generator
     float toneMul_ = 1.0f;        ///< ... and on the tone
-    double beat0_ = 0.0, bps_ = 0.0;   ///< the clock (setClock)
-    int64_t clockAt_ = 0;
+    double beat0_ = 0.0;   ///< the clock: the beat at clockAt_
+    double bps_ = 0.0;   ///< beats per sample
+    int64_t clockAt_ = 0;   ///< the sample setClock() was called at
+    /** @brief The beat at sample @p at. */
     double beatAt(int64_t at) const { return beat0_ + static_cast<double>(at - clockAt_) * bps_; }
 };
 

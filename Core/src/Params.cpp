@@ -17,10 +17,13 @@ const char* const kKeyNames[12] = { "C", "C#", "D", "D#", "E", "F", "F#", "G", "
 const char* const kScaleNames[] = { "Aeolian", "Dorian", "Phrygian", "Harmonic Minor", "Minor Pentatonic",
                                     "Mixolydian", "Lydian", "Locrian" };
 const char* const kShortModSourceNames[] = { "Off", "LFO 1", "LFO 2" };
-const char* const kShortModDestNames[] = { "Off", "Pitch", "Tone", "Level", "Pan" };
+const char* const kShortModDestNames[] = { "Off", "Pitch", "Tone", "Level", "Pan" };   ///< the smaller matrix's targets (the tape keys, the string machine)
 const char* const kLfoShapeNames[] = { "Sine", "Triangle", "Saw Up", "Saw Down", "Square", "Sample & Hold", "Smooth Random" };
+/** @brief an LFO's sync: free or a note value */
 const char* const kLfoSyncNames[] = { "Free", "4 bars", "2 bars", "1 bar", "1/2", "1/4", "1/8", "1/16", "1/4T", "1/8T" };
+/** @brief the matrix's sources */
 const char* const kModSourceNames[] = { "Off", "LFO 1", "LFO 2", "LFO 3", "LFO 4", "Mod Env", "Filter Env", "Velocity", "Mod Lane" };
+/** @brief the matrix's targets */
 const char* const kModDestNames[] = { "Off", "Pitch", "Pulse Width", "Wave", "Table Position", "Cutoff", "Resonance",
                                       "Filter Mode", "Filter FM", "Level", "Pan", "Osc 2 Pitch" };
 const char* const kVcoNames[] = { "Analog", "Moog 921", "Prophet-5", "Oberheim SEM", "ARP 2600", "E-mu Modular" };
@@ -63,6 +66,7 @@ double rowDivisionBeats(RowDivision d)
 
 namespace {
 
+/** @brief The compose module: what the composer is asked for. */
 const ParamDesc kComposeParams[compose::Count] = {
     { "bpm",           "Tempo",         "BPM",  60.0f, 160.0f, 118.0f, Curve::Linear },
     { "key",           "Key",           "",      0.0f,  11.0f,   9.0f, Curve::Choice, kKeyNames },
@@ -78,6 +82,7 @@ const ParamDesc kComposeParams[compose::Count] = {
     { "pick_sounds",   "Composer's Sounds", "",  0.0f,   1.0f,   1.0f, Curve::Toggle },   // a preset per synth and piece
 };
 
+/** @brief A row of the rack: its pattern, its voice's place and sends. */
 const ParamDesc kRowParams[row::Count] = {
     { "active",    "Active",     "",      0.0f,  1.0f,  0.0f, Curve::Toggle },
     { "length",    "Length",     "steps", 1.0f, 32.0f, 16.0f, Curve::Int },
@@ -514,13 +519,24 @@ const ParamDesc kDrumsParams[drums::Count] = {
     { "early",    "Early Send", "",  0.0f,   1.0f,   0.0f, Curve::Linear },   // into the early reflections (send A)
 };
 
+/// 01.10.2026: what a MIDI keyboard plays (perform::keys, Engine::queueLive), Replace or Layer.
+const char* const kKeyboardPartNames[] = { "Off", "Lead", "Drone", "Poly", "Tape Keys", "Strings", "Drums", "Row 1", "Row 2", "Row 3",
+                                           "Row 4", "Row 5", "Row 6", "Row 7", "Row 8", "By channel" };
+const char* const kKeyboardModeNames[] = { "Replace", "Layer" };   ///< perform.keyboard_mode
+
+/** The performer's controls (live only). */
 const ParamDesc kPerformParams[perform::Count] = {
     { "filter",    "Filter",     "oct", -2.0f,  2.0f, 0.0f, Curve::Linear },
     { "transpose", "Transpose",  "st", -12.0f, 12.0f, 0.0f, Curve::Int },
     { "hold",      "Hold Moves", "",     0.0f,  1.0f, 0.0f, Curve::Toggle },
     { "throw",     "Echo Throw", "",     0.0f,  1.0f, 0.0f, Curve::Linear },
+    // 01.10.2026: a MIDI keyboard plays a voice (Engine::queueLive); the composer can be switched off. Live play only.
+    { "keyboard_part", "Keyboard Plays", "", 0.0f, 15.0f, 0.0f, Curve::Choice, kKeyboardPartNames },
+    { "keyboard_mode", "Keyboard Mode",  "", 0.0f, 1.0f, 0.0f, Curve::Choice, kKeyboardModeNames },
+    { "composer",      "Composer",       "", 0.0f, 1.0f, 1.0f, Curve::Toggle },
 };
 
+/** The OSC cues (Cue.h). */
 const ParamDesc kCueParams[cue::Count] = {
     { "enabled", "OSC Cues", "",  0.0f,     1.0f,    0.0f, Curve::Toggle },
     { "port",    "OSC Port", "",  1024.0f, 65535.0f, 9000.0f, Curve::Int },
@@ -567,6 +583,7 @@ const ParamDesc kReverbParams[reverb::Count] = {
     { "duck",     "Duck",       "dB",   0.0f,    12.0f,    2.0f, Curve::Linear },   // under the rows' notes
 };
 
+/** @brief The tape echo (and the BBD on the same send). */
 const ParamDesc kEchoParams[echo::Count] = {
     { "time",      "Time",        "",       0.0f,    6.0f,    2.0f, Curve::Choice, kEchoTimeNames },
     { "feedback",  "Feedback",    "",       0.0f,    1.1f,    0.45f, Curve::Linear },   // above 1: runaway, held by the tape
@@ -596,6 +613,7 @@ const char* const kDefaultRows =
     "row7.length=24 row7.division=1/8 row7.octave=-1 row7.pan=0.2\n"
     "row8.length=32 row8.division=1/4 row8.octave=0 row8.pan=0\n";
 
+/** @brief The mix bus and the master. */
 const ParamDesc kMasterParams[master::Count] = {
     { "level",    "Level",    "dB",  -60.0f, 6.0f,  0.0f, Curve::Linear },
     // How much the bus compressor works: 0 off, 1 a ratio of 1.5 from -16 dB. The music keeps its dynamics.
@@ -613,10 +631,10 @@ const ParamDesc kMasterParams[master::Count] = {
 
 /** @brief One module: its prefix, table, how many instances exist, and optionally their names. */
 struct ModuleSpec {
-    const char* prefix;
-    const ParamDesc* descs;
-    int count;
-    int instances;
+    const char* prefix;   ///< the key prefix ("row", "voice", "reverb" ...)
+    const ParamDesc* descs;   ///< its parameters
+    int count;   ///< how many
+    int instances;   ///< how many instances
     const char* const* instanceNames = nullptr;   ///< prefixes of the instances instead of prefix + number
 };
 
@@ -648,6 +666,7 @@ const ParamDesc kEarlyParams[early::Count] = {
     { "high_cut",  "Early High Cut",  "Hz", 2000.0f, 16000.0f, 8000.0f, Curve::Log },
     { "return",    "Early Return",    "dB",  -60.0f,     6.0f,   -4.0f, Curve::Linear },
 };
+/** @brief The effect hall (send D). */
 const ParamDesc kShimmerParams[shimmer::Count] = {
     { "decay",     "Shimmer Decay",   "s",     2.0f,    20.0f,    8.0f, Curve::Log },
     { "amount",    "Shimmer",         "",      0.0f,     0.6f,   0.35f, Curve::Linear },   // the octave fed back
@@ -741,6 +760,7 @@ const ParamDesc kPolyParams[poly::Count] = {
     { "mod8_amt",     "Mod 8 Amount",  "",    -1.0f,     1.0f, 0.0f, Curve::Linear },
 };
 
+/** @brief The modules, in the order of Module. */
 const ModuleSpec kModules[static_cast<int>(Module::Count)] = {
     { "compose", kComposeParams, compose::Count, 1 },
     { "row",     kRowParams,     row::Count,     kRows },
@@ -765,8 +785,10 @@ const ModuleSpec kModules[static_cast<int>(Module::Count)] = {
     { "poly",    kPolyParams,    poly::Count,    1 },   // the pad synth   // send D   // the second echo (a prefix without a digit: "row1" is an instance)
 };
 
+/** @brief Whether a curve takes whole steps (Int, Choice, Toggle). */
 bool isDiscrete(Curve c) { return c == Curve::Int || c == Curve::Choice || c == Curve::Toggle; }
 
+/** @brief @p s without spaces, tabs and carriage returns at either end. */
 std::string_view trim(std::string_view s)
 {
     while (!s.empty() && (s.front() == ' ' || s.front() == '\t' || s.front() == '\r')) s.remove_prefix(1);

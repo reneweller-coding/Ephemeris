@@ -2,10 +2,19 @@
 
 ## Next: the family's panel (01.10.2026, not yet released)
 
+**Play it yourself.** A Keyboard group on the Perform page: Keyboard Plays sends the keys of a MIDI keyboard to a voice
+(the lead, the drone, the poly synth, the tape keys, the strings, the drums, a row, or by channel), with the sound its page has; Replace leaves that voice's generated notes out, Layer plays over
+them; Composer off leaves every generated note out, so only what is played sounds -- through the mix and the effects
+as composed. The keys play on their samples; an export plays what was composed.
+
 **One layout for the repositories.** Every instrument of the family builds the same way now: `build.ps1` (msvc, icx,
 release, quest) on the presets of `CMakePresets.json`, the build trees under `build\<preset>`, everything that can be
 started -- the standalone, the VST3, the renderer -- flat in `bin\msvc` and `bin\icx` (and the Quest APK in
 `bin\quest`), the release in `dist\`, local data, renders and logs in `work\` (`cmake/Family.cmake`).
+
+**Every line explained.** Every class, function, variable, macro and table of the sources -- the core, the plugin,
+the Quest app, the tools and the tests -- has its Doxygen comment now, and the test `doccheck` (`cmake/Family.cmake`)
+fails as soon as one is missing. The scripts that generate tables write the comments into what they generate.
 
 **No page scrolls.** The window opens at 1280 x 860, as every generator of the family's. A tab of several modules has a
 small tab for each, and a page that is still taller than the window shows its groups in sections, one at a time --

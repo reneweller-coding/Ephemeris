@@ -10,7 +10,7 @@
 namespace eph {
 
 namespace {
-constexpr double kPiD = 3.141592653589793;
+constexpr double kPiD = 3.141592653589793;   ///< pi
 
 /** @brief Modified Bessel function of the first kind, order zero (power series). */
 double besselI0(double x)

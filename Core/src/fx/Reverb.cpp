@@ -11,8 +11,9 @@
 namespace eph {
 
 namespace {
+/** @brief The smallest power of two at least @p n. */
 int pow2At(int n) { int p = 1; while (p < n) p <<= 1; return p; }
-constexpr double kPiD = 3.14159265358979323846;
+constexpr double kPiD = 3.14159265358979323846;   ///< pi
 
 /**
  * @brief Which output channel each delay line feeds, and which input it is driven by (1 = left).

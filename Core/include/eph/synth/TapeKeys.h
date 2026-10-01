@@ -101,16 +101,25 @@ public:
     float panMod() const { return mod_.offset(mo_, ModDest::Pan); }
 
 private:
+    /** @brief One singer of the choir tape: a saw through the glottal tilt, his detune, vibrato and wander. */
     struct Singer {
-        VaOscillator osc;
-        Svf tilt;
-        double detune = 0.0, vibHz = 5.5, vibDepth = 20.0, vibPhase = 0.0;
-        double wander = 0.0, wanderTarget = 0.0, level = 1.0;
+        VaOscillator osc;   ///< the band-limited saw
+        Svf tilt;   ///< the glottal tilt: a two-pole low pass at 1.1 kHz
+        double detune = 0.0;   ///< his detune, cents
+        double vibHz = 5.5;   ///< his vibrato's rate, Hz
+        double vibDepth = 20.0;   ///< his vibrato's depth, cents
+        double vibPhase = 0.0;   ///< his vibrato's phase, radians
+        double wander = 0.0;   ///< the slow wander of his pitch and level
+        double wanderTarget = 0.0;   ///< where it wanders to
+        double level = 1.0;   ///< his level
     };
+    /** @brief One key: its tape, its pressure pad, its sources, its envelope. */
     struct Key {
-        bool on = false, held = false;
-        int pitch = 60, id = -1;
-        float velocity = 0.8f;
+        bool on = false;   ///< it sounds
+        bool held = false;   ///< it is held
+        int pitch = 60;   ///< MIDI note
+        int id = -1;   ///< the note id it plays (the engine pairs offs with it), -1 none
+        float velocity = 0.8f;   ///< its velocity, 0..1
         double age = 0.0;          ///< seconds since the key went down
         double released = -1.0;    ///< seconds since release, -1 while held
         double rise = 0.0;         ///< the pressure pad's rise, 0 .. 1 (a one-pole towards 1 after the lag)
@@ -118,35 +127,42 @@ private:
         double fall = 1.0;         ///< the release, 1 .. 0 (a one-pole towards 0 after the key is let go)
         double lag = 0.0;          ///< this tape's onset lag, seconds
         double cents = 0.0;        ///< this tape's detune
-        float gain = 1.0f;
-        Svf tone;
-        Singer singers[kSingers];
-        Svf formant[5];
+        float gain = 1.0f;   ///< this tape's level
+        Svf tone;   ///< this tape's tone: the head's low pass
+        Singer singers[kSingers];   ///< the choir tape: its singers
+        Svf formant[5];   ///< the choir tape: its five formants
         double phase = 0.0;        ///< flute
-        Svf breath;
+        Svf breath;   ///< the flute tape: its breath noise's band pass
         uint32_t order = 0;        ///< for taking the oldest key
         TapeSet set = TapeSet::Choir;   ///< the tape set the key was pressed on: a switch takes the next press
         double decay = 1.0;        ///< the player's envelope: what is left of the decay towards the sustain level
     };
+    /** @brief One sample of key @p k at the capstan speed @p speedCents (cents off the true speed). */
     float render(Key& k, double speedCents);
+    /** @brief Presses key @p k for @p pitch at @p velocity, note id @p id: its tape drawn, its sources set. */
     void startKey(Key& k, int pitch, float velocity, int id);
-    double sr_ = 48000.0;
-    uint64_t seed_ = 1;
-    TapeSettings s_;
-    Key keys_[kTapeKeys];
-    Rng rng_;
-    uint32_t counter_ = 0;
-    double wowPhase_ = 0.0, flutterPhase_ = 0.0, drift_ = 0.0, driftTarget_ = 0.0;
-    int64_t count_ = 0;
-    float thump_ = 0.0f;
+    double sr_ = 48000.0;   ///< the sample rate, Hz
+    uint64_t seed_ = 1;   ///< the seed of the tapes
+    TapeSettings s_;   ///< the settings
+    Key keys_[kTapeKeys];   ///< the keys
+    Rng rng_;   ///< the noise's stream
+    uint32_t counter_ = 0;   ///< counts the keys pressed (the oldest is taken)
+    double wowPhase_ = 0.0;   ///< the wow's phase
+    double flutterPhase_ = 0.0;   ///< the flutter's phase
+    double drift_ = 0.0;   ///< the wow's slow drift
+    double driftTarget_ = 0.0;   ///< where it drifts to
+    int64_t count_ = 0;   ///< samples rendered
+    float thump_ = 0.0f;   ///< the pressure pads' thump, decaying
     double fallCoef_ = 0.0;       ///< the release's factor per sample (70 ms time constant)
-    float formantGain_[5] = {};
-    int singers_ = kSingers;       ///< setSingers()   ///< the choir's formant levels at the current vowel
+    float formantGain_[5] = {};    ///< the choir's formant levels at the current vowel
+    int singers_ = kSingers;       ///< setSingers()
     double decayCoef_ = 1.0;       ///< the player's decay per sample
     Modulator mod_;                ///< the keyboard's LFOs and matrix
     float mo_[kModDests] = {};     ///< its last sums
-    double beat0_ = 0.0, bps_ = 0.0;   ///< the clock (setClock)
-    int64_t clockAt_ = 0;
+    double beat0_ = 0.0;   ///< the clock: the beat at clockAt_
+    double bps_ = 0.0;   ///< beats per sample
+    int64_t clockAt_ = 0;   ///< the sample setClock() was called at
+    /** @brief The beat at sample @p at. */
     double beatAt(int64_t at) const { return beat0_ + static_cast<double>(at - clockAt_) * bps_; }
 };
 

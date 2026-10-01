@@ -12,8 +12,8 @@ namespace eph {
 
 namespace {
 
-// compose.scale order: Aeolian, Dorian, Phrygian, Harmonic Minor, Minor Pentatonic (its own table below),
-// Mixolydian, Lydian, Locrian.
+/// compose.scale order: Aeolian, Dorian, Phrygian, Harmonic Minor, Minor Pentatonic (its own table below),
+/// Mixolydian, Lydian, Locrian.
 const int kScale7[kScales][7] = {
     { 0, 2, 3, 5, 7, 8, 10 },
     { 0, 2, 3, 5, 7, 9, 10 },
@@ -24,8 +24,9 @@ const int kScale7[kScales][7] = {
     { 0, 2, 4, 6, 7, 9, 11 },
     { 0, 1, 3, 5, 6, 8, 10 },
 };
-const int kPentatonic[5] = { 0, 3, 5, 7, 10 };
+const int kPentatonic[5] = { 0, 3, 5, 7, 10 };   ///< the minor pentatonic's semitones
 
+/** @brief @p a / @p b rounded down (towards minus infinity). */
 int floorDiv(int a, int b) { return a >= 0 ? a / b : -((-a + b - 1) / b); }
 
 } // namespace
@@ -83,11 +84,15 @@ void Rack::setup(const ParamStore& p, uint64_t seed)
 
 namespace {
 
-constexpr int kRest = -99;
+constexpr int kRest = -99;   ///< a rest in a shape
 
 /** @brief The archetypes as eight steps: degrees of a seven-note mode (kRest a rest) and octaves. */
-struct Shape { int degree[8]; int octave[8]; };
+struct Shape {
+    int degree[8];   ///< the steps' degrees (kRest a rest)
+    int octave[8];   ///< their octaves
+};
 
+/** @brief The eight steps of figure @p f. */
 const Shape& shapeOf(Figure f)
 {
     static const Shape kShapes[] = {
@@ -139,6 +144,7 @@ int quantisedDegree(int scale, Rng& dice)
 }
 
 template <size_t N>
+/** @brief One of the figures @p f, drawn from @p g with the weights @p w. */
 Figure drawFigure(const Figure (&f)[N], const float (&w)[N], Rng& g)
 {
     float total = 0.0f;

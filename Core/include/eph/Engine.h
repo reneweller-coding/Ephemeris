@@ -67,6 +67,26 @@ public:
      *        the desktop, 3 on the Quest. Kept across load().
      */
     void setTapeSingers(int n) { tapeSingers_ = n; tape_.setSingers(n); }
+    /**
+     * @brief Live play (01.10.2026; the plugin's engine): the keyboard and the composer switch act. Off (renders, exports,
+     *        the measuring engines, the default): the piece plays as it was composed.
+     */
+    void setLive(bool on) { live_ = on; }
+    /**
+     * @name A MIDI keyboard (01.10.2026, perform.keyboard_part)
+     * The keys play a voice with its sound as its page has it, untransposed; perform.keyboard_mode Replace leaves that
+     * voice's generated notes out (by channel: from a voice's first played key on), Layer plays over them;
+     * perform.composer off leaves every generated note out. Live play only (setLive).
+     * @{ */
+    /**
+     * @brief Queues a key for the next process() call, @p offset samples into it: it is played on that sample. The
+     *        rendering thread, before process().
+     * @param pitch MIDI note; @param velocity 1..127; @param channel 0..15 (by channel); @param on false: its release
+     */
+    void queueLive(int offset, int pitch, int velocity, int channel, bool on);
+    /** @brief Releases every played key and forgets the queued ones (a stop, another keyboard target). */
+    void liveAllOff();
+    /** @} */
 
     /**
      * @brief Renders @p n samples into @p L and @p R (overwritten) and advances the position.
@@ -180,30 +200,48 @@ private:
         float reverb = 0.0f;    ///< send into the hall
         float echo2 = 0.0f;     ///< send into the second echo (the rows)
         float lowCut = 0.0f;    ///< the strip's high pass in Hz, 0 none (the production guide's 4.2)
-        Svf hpL, hpR;           ///< its states
+        Svf hpL;   ///< the low cut's state, left
+        Svf hpR;   ///< ... right
         float lpHz = 0.0f;      ///< the distance's low pass in Hz, 0 none (the addon's distance macro)
-        Svf lpL, lpR;           ///< its states
-        Svf splitLo[2], splitHi[2];   ///< the band 300 Hz .. 5 kHz a cascaded duck works in
+        Svf lpL;   ///< the distance's low pass, left
+        Svf lpR;   ///< ... right
+        Svf splitLo[2];   ///< the band's lower split (300 Hz), per channel
+        Svf splitHi[2];   ///< its upper split (5 kHz), per channel
         float blend = 0.0f;     ///< send into the blend room (the addon's serial far space)
         float early = 0.0f;     ///< send into the early reflections (send A)
         float shimmer = 0.0f;   ///< send into the effect hall (send D)
         Svf band[2][6];         ///< the six bands a spectral duck works in (the addon's 4)
         float punch = 0.0f;     ///< the transient shaper's amount (rows)
-        float envFast = 0.0f, envSlow = 0.0f;   ///< its two followers
+        float envFast = 0.0f;   ///< the transient shaper's fast follower
+        float envSlow = 0.0f;   ///< ... and its slow one
     };
     /** @brief The buses of one span: the mix, the echo send, the hall send. */
     struct Buses {
-        float* L; float* R;             ///< the dry mix (the output buffers)
-        float* echoL; float* echoR;     ///< into the tape echo
-        float* hallL; float* hallR;     ///< into the hall
-        float* echo2L; float* echo2R;   ///< into the second echo
-        float* rowsL; float* rowsR;     ///< the rows' dry sum, which ducks the rooms' returns and the pads
-        float* padsL; float* padsR;     ///< the pads' sum (strings, tape keys), which ducks the atmosphere
-        float* blendL; float* blendR;   ///< into the blend room
-        float* earlyL; float* earlyR;   ///< into the early reflections
-        float* shimL; float* shimR;     ///< into the effect hall
+        float* L;        ///< the dry mix, left (the output buffer)
+        float* R;        ///< ... right
+        float* echoL;    ///< into the tape echo, left
+        float* echoR;    ///< ... right
+        float* hallL;    ///< into the hall, left
+        float* hallR;    ///< ... right
+        float* echo2L;   ///< into the second echo, left
+        float* echo2R;   ///< ... right
+        float* rowsL;    ///< the rows' dry sum, left: it ducks the rooms' returns and the pads
+        float* rowsR;    ///< ... right
+        float* padsL;    ///< the pads' sum (strings, tape keys), left: it ducks the atmosphere
+        float* padsR;    ///< ... right
+        float* blendL;   ///< into the blend room, left
+        float* blendR;   ///< ... right
+        float* earlyL;   ///< into the early reflections, left
+        float* earlyR;   ///< ... right
+        float* shimL;    ///< into the effect hall, left
+        float* shimR;    ///< ... right
     };
+    /** @brief Reads the knobs and the automation for the next raster cell: the mixer, its effects, the master. */
     void updateCell();
+    /**
+     * @brief Renders @p n samples into @p L and @p R within one raster cell, up to the next note: the sources through their
+     *        strips, the rooms, the mix bus.
+     */
     void renderSpan(float* L, float* R, int n);
     /** @brief A voice's settings from a module laid out like the voice table (voice, lead, drone). */
     VoiceSettings voiceSettings(Module m, int instance, bool vibrato) const;
@@ -223,11 +261,11 @@ private:
     void mix(int source, const float* xl, const float* xr, int n, const Buses& b, bool echoSend = true,
              const float* midGain = nullptr);
 
-    ParamStore params_;
-    Score score_;
-    double sampleRate_ = 48000.0;
-    int maxBlock_ = 512;
-    int64_t sample_ = 0;
+    ParamStore params_;   ///< the knobs
+    Score score_;   ///< the piece it plays
+    double sampleRate_ = 48000.0;   ///< the sample rate, Hz
+    int maxBlock_ = 512;   ///< the largest block process() is given
+    int64_t sample_ = 0;   ///< the position, samples
     bool cellDirty_ = false;   ///< read the settings at the next sample, not only at the raster (after a seek)
     size_t knobCursor_ = 0;    ///< the next of the score's knob settings to put on the knobs
     std::atomic<double> soundGroup_ { -1.0 };   ///< the beat of the knob settings that hold (the piece whose sounds these are)
@@ -238,9 +276,9 @@ private:
     /** @brief Puts the score's knob settings up to @p beat on the knobs, from the cursor on. */
     void applyKnobs(double beat);
     std::vector<int64_t> offAt_;   ///< every note's off sample, by its id (a seek chases the notes that sound on)
-    std::vector<Ev> events_;
-    size_t evCursor_ = 0;
-    std::vector<Track> tracks_;
+    std::vector<Ev> events_;   ///< the score's notes on the sample grid, in time order
+    size_t evCursor_ = 0;   ///< index of the next event not yet played
+    std::vector<Track> tracks_;   ///< the set's own automation, one track per knob
     std::vector<int> trackOf_;   ///< parameter id -> index into tracks_, or -1
 
     bool metering_ = false;               ///< setMetering()
@@ -248,53 +286,117 @@ private:
     double meterSum_[kChannels] = {};     ///< takeMeters(): sum of squares per channel
     int meterCount_ = 0;                  ///< takeMeters(): samples gathered
     ModVoiceBank voices_;   ///< the sources below kModVoices, in lanes
-    Strip strips_[kSources];
-    TapeKeys tape_;
-    StringMachine strings_;
+    Strip strips_[kSources];   ///< a strip per source
+    TapeKeys tape_;   ///< the tape keys
+    StringMachine strings_;   ///< the string machine
     PolySynth poly_;                      ///< the pad synth (Part::Pad)
-    DrumKit drums_;
-    Atmos atmos_;
-    TapeEcho echo_;
+    DrumKit drums_;   ///< the drum machine
+    Atmos atmos_;   ///< the atmosphere
+    TapeEcho echo_;   ///< the tape echo
     BbdEcho bbd_;          ///< echo.type BBD instead of the tape echo, on the same send
     TapeEcho echo2_;       ///< the second echo (Module::Echo2, keys "delay.*"): its own time for the counter rows
     Plate plate_;          ///< reverb.type Plate instead of the hall, on the same send
-    bool bbdOn_ = false, plateOn_ = false;   ///< echo.type and reverb.type at the current cell
-    Spring spring_;
-    Reverb reverb_;
-    BusCompressor comp_;
-    TruePeakLimiter limiter_;
-    float echoReturn_ = 0.0f, springReturn_ = 0.0f, reverbReturn_ = 0.0f, master_ = 1.0f, echo2Return_ = 0.0f;
+    bool bbdOn_ = false;   ///< echo.type BBD at the current cell
+    bool plateOn_ = false;   ///< reverb.type Plate at the current cell
+    Spring spring_;   ///< the springs on the echo send
+    Reverb reverb_;   ///< the hall
+    BusCompressor comp_;   ///< the bus compressor
+    TruePeakLimiter limiter_;   ///< the true-peak limiter (master.ceiling)
+    float echoReturn_ = 0.0f;   ///< the echo's return level
+    float springReturn_ = 0.0f;   ///< the springs' return level
+    float reverbReturn_ = 0.0f;   ///< the hall's return level
+    float master_ = 1.0f;   ///< master.level, linear
+    float echo2Return_ = 0.0f;   ///< the second echo's return level
     // The production guide's mix bus (25.09.2026): a 20 Hz DC and subsonic filter, the side mono under 100 Hz and
     // widened above 300 Hz, a mono switch; the rooms' returns ducked by the rows.
-    Svf dcL_, dcR_, sideHp_, sideHp300_;
-    float width_ = 1.0f;
-    float energyMid_ = 0.0f, energyLow_ = 0.0f, energyHigh_ = 0.0f, energyCoef_ = 0.0f;   ///< the width's guard
-    bool mono_ = false;
-    float duckEnv_ = 0.0f, envAttack_ = 0.0f, envRelease_ = 0.0f;
-    float echoDuckDb_ = 0.0f, hallDuckDb_ = 0.0f;
+    Svf dcL_;   ///< the 20 Hz DC and subsonic filter, left
+    Svf dcR_;   ///< ... right
+    Svf sideHp_;   ///< the side's high pass at 100 Hz: the side mono under it
+    Svf sideHp300_;   ///< the side's high pass at 300 Hz: what the width widens
+    float width_ = 1.0f;   ///< master.width, linear: the side above 300 Hz
+    float energyMid_ = 0.0f;   ///< the width's guard: the mid's energy (300 ms)
+    float energyLow_ = 0.0f;   ///< ... the side's under 300 Hz
+    float energyHigh_ = 0.0f;   ///< ... the side's above
+    float energyCoef_ = 0.0f;   ///< ... the followers' coefficient
+    bool mono_ = false;   ///< master.mono: the mix in mono
+    float duckEnv_ = 0.0f;   ///< the rows' envelope that ducks the rooms' returns
+    float envAttack_ = 0.0f;   ///< the ducks' followers: attack coefficient (5 ms)
+    float envRelease_ = 0.0f;   ///< ... release coefficient
+    float echoDuckDb_ = 0.0f;   ///< how far the rows duck the echo's return, dB (echo.duck)
+    float hallDuckDb_ = 0.0f;   ///< how far they duck the hall's return, dB (reverb.duck)
     // The addon (25.09.2026): the cascaded duck, the tape keys' allpass spread, the sub solo, the limiter switch.
-    float cascadeDb_ = 0.0f, padEnv_ = 0.0f, tapeSpread_ = 0.0f;
-    float apL_[4] = {}, apR_[4] = {}, apCoefL_[4] = {}, apCoefR_[4] = {};
-    bool subSolo_ = false, limiterOn_ = true;
-    Svf subL_, subR_;
-    // The blend room (a second plate, short) and its serial feed into the hall; the soft clipper (with first-order
-    // antiderivative anti-aliasing) and the limiter under 80 Hz on the mix bus.
+    float cascadeDb_ = 0.0f;   ///< the cascaded duck's depth: the pads under the rows, dB
+    float padEnv_ = 0.0f;   ///< the pads' envelope that ducks the atmosphere
+    float tapeSpread_ = 0.0f;   ///< tape.spread: the tape keys' allpass spread
+    float apL_[4] = {};   ///< the spread's allpasses: states, left
+    float apR_[4] = {};   ///< ... right
+    float apCoefL_[4] = {};   ///< ... coefficients, left
+    float apCoefR_[4] = {};   ///< ... right
+    bool subSolo_ = false;   ///< master.sub_solo: the band under 80 Hz alone
+    bool limiterOn_ = true;   ///< the limiter is in
+    Svf subL_;   ///< the sub solo's low pass, left
+    Svf subR_;   ///< ... right
+    /// The blend room (a second plate, short) and its serial feed into the hall; the soft clipper (with first-order
+    /// antiderivative anti-aliasing) and the limiter under 80 Hz on the mix bus.
     Plate blend_;
-    EarlyReflections early_;
-    Shimmer shimmer_;
-    float earlyReturn_ = 0.0f, shimmerReturn_ = 0.0f, tame_ = 0.0f;
-    // The six bands of the spectral duck and of the resonance suppressor: the rows' and the pads' side chains, the
-    // rows' bus (both sides), and their followers.
+    EarlyReflections early_;   ///< the early reflections (send A)
+    Shimmer shimmer_;   ///< the effect hall (send D)
+    float earlyReturn_ = 0.0f;   ///< the early reflections' return level
+    float shimmerReturn_ = 0.0f;   ///< the effect hall's return level
+    float tame_ = 0.0f;   ///< master.tame: the resonance suppressor's amount
+    /// The six bands of the spectral duck and of the resonance suppressor: the rows' and the pads' side chains, the
+    /// rows' bus (both sides), and their followers.
     static constexpr int kBands = 6;
-    Svf rowSide_[kBands], padSide_[kBands];
-    float rowBandEnv_[kBands] = {}, padBandEnv_[kBands] = {};
+    Svf rowSide_[kBands];   ///< the rows' side chain, per band
+    Svf padSide_[kBands];   ///< the pads' side chain, per band
+    float rowBandEnv_[kBands] = {};   ///< the rows' followers, per band
+    float padBandEnv_[kBands] = {};   ///< the pads' followers, per band
     ResonanceTamer tamer_;   ///< on the rows' bus (fx/Rooms.h)
     float duckTable_[256] = {};   ///< the spectral duck's gains by amount (0 .. 1 in 256 steps)
-    float blendReturn_ = 0.0f, blendIntoHall_ = 0.0f;
-    float clipDb_ = 0.0f, clipCeiling_ = 1.0f, clipPrev_[2] = {}, subCeiling_ = 1.0f, subEnv_ = 0.0f, subAttack_ = 0.0f, subRelease_ = 0.0f;
-    float punchFastA_ = 0.0f, punchFastR_ = 0.0f, punchSlowA_ = 0.0f, punchSlowR_ = 0.0f;
-    Svf subSplitL_[2], subSplitR_[2], subHpL_[2], subHpR_[2];
+    float blendReturn_ = 0.0f;   ///< the blend room's return level
+    float blendIntoHall_ = 0.0f;   ///< how much of it feeds the hall
+    float clipDb_ = 0.0f;   ///< how far the soft clipper rounds above the ceiling, dB (master.clip)
+    float clipCeiling_ = 1.0f;   ///< the limiter's ceiling, linear
+    float clipPrev_[2] = {};   ///< the clipper's last input per channel (its antiderivative)
+    float subCeiling_ = 1.0f;   ///< the ceiling of the band under 80 Hz, linear
+    float subEnv_ = 0.0f;   ///< that band's follower
+    float subAttack_ = 0.0f;   ///< its attack coefficient (1 ms)
+    float subRelease_ = 0.0f;   ///< its release coefficient
+    float punchFastA_ = 0.0f;   ///< the transient shaper: the fast follower's attack
+    float punchFastR_ = 0.0f;   ///< ... its release
+    float punchSlowA_ = 0.0f;   ///< ... the slow follower's attack
+    float punchSlowR_ = 0.0f;   ///< ... its release
+    Svf subSplitL_[2];   ///< the band under 80 Hz: its low pass, left (two sections)
+    Svf subSplitR_[2];   ///< ... right
+    Svf subHpL_[2];   ///< ... the rest above it, left (two sections)
+    Svf subHpR_[2];   ///< ... right
     int transpose_ = 0;   ///< perform.transpose at the current cell, for the notes that start
+    // Live play and the keyboard (01.10.2026, setLive, queueLive).
+    /// Live play (setLive).
+    bool live_ = false;
+    int keyTarget_ = 0;              ///< perform.keyboard_part (perform::keys), read at every cell in live play
+    bool keyReplace_ = true;         ///< perform.keyboard_mode Replace: the played voice's generated notes are left out
+    bool composerOff_ = false;       ///< perform.composer off: no generated note at all
+    uint32_t keyPlayed_ = 0;         ///< by channel: the targets played since the last liveAllOff (bit = target)
+    bool liveEvent_ = false;         ///< dispatch() plays a key now: never silenced
+    /** @brief A key queued for the current process() call (queueLive). */
+    struct LiveKey {
+        int64_t at;       ///< the engine sample it plays on
+        int pitch;        ///< MIDI note
+        float velocity;   ///< 0..1
+        int target;       ///< perform::keys (the release's is the one its key went to)
+        bool on;          ///< false: a release
+    };
+    static constexpr int kLiveQueue = 256;   ///< keys per process() call at most
+    LiveKey liveQueue_[kLiveQueue] = {};   ///< the keys queued for this process() call, in time order
+    int liveCount_ = 0;   ///< how many keys are queued
+    int liveCursor_ = 0;   ///< index of the next queued key not yet played
+    uint8_t liveTarget_[128] = {};   ///< per key: the target it plays + 1 (0: not held)
+    int keyboardTarget(int channel) const;   ///< perform.keyboard_part for a key on @p channel (perform::keys; Off: none)
+    static int sourceOf(int target);          ///< the Source a keyboard target plays (-1 none)
+    static int targetOf(int source);          ///< the keyboard target a Source belongs to (perform::keys; Off: none)
+    bool silenced(int source) const;          ///< the composer's note-ons of @p source are left out
+    void playLive(const LiveKey& k);          ///< a queued key (or its release), now
     int tapeSingers_ = kSingers;   ///< setTapeSingers()
     float* const* stemL_ = nullptr;   ///< setStems(), left
     float* const* stemR_ = nullptr;   ///< setStems(), right
@@ -325,8 +427,9 @@ private:
         float early[3] = {};                  ///< EarlyReflections::set
         float shimmer[4] = {};                ///< Shimmer::set
         float spring[2] = {};                 ///< Spring::set
-        float compress = 0.0f, ceiling = 0.0f;   ///< BusCompressor::set, TruePeakLimiter::set
-    } cache_;
+        float compress = 0.0f;   ///< BusCompressor::set
+        float ceiling = 0.0f;   ///< TruePeakLimiter::set
+    } cache_;   ///< what the setters were last called with
     /** @brief played()'s last result per parameter: knob, offset, value (the curve's log and exp saved). */
     mutable std::vector<std::array<float, 3>> playedCache_;
 };

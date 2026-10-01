@@ -41,7 +41,7 @@ namespace eph {
 
 /** @brief The VCO models (kVcoNames). */
 enum class VcoModel : int { Analog, Moog921, Prophet5, Sem, Arp2600, Emu, Count };
-constexpr int kVcoModels = static_cast<int>(VcoModel::Count);
+constexpr int kVcoModels = static_cast<int>(VcoModel::Count);   ///< how many VCO models there are
 
 /** @brief A model's circuit: the ramp's bow and knee, and its drift against the voice's. */
 struct VcoProfile {

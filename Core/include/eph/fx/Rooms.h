@@ -20,6 +20,7 @@ namespace eph {
  */
 class EarlyReflections {
 public:
+    /** @brief Allocates the line for a sample rate (120 ms) and sets the default reflections. */
     void prepare(double sampleRate)
     {
         sr_ = sampleRate;
@@ -69,13 +70,18 @@ public:
     }
 
 private:
-    static constexpr int kTaps = 12;
-    double sr_ = 48000.0;
-    std::vector<float> buf_;
-    size_t mask_ = 0, write_ = 0;
-    int tapL_[kTaps] = {}, tapR_[kTaps] = {};
-    float gain_[kTaps] = {};
-    Svf hpL_, hpR_, lpL_, lpR_;
+    static constexpr int kTaps = 12;   ///< taps a side
+    double sr_ = 48000.0;   ///< the sample rate, Hz
+    std::vector<float> buf_;   ///< the send in mono, a ring
+    size_t mask_ = 0;   ///< its size - 1
+    size_t write_ = 0;   ///< where the next sample goes
+    int tapL_[kTaps] = {};   ///< the left side's taps, samples
+    int tapR_[kTaps] = {};   ///< the right side's taps, samples
+    float gain_[kTaps] = {};   ///< the taps' gains (alternating, falling, normalised)
+    Svf hpL_;   ///< the return's high pass, left
+    Svf hpR_;   ///< ... right
+    Svf lpL_;   ///< the return's low pass, left
+    Svf lpR_;   ///< ... right
 };
 
 /**
@@ -85,6 +91,7 @@ private:
  */
 class Shimmer {
 public:
+    /** @brief Prepares the plate and the shifter for a sample rate and sets the default effect. */
     void prepare(double sampleRate)
     {
         sr_ = sampleRate;
@@ -145,13 +152,19 @@ public:
     }
 
 private:
-    double sr_ = 48000.0, phase_ = 0.0, window_ = 2048.0;
-    Plate plate_;
-    std::vector<float> shift_;
-    size_t write_ = 0;
-    float amount_ = 0.35f;
-    long long quiet_ = 0, idleAfter_ = 1000000;
-    Svf hpL_, hpR_, lpL_, lpR_;
+    double sr_ = 48000.0;   ///< the sample rate, Hz
+    double phase_ = 0.0;   ///< the shifter's phase, 0..1
+    double window_ = 2048.0;   ///< the shifter's window, samples (43 ms)
+    Plate plate_;   ///< the long plate
+    std::vector<float> shift_;   ///< the plate's output, a ring: what the octave reads
+    size_t write_ = 0;   ///< where the next sample goes
+    float amount_ = 0.35f;   ///< the octave's share fed back
+    long long quiet_ = 0;   ///< samples nothing has come in
+    long long idleAfter_ = 1000000;   ///< samples of silence after which it rests (three tails)
+    Svf hpL_;   ///< the return's high pass, left
+    Svf hpR_;   ///< ... right
+    Svf lpL_;   ///< the return's low pass, left
+    Svf lpR_;   ///< ... right
 };
 
 /**
@@ -161,7 +174,8 @@ private:
  */
 class ResonanceTamer {
 public:
-    static constexpr int kBands = 6;
+    static constexpr int kBands = 6;   ///< the bands
+    /** @brief Sets the bands (350 Hz .. 4.8 kHz) and the followers (3 ms up, 60 ms down) for a sample rate. */
     void prepare(double sampleRate)
     {
         static const float kCentre[kBands] = { 350.0f, 600.0f, 1000.0f, 1700.0f, 2900.0f, 4800.0f };
@@ -201,8 +215,11 @@ public:
     }
 
 private:
-    Svf l_[kBands], r_[kBands];
-    float env_[kBands] = {}, attack_ = 0.0f, release_ = 0.0f;
+    Svf l_[kBands];   ///< the bands' band passes, left
+    Svf r_[kBands];   ///< ... right
+    float env_[kBands] = {};   ///< the bands' followers
+    float attack_ = 0.0f;   ///< the followers' attack coefficient
+    float release_ = 0.0f;   ///< their release coefficient
 };
 
 } // namespace eph

@@ -11,13 +11,20 @@
 using namespace eph;
 
 namespace {
-const juce::Colour kBack = ephui::colour::panel, kInk = ephui::colour::ink, kDim = ephui::colour::dim, kFaint = ephui::colour::edge, kAccent = ephui::colour::amber;
+const juce::Colour kBack = ephui::colour::panel;   ///< a page (the orrery shows faintly through it)
+const juce::Colour kInk = ephui::colour::ink;   ///< text: parchment
+const juce::Colour kDim = ephui::colour::dim;   ///< names, secondary text
+const juce::Colour kFaint = ephui::colour::edge;   ///< hairlines
+const juce::Colour kAccent = ephui::colour::amber;   ///< the sun: the accent
 
+/** @brief @p x (0..1) as a percentage. */
 juce::String percent(float x) { return juce::String(juce::roundToInt(100.0f * x)) + " %"; }
+/** @brief "@p a - @p b" with @p decimals decimals (one number where they are equal). */
 juce::String range(double a, double b, int decimals = 0)
 {
     return a == b ? juce::String(a, decimals) : juce::String(a, decimals) + " - " + juce::String(b, decimals);
 }
+/** @brief The name of row division @p d. */
 juce::String division(RowDivision d)
 {
     switch (d) {
@@ -36,10 +43,11 @@ juce::String division(RowDivision d)
 
 /** @brief One line of the table: its label and how a profile says it. */
 struct Line {
-    const char* label;
-    std::function<juce::String(const StyleProfile&)> value;
+    const char* label;   ///< the line's label
+    std::function<juce::String(const StyleProfile&)> value;   ///< how a profile says it
 };
 
+/** @brief The lines of the table, built on first use. */
 const std::vector<Line>& lines()
 {
     static const std::vector<Line> l = {

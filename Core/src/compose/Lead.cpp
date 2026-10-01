@@ -32,6 +32,7 @@ std::vector<int> allowed(int low, int high, int rootPc, const bool* set)
     return out;
 }
 
+/** @brief The index of the pitch in @p v nearest @p pitch. */
 int nearestIndex(const std::vector<int>& v, int pitch)
 {
     int best = 0;

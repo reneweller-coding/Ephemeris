@@ -62,10 +62,10 @@ public:
     int paramId() const { return id_; }   ///< the id in the store
 
 private:
-    eph::ParamStore& store_;
-    int id_;
-    juce::String name_;
-    juce::NormalisableRange<float> range_;
+    eph::ParamStore& store_;   ///< the store it reads and writes
+    int id_;   ///< the id in the store
+    juce::String name_;   ///< the display name
+    juce::NormalisableRange<float> range_;   ///< the store's mapping between the real and the normalised value
 };
 
 /** @brief The Ephemeris processor. */
@@ -182,6 +182,7 @@ public:
     bool saveUserPreset(eph::Module module, int instance, const juce::String& name);
     /** @brief Sets every `key=value` line of @p text (full keys, e.g. reverb.decay) through the host's parameters. */
     void applyKeyText(const juce::String& text);
+    /** @brief The host parameter of store id @p id, or null. */
     StoreParameter* parameter(int id) { return id >= 0 && id < static_cast<int>(params_.size()) ? params_[static_cast<size_t>(id)] : nullptr; }
 
     // juce::AudioProcessor: a stereo instrument without MIDI, one program, the state as XML.
@@ -204,19 +205,21 @@ public:
     void setStateInformation(const void* data, int sizeInBytes) override;   ///< restores them and composes
 
 private:
+    /** @brief Nothing: a value alone is no step (the gestures are). */
     void parameterValueChanged(int, float) override {}
     void parameterGestureChanged(int parameterIndex, bool gestureIsStarting) override;   ///< a knob on the panel: a step
     std::vector<float> values() const;               ///< every store value (undo)
     juce::String extraState() const;                 ///< seed, rerolls and the concert's length as text (undo)
     void applyExtra(const juce::String& text);       ///< the inverse; composes if seed or rerolls changed
+    /** @brief Puts undo step @p s back (@p after false) or makes it again (@p after true). */
     void applyStep(const frame::UndoStep& s, bool after);
     void pollHeadset();                              ///< the hands' events, 30 times a second (message thread)
     frame::UndoHistory history_;                     ///< undo and redo (message thread)
     bool restoring_ = false;                         ///< an undo or the headset moves knobs: no step of their own
     frame::Headset headset_;                         ///< the Quest's hands (message thread)
-    juce::TimedCallback headsetTick_{ [this] { pollHeadset(); } };
-    void run() override;          // the composer thread
-    void timerCallback() override;   // loads a finished score on the message thread
+    juce::TimedCallback headsetTick_{ [this] { pollHeadset(); } };   ///< polls the headset 30 times a second
+    void run() override;   ///< the composer thread
+    void timerCallback() override;   ///< loads a finished score on the message thread
     eph::Score composeNow(eph::ParamStore& snapshot);   ///< composes with the knobs as they are (copied into @p snapshot)
     /** @brief Hands a piece's loudness corrections, measured while it plays, to the engine (message thread). */
     void takeTrims();
@@ -227,23 +230,28 @@ private:
     eph::Score forPlayback(const eph::Score& s) const;
     /** @brief The performer's MIDI: keys transpose, controllers move what they are bound to (audio thread). */
     void perform(const juce::MidiBuffer& midi);
+    int keyboardSeen_ = 0;   ///< the keyboard target of the last block (audio thread): a change releases every key
     /** @brief Sets store id @p id to the real value @p value through its host parameter. */
     void setFromMidi(int id, float value);
 
-    eph::Engine engine_;
-    std::vector<StoreParameter*> params_;
-    uint64_t seed_ = 1;
-    eph::Curation curation_;
-    mutable std::mutex lock_;
+    eph::Engine engine_;   ///< the engine
+    std::vector<StoreParameter*> params_;   ///< the host parameters, one per store id (owned by the processor)
+    uint64_t seed_ = 1;   ///< the seed of what plays
+    eph::Curation curation_;   ///< the rerolls and locks
+    mutable std::mutex lock_;   ///< guards what the composer thread hands over
     std::unique_ptr<eph::Score> pending_;   ///< composed, waiting to be loaded
     eph::Score current_;                    ///< what the engine plays (for reloading and the arrange view)
-    std::atomic<bool> composing_{ false }, playing_{ false }, exporting_{ false };
+    std::atomic<bool> composing_{ false };   ///< the composer thread works
+    std::atomic<bool> playing_{ false };   ///< play is on
+    std::atomic<bool> exporting_{ false };   ///< an export runs
     std::atomic<bool> again_{ false };   ///< compose was asked for while composing: once more when done
     // The loudness (Leveler.h): measured on the composer thread once the piece is handed over, while it plays.
     std::atomic<bool> newer_{ false };       ///< a newer piece is asked for: the measuring of the last one stops
-    uint64_t composed_ = 0, pendingId_ = 0, playingId_ = 0;   ///< counts the compositions; pending_'s, current_'s (lock_)
+    uint64_t composed_ = 0;   ///< counts the compositions
+    uint64_t pendingId_ = 0;   ///< pending_'s number (lock_)
+    uint64_t playingId_ = 0;   ///< current_'s number (lock_)
     std::vector<float> trims_;               ///< the corrections found for the composition trimsFor_ (lock_)
-    uint64_t trimsFor_ = 0;
+    uint64_t trimsFor_ = 0;   ///< the composition trims_ and bal_ belong to (lock_)
     bool levelled_ = false;                  ///< current_ carries its corrections (lock_)
     int pendingKind_ = 0;                    ///< what pending_ is: 0 a piece, 1 a concert, 2 a night set (lock_)
     std::atomic<int> playingKind_{ 0 };      ///< ... and current_ (playingKind())
@@ -257,15 +265,16 @@ private:
     void takeSounds(const eph::Score& next);
     /** @brief Tells the host and the pages the values of the knobs @p s sets (the engine set them). */
     void tellSounds(const eph::Score& s);
-    std::atomic<double> position_{ 0.0 }, seekRequest_{ -1.0 };
-    double sampleRate_ = 48000.0;
-    int blockSize_ = 512;
-    juce::String lastExport_;
-    std::unique_ptr<std::thread> exporter_;
+    std::atomic<double> position_{ 0.0 };   ///< where the engine is, beats (audio thread writes)
+    std::atomic<double> seekRequest_{ -1.0 };   ///< a jump asked for, beats; -1 none
+    double sampleRate_ = 48000.0;   ///< the sample rate, Hz
+    int blockSize_ = 512;   ///< the largest block, samples
+    juce::String lastExport_;   ///< the last export's result, for the Export tab
+    std::unique_ptr<std::thread> exporter_;   ///< the export thread while it runs
     std::vector<float> record_;          ///< interleaved, allocated in prepareToPlay in the test mode only
-    size_t recordTarget_ = 0;
-    std::atomic<size_t> recordPos_{ 0 };
-    bool autoPlay_ = false;
+    size_t recordTarget_ = 0;   ///< TOT_RECORD: how many values record_ takes, 0 off
+    std::atomic<size_t> recordPos_{ 0 };   ///< how many are written
+    bool autoPlay_ = false;   ///< TOT_PLAY: play once the first score is loaded
     std::array<std::atomic<float>, eph::Engine::kChannels> meterPeak_{};   ///< audio thread raises, the editor takes (exchange 0)
     std::array<std::atomic<double>, eph::Engine::kChannels> meterSum_{};   ///< sums of squares since the editor last took them
     std::atomic<int> meterCount_{ 0 };                                      ///< samples in those sums

@@ -10,7 +10,65 @@
 # other configuration beside it (bin/<preset>-Debug). A copy that fails -- the program is running -- warns and does not
 # fail the build. FAMILY_BIN_DIR is set by the presets; empty (a release tree) copies nothing.
 #
-# The same file runs as a script (cmake -P) for the copy itself.
+# family_doccheck() adds the test `doccheck` where Doxygen is installed (01.10.2026): every class, function, variable,
+# typedef and macro of the sources -- Core, Plugin, the Quest app, the tools, the tests; private members, static functions
+# and anonymous namespaces included -- has its documentation, or the test fails and names what lacks it.
+#
+# The same file runs as a script (cmake -P) for the copy itself and for the documentation check.
+
+if(CMAKE_SCRIPT_MODE_FILE AND DOCCHECK)
+    # cmake -DDOCCHECK=1 -DDOXYGEN=<doxygen> -DROOT=<source dir> -DOUT=<work dir> -DNAME=<project> -P Family.cmake
+    set(inputs "")
+    foreach(d Core/include Core/src Plugin Quest/src Tools/render Tools/plandump Tests)
+        if(IS_DIRECTORY "${ROOT}/${d}")
+            string(APPEND inputs " \"${ROOT}/${d}\"")
+        endif()
+    endforeach()
+    file(MAKE_DIRECTORY "${OUT}")
+    set(log "${OUT}/undocumented.txt")
+    file(REMOVE "${log}")
+    file(WRITE "${OUT}/Doxyfile" "PROJECT_NAME = \"${NAME}\"
+OUTPUT_DIRECTORY = \"${OUT}\"
+INPUT = ${inputs}
+FILE_PATTERNS = *.h *.cpp
+RECURSIVE = YES
+EXCLUDE = \"${ROOT}/Tests/neonshim\" \"${ROOT}/Tests/neonbench\"
+EXCLUDE_PATTERNS = */ThirdParty/* */build/* */JuceLibraryCode/*
+EXTRACT_ALL = NO
+EXTRACT_PRIVATE = YES
+EXTRACT_STATIC = YES
+EXTRACT_LOCAL_CLASSES = YES
+EXTRACT_ANON_NSPACES = YES
+EXTRACT_LOCAL_METHODS = YES
+DISTRIBUTE_GROUP_DOC = YES
+WARN_IF_UNDOCUMENTED = YES
+WARN_IF_DOC_ERROR = NO
+WARN_NO_PARAMDOC = NO
+WARN_IF_INCOMPLETE_DOC = NO
+WARN_LOGFILE = \"${log}\"
+GENERATE_HTML = NO
+GENERATE_LATEX = NO
+QUIET = YES
+HAVE_DOT = NO
+")
+    execute_process(COMMAND "${DOXYGEN}" "${OUT}/Doxyfile" WORKING_DIRECTORY "${ROOT}" RESULT_VARIABLE r OUTPUT_QUIET ERROR_QUIET)
+    if(NOT r EQUAL 0)
+        message(FATAL_ERROR "doxygen failed (${r})")
+    endif()
+    set(missing "")
+    if(EXISTS "${log}")
+        file(STRINGS "${log}" lines REGEX "is not documented")
+        set(missing ${lines})
+    endif()
+    list(LENGTH missing n)
+    if(n GREATER 0)
+        list(SUBLIST missing 0 40 shown)
+        string(REPLACE ";" "\n" shown "${shown}")
+        message(FATAL_ERROR "${n} undocumented (all of them in ${log}):\n${shown}")
+    endif()
+    message(STATUS "doccheck: everything documented")
+    return()
+endif()
 
 if(CMAKE_SCRIPT_MODE_FILE)
     # cmake -DFROM=<file or folder> -DTO=<file or folder> -P Family.cmake
@@ -53,6 +111,19 @@ function(family_bin target)
         list(APPEND cmds COMMAND "${CMAKE_COMMAND}" "-DFROM=${f}" "-DTO=${dir}/${name}" -P "${FAMILY_LAYOUT_FILE}")
     endforeach()
     add_custom_command(TARGET ${target} POST_BUILD ${cmds} VERBATIM)
+endfunction()
+
+# family_doccheck(): the test `doccheck` (see the top of this file), where Doxygen is found; call it where enable_testing()
+# is in effect.
+function(family_doccheck)
+    find_program(FAMILY_DOXYGEN doxygen PATHS "C:/Program Files/doxygen/bin")
+    if(NOT FAMILY_DOXYGEN)
+        message(STATUS "doccheck: no doxygen, no test")
+        return()
+    endif()
+    add_test(NAME doccheck COMMAND "${CMAKE_COMMAND}" -DDOCCHECK=1 "-DDOXYGEN=${FAMILY_DOXYGEN}" "-DROOT=${CMAKE_SOURCE_DIR}"
+                                   "-DOUT=${CMAKE_BINARY_DIR}/doccheck" "-DNAME=${PROJECT_NAME}" -P "${FAMILY_LAYOUT_FILE}")
+    set_tests_properties(doccheck PROPERTIES LABELS "docs")
 endfunction()
 
 # family_juce(<tag>): JUCE for the plugin -- this repository's ThirdParty/JUCE, else the sibling Phosphene's checkout,

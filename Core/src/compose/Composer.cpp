@@ -1313,6 +1313,7 @@ struct RowParams {
     }
 };
 
+/** @brief The rows' parameter ids, looked up once. */
 const RowParams& rowParams()
 {
     static const RowParams rp;

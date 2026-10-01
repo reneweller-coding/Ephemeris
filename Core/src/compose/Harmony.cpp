@@ -11,14 +11,16 @@ namespace eph {
 
 namespace {
 
+/** @brief The index of @p style, clamped into the styles. */
 int styleIndex(Style style) { return std::clamp(static_cast<int>(style), 0, static_cast<int>(Style::Count) - 1); }
 
 /** @brief The transposer's moves of a style (3.7) and their weights. */
 struct StyleMoves {
-    std::vector<int> roots;
-    std::vector<float> weights;
+    std::vector<int> roots;   ///< the moves, semitones
+    std::vector<float> weights;   ///< their weights
 };
 
+/** @brief The transposer's moves of @p style. */
 const StyleMoves& movesOf(Style style)
 {
     static const StyleMoves kStyles[] = {
@@ -33,11 +35,13 @@ const StyleMoves& movesOf(Style style)
 
 /** @brief A style's chord classes (Static, Pendulum, Loop, Walk), harmonic rhythm and the Markov table's "stays". */
 struct StyleChords {
-    float cls[4];
-    int barsLow, barsHigh;
-    float stay;
+    float cls[4];   ///< the weights of the chord classes: Static, Pendulum, Loop, Walk
+    int barsLow;   ///< the harmonic rhythm: a chord's least bars
+    int barsHigh;   ///< ... and its most
+    float stay;   ///< the Markov table's chance that a chord stays
 };
 
+/** @brief The chord classes, harmonic rhythm and stays of @p style. */
 const StyleChords& chordsOf(Style style)
 {
     static const StyleChords kStyles[] = {
@@ -52,7 +56,11 @@ const StyleChords& chordsOf(Style style)
     return kStyles[styleIndex(style)];
 }
 
-struct Weighted { std::vector<int> degrees; float weight; };
+/** @brief A progression and its weight. */
+struct Weighted {
+    std::vector<int> degrees;   ///< its chords, as scale degrees
+    float weight;               ///< how often it is drawn
+};
 
 /** @brief The pendulum partners of the tonic per mode (3.5 B), as degrees of the mode. */
 const std::vector<Weighted>& pendulumsOf(int scale)
@@ -115,6 +123,7 @@ float markov(int scale, int from, int to)
 }
 
 template <typename T>
+/** @brief One of @p v, drawn from @p rng with the weights @p w. */
 const T& pick(const std::vector<T>& v, const std::vector<float>& w, Rng& rng)
 {
     float total = 0.0f;

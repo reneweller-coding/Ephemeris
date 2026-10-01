@@ -79,7 +79,7 @@ struct Skin {
      *        skin is a static, and an image destroyed after JUCE has shut down (a plugin's unloading) hangs the host.
      */
     const void* backdropData = nullptr;
-    int backdropSize = 0;
+    int backdropSize = 0;   ///< the size of backdropData, bytes
     juce::Rectangle<float> crop{ 0.0f, 0.0f, 1.0f, 1.0f };   ///< the part of it used, normalised
     float backdropTop = 0.7f;          ///< its strength behind the header
     float backdropPage = 0.35f;        ///< behind the pages (under the translucent panel)
@@ -100,30 +100,50 @@ struct Skin {
  */
 class LookAndFeel : public juce::LookAndFeel_V4 {
 public:
+    /** @brief A look and feel drawing with @p skin (it must outlive this object). */
     explicit LookAndFeel(const Skin& skin);
     const Skin& skin() const { return skin_; }   ///< the skin it draws with
 
+    /**
+     * @brief A knob: the skin's cap, its arc in the slider's fill colour from the start to the value, the value inside where
+     *        the skin says so.
+     */
     void drawRotarySlider(juce::Graphics&, int x, int y, int width, int height, float pos, float startAngle, float endAngle,
                           juce::Slider&) override;
+    /** @brief A fader or a horizontal slider: a thin track, the filled part in the slider's colour, a flat thumb. */
     void drawLinearSlider(juce::Graphics&, int x, int y, int width, int height, float pos, float minPos, float maxPos,
                           juce::Slider::SliderStyle, juce::Slider&) override;
+    /** @brief A switch: a small pill, lit in its tick colour when on, the text beside it. */
     void drawToggleButton(juce::Graphics&, juce::ToggleButton&, bool highlighted, bool down) override;
+    /** @brief A chooser: the skin's raised box and a small arrow in the box's arrow colour. */
     void drawComboBox(juce::Graphics&, int width, int height, bool down, int bx, int by, int bw, int bh, juce::ComboBox&) override;
+    /** @brief A button: a flat rounded box, brighter while the pointer is over it, darker while pressed. */
     void drawButtonBackground(juce::Graphics&, juce::Button&, const juce::Colour& background, bool highlighted, bool down) override;
+    /** @brief A main tab: its name in the skin's tab font, the one in front underlined in the accent. */
     void drawTabButton(juce::TabBarButton&, juce::Graphics&, bool isMouseOver, bool isMouseDown) override;
+    /** @brief The tab bar's background: nothing but a line under the tabs. */
     void drawTabbedButtonBarBackground(juce::TabbedButtonBar&, juce::Graphics&) override;
+    /** @brief Nothing behind the tab in front (the line under the tabs is the bar background). */
     void drawTabAreaBehindFrontButton(juce::TabbedButtonBar&, juce::Graphics&, int, int) override;
+    /** @brief A tab's width: its name at the tab font, with room on either side. */
     int getTabButtonBestWidth(juce::TabBarButton&, int tabDepth) override;
+    /** @brief The skin's tab font at the height the bar gives. */
     juce::Font getTabButtonFont(juce::TabBarButton&, float height) override;
+    /** @brief The skin's text font for a chooser. */
     juce::Font getComboBoxFont(juce::ComboBox&) override;
+    /** @brief The skin's text font for a button, a little smaller in a low one. */
     juce::Font getTextButtonFont(juce::TextButton&, int buttonHeight) override;
+    /** @brief The skin's text font for the menus. */
     juce::Font getPopupMenuFont() override;
+    /** @brief A slider's value box: centred, in the skin's ink, without the default box's frame. */
     juce::Label* createSliderTextBox(juce::Slider&) override;
+    /** @brief A menu's background in the skin's panel colour with its edge. */
     void drawPopupMenuBackground(juce::Graphics&, int width, int height) override;
+    /** @brief A tooltip: the skin's raised colour, its ink, a rounded edge. */
     void drawTooltip(juce::Graphics&, const juce::String& text, int width, int height) override;
 
 private:
-    const Skin& skin_;
+    const Skin& skin_;   ///< the colours, fonts and shapes it draws with
 };
 
 /** @brief Draws the instrument's name in the skin's title style (letter-spaced, glowing where the skin glows). */
@@ -139,7 +159,9 @@ float titleWidth(const Skin& skin, float height);
  */
 class FlatTab final : public juce::Button {
 public:
+    /** @brief A tab named @p name that never takes the keyboard focus (the keys stay the editor's). */
     explicit FlatTab(const juce::String& name) : juce::Button(name) { setWantsKeyboardFocus(false); }
+    /** @brief Draws the tab as the frame's tab bar draws its tabs: the name, underlined in the accent when it is on. */
     void paintButton(juce::Graphics& g, bool highlighted, bool down) override;
     /** @brief The width the name needs at the frame's tab font. */
     int bestWidth() const;
@@ -148,13 +170,17 @@ public:
 /** @brief A small button with a drawn glyph (no font needed): undo, redo, help, settings, the ratings, play, stop. */
 class IconButton final : public juce::Button {
 public:
+    /** @brief The glyphs it can draw. */
     enum class Icon { Undo, Redo, Help, Settings, ThumbUp, ThumbDown, Headset };
+    /** @brief A button with glyph @p icon and @p tooltip; it never takes the keyboard focus. */
     IconButton(Icon icon, const juce::String& tooltip);
+    /** @brief Draws another glyph from now on (a play button that becomes a stop button). */
     void setIcon(Icon icon) { icon_ = icon; repaint(); }
+    /** @brief Draws the button's background as the look and feel draws a button, the glyph on it. */
     void paintButton(juce::Graphics& g, bool highlighted, bool down) override;
 
 private:
-    Icon icon_;
+    Icon icon_;   ///< the glyph drawn
 };
 
 // ========================================================================================================== header
@@ -166,21 +192,22 @@ private:
  *        and the tools (undo, redo, help, settings) at its right end.
  */
 struct Header {
-    juce::Rectangle<float>* logo = nullptr;
-    juce::Component* title = nullptr;
-    int titleWidth = 0;
-    std::vector<std::pair<juce::Component*, int>> choices;
+    juce::Rectangle<float>* logo = nullptr;   ///< where the logo is drawn (filled by layoutHeader), or null
+    juce::Component* title = nullptr;   ///< the instrument's name, drawn in the skin's title font
+    int titleWidth = 0;   ///< the width the name needs (titleWidth())
+    std::vector<std::pair<juce::Component*, int>> choices;   ///< the choosers of the first row (style, key, scale ...) with their widths
+    /** @brief the buttons that choose what is composed (track or mix ...) with their widths, joined (connectModes) */
     std::vector<std::pair<juce::Component*, int>> modes;
-    juce::Component* lengthLabel = nullptr;
-    juce::Component* length = nullptr;
-    std::vector<std::pair<juce::Component*, int>> actions;
-    juce::Component* play = nullptr;
-    juce::Component* mute = nullptr;
-    juce::Component* like = nullptr;
-    juce::Component* dislike = nullptr;
-    juce::Component* status = nullptr;
-    juce::Component* curation = nullptr;
-    juce::Component* update = nullptr;
+    juce::Component* lengthLabel = nullptr;   ///< the length's name, or null
+    juce::Component* length = nullptr;   ///< the length slider (the rest of the first row goes to it), or null
+    std::vector<std::pair<juce::Component*, int>> actions;   ///< the actions of the first row (compose, new seed ...) with their widths
+    juce::Component* play = nullptr;   ///< the play button
+    juce::Component* mute = nullptr;   ///< the mute button, or null
+    juce::Component* like = nullptr;   ///< the thumb up (the rating of what plays), or null
+    juce::Component* dislike = nullptr;   ///< the thumb down, or null
+    juce::Component* status = nullptr;   ///< the status line of the second row
+    juce::Component* curation = nullptr;   ///< what is rerolled or locked, right of the status, or null
+    juce::Component* update = nullptr;   ///< the link to a newer release, shown when there is one, or null
     std::vector<juce::Component*> tools;   ///< left to right; a null makes a gap between groups
 };
 constexpr int kHeaderRow = 34;     ///< the first row's height
@@ -202,10 +229,10 @@ public:
     void paint(juce::Graphics& g, juce::Rectangle<int> area, int headerBottom, const Skin& skin, bool on);
 
 private:
-    juce::Image cache_;
-    juce::Rectangle<int> cachedFor_;
-    int cachedHeader_ = -1;
-    bool cachedOn_ = false;
+    juce::Image cache_;   ///< the picture scaled to the area it is drawn into
+    juce::Rectangle<int> cachedFor_;   ///< the area cache_ was made for
+    int cachedHeader_ = -1;   ///< the header's bottom cache_ was made for
+    bool cachedOn_ = false;   ///< whether the picture was on when cache_ was made
 };
 
 // ======================================================================================================== settings
@@ -216,34 +243,41 @@ private:
  */
 class Settings final : public juce::ChangeBroadcaster {
 public:
+    /** @brief Whether the headset's controls are shown: when a headset sends its hands, always, or never (nothing listens). */
     enum class HeadsetMode { Auto, On, Off };
     /** @brief The settings of instrument @p app (one object per name, message thread). */
     static Settings& of(const juce::String& app);
+    /** @brief The settings of @p app, read from its file in the user's application data (made on first use). */
     explicit Settings(const juce::String& app);
 
     HeadsetMode headset() const;                  ///< Auto: shown when a headset sends; On: always; Off: never, nothing listens
+    /** @brief Shows the headset's controls in mode @p m from now on; written at once. */
     void setHeadset(HeadsetMode m);
     int headsetPort() const;                      ///< the UDP port the hands arrive on (9100 + the instrument's offset)
     bool backdrop() const;                        ///< the picture behind the panel
+    /** @brief Shows the picture behind the panel or not; written at once. */
     void setBackdrop(bool on);
     /** @brief The overview above the tabs (01.10.2026: folded away, the pages get its height). */
     bool overview() const;
+    /** @brief Shows the overview above the tabs or folds it away; written at once. */
     void setOverview(bool on);
+    /** @brief The instrument's name, as given to of(). */
     juce::String app() const { return app_; }
 
 private:
-    juce::String app_;
-    std::unique_ptr<juce::PropertiesFile> file_;
+    juce::String app_;   ///< the instrument's name
+    std::unique_ptr<juce::PropertiesFile> file_;   ///< the settings file (<app>.frame in the user's application data)
 };
 
 /** @brief What the settings menu shows and does; empty functions leave their items out. */
 struct SettingsMenu {
-    juce::String app, version;
-    std::function<bool()> updatesOn;
-    std::function<void(bool)> setUpdates;
-    std::function<bool()> canFullScreen;
-    std::function<bool()> isFullScreen;
-    std::function<void()> toggleFullScreen;
+    juce::String app;   ///< the instrument's name: the menu's header and the settings it reads
+    juce::String version;   ///< the version shown in the header and in About
+    std::function<bool()> updatesOn;   ///< whether the update check is on (empty: no item)
+    std::function<void(bool)> setUpdates;   ///< switches the update check
+    std::function<bool()> canFullScreen;   ///< whether full screen is offered (the standalone only)
+    std::function<bool()> isFullScreen;   ///< whether the window fills the screen now
+    std::function<void()> toggleFullScreen;   ///< enters or leaves full screen
     std::function<void(float)> setWindowScale;    ///< 1.0: the design size
     std::function<juce::String()> headsetStatus;  ///< a line on what the headset receiver hears
     juce::String headsetOffText = "Off: do not listen";   ///< what Off means for this instrument
@@ -259,7 +293,15 @@ struct SettingsMenu {
 
 /** @brief The actions behind the keys; an empty one leaves its key to whoever wants it. */
 struct Keys {
-    std::function<void()> playStop, undo, redo, help, fullScreen, escape, save, open, exportFile;
+    std::function<void()> playStop;   ///< Space: play or stop
+    std::function<void()> undo;   ///< Ctrl+Z: undo
+    std::function<void()> redo;   ///< Ctrl+Y and Ctrl+Shift+Z: redo
+    std::function<void()> help;   ///< F1: the help
+    std::function<void()> fullScreen;   ///< F11: full screen
+    std::function<void()> escape;   ///< Esc: close the help, leave full screen
+    std::function<void()> save;   ///< Ctrl+S: save the set
+    std::function<void()> open;   ///< Ctrl+O: open a set
+    std::function<void()> exportFile;   ///< Ctrl+E: export
 };
 /** @brief Handles @p key as every generator does; true if it was one of the frame's keys. */
 bool handleKey(const juce::KeyPress& key, const Keys& keys);
@@ -277,26 +319,38 @@ void keepKeysForEditor(juce::Component& root);
  */
 class HelpView final : public juce::Component, private juce::ListBoxModel {
 public:
+    /**
+     * @brief The help made of the manual's prose @p chapters (chapters.txt: "== Title | ... ==" lines and their paragraphs),
+     *        drawn with @p skin.
+     */
     HelpView(const juce::String& chapters, const Skin& skin);
     /** @brief Topics made each time the help opens (name, text), shown first. */
     std::function<std::vector<std::pair<juce::String, juce::String>>()> extraTopics;
     std::function<void()> onClose;                       ///< the close button or Esc
     void refresh();                                      ///< remakes the extra topics, keeps the one chosen
+    /** @brief Shows topic @p index (the chapters first, then the extra topics). */
     void showTopic(int index);
+    /** @brief The topics left, the text right, the close button at the top right. */
     void resized() override;
+    /** @brief The panel's background behind the list and the text. */
     void paint(juce::Graphics& g) override;
+    /** @brief Esc closes the help (onClose); the other keys go on to the editor. */
     bool keyPressed(const juce::KeyPress& key) override;
 
 private:
+    /** @brief How many topics there are (the list box asks). */
     int getNumRows() override { return names_.size(); }
+    /** @brief A topic's name in the list, the chosen one in the accent. */
     void paintListBoxItem(int row, juce::Graphics& g, int width, int height, bool selected) override;
+    /** @brief Shows the topic chosen in the list. */
     void selectedRowsChanged(int lastRowSelected) override;
-    const Skin& skin_;
-    std::vector<std::pair<juce::String, juce::String>> chapters_;
-    juce::StringArray names_, texts_;
-    juce::ListBox list_;
-    juce::TextEditor text_;
-    juce::TextButton close_{ "Close" };
+    const Skin& skin_;   ///< the colours and fonts it draws with
+    std::vector<std::pair<juce::String, juce::String>> chapters_;   ///< the manual's chapters: title and text
+    juce::StringArray names_;   ///< the topics in the list: the chapters, then the extra topics
+    juce::StringArray texts_;   ///< the text of each topic
+    juce::ListBox list_;   ///< the list of topics
+    juce::TextEditor text_;   ///< the chosen topic's text, read only
+    juce::TextButton close_{ "Close" };   ///< closes the help (onClose)
 };
 
 // ============================================================================================================ undo
@@ -309,7 +363,9 @@ private:
 struct UndoStep {
     juce::String what;                                   ///< "Cutoff", "New seed", "reroll blocks"
     std::vector<std::tuple<int, float, float>> values;   ///< store id, before, after (real values)
+    /** @brief the rest of the state before the step, as the processor writes it (seed, rerolls ...) */
     juce::String extraBefore, extraAfter;                ///< the rest of the state, as the processor writes it
+    /** @brief Whether the step changed nothing at all (it is not recorded then). */
     bool empty() const { return values.empty() && extraBefore == extraAfter; }
 };
 
@@ -326,8 +382,11 @@ public:
     void touch(int id) { if (depth_ > 0) touched_.push_back(id); }
     /** @brief Closes a step with the state as it is now; the outermost close records it, unless nothing changed. */
     void end(const std::vector<float>& values, const juce::String& extra);
+    /** @brief Whether a step is open (begin() without its end()). */
     bool open() const { return depth_ > 0; }
+    /** @brief Whether there is a step to undo. */
     bool canUndo() const { return !undo_.empty(); }
+    /** @brief Whether there is an undone step to make again. */
     bool canRedo() const { return !redo_.empty(); }
     juce::String undoName() const { return undo_.empty() ? juce::String() : undo_.back().what; }   ///< the step undo takes back
     juce::String redoName() const { return redo_.empty() ? juce::String() : redo_.back().what; }   ///< the step redo makes again
@@ -335,16 +394,19 @@ public:
     const UndoStep* undo();
     /** @brief Makes the last undone step again: apply its "after" (null: nothing to redo). */
     const UndoStep* redo();
+    /** @brief Forgets every step (a new piece loaded, a state restored). */
     void clear() { undo_.clear(); redo_.clear(); }
 
 private:
-    static constexpr size_t kSteps = 200;
-    std::deque<UndoStep> undo_, redo_;
-    int depth_ = 0;
-    juce::String what_, extra_;
-    std::vector<float> before_;
-    std::vector<int> touched_;
-    bool all_ = false;
+    static constexpr size_t kSteps = 200;   ///< the most steps kept; the oldest go first
+    std::deque<UndoStep> undo_;   ///< the steps that can be undone, the newest at the back
+    std::deque<UndoStep> redo_;   ///< the undone steps that can be made again, the newest at the back
+    int depth_ = 0;   ///< how deeply begin() calls are nested (only the outermost end() records)
+    juce::String what_;   ///< the open step's name
+    juce::String extra_;   ///< the rest of the state when the step began
+    std::vector<float> before_;   ///< every value when the step began
+    std::vector<int> touched_;   ///< the store ids touch() named while the step was open
+    bool all_ = false;   ///< every value may have changed (a preset, a new seed): compare all of them at end()
 };
 
 // ======================================================================================================== sub-tabs
@@ -352,30 +414,37 @@ private:
 /** @brief A row of small tabs above a page: one tab of the main row holding several pages (the synths of a group). */
 class SubTabs final : public juce::Component {
 public:
+    /** @brief A row of small tabs drawn with @p skin; pages are added with add(). */
     explicit SubTabs(const Skin& skin) : skin_(skin) {}
     /** @brief A page, made the first time it is shown; @p colour marks its tab (transparent: the accent). */
     void add(const juce::String& name, std::function<std::unique_ptr<juce::Component>()> make,
              juce::Colour colour = juce::Colours::transparentBlack);
     void show(int index);                         ///< shows page @p index
+    /** @brief The index of the page shown, -1 before any. */
     int current() const { return current_; }
+    /** @brief How many pages there are. */
     int count() const { return static_cast<int>(pages_.size()); }
+    /** @brief The name of page @p i. */
     juce::String name(int i) const { return pages_[static_cast<size_t>(i)].name; }
     juce::Component* page() const;               ///< the page shown (null before the first)
     std::function<void(int)> onChange;            ///< after a page was chosen
+    /** @brief The row of tabs at the top, the page shown under it. */
     void resized() override;
+    /** @brief The line under the row of tabs. */
     void paint(juce::Graphics& g) override;
 
 private:
+    /** @brief A page: its tab and how it is made the first time it is shown. */
     struct Page {
-        juce::String name;
-        juce::Colour colour;
-        std::function<std::unique_ptr<juce::Component>()> make;
-        std::unique_ptr<juce::Component> comp;
-        std::unique_ptr<juce::TextButton> button;
+        juce::String name;   ///< the tab's name
+        juce::Colour colour;   ///< the tab's colour when it is in front (transparent: the accent)
+        std::function<std::unique_ptr<juce::Component>()> make;   ///< makes the page (called once, the first time it is shown)
+        std::unique_ptr<juce::Component> comp;   ///< the page, once made
+        std::unique_ptr<juce::TextButton> button;   ///< the page's tab
     };
-    const Skin& skin_;
-    std::vector<Page> pages_;
-    int current_ = -1;
+    const Skin& skin_;   ///< the colours it draws with
+    std::vector<Page> pages_;   ///< the pages, in the order of their tabs
+    int current_ = -1;   ///< the page shown, -1 before any
 };
 
 // ======================================================================================================= sections
@@ -411,20 +480,25 @@ SectionPlan planSections(const juce::StringArray& titles, int available, const s
 /** @brief The switch between a page's sections ("Sound" | "Modulation" | ...), drawn as the frame's small tabs. */
 class SectionSwitch final : public juce::Component {
 public:
+    /** @brief A switch drawn with @p skin with a button per name in @p names; the first is chosen. */
     explicit SectionSwitch(const Skin& skin, const juce::StringArray& names = { "Sound", "Modulation" });
+    /** @brief The section chosen. */
     int current() const { return current_; }
+    /** @brief How many sections there are. */
     int count() const { return buttons_.size(); }
+    /** @brief The name of section @p index. */
     juce::String name(int index) const { return buttons_[index] != nullptr ? buttons_[index]->getButtonText() : juce::String(); }
     void setCurrent(int index);                   ///< without onChange
     void setNames(const juce::StringArray& names);   ///< new sections (the current one kept where it still exists)
     std::function<void(int)> onChange;            ///< after a section was chosen
     int bestWidth() const;                        ///< the width its buttons need
+    /** @brief The buttons side by side, each as wide as its name needs. */
     void resized() override;
 
 private:
-    const Skin& skin_;
-    juce::OwnedArray<juce::TextButton> buttons_;
-    int current_ = 0;
+    const Skin& skin_;   ///< the colours it draws with
+    juce::OwnedArray<juce::TextButton> buttons_;   ///< a button per section
+    int current_ = 0;   ///< the section chosen
 };
 
 /**
@@ -456,36 +530,49 @@ struct ControlActions {
 /** @brief A knob or fader with the right-click menu (ControlActions) and its store id. */
 class Knob final : public juce::Slider {
 public:
+    /**
+     * @brief A knob or fader of style @p style with its value box at @p box; a right click offers @p actions for store id @p
+     *        id.
+     */
     Knob(SliderStyle style, TextEntryBoxPosition box, const ControlActions* actions, int id);
+    /** @brief A right click shows the menu (ControlActions::showMenu); any other click turns the knob. */
     void mouseDown(const juce::MouseEvent& e) override;
+    /** @brief The store id it edits. */
     int id() const { return id_; }
 
 private:
-    const ControlActions* actions_;
-    int id_;
+    const ControlActions* actions_;   ///< what its right-click menu does (null: no menu)
+    int id_;   ///< the store id it edits
 };
 /** @brief A menu with the right-click menu. */
 class Choice final : public juce::ComboBox {
 public:
+    /** @brief A chooser whose right click offers @p actions for store id @p id. */
     Choice(const ControlActions* actions, int id) : actions_(actions), id_(id) {}
+    /** @brief A right click shows the menu (ControlActions::showMenu); any other click opens the list. */
     void mouseDown(const juce::MouseEvent& e) override;
+    /** @brief The store id it edits. */
     int id() const { return id_; }
 
 private:
-    const ControlActions* actions_;
-    int id_;
+    const ControlActions* actions_;   ///< what its right-click menu does (null: no menu)
+    int id_;   ///< the store id it edits
 };
 /** @brief A switch with the right-click menu. */
 class Switch final : public juce::ToggleButton {
 public:
+    /** @brief A switch whose right click offers @p actions for store id @p id. */
     Switch(const ControlActions* actions, int id) : actions_(actions), id_(id) {}
+    /** @brief A right click shows the menu (ControlActions::showMenu) and does not toggle. */
     void mouseDown(const juce::MouseEvent& e) override;
+    /** @brief Toggles on a left click only (a right click's release does nothing). */
     void mouseUp(const juce::MouseEvent& e) override;
+    /** @brief The store id it edits. */
     int id() const { return id_; }
 
 private:
-    const ControlActions* actions_;
-    int id_;
+    const ControlActions* actions_;   ///< what its right-click menu does (null: no menu)
+    int id_;   ///< the store id it edits
 };
 
 /**
@@ -498,11 +585,14 @@ public:
     explicit LiveRings(std::function<float(int)> playedNormalised);
     ~LiveRings() override { stopTimer(); }
     void add(juce::Slider& slider, int id);       ///< follows @p slider (it must outlive this object, or call clear)
+    /** @brief Follows no slider any more (a page that rebuilds its controls). */
     void clear() { items_.clear(); }
 
 private:
+    /** @brief Reads what every followed knob plays at and sets its ring (the slider property "live"). */
     void timerCallback() override;
-    std::function<float(int)> played_;
+    std::function<float(int)> played_;   ///< the value a store id plays at, normalised 0..1 (the processor knows)
+    /** @brief the followed sliders and their store ids (a slider deleted meanwhile is skipped) */
     std::vector<std::pair<juce::Component::SafePointer<juce::Slider>, int>> items_;
 };
 
@@ -517,38 +607,48 @@ class ChannelStrip final : public juce::Component, public juce::SettableTooltipC
 public:
     /** @brief A control of the strip: its parameter, store id, the name under it, and whether it is a send. */
     struct Control {
-        juce::RangedAudioParameter* param = nullptr;
-        int id = -1;
-        juce::String label;
-        bool send = false;
+        juce::RangedAudioParameter* param = nullptr;   ///< the host parameter it edits
+        int id = -1;   ///< its store id (the right-click menu)
+        juce::String label;   ///< the name under it
+        bool send = false;   ///< a send: shown only while the console shows the sends
     };
+    /**
+     * @brief A strip drawn with @p skin: @p name and its @p colour on top, @p fader, the @p knobs above it, a meter beside
+     *        it.
+     */
     ChannelStrip(const Skin& skin, const juce::String& name, juce::Colour colour, Control fader, std::vector<Control> knobs,
                  const ControlActions* actions, LiveRings* live);
     /** @brief A new reading (linear peak and RMS) covering @p seconds. */
     void meter(float peak, float rms, double seconds);
+    /** @brief Shows the sends or folds them away (the console's Show sends). */
     void showSends(bool on) { sends_ = on; resized(); }
     void setSound(const juce::String& s);          ///< the sound it plays, under the name
     /** @brief A button under the name (a mute); the strip does not own it. */
     void setHeadButton(juce::Component* b);
+    /** @brief The held peak, dB. */
     float peakDb() const { return holdDb_; }
+    /** @brief The name, the sound, the meter (RMS, the held peak) and the scale. */
     void paint(juce::Graphics&) override;
+    /** @brief The head button, the knobs (the sends only when shown), the fader and the meter. */
     void resized() override;
 
 private:
-    const Skin& skin_;
-    juce::String name_, sound_;
-    juce::Colour colour_;
-    bool sends_ = false;
-    std::unique_ptr<Knob> fader_;
-    std::unique_ptr<juce::SliderParameterAttachment> faderLink_;
-    std::vector<std::unique_ptr<Knob>> knobs_;
-    std::vector<std::unique_ptr<juce::Label>> names_;
-    std::vector<std::unique_ptr<juce::SliderParameterAttachment>> links_;
-    std::vector<bool> isSend_;
-    juce::Component* head_ = nullptr;
-    juce::Rectangle<int> meterArea_;
-    float rmsDb_ = -100.0f, holdDb_ = -100.0f;
-    double holdAge_ = 0.0;
+    const Skin& skin_;   ///< the colours and fonts it draws with
+    juce::String name_;   ///< the strip's name
+    juce::String sound_;   ///< the sound its source plays (setSound)
+    juce::Colour colour_;   ///< the source's family colour
+    bool sends_ = false;   ///< the sends are shown
+    std::unique_ptr<Knob> fader_;   ///< the level fader
+    std::unique_ptr<juce::SliderParameterAttachment> faderLink_;   ///< the fader on its parameter
+    std::vector<std::unique_ptr<Knob>> knobs_;   ///< the small knobs above the fader (pan, sends ...)
+    std::vector<std::unique_ptr<juce::Label>> names_;   ///< the names under the knobs
+    std::vector<std::unique_ptr<juce::SliderParameterAttachment>> links_;   ///< the knobs on their parameters
+    std::vector<bool> isSend_;   ///< per knob: whether it is a send
+    juce::Component* head_ = nullptr;   ///< the button under the name (a mute), not owned; null: none
+    juce::Rectangle<int> meterArea_;   ///< where the meter is drawn
+    float rmsDb_ = -100.0f;   ///< the RMS of the last reading, dB
+    float holdDb_ = -100.0f;   ///< the held peak, dB (falls after holdAge_)
+    double holdAge_ = 0.0;   ///< seconds since the held peak was set
 };
 
 /**
@@ -557,20 +657,24 @@ private:
  */
 class Console final : public juce::Component {
 public:
+    /** @brief An empty console drawn with @p skin; strips are added with add(). */
     explicit Console(const Skin& skin);
     ChannelStrip& add(std::unique_ptr<ChannelStrip> strip);   ///< appends a strip
+    /** @brief How many strips there are. */
     int size() const { return static_cast<int>(strips_.size()); }
+    /** @brief Strip @p i. */
     ChannelStrip& strip(int i) { return *strips_[static_cast<size_t>(i)]; }
+    /** @brief The fold button on top, the strips side by side (scrolled sideways where they are narrower than kMinStrip). */
     void resized() override;
     static constexpr int kMinStrip = 64;     ///< the narrowest strip
 
 private:
-    const Skin& skin_;
-    juce::TextButton fold_{ "Show sends" };
-    bool sends_ = false;
-    juce::Viewport view_;
-    juce::Component inner_;
-    std::vector<std::unique_ptr<ChannelStrip>> strips_;
+    const Skin& skin_;   ///< the colours it draws with
+    juce::TextButton fold_{ "Show sends" };   ///< shows or folds the sends of every strip
+    bool sends_ = false;   ///< the sends are shown
+    juce::Viewport view_;   ///< scrolls the strips sideways where the window is too narrow
+    juce::Component inner_;   ///< holds the strips inside the viewport
+    std::vector<std::unique_ptr<ChannelStrip>> strips_;   ///< the strips, left to right
 };
 
 // ========================================================================================================= headset
@@ -578,8 +682,8 @@ private:
 /** @brief The two hands as the Quest app sends them: height (0 low .. 1 high, 0.5 the middle), pinch, tracked. */
 struct Hands {
     float height[2] = { 0.5f, 0.5f };   ///< left, right
-    bool pinch[2] = { false, false };
-    bool tracked[2] = { false, false };
+    bool pinch[2] = { false, false };   ///< left, right: the thumb and the index finger touch
+    bool tracked[2] = { false, false };   ///< left, right: the headset sees the hand
 };
 
 /** @brief What the hands did since the last poll, in the grammar every generator's Quest app shares. */
@@ -589,7 +693,8 @@ struct HeadsetEvents {
     bool action = false;                ///< a short right pinch: the genre's action
     bool hold = false;                  ///< a right pinch held 0.6 s: its second
     bool holdEnded = false;             ///< that held pinch opened again (a momentary second action ends)
-    bool filterMoved = false, throwMoved = false;
+    bool filterMoved = false;   ///< the filter control moved since the last poll
+    bool throwMoved = false;   ///< the throw control moved since the last poll
     float filter = 0.0f;                ///< -1 (low pass) .. 0 (open) .. 1 (high pass): the left hand's height
     float throwAmount = 0.0f;           ///< 0 .. 1: the right hand from the middle up
 };
@@ -605,13 +710,19 @@ public:
     ~Headset() override;
     /** @brief Listens on @p port (0: not at all). Message thread. */
     void listen(int port);
+    /** @brief The UDP port it listens on (0: none). */
     int port() const { return port_; }
+    /** @brief Whether it listens (a port, and no error opening it). */
     bool listening() const { return port_ > 0 && error_.isEmpty(); }
+    /** @brief Why it does not listen, empty when it does. */
     juce::String error() const { return error_; }
     bool active() const;                          ///< hands arrived in the last three seconds
+    /** @brief Whether hands ever arrived. */
     bool everSeen() const { return messages_ > 0; }
+    /** @brief The hands as they arrived last. */
     Hands hands() const { return hands_; }
     juce::String source() const { return source_; }   ///< who sent them last
+    /** @brief How many messages arrived. */
     juce::int64 messages() const { return messages_; }
     /** @brief What the hands did since the last call (message thread, every frame of a timer). */
     HeadsetEvents poll();
@@ -623,12 +734,14 @@ public:
     void inject(const Hands& h);
 
 private:
+    /** @brief Reads "/hands" with six floats (heights, pinches, tracked) into the hands (inject). */
     void oscMessageReceived(const juce::OSCMessage& m) override;
-    juce::OSCReceiver receiver_;
-    int port_ = 0;
-    juce::String error_, source_;
-    Hands hands_;
-    juce::int64 messages_ = 0;
+    juce::OSCReceiver receiver_;   ///< the OSC receiver on port_
+    int port_ = 0;   ///< the port listened on, 0 none
+    juce::String error_;   ///< why it does not listen (the port taken ...), empty when it does
+    juce::String source_;   ///< who sent the hands last
+    Hands hands_;   ///< the hands as they arrived last
+    juce::int64 messages_ = 0;   ///< how many messages arrived
     double last_ = -1.0e9;                        ///< when hands last arrived (ms, Time::getMillisecondCounterHiRes)
     // The grammar's state.
     bool was_[2] = { false, false };              ///< pinching at the last poll
@@ -636,8 +749,9 @@ private:
     bool both_ = false;                           ///< both closed together: the next one has fired
     double since_[2] = { 0.0, 0.0 };              ///< when each pinch began (ms)
     bool holding_ = false;                        ///< the right pinch's hold fired and the pinch is still closed
+    /** @brief the smoothed filter control, -1 .. 1 */
     float filter_ = 0.0f, throw_ = 0.0f;          ///< the smoothed controls
-    double lastPoll_ = 0.0;
+    double lastPoll_ = 0.0;   ///< when poll() ran last (ms; the smoothing's time step)
 };
 
 /** @brief The grammar as text (the help). */

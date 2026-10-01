@@ -14,8 +14,8 @@
 namespace eph {
 
 namespace {
-using Coeffs = std::vector<std::complex<double>>;
-constexpr double kPiD = 3.14159265358979323846;
+using Coeffs = std::vector<std::complex<double>>;   ///< A table frame's harmonics as complex coefficients.
+constexpr double kPiD = 3.14159265358979323846;   ///< pi
 }
 
 // ---------------------------------------------------------------- Fft
@@ -186,7 +186,7 @@ Coeffs unit(Coeffs c)
 
 /** @brief The formula tables and the sampled ones, built once. */
 struct Tables {
-    CycleTable t[kWavetableCount];
+    CycleTable t[kWavetableCount];   ///< every table
     Tables()
     {
         const int H = CycleTable::levelHarmonics(0);
@@ -307,6 +307,7 @@ struct Tables {
     }
 };
 
+/** @brief The tables, built on first use. */
 const Tables& tables()
 {
     static const Tables t;

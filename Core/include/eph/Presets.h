@@ -31,9 +31,9 @@ namespace eph {
 
 /** @brief One preset: its group (a submenu), its name, and the values it sets (knob index in its module, value). */
 struct SoundPreset {
-    std::string group;
-    std::string name;
-    std::vector<std::pair<int, float>> values;
+    std::string group;   ///< its group (a submenu)
+    std::string name;   ///< its name
+    std::vector<std::pair<int, float>> values;   ///< every knob it sets (all but presetLeaves), by index in the module
 };
 
 /**

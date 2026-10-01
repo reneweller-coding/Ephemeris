@@ -425,6 +425,7 @@ void EphemerisProcessor::prepareToPlay(double sampleRate, int samplesPerBlock)
 {
     sampleRate_ = sampleRate;
     blockSize_ = samplesPerBlock;
+    engine_.setLive(true);   // the keyboard and the composer switch act here, never in an export (01.10.2026)
     engine_.prepare(sampleRate, samplesPerBlock);
     engine_.setMetering(true);   // reading only: the mix is the same to the bit (Engine.h)
     if (const char* secs = std::getenv("EPH_PLAY"); secs != nullptr && std::getenv("EPH_RECORD") != nullptr) {
@@ -477,6 +478,11 @@ void EphemerisProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::Mi
     }
     const double seek = seekRequest_.exchange(-1.0);
     if (seek >= 0.0) engine_.seek(seek);
+    {   // Stopped, or another keyboard target: every played key is released (01.10.2026).
+        const int target = store().getInt(store().id(Module::Perform, 0, perform::KeyboardPart));
+        if (!play || target != keyboardSeen_) engine_.liveAllOff();
+        keyboardSeen_ = target;
+    }
     if (!play || buffer.getNumChannels() < 2) {
         buffer.clear();
         return;
@@ -742,9 +748,16 @@ void EphemerisProcessor::applyPresetValues(Module module, int instance, const So
 void EphemerisProcessor::perform(const juce::MidiBuffer& midi)
 {
     const ParamStore& s = store();
+    // A keyboard that plays (perform.keyboard_part, 01.10.2026): its keys go to the engine, on their samples; else a key
+    // is the transposition key.
+    const bool keys = s.getInt(s.id(Module::Perform, 0, perform::KeyboardPart)) != perform::keys::Off;
     for (const auto meta : midi) {
         const juce::MidiMessage m = meta.getMessage();
-        if (m.isNoteOn()) {
+        if (m.isAllNotesOff() || m.isAllSoundOff()) {
+            engine_.liveAllOff();
+        } else if (keys && (m.isNoteOn() || m.isNoteOff())) {
+            engine_.queueLive(meta.samplePosition, m.getNoteNumber(), m.getVelocity(), m.getChannel() - 1, m.isNoteOn());
+        } else if (m.isNoteOn()) {
             // The transposition key: the distance from middle C, an octave either way at most.
             setFromMidi(s.id(Module::Perform, 0, perform::Transpose), static_cast<float>(std::clamp(m.getNoteNumber() - 60, -12, 12)));
         } else if (m.isController()) {

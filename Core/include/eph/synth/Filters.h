@@ -39,6 +39,7 @@
   #if defined(_MSC_VER)
     #define EPH_FORCE_INLINE __forceinline
   #else
+    /** @brief Inlines a function whatever the compiler would decide (the kernels' inner steps). */
     #define EPH_FORCE_INLINE inline __attribute__((always_inline))
   #endif
 #endif
@@ -47,9 +48,10 @@ namespace eph {
 
 /** @brief The filter models, in the order of the `filter` parameter (Params.cpp kFilterNames). */
 enum class FilterModel : int { Moog = 0, Prophet, Juno, Sem, Xpander, Diode, Korg35, Polivoks, Wasp, Comb, Count };
-constexpr int kFilterModels = static_cast<int>(FilterModel::Count);
+constexpr int kFilterModels = static_cast<int>(FilterModel::Count);   ///< how many filter models there are
 
 #ifndef EPH_FILTER_NEWTON
+/** @brief Newton steps per sample of the nonlinear models, unless the build sets another number. */
 #define EPH_FILTER_NEWTON 3
 #endif
 constexpr int kNewton = EPH_FILTER_NEWTON;   ///< Newton iterations per sample (fixed: the same on every lane path)
@@ -311,11 +313,13 @@ inline const float* poleMix(float mode)
  *        registers): its nodes, its states and, for the comb, its line.
  */
 struct FilterLane {
-    float v[4] = {}, s[4] = {};
+    float v[4] = {};   ///< the nodes' voltages
+    float s[4] = {};   ///< the integrators' states
     std::vector<float> line;   ///< the comb's line (allocate(); a power of two)
-    int pos = 0;
-    float damp = 0.0f;
+    int pos = 0;   ///< where the comb's line is written
+    float damp = 0.0f;   ///< the comb's damping state
     void allocate(int length) { line.assign(static_cast<size_t>(length), 0.0f); pos = 0; }   ///< not on the audio thread
+    /** @brief Silence: every state, the line. */
     void clear() { for (int i = 0; i < 4; ++i) v[i] = s[i] = 0.0f; std::fill(line.begin(), line.end(), 0.0f); damp = 0.0f; }
     /**
      * @brief One sample through model @p m: @p g tan(pi fc / fs), @p k the model's feedback (FilterVoicing::feedback),

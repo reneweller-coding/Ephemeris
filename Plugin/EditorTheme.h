@@ -59,9 +59,9 @@ juce::Colour channelColour(int channel);
  *        "~lfo1_shape": a narrow menu, "@mod1": a slot of the modulation matrix).
  */
 struct GroupSpec {
-    const char* title;
-    Family family;
-    std::vector<const char*> keys;
+    const char* title;   ///< the group's title
+    Family family;   ///< its family: the colour
+    std::vector<const char*> keys;   ///< its parameters by key
 };
 /** @brief The panel of a module: its groups, in order (empty: one group of everything). */
 const std::vector<GroupSpec>& layoutOf(eph::Module m);

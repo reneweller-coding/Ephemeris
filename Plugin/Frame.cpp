@@ -9,6 +9,7 @@ namespace frame {
 
 namespace {
 
+/** @brief The skin-less default font at @p height, bold or not (the help and the menus). */
 juce::Font font(float height, bool bold = false) { return juce::Font(juce::FontOptions(height, bold ? juce::Font::bold : juce::Font::plain)); }
 
 /** @brief The headset ports: each instrument its own, so two can listen side by side. */
@@ -315,6 +316,7 @@ void LookAndFeel::drawTooltip(juce::Graphics& g, const juce::String& text, int w
 }
 
 namespace {
+/** @brief The skin's title font at @p height, with its tracking (the logo's lettering). */
 juce::Font titleFont(const Skin& skin, float height)
 {
     const int style = skin.titleBold ? juce::Font::bold : juce::Font::plain;
@@ -572,7 +574,8 @@ void Backdrop::paint(juce::Graphics& g, juce::Rectangle<int> area, int headerBot
 namespace {
 /** @brief Every instrument's settings in this process, deleted when JUCE shuts down (not at the DLL's unloading). */
 struct SettingsRegistry final : public juce::DeletedAtShutdown {
-    std::map<juce::String, std::unique_ptr<Settings>> all;
+    std::map<juce::String, std::unique_ptr<Settings>> all;   ///< the settings by instrument name
+    /** @brief The registry, created on first use; null after JUCE has deleted it. */
     static SettingsRegistry*& instance() { static SettingsRegistry* r = nullptr; return r; }
     ~SettingsRegistry() override { instance() = nullptr; }
 };
@@ -1198,7 +1201,9 @@ void LiveRings::timerCallback()
 // ========================================================================================================== console
 
 namespace {
-constexpr float kTopDb = 6.0f, kFloorDb = -60.0f;
+constexpr float kTopDb = 6.0f;   ///< the top of the strips' meter scale, dB
+constexpr float kFloorDb = -60.0f;   ///< the floor of the strips' meter scale, dB
+/** @brief A linear amplitude in dB, -100 for silence. */
 float toDb(float linear) { return linear > 1.0e-5f ? 20.0f * std::log10(linear) : -100.0f; }
 } // namespace
 

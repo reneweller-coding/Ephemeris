@@ -16,8 +16,11 @@
 namespace eph {
 
 namespace {
+/** @brief Writes @p v little-endian to @p p. */
 void le16(uint8_t* p, uint16_t v) { p[0] = uint8_t(v); p[1] = uint8_t(v >> 8); }
+/** @brief Writes @p v little-endian to @p p. */
 void le32(uint8_t* p, uint32_t v) { for (int i = 0; i < 4; ++i) p[i] = uint8_t(v >> (8 * i)); }
+/** @brief Writes @p v little-endian to @p p. */
 void le64(uint8_t* p, uint64_t v) { for (int i = 0; i < 8; ++i) p[i] = uint8_t(v >> (8 * i)); }
 constexpr int kHeaderBytes = 12 + 36 + 24 + 8;   ///< RIFF/WAVE + JUNK/ds64 + fmt + data header
 }

@@ -274,7 +274,20 @@ enum : int { KickHz, Decay, Tone, Level, EchoSend, ReverbSend, /** 25.09.2026 */
  *  - Throw: the echo throw, 0..1: every source's echo send and the echo's feedback go up together.
  */
 namespace perform {
-enum : int { Filter, Transpose, Hold, Throw, Count };
+enum : int { Filter, Transpose, Hold, Throw,
+             KeyboardPart,   ///< what a MIDI keyboard plays (perform::keys, 01.10.2026); off: a key transposes
+             KeyboardMode,   ///< 0 Replace: the played voice's generated notes are left out; 1 Layer: it plays over them
+             Composer,       ///< on: the composer's notes play; off: only what the keyboard plays
+             Count };
+/**
+ * @brief The keyboard's targets (perform.keyboard_part, 01.10.2026, Engine::queueLive): the lead, the drone, the poly
+ *        synth, the tape keys, the strings, the drums (General MIDI's drum map), a row, or by channel (1 .. 8 the rows,
+ *        9 the lead, 10 the drums -- General MIDI's drum channel --, 11 the drone, 12 the poly synth, 13 the tape keys,
+ *        14 the strings).
+ */
+namespace keys {
+enum : int { Off, Lead, Drone, Poly, TapeKeys, Strings, Drums, Row1, Row2, Row3, Row4, Row5, Row6, Row7, Row8, ByChannel, Count };
+}
 }
 /**
  * @brief A style profile of the user's own (module Custom; Style.h, customProfile): with Use on, the composer
@@ -438,18 +451,19 @@ public:
     std::string format(int id) const;
 
 private:
+    /** @brief One parameter of the store: its description, its key, its module and instance. */
     struct Entry {
-        const ParamDesc* desc;
-        std::string key;
-        Module module;
-        int instance;
+        const ParamDesc* desc;   ///< its description
+        std::string key;   ///< its key ("row1.length", "voice2.cutoff")
+        Module module;   ///< its module
+        int instance;   ///< its instance
     };
-    std::vector<Entry> entries_;
-    std::unique_ptr<std::atomic<float>[]> values_;
-    std::vector<float> defaults_;
-    std::unordered_map<std::string, int> index_;
-    static constexpr int kMaxInstances = 16;
-    int bases_[static_cast<int>(Module::Count)][kMaxInstances] = {};
+    std::vector<Entry> entries_;   ///< the parameters, by id
+    std::unique_ptr<std::atomic<float>[]> values_;   ///< their values, real units (atomic: any thread)
+    std::vector<float> defaults_;   ///< their defaults
+    std::unordered_map<std::string, int> index_;   ///< key -> id
+    static constexpr int kMaxInstances = 16;   ///< the most instances a module can have
+    int bases_[static_cast<int>(Module::Count)][kMaxInstances] = {};   ///< per module and instance: the id of its first parameter, -1 none
 };
 
 } // namespace eph

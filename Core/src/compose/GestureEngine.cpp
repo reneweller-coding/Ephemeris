@@ -10,6 +10,7 @@ namespace eph {
 
 namespace {
 
+/** @brief A standard normal draw from @p rng. */
 double gaussian(Rng& rng) { return rng.gaussian(); }
 
 } // namespace

@@ -110,13 +110,14 @@ def main():
         peak = np.max(np.abs(fr))
         q = np.round(fr / peak * 32000.0).astype(np.int16) if peak > 0 else np.zeros_like(fr, dtype=np.int16)
         vals = q.flatten().tolist()
-        lines.append('// %s: %s' % (name, base))
+        lines.append('/// %s: %s' % (name, base))
         lines.append('const int16_t kT%d[] = {' % t)
         for i in range(0, len(vals), 32):
             lines.append('    ' + ','.join(str(v) for v in vals[i:i + 32]) + ',')
         lines.append('};')
         entries.append('    { "%s", %d, kT%d },' % (name, len(fr), t))
     lines += ['', '} // namespace', '',
+              '/// The sampled tables: name, frames, samples.',
               'const SampledTable kSampledTables[kSampledTableCount] = {'] + entries + ['};', '',
               'static_assert(sizeof(kSampledTables) / sizeof(kSampledTables[0]) == %d, "the count in Wavetable.h");' % len(tables), '',
               '// The names as literals, so the parameter tables may point at them before any constructor has run.',

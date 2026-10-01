@@ -64,28 +64,43 @@ public:
     LoudnessReport report() const;
 
 private:
+    /** @brief A biquad in transposed direct form II (the K weighting). */
     struct Biquad {
-        double b0 = 1, b1 = 0, b2 = 0, a1 = 0, a2 = 0, z1 = 0, z2 = 0;
+        double b0 = 1;   ///< feed-forward coefficient of x[n]
+        double b1 = 0;   ///< ... of x[n-1]
+        double b2 = 0;   ///< ... of x[n-2]
+        double a1 = 0;   ///< feedback coefficient of y[n-1]
+        double a2 = 0;   ///< ... of y[n-2]
+        double z1 = 0;   ///< the first state
+        double z2 = 0;   ///< the second state
+        /** @brief One sample @p x through the filter. */
         double process(double x) { const double y = b0 * x + z1; z1 = b1 * x - a1 * y + z2; z2 = b2 * x - a2 * y; return y; }
     };
     /** @brief The sums of one 100 ms hop. */
     struct Hop {
-        double kL = 0.0, kR = 0.0;           ///< K-weighted sums of squares
-        double lr = 0.0, ll = 0.0, rr = 0.0; ///< for the correlation
-        double mid = 0.0, side = 0.0;        ///< sums of squares of (L + R) / 2 and (L - R) / 2
+        double kL = 0.0;   ///< the K-weighted sum of squares, left
+        double kR = 0.0;   ///< ... right
+        double lr = 0.0;   ///< the sum of L R, for the correlation
+        double ll = 0.0;   ///< the sum of L L
+        double rr = 0.0;   ///< the sum of R R
+        double mid = 0.0;   ///< the sum of squares of (L + R) / 2
+        double side = 0.0;   ///< the sum of squares of (L - R) / 2
         float peak = 0.0f;                   ///< true peak (linear)
-        int samples = 0;
+        int samples = 0;   ///< how many samples the hop has
     };
+    /** @brief Writes @p x into the channel history @p hist and raises the hop's true peak by what lies around it. */
     void truePeak(std::vector<float>& hist, float x);
 
-    double sr_ = 48000.0;
-    int hopLength_ = 4800;
-    Biquad shelf_[2], highPass_[2];
-    std::vector<Hop> hops_;
-    Hop cur_;
-    TruePeakInterpolator tp_;
-    std::vector<float> histL_, histR_;   ///< each channel's last kTaps samples, twice over (a contiguous window at pos_ + 1)
-    int pos_ = 0;
+    double sr_ = 48000.0;   ///< the sample rate, Hz
+    int hopLength_ = 4800;   ///< a hop, samples (100 ms)
+    Biquad shelf_[2];   ///< the K weighting's high shelf, per channel
+    Biquad highPass_[2];   ///< the K weighting's high pass, per channel
+    std::vector<Hop> hops_;   ///< the finished hops
+    Hop cur_;   ///< the hop being summed
+    TruePeakInterpolator tp_;   ///< the true-peak interpolator
+    std::vector<float> histL_;   ///< the left channel's last kTaps samples, twice over (a contiguous window at pos_ + 1)
+    std::vector<float> histR_;   ///< ... the right channel's
+    int pos_ = 0;   ///< where the histories are written
 };
 
 } // namespace eph

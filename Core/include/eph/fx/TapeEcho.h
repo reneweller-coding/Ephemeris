@@ -52,20 +52,29 @@ public:
     void process(const float* inL, const float* inR, float* outL, float* outR, int n);
 
 private:
+    /** @brief @p buf read @p delaySamples ago (interpolated). */
     float read(const std::vector<float>& buf, double delaySamples) const;
-    double sr_ = 48000.0;
-    std::vector<float> bufL_, bufR_;
-    size_t mask_ = 0, write_ = 0;
-    EchoSettings s_;
+    double sr_ = 48000.0;   ///< the sample rate, Hz
+    std::vector<float> bufL_;   ///< the tape, left
+    std::vector<float> bufR_;   ///< the tape, right
+    size_t mask_ = 0;   ///< its size - 1
+    size_t write_ = 0;   ///< where the next sample goes
+    EchoSettings s_;   ///< the settings
     Smoother delay_;             ///< the tape speed: the delay in samples glides to its target
-    double target_ = 0.0;
+    double target_ = 0.0;   ///< the delay asked for, samples
     bool fresh_ = true;          ///< no settings taken since prepare() or reset()
-    double wowPhase_ = 0.0, flutterPhase_ = 0.0;
-    double drift_ = 0.0, driftTarget_ = 0.0;
-    int64_t count_ = 0;
-    Svf lpL_, lpR_, hpL_, hpR_;
-    float drive_ = 1.5f, driveNorm_ = 0.66f;
-    Rng rng_;
+    double wowPhase_ = 0.0;   ///< the wow's phase, cycles
+    double flutterPhase_ = 0.0;   ///< the flutter's phase, cycles
+    double drift_ = 0.0;   ///< the slow drift of the speed, -1..1
+    double driftTarget_ = 0.0;   ///< where it drifts to (a new one every 32768 samples)
+    int64_t count_ = 0;   ///< samples processed
+    Svf lpL_;   ///< the feedback's low pass, left
+    Svf lpR_;   ///< ... right
+    Svf hpL_;   ///< the feedback's high pass, left
+    Svf hpR_;   ///< ... right
+    float drive_ = 1.5f;   ///< the tape's drive
+    float driveNorm_ = 0.66f;   ///< the gain that keeps the level after it
+    Rng rng_;   ///< the drift's random stream
 };
 
 } // namespace eph

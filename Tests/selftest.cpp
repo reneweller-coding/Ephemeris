@@ -2948,14 +2948,55 @@ void testDrift()
     check(std::fabs(sd - sigma) < 0.15 * sigma, "stationary spread equals the knob", fmt("%.2f cents for 3", sd));
 }
 
+/** @brief A section of the tests, as main() can run it alone. */
 struct TestSection {
-    const char* name;
-    std::function<void()> fn;
+    const char* name;   ///< its name, as the command line names it
+    std::function<void()> fn;   ///< the section
 };
 
+/** The keyboard (01.10.2026, Engine::queueLive): with the composer off nothing generated sounds; a played key sounds on
+ *  the voice the keyboard plays, from its sample; without live play the keys and the switch do nothing. */
+void testKeyboard()
+{
+    section("keyboard (live)");
+    ParamStore p;
+    const Score score = composePiece(p, 21, 8.0);
+    auto run = [&](bool live, const char* knobs, bool key) {
+        auto e = std::make_unique<Engine>();
+        e->params().parseText(knobs);
+        e->setLive(live);
+        e->prepare(48000.0, 256);
+        e->load(score);
+        e->seek(96.0);
+        std::vector<float> L(256), R(256);
+        double sum = 0.0;
+        for (int b = 0; b < 48000 * 4 / 256; ++b) {
+            if (key && b == 100) e->queueLive(17, 60, 110, 0, true);   // middle C on the lead, 17 samples into the block
+            if (key && b == 300) e->queueLive(3, 60, 0, 0, false);
+            e->process(L.data(), R.data(), 256);
+            if (b >= 100)
+                for (int i = 0; i < 256; ++i) sum += static_cast<double>(L[static_cast<size_t>(i)]) * L[static_cast<size_t>(i)]
+                                                   + static_cast<double>(R[static_cast<size_t>(i)]) * R[static_cast<size_t>(i)];
+        }
+        return sum;
+    };
+    const double composed = run(true, "", false);
+    const double silent = run(true, "perform.composer=0", false);
+    const double played = run(true, "perform.composer=0 perform.keyboard_part=1", true);
+    const double offline = run(false, "perform.composer=0 perform.keyboard_part=1", true);
+    const double plainOffline = run(false, "", false);
+    check(silent < 1e-3 * composed, "the composer off: nothing generated sounds (the rooms' tails die away)",
+          fmt("%.3g of %.3g", silent, composed));
+    check(played > 10.0 * std::max(silent, 1e-9), "a played key sounds on the lead", fmt("energy %.3g, silence %.3g", played, silent));
+    check(offline == plainOffline, "without live play the keyboard and the composer switch do nothing (renders, exports)",
+          fmt("%.6g against %.6g", offline, plainOffline));
+}
+
+/** @brief Every section, in the order they run. */
 const TestSection kSections[] = {
     { "testTempoMap", testTempoMap },
     { "testGestures", testGestures },
+    { "testKeyboard", testKeyboard },
     { "testParams", testParams },
     { "testMidiTempo", testMidiTempo },
     { "testRack", testRack },
@@ -3003,6 +3044,7 @@ const TestSection kSections[] = {
 
 } // namespace
 
+/** @brief Runs every section, or those the command line names; the exit code is the number of failures. */
 int main(int argc, char** argv)
 {
     std::string only;

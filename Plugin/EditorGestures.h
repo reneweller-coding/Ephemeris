@@ -30,6 +30,7 @@ private:
         std::vector<eph::Gesture> gestures;   ///< in time order
         int hand = 0;                      ///< the hand of its first gesture (for the colour)
     };
+    /** @brief Follows the playhead and a new score. */
     void timerCallback() override;
     void rebuild();                        ///< lanes and curves from a new score or size
     float xOf(double beat) const;          ///< the lanes' horizontal position of @p beat

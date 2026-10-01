@@ -41,27 +41,51 @@ public:
 private:
     /** @brief A delay line with a power-of-two buffer. */
     struct Line {
-        std::vector<float> buf;
-        size_t mask = 0, write = 0;
-        int length = 1;
+        std::vector<float> buf;   ///< the samples, a ring
+        size_t mask = 0;   ///< its size - 1
+        size_t write = 0;   ///< where the next sample goes
+        int length = 1;   ///< the delay, samples
+        /** @brief Allocates for a delay of @p len samples and clears it. */
         void init(int len);
         float at(int d) const { return buf[(write - static_cast<size_t>(d)) & mask]; }   ///< @p d samples ago
+        /** @brief Writes sample @p x. */
         void push(float x) { buf[write] = x; write = (write + 1) & mask; }
+        /** @brief The sample length ago. */
         float out() const { return at(length); }
     };
     /** @brief The all-pass w = x + g w[-D], y = w[-D] - g w (Dattorro's form). */
     static float allpass(Line& l, float x, float g, float delayed);
-    double sr_ = 48000.0;
-    Line pre_, in_[4], apL_, apR_, dL1_, dL2_, dR1_, dR2_, ap2L_, ap2R_;
-    int in1_ = 0, in2_ = 0;                  ///< scaled modulated all-pass lengths (left, right)
+    double sr_ = 48000.0;   ///< the sample rate, Hz
+    Line pre_;   ///< the pre-delay
+    Line in_[4];   ///< the input's four diffusing all-passes
+    Line apL_;   ///< the left half's modulated all-pass
+    Line apR_;   ///< the right half's modulated all-pass
+    Line dL1_;   ///< the left half's first delay
+    Line dL2_;   ///< the left half's second delay
+    Line dR1_;   ///< the right half's first delay
+    Line dR2_;   ///< the right half's second delay
+    Line ap2L_;   ///< the left half's second all-pass
+    Line ap2R_;   ///< the right half's second all-pass
+    int in1_ = 0;   ///< the left modulated all-pass's scaled length
+    int in2_ = 0;   ///< the right modulated all-pass's scaled length
     float excursion_ = 16.0f;                ///< scaled excursion of their modulation
     double lfo_ = 0.0;                       ///< the modulation's phase
-    float bw_ = 0.9995f, bwState_ = 0.0f;    ///< input band limit
-    float damp_ = 0.05f, dampL_ = 0.0f, dampR_ = 0.0f;
-    float decay_ = 0.5f, pre_d_ = 0.0f;
-    float hpCoef_ = 0.0f, hpL_ = 0.0f, hpR_ = 0.0f, hpXL_ = 0.0f, hpXR_ = 0.0f;
-    float fbL_ = 0.0f, fbR_ = 0.0f;          ///< the halves' outputs, fed across
-    int tapL_[7] = {}, tapR_[7] = {};        ///< scaled output taps
+    float bw_ = 0.9995f;   ///< the input band limit's coefficient
+    float bwState_ = 0.0f;   ///< the input band limit's state
+    float damp_ = 0.05f;   ///< the tank's damping, 0 bright .. 1 dark
+    float dampL_ = 0.0f;   ///< the left half's damping state
+    float dampR_ = 0.0f;   ///< the right half's damping state
+    float decay_ = 0.5f;   ///< the tank's decay per pass
+    float pre_d_ = 0.0f;   ///< the pre-delay, samples
+    float hpCoef_ = 0.0f;   ///< the return's high pass coefficient
+    float hpL_ = 0.0f;   ///< the high pass's output state, left
+    float hpR_ = 0.0f;   ///< ... right
+    float hpXL_ = 0.0f;   ///< the high pass's input state, left
+    float hpXR_ = 0.0f;   ///< ... right
+    float fbL_ = 0.0f;   ///< the left half's output, fed to the right
+    float fbR_ = 0.0f;   ///< the right half's output, fed to the left
+    int tapL_[7] = {};   ///< the left output's taps, scaled
+    int tapR_[7] = {};   ///< the right output's taps, scaled
 };
 
 } // namespace eph

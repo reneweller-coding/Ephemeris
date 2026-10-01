@@ -31,7 +31,7 @@ namespace eph {
 
 namespace {
 
-const char* const kRootNames[12] = { "C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B" };
+const char* const kRootNames[12] = { "C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B" };   ///< the keys' names
 
 /** @brief The English name of a section, from the composer's German marker ("Aufbau 2" -> "BUILD"). */
 const char* sectionOf(const std::string& marker)
@@ -46,17 +46,20 @@ const char* sectionOf(const std::string& marker)
     return nullptr;
 }
 
+/** @brief Copies @p src into @p dst, cut at 15 characters and terminated. */
 void copyText(char (&dst)[16], const char* src)
 {
     std::strncpy(dst, src, sizeof(dst) - 1);
     dst[sizeof(dst) - 1] = 0;
 }
 
+/** @brief Appends @p v big-endian (OSC). */
 void put32(std::vector<uint8_t>& out, uint32_t v)
 {
     for (int s = 24; s >= 0; s -= 8) out.push_back(static_cast<uint8_t>(v >> s));
 }
 
+/** @brief Appends @p s as an OSC string: terminated and padded to four bytes. */
 void putString(std::vector<uint8_t>& out, const char* s)
 {
     const size_t n = std::strlen(s);

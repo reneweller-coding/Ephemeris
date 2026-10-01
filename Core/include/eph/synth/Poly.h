@@ -53,7 +53,10 @@ struct PolySettings {
     float ampDecayS = 1.0f;      ///< the amplitude envelope's decay (its attack and release above)
     float ampSustain = 1.0f;     ///< ... its sustain level
     int filtLink = 1;            ///< 1: the filter follows the amplitude envelope; 0: its own below
-    float filtAttackS = 2.0f, filtDecayS = 3.0f, filtSustain = 0.4f, filtReleaseS = 4.0f;   ///< the filter's own envelope
+    float filtAttackS = 2.0f;   ///< the filter's own envelope: attack, s
+    float filtDecayS = 3.0f;   ///< ... decay, s
+    float filtSustain = 0.4f;   ///< ... sustain level
+    float filtReleaseS = 4.0f;   ///< ... release, s
     float envVelocity = 0.0f;    ///< how far the velocity scales the filter envelope
     ModSettings mod;             ///< every key's modulation envelope, LFOs and matrix
 };
@@ -73,16 +76,19 @@ public:
     void setClock(double beat, double beatsPerSample) { beat0_ = beat; bps_ = beatsPerSample; clockAt_ = count_; }
 
 private:
+    /** @brief One key: its two oscillators, its envelopes, its filters, its modulation. */
     struct Key {
-        bool on = false, held = false;
-        int pitch = 60, id = -1;
-        float velocity = 0.8f;
-        uint32_t order = 0;
-        Envelope env;
-        double phase[2] = { 0.0, 0.0 };
-        double inc[2] = { 0.0, 0.0 };
-        int level[2] = { -1, -1 };
-        float drift[2] = { 0.0f, 0.0f };
+        bool on = false;   ///< it sounds
+        bool held = false;   ///< it is held
+        int pitch = 60;   ///< MIDI note
+        int id = -1;   ///< the note id it plays, -1 none
+        float velocity = 0.8f;   ///< its velocity, 0..1
+        uint32_t order = 0;   ///< when it was pressed (the oldest is taken)
+        Envelope env;   ///< the amplitude envelope
+        double phase[2] = { 0.0, 0.0 };   ///< the two oscillators' phases
+        double inc[2] = { 0.0, 0.0 };   ///< their phase steps per sample
+        int level[2] = { -1, -1 };   ///< the mip level each reads (-1: not yet chosen)
+        float drift[2] = { 0.0f, 0.0f };   ///< each oscillator's slow drift, cents
         float scanOffset = 0.0f;   ///< the key's own place in the scan's cycle
         float position = 0.3f;     ///< where in the table it reads (the scan's value of the moment)
         FilterLane filt[2];        ///< left and right (Filters.h)
@@ -91,30 +97,37 @@ private:
         Envelope fenv;             ///< the filter's own envelope (filtLink 0)
         Modulator mod;             ///< its modulation (Modulation.h)
         float mo[kModDests] = {};  ///< the matrix's last sums
-        float fk = 0.0f, mode = 0.0f, lv = 1.0f, panL = 1.0f, panR = 1.0f;   ///< resonance, mode, level, pan as the matrix moves them
+        float fk = 0.0f;   ///< the resonance as the matrix moves it
+        float mode = 0.0f;   ///< the filter's mode as the matrix moves it
+        float lv = 1.0f;   ///< the level as the matrix moves it
+        float panL = 1.0f;   ///< the pan's gain, left
+        float panR = 1.0f;   ///< ... right
     };
     void retune(Key& k);   ///< the oscillators' increments and levels from the pitch, detune, drift and the matrix's pitch
     /** @brief The keys' filters side by side (26.09.2026): key k's left channel in lane 2k, its right in lane 2k + 1, run
      *         in SIMD registers as the voice bank's are (the comb keeps the keys' FilterLanes, whose lines it needs). */
     static constexpr int kLanes = 2 * kKeys;
-    alignas(32) float fv_[4][kLanes] = {}, fs_[4][kLanes] = {};
+    alignas(32) float fv_[4][kLanes] = {};   ///< the filters' node voltages, four per lane
+    alignas(32) float fs_[4][kLanes] = {};   ///< the filters' states, four per lane
     void clearLanes(int key);   ///< the key's two lanes from rest (a fresh key, a new model)
     double beatAt(int64_t at) const { return beat0_ + static_cast<double>(at - clockAt_) * bps_; }   ///< setClock's beat
-    double sr_ = 48000.0;
-    PolySettings s_;
-    const CycleTable* table_ = nullptr;
-    Key keys_[kKeys];
+    double sr_ = 48000.0;   ///< sample rate
+    PolySettings s_;   ///< the settings
+    const CycleTable* table_ = nullptr;   ///< the wavetable it reads
+    Key keys_[kKeys];   ///< the keys
     Envelope times_;          ///< the settings' envelope times, copied to every key
     Envelope ftimes_;         ///< the filter envelope's
-    double beat0_ = 0.0, bps_ = 0.0;   ///< the clock (setClock)
-    int64_t clockAt_ = 0;
-    uint32_t order_ = 0;
-    double scanPhase_ = 0.0;
-    int64_t count_ = 0;
-    Rng rng_;
-    std::vector<float> line_;
-    size_t mask_ = 0, write_ = 0;
-    double chorusPhase_ = 0.0;
+    double beat0_ = 0.0;   ///< the clock: the beat at clockAt_
+    double bps_ = 0.0;   ///< beats per sample
+    int64_t clockAt_ = 0;   ///< the sample setClock() was called at
+    uint32_t order_ = 0;   ///< counts the keys pressed
+    double scanPhase_ = 0.0;   ///< the scan LFO's phase
+    int64_t count_ = 0;   ///< samples rendered
+    Rng rng_;   ///< the seed stream of the keys
+    std::vector<float> line_;   ///< the ensemble's delay line
+    size_t mask_ = 0;   ///< its size - 1
+    size_t write_ = 0;   ///< where the next sample goes
+    double chorusPhase_ = 0.0;   ///< the ensemble's LFO phase
     float ring_ = 0.0f;       ///< decaying peak of the output, for active()
 };
 

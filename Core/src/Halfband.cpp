@@ -15,8 +15,9 @@ namespace eph {
 
 namespace {
 
-constexpr double kPiD = 3.14159265358979323846;
+constexpr double kPiD = 3.14159265358979323846;   ///< pi
 
+/** @brief The elliptic modulus @p k and the nome @p q of a half-band filter with transition band @p transition. */
 void transitionParams(double transition, double& k, double& q)
 {
     k = std::tan((1.0 - transition * 2.0) * kPiD / 4.0);
@@ -28,6 +29,7 @@ void transitionParams(double transition, double& k, double& q)
     q = e * (1.0 + e4 * (2.0 + e4 * (15.0 + 150.0 * e4)));
 }
 
+/** @brief The numerator's series of the c-th coefficient of an @p order filter with nome @p q. */
 double accNum(double q, int order, int c)
 {
     double acc = 0.0, term = 0.0;
@@ -41,6 +43,7 @@ double accNum(double q, int order, int c)
     return acc;
 }
 
+/** @brief The denominator's series of it. */
 double accDen(double q, int order, int c)
 {
     double acc = 0.0, term = 0.0;

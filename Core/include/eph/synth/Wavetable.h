@@ -40,9 +40,10 @@ public:
     void transform(float* re, float* im, bool inverse) const;   ///< in place; the inverse scaled by 1 / n
     int size() const { return n_; }                          ///< the transform length
 private:
-    int n_;
-    std::vector<float> cos_, sin_;
-    std::vector<int> rev_;
+    int n_;   ///< the size
+    std::vector<float> cos_;   ///< the twiddle factors: cosines
+    std::vector<float> sin_;   ///< ... sines
+    std::vector<int> rev_;   ///< the bit-reversal permutation
 };
 
 /** @brief A wavetable of single cycles at eight band-limited resolutions, with the reader's arithmetic. */

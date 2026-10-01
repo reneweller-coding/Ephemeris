@@ -127,7 +127,9 @@ const std::vector<GroupSpec>& layoutOf(eph::Module m)
         { "Composer", F::Source, { "style", "key", "scale", "bpm", "style_tempo", "piece_minutes", "pick_sounds" } },
         { "Concert", F::Motion, { "concert_minutes", "night_set", "morph_to", "concert_arc", "album" } } };
     static const std::vector<GroupSpec> cue = { { "Cues", F::Space, { "enabled", "port" } } };
-    static const std::vector<GroupSpec> perform = { { "Perform", F::Motion, { "*filter", "transpose", "hold", "throw" } } };
+    static const std::vector<GroupSpec> perform = { { "Perform", F::Motion, { "*filter", "transpose", "hold", "throw" } },
+                                                    // 01.10.2026: what a MIDI keyboard plays, and whether the composer does
+                                                    { "Keyboard", F::Source, { "keyboard_part", "~keyboard_mode", "composer" } } };
     static const std::vector<GroupSpec> row = with({
         { "Sequence", F::Source, { "active", "mode", "length", "division", "direction", "octave", "transpose" } },
         { "Change", F::Motion, { "mutation", "gate", "*sweep", "punch" } },

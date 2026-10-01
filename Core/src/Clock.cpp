@@ -21,6 +21,7 @@ const double kSyncBeats[kNumSyncDivs] = {
 
 namespace {
 
+/** @brief @p bpm limited to 20 .. 400. */
 double clampBpm(double bpm) { return bpm < 20.0 ? 20.0 : (bpm > 400.0 ? 400.0 : bpm); }
 
 /**

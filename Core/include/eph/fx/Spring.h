@@ -30,17 +30,20 @@ public:
     void process(const float* inL, const float* inR, float* outL, float* outR, int n);
 
 private:
+    /** @brief One spring: a delay line, a chain of first-order all-passes (the chirp), its filters in the loop. */
     struct Tank {
-        std::vector<float> line;
-        size_t mask = 0, write = 0;
-        int delay = 1000;
+        std::vector<float> line;   ///< the delay line, a ring
+        size_t mask = 0;   ///< its size - 1
+        size_t write = 0;   ///< where the next sample goes
+        int delay = 1000;   ///< the loop delay, samples
         float ap[kStages] = {};   ///< one state per first-order all-pass
-        float gain = 0.5f;
-        Svf lp, hp;
-        float y = 0.0f;
+        float gain = 0.5f;   ///< the loop's gain (from the decay)
+        Svf lp;   ///< the loop's low pass
+        Svf hp;   ///< the loop's high pass
+        float y = 0.0f;   ///< the loop's last output
     };
-    double sr_ = 48000.0;
-    Tank tanks_[2];
+    double sr_ = 48000.0;   ///< the sample rate, Hz
+    Tank tanks_[2];   ///< left, right
 };
 
 } // namespace eph

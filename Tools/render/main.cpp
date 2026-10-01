@@ -35,6 +35,7 @@ using namespace eph;
 
 namespace {
 
+/** @brief Prints the command line. */
 void usage()
 {
     std::printf("eph_render %s\n"

@@ -12,8 +12,8 @@
 namespace eph {
 
 namespace {
-constexpr double kRate = 48000.0;
-constexpr int kBlock = 512;
+constexpr double kRate = 48000.0;   ///< the rate the parts are rendered at to be measured, Hz
+constexpr int kBlock = 512;   ///< the block they are rendered in
 constexpr double kWarm = 4.0;       ///< seconds before the part: the rooms fill, the notes sounding on are found again
 constexpr float kMostDb = 4.0f;     ///< the largest correction either way
 

@@ -30,14 +30,18 @@
  */
 class ModSlotControl final : public juce::Component {
 public:
+    /** @brief Slot @p number of the matrix, drawn in @p colour. */
     ModSlotControl(int number, juce::Colour colour);
+    /** @brief The number, the two menus and the amount in a row. */
     void resized() override;
+    /** @brief The number. */
     void paint(juce::Graphics& g) override;
-    juce::ComboBox source, target;
-    juce::Slider amount;
+    juce::ComboBox source;   ///< the slot's source
+    juce::ComboBox target;   ///< the slot's target
+    juce::Slider amount;   ///< the slot's amount, -1 .. 1
 
 private:
-    int number_;
+    int number_;   ///< the slot's number
 };
 
 /**
@@ -63,51 +67,57 @@ public:
     juce::String describe() const;
 
 private:
+    /** @brief Makes the controls of every group (once, in the constructor). */
     void build();
     /** @brief Applies factory preset @p index to the page's synth (the instance shown). */
     void choosePreset(int index);
     /** @brief Fills the list: the factory presets in their groups, then the user's under "User". */
     void fillPresets();
-    EphemerisProcessor& proc_;
+    EphemerisProcessor& proc_;   ///< the processor: the parameters, the undo, MIDI learn
     frame::ControlActions actions_;               ///< the controls' right-click menu
     frame::LiveRings live_;                       ///< where each knob's value plays
-    std::vector<std::pair<eph::Module, int>> groups_;
-    int instances_;
-    juce::ComboBox instance_;
-    // The factory presets of the page's synth (Presets.h): a list in groups, and a step back and forth.
+    std::vector<std::pair<eph::Module, int>> groups_;   ///< the module instances shown, in order
+    int instances_;   ///< how many instances the modules have
+    juce::ComboBox instance_;   ///< the instance selector (above one instance)
+    /// The factory presets of the page's synth (Presets.h): a list in groups, and a step back and forth.
     eph::Module presetModule_ = eph::Module::Count;
-    int presetCount_ = 0, presetIndex_ = -1;
-    juce::ComboBox preset_;
-    juce::TextButton prev_ { "<" }, next_ { ">" }, save_ { "Save..." };
+    int presetCount_ = 0;   ///< how many factory presets the page's synth has
+    int presetIndex_ = -1;   ///< the preset chosen, -1 none
+    juce::ComboBox preset_;   ///< the presets in their groups, then the user's
+    juce::TextButton prev_ { "<" };   ///< the preset before
+    juce::TextButton next_ { ">" };   ///< the preset after
+    juce::TextButton save_ { "Save..." };   ///< saves the page as a user preset
     std::vector<eph::SoundPreset> user_;   ///< the user's presets of the synth (ids from 5001 in the list)
-    std::unique_ptr<juce::AlertWindow> nameDialog_;
+    std::unique_ptr<juce::AlertWindow> nameDialog_;   ///< the user preset's name dialog while it is open
     juce::ToggleButton allRows_ { "All rows" };   ///< on a page with instances: a preset goes to every one
     juce::Label composed_;   ///< the preset the composer chose for this piece (compose.pick_sounds), where the piece now is
     int shown_ = -2;         ///< the preset composed_ shows (-1 none)
     void timerCallback() override;   ///< follows the piece: the composer's preset of the moment
     // An effect page (no factory presets): the user's presets of the whole page, every module of it, by full key.
-    bool pagePresets_ = false;
+    bool pagePresets_ = false;   ///< an effect page: the user presets are the whole page's
     std::vector<std::pair<juce::String, juce::String>> pageUser_;   ///< name and text
+    /** @brief The folder of this page's user presets. */
     juce::File pageFolder() const;
+    /** @brief Fills the list with the page's user presets. */
     void fillPagePresets();
-    juce::OwnedArray<juce::Component> controls_;
-    juce::OwnedArray<juce::Label> labels_;
+    juce::OwnedArray<juce::Component> controls_;   ///< the knobs, menus, switches and preset bars
+    juce::OwnedArray<juce::Label> labels_;   ///< the names above them
     /** @brief A control of the page: its name above it, large or not (EditorTheme.h, layoutOf). */
     struct Cell {
         int control = -1;          ///< index into controls_ and labels_
         bool big = false;          ///< a large encoder
         bool narrow = false;       ///< a narrow menu (short entries: an LFO's shape and sync)
         int kind = 0;              ///< 0 a knob, 1 a menu, 2 a switch, 3 a slot of the modulation matrix
-        juce::Rectangle<int> bounds;
+        juce::Rectangle<int> bounds;   ///< where it sits on the page
     };
     /** @brief A titled group of cells, drawn as a box. */
     struct Box {
-        juce::String title;
-        juce::Colour colour;
-        std::vector<Cell> cells;
-        juce::Rectangle<int> bounds;
+        juce::String title;   ///< the group's title
+        juce::Colour colour;   ///< the module family's colour
+        std::vector<Cell> cells;   ///< its controls
+        juce::Rectangle<int> bounds;   ///< where the box sits on the page
     };
-    std::vector<Box> boxes_;
+    std::vector<Box> boxes_;   ///< the groups, in order
     /**
      * @brief A page taller than its window shows its groups in sections, one at a time (01.10.2026, frame::planSections):
      *        the sound and the modulation apart, each cut where the window ends.
@@ -116,7 +126,9 @@ private:
     bool split_ = false;                          ///< more than one section
     std::vector<int> sectionOf_;                  ///< per box its section
     const std::vector<int>* measuring_ = nullptr; ///< while planning: the boxes being measured
-    int available_ = 0, plannedWidth_ = -1, plannedAvailable_ = -1;
+    int available_ = 0;   ///< the height of the window (setAvailableHeight)
+    int plannedWidth_ = -1;   ///< the width the sections were planned for, -1 never
+    int plannedAvailable_ = -1;   ///< the height the sections were planned for, -1 never
     bool shown(size_t box) const;                 ///< the box is in the section shown (or being measured)
     void plan(int width);                         ///< the sections of a page @p width wide in available_
     void applySection();                          ///< the controls of the section shown, the others hidden
@@ -124,9 +136,9 @@ private:
     int top() const;   ///< height of the instance and preset bar
     /** @brief Places the boxes and their cells in @p area (@p apply: move the components too); returns the height used. */
     int layoutBoxes(juce::Rectangle<int> area, bool apply);
-    std::vector<std::unique_ptr<juce::SliderParameterAttachment>> sliders_;
-    std::vector<std::unique_ptr<juce::ComboBoxParameterAttachment>> combos_;
-    std::vector<std::unique_ptr<juce::ButtonParameterAttachment>> buttons_;
+    std::vector<std::unique_ptr<juce::SliderParameterAttachment>> sliders_;   ///< the knobs on their parameters
+    std::vector<std::unique_ptr<juce::ComboBoxParameterAttachment>> combos_;   ///< the menus on their parameters
+    std::vector<std::unique_ptr<juce::ButtonParameterAttachment>> buttons_;   ///< the switches on their parameters
 };
 
 /**
@@ -157,7 +169,11 @@ public:
 
 private:
     /** @brief A note as the zoomed lanes draw it: where it begins and ends (beats), how loud. */
-    struct Hit { float from, to, velocity; };
+    struct Hit {
+        float from;       ///< where it begins, beats
+        float to;         ///< where it ends, beats
+        float velocity;   ///< how loud, 0..1
+    };
     static constexpr int kLanes = 6;             ///< rows, lead, tape keys, strings, drone, drums
     static constexpr double kNarrowest = 16.0;   ///< the least the view shows, in beats (four bars)
     void timerCallback() override;               ///< pages on with the playhead, repaints
@@ -168,7 +184,7 @@ private:
     bool zoomed(double& from, double& to) const; ///< the beats shown; false while it is the whole length
     double beatAt(float x) const;                ///< the beat under @p x
     void render(juce::Graphics& g, float w, float h, double from, double to, bool zoom);   ///< all but the playhead
-    EphemerisProcessor& proc_;
+    EphemerisProcessor& proc_;   ///< the processor: what plays, where it is
     int version_ = -1;                    ///< the score the lanes were built from
     double beats_ = 0.0;                  ///< its length
     std::vector<eph::Marker> markers_;    ///< its sections
@@ -177,15 +193,19 @@ private:
     std::vector<float> lanes_;            ///< kLanes x bins_ activity, 0..1
     std::vector<Hit> hits_[kLanes];       ///< the notes per lane, in the order they begin
     double longest_ = 0.0;                ///< the longest note (how far before a window its notes begin)
-    double from_ = 0.0, span_ = 0.0;      ///< the window (span 0: the whole length)
-    double lastPos_ = -1.0, lastFrom_ = 0.0, lastTo_ = 0.0;   ///< the playhead and the window at the last tick
+    double from_ = 0.0;   ///< the first beat of the window
+    double span_ = 0.0;   ///< its length in beats (0: the whole length)
+    double lastPos_ = -1.0;   ///< the playhead at the last tick
+    double lastFrom_ = 0.0;   ///< the window's first beat at the last tick
+    double lastTo_ = 0.0;   ///< the window's last beat at the last tick
     float downX_ = 0.0f;                  ///< where a press began
     double downFrom_ = 0.0;               ///< the window's beginning then
-    bool dragged_ = false;
+    bool dragged_ = false;   ///< the press has moved the view: no jump on release
     std::pair<double, double> wanted_{ 0.0, 0.0 };   ///< zoomTo's window, until a score takes it
     juce::Image cache_;                   ///< the picture of the window
-    double cachedFrom_ = -1.0, cachedTo_ = -1.0;
-    int cachedVersion_ = -1;
+    double cachedFrom_ = -1.0;   ///< the first beat cache_ was drawn for
+    double cachedTo_ = -1.0;   ///< the last beat cache_ was drawn for
+    int cachedVersion_ = -1;   ///< the score cache_ was drawn from, -1 none
 };
 
 /** @brief A parameter page in a viewport: it scrolls when its groups need more height than the tab gives. */
@@ -197,8 +217,8 @@ public:
     static void fit(ParamPage& page, juce::Viewport& view, juce::Rectangle<int> area);
     const ParamPage& page() const { return *page_; }           ///< the page (the help describes it)
 private:
-    juce::Viewport view_;
-    std::unique_ptr<ParamPage> page_;
+    juce::Viewport view_;   ///< scrolls the page
+    std::unique_ptr<ParamPage> page_;   ///< the page
 };
 
 /**
@@ -208,36 +228,47 @@ private:
  */
 class ArrangePage final : public juce::Component, private juce::Timer {
 public:
+    /** @brief The tab for @p p. */
     explicit ArrangePage(EphemerisProcessor& p);
+    /** @brief The rerolls on top, the view large, the automation under it. */
     void resized() override;
+    /** @brief The background and the headings. */
     void paint(juce::Graphics& g) override;
 
 private:
+    /** @brief Shows what plays under the playhead. */
     void timerCallback() override;
-    EphemerisProcessor& proc_;
-    juce::Label which_;
-    juce::OwnedArray<juce::TextButton> rerolls_;
-    std::unique_ptr<ArrangeView> view_;
+    EphemerisProcessor& proc_;   ///< the processor: what plays, the rerolls
+    juce::Label which_;   ///< what plays under the playhead (the status line)
+    juce::OwnedArray<juce::TextButton> rerolls_;   ///< a reroll per unit of the piece
+    std::unique_ptr<ArrangeView> view_;   ///< the arrangement, large
     std::unique_ptr<juce::Component> moves_;      ///< the automation (GestureView)
 };
 
 /** @brief The Export tab (01.10.2026, as the siblings have it): the files, what each holds, the OSC cues' settings. */
 class ExportPage final : public juce::Component, private juce::Timer {
 public:
+    /** @brief The tab for @p p. */
     explicit ExportPage(EphemerisProcessor& p);
+    /** @brief The buttons, the status, the cue settings under them. */
     void resized() override;
+    /** @brief The background and what each file holds. */
     void paint(juce::Graphics& g) override;
     void exportWith(bool stems);   ///< asks for a file, then exports (Ctrl+E: without the stems)
     void save();                   ///< asks for a file, then saves the set (Ctrl+S)
     void load();                   ///< asks for a set, then loads it (Ctrl+O)
 
 private:
+    /** @brief Shows the export's progress and result. */
     void timerCallback() override;
-    EphemerisProcessor& proc_;
-    juce::TextButton wav_{ "WAV + MIDI" }, stems_{ "... with stems" }, save_{ "Save .ephset" }, load_{ "Load .ephset" };
-    juce::Label status_;
-    std::unique_ptr<ParamPage> cue_;
-    std::unique_ptr<juce::FileChooser> chooser_;
+    EphemerisProcessor& proc_;   ///< the processor: the export, the set file
+    juce::TextButton wav_{ "WAV + MIDI" };   ///< exports the WAV and the MIDI
+    juce::TextButton stems_{ "... with stems" };   ///< ... and the stems
+    juce::TextButton save_{ "Save .ephset" };   ///< saves the set (Ctrl+S)
+    juce::TextButton load_{ "Load .ephset" };   ///< loads a set (Ctrl+O)
+    juce::Label status_;   ///< the export's progress and result
+    std::unique_ptr<ParamPage> cue_;   ///< the OSC cues' settings
+    std::unique_ptr<juce::FileChooser> chooser_;   ///< the file dialog while it is open
 };
 
 /**
@@ -248,7 +279,9 @@ class EditorBody final : public juce::Component {
 public:
     std::function<void(juce::Graphics&)> painter;   ///< draws the background and the logo
     std::function<void()> onResize;                 ///< lays the controls out
+    /** @brief Draws through painter. */
     void paint(juce::Graphics& g) override { if (painter) painter(g); }
+    /** @brief Lays out through onResize. */
     void resized() override { if (onResize) onResize(); }
 };
 
@@ -263,6 +296,7 @@ public:
     bool keyPressed(const juce::KeyPress& key) override;   ///< the frame's keys (frame::handleKey)
 
 private:
+    /** @brief Follows the processor: the status, the play button, the rerolls, the update link; the screenshots. */
     void timerCallback() override;
     void changeListenerCallback(juce::ChangeBroadcaster*) override;   ///< the settings changed (the backdrop)
     void layoutBody();                                 ///< the top bar, the arrange view, the tabs, at the design scale
@@ -273,34 +307,45 @@ private:
     void showHelp(bool on);                            ///< the help over the tabs (F1)
     void showSettings();                               ///< the settings menu
     ExportPage* exportPage() const;                    ///< the Export tab's page
-    EphemerisProcessor& proc_;
+    EphemerisProcessor& proc_;   ///< the processor
     frame::LookAndFeel lnf_{ ephui::skin() };          ///< first, so it outlives every component that uses it
-    juce::TooltipWindow tooltips_{ nullptr, 700 };
-    EditorBody body_;
-    frame::Backdrop backdrop_;
+    juce::TooltipWindow tooltips_{ nullptr, 700 };   ///< the tooltips, after 700 ms
+    EditorBody body_;   ///< everything, at the design size
+    frame::Backdrop backdrop_;   ///< the picture behind the panel
     int headerBottom_ = 0;                             ///< where the header ends (the backdrop is strong above)
     // The update check (UpdateCheck.h): a link where a newer version is out; the settings switch it.
-    juce::SharedResourcePointer<UpdateCheck> updates_;
-    juce::HyperlinkButton update_;
-    juce::Label status_, rerolls_;
+    juce::SharedResourcePointer<UpdateCheck> updates_;   ///< the update check, shared by every editor
+    juce::HyperlinkButton update_;   ///< the link to a newer release
+    juce::Label status_;   ///< what plays, the status line
+    juce::Label rerolls_;   ///< what was rerolled or locked
     juce::Component title_;                            ///< the name's place (drawn by the body)
-    frame::IconButton undo_{ frame::IconButton::Icon::Undo, "Undo (Ctrl+Z)" }, redo_{ frame::IconButton::Icon::Redo, "Redo (Ctrl+Y)" };
-    frame::IconButton help_{ frame::IconButton::Icon::Help, "Help (F1)" }, settings_{ frame::IconButton::Icon::Settings, "Settings" };
+    frame::IconButton undo_{ frame::IconButton::Icon::Undo, "Undo (Ctrl+Z)" };   ///< undo (Ctrl+Z)
+    frame::IconButton redo_{ frame::IconButton::Icon::Redo, "Redo (Ctrl+Y)" };   ///< redo (Ctrl+Y)
+    frame::IconButton help_{ frame::IconButton::Icon::Help, "Help (F1)" };   ///< the help (F1)
+    frame::IconButton settings_{ frame::IconButton::Icon::Settings, "Settings" };   ///< the settings menu
+    /** @brief shown while a headset sends its hands */
     frame::IconButton headsetIcon_{ frame::IconButton::Icon::Headset, "A headset sends its hands: the Perform page shows them" };
-    std::unique_ptr<frame::HelpView> helpView_;
+    std::unique_ptr<frame::HelpView> helpView_;   ///< the help, while it is open
     bool shotHands_ = false;                           ///< EPH_SHOT_HEADSET: the headset's hands kept alive
     juce::Rectangle<float> logo_;   ///< where the logo is drawn, left of the title
-    juce::ComboBox style_, key_, scale_;
+    juce::ComboBox style_;   ///< compose.style
+    juce::ComboBox key_;   ///< compose.key
+    juce::ComboBox scale_;   ///< compose.scale
     /** A piece, a concert or a night set (EphemerisProcessor::chooseKind), and the length of what is chosen. */
-    juce::TextButton pieceMode_{ "Piece" }, concertMode_{ "Concert" }, nightMode_{ "Night set" };
-    juce::Slider length_;
-    juce::Label lengthLabel_;
+    juce::TextButton pieceMode_{ "Piece" };
+    juce::TextButton concertMode_{ "Concert" };   ///< a concert (compose.concert_minutes)
+    juce::TextButton nightMode_{ "Night set" };   ///< a night set
+    juce::Slider length_;   ///< the length: a piece's minutes or a concert's
+    juce::Label lengthLabel_;   ///< the length's name
     int lengthKind_ = -1;                              ///< what the slider shows (0: compose.piece_minutes, else concert_minutes)
     bool syncing_ = false;                             ///< the slider is set from its parameter, not by a hand
-    juce::TextButton compose_{ "Compose piece" }, seed_{ "New seed" }, play_{ "Play" }, mute_{ "Mute" };
-    std::vector<std::unique_ptr<juce::ComboBoxParameterAttachment>> combos_;
-    ArrangeView arrange_;
-    juce::TabbedComponent tabs_{ juce::TabbedButtonBar::TabsAtTop };
-    juce::String shotPath_;
-    int shotTicks_ = 0;
+    juce::TextButton compose_{ "Compose piece" };   ///< composes a piece, a concert or a night set
+    juce::TextButton seed_{ "New seed" };   ///< a new seed, then composes
+    juce::TextButton play_{ "Play" };   ///< play and stop
+    juce::TextButton mute_{ "Mute" };   ///< mutes the output
+    std::vector<std::unique_ptr<juce::ComboBoxParameterAttachment>> combos_;   ///< the header's menus on their parameters
+    ArrangeView arrange_;   ///< the arrange strip on top
+    juce::TabbedComponent tabs_{ juce::TabbedButtonBar::TabsAtTop };   ///< the pages
+    juce::String shotPath_;   ///< TOT_SHOT: where the screenshot goes, empty none
+    int shotTicks_ = 0;   ///< ticks until the screenshot is taken
 };

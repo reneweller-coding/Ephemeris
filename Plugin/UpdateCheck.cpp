@@ -6,9 +6,10 @@
 #include <cstdlib>
 
 namespace {
-const char* const kReleases = "https://api.github.com/repos/reneweller-coding/Ephemeris/releases/latest";
-constexpr juce::int64 kDay = 24 * 60 * 60 * 1000;
+const char* const kReleases = "https://api.github.com/repos/reneweller-coding/Ephemeris/releases/latest";   ///< GitHub's API for the latest release
+constexpr juce::int64 kDay = 24 * 60 * 60 * 1000;   ///< a day, ms
 
+/** @brief The check's settings file: Ephemeris.updates beside the standalone's settings. */
 juce::PropertiesFile::Options options()
 {
     juce::PropertiesFile::Options o;
