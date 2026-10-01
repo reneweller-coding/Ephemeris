@@ -85,7 +85,7 @@ bass mono under 100 Hz, a guarded width, a gentle compressor, a soft clipper and
 | ![Poly](docs/screenshots/tab_06.png) | ![Arrange](docs/screenshots/tab_01.png) |
 | The pad synth | The rerolls and the moves over the whole piece |
 
-The panel is the family's (Phosphene, Totality, Parhelion and, in part, Noctuary): the same header, the same order
+The panel is the family's ([Phosphene](https://github.com/reneweller-coding/Phosphene), [Totality](https://github.com/reneweller-coding/Totality), [Parhelion](https://github.com/reneweller-coding/Parhelion) and, in part, [Noctuary](https://github.com/reneweller-coding/Noctuary)): the same header, the same order
 of the tabs, the same keys (Space, Ctrl+Z / Ctrl+Y, F1, F11), the same controllers (74 the filters, 11 the echo throw,
 64 Hold Moves) and the same hands on a Meta Quest -- whose controls show only while a headset sends them.
 
