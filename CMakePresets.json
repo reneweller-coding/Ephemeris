@@ -1,0 +1,111 @@
+{
+  "version": 6,
+  "cmakeMinimumRequired": {
+    "major": 3,
+    "minor": 26,
+    "patch": 0
+  },
+  "configurePresets": [
+    {
+      "name": "msvc",
+      "displayName": "Visual Studio (MSVC)",
+      "description": "build/msvc with the solution; the programs land in bin/msvc (cmake/Family.cmake)",
+      "generator": "Visual Studio 18 2026",
+      "architecture": "x64",
+      "binaryDir": "${sourceDir}/build/msvc",
+      "cacheVariables": {
+        "FAMILY_BIN_DIR": "${sourceDir}/bin/msvc"
+      }
+    },
+    {
+      "name": "icx",
+      "displayName": "Intel oneAPI (icx, Ninja, Release)",
+      "description": "build/icx, the programs in bin/icx; needs Visual Studio's and oneAPI's environment -- build.ps1 icx sets them",
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build/icx",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "CMAKE_C_COMPILER": "icx",
+        "CMAKE_CXX_COMPILER": "icx",
+        "EPH_STATIC_RUNTIME": "ON",
+        "FAMILY_BIN_DIR": "${sourceDir}/bin/icx"
+      }
+    },
+    {
+      "name": "release",
+      "inherits": "icx",
+      "displayName": "Release (icx, what ships)",
+      "description": "build/release; Deploy/build_release.ps1 stages, zips and packs it into dist/",
+      "binaryDir": "${sourceDir}/build/release",
+      "cacheVariables": {
+        "EPH_BUILD_PLUGIN": "ON",
+        "EPH_BUILD_TOOLS": "ON",
+        "FAMILY_BIN_DIR": ""
+      }
+    }
+  ],
+  "buildPresets": [
+    {
+      "name": "msvc",
+      "configurePreset": "msvc",
+      "configuration": "Release"
+    },
+    {
+      "name": "msvc-debug",
+      "configurePreset": "msvc",
+      "configuration": "Debug"
+    },
+    {
+      "name": "icx",
+      "configurePreset": "icx"
+    },
+    {
+      "name": "release",
+      "configurePreset": "release"
+    }
+  ],
+  "testPresets": [
+    {
+      "name": "msvc",
+      "configurePreset": "msvc",
+      "configuration": "Release",
+      "output": {
+        "outputOnFailure": true
+      },
+      "execution": {
+        "jobs": 4
+      }
+    },
+    {
+      "name": "msvc-debug",
+      "configurePreset": "msvc",
+      "configuration": "Debug",
+      "output": {
+        "outputOnFailure": true
+      },
+      "execution": {
+        "jobs": 4
+      }
+    },
+    {
+      "name": "icx",
+      "configurePreset": "icx",
+      "output": {
+        "outputOnFailure": true
+      },
+      "execution": {
+        "jobs": 4
+      }
+    },
+    {
+      "name": "release",
+      "configurePreset": "release",
+      "output": {
+        "outputOnFailure": true
+      },
+      "execution": {
+        "jobs": 4
+      }
+    }
+  ]
+}

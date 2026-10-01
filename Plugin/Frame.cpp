@@ -621,6 +621,15 @@ void Settings::setBackdrop(bool on)
     sendChangeMessage();
 }
 
+bool Settings::overview() const { return file_->getBoolValue("overview", true); }
+
+void Settings::setOverview(bool on)
+{
+    file_->setValue("overview", on);
+    file_->saveIfNeeded();
+    sendChangeMessage();
+}
+
 void SettingsMenu::show(juce::Component& target) const
 {
     Settings& s = Settings::of(app);
@@ -628,6 +637,7 @@ void SettingsMenu::show(juce::Component& target) const
     m.addSectionHeader(app + " " + version);
     if (updatesOn && setUpdates) m.addItem("Check for updates once a day", true, updatesOn(), [f = setUpdates, on = updatesOn()] { f(!on); });
     m.addItem("Picture behind the panel", true, s.backdrop(), [&s] { s.setBackdrop(!s.backdrop()); });
+    m.addItem("Overview above the tabs (off: the pages get its height)", true, s.overview(), [&s] { s.setOverview(!s.overview()); });
     {
         juce::PopupMenu h;
         const auto mode = s.headset();
@@ -948,6 +958,176 @@ void SubTabs::paint(juce::Graphics& g)
 {
     g.setColour(skin_.edge);
     g.fillRect(10, 35, getWidth() - 20, 1);
+}
+
+// ======================================================================================================== sections
+
+bool isModulationGroup(const juce::String& title)
+{
+    const juce::String t = title.toLowerCase();
+    return t.contains("lfo") || t.startsWith("mod ") || t.contains("matrix") || t.startsWith("modulation") || t == "trance gate";
+}
+
+SectionPlan planSections(const juce::StringArray& titles, int available, const std::function<int(const std::vector<int>&)>& height,
+                         int tolerance)
+{
+    SectionPlan plan;
+    std::vector<int> all, sound, mod;
+    for (int i = 0; i < titles.size(); ++i) {
+        all.push_back(i);
+        (isModulationGroup(titles[i]) ? mod : sound).push_back(i);
+    }
+    // FAMILY_NO_SECTIONS=1: every page whole (the manual's full-page pictures, which show all of a page at once).
+    static const bool whole = juce::SystemStats::getEnvironmentVariable("FAMILY_NO_SECTIONS", "").isNotEmpty();
+    if (whole || all.empty() || available <= 0 || height(all) <= available + tolerance) {
+        plan.groups.push_back(all);
+        plan.names.add({});
+        return plan;
+    }
+    // A section's name: the first group's title without its number ("LFO 1" -> "LFO", "Matrix 1-2" -> "Matrix").
+    auto plain = [&](int group) {
+        juce::String t = titles[group].trim();
+        while (t.isNotEmpty() && (juce::CharacterFunctions::isDigit(t.getLastCharacter()) || t.getLastCharacter() == '-'))
+            t = t.dropLastCharacters(1).trimEnd();
+        return t.isEmpty() ? titles[group] : t;
+    };
+    const bool both = !sound.empty() && !mod.empty();
+    // A synth's page begins with its presets: its first section is its sound, whatever group follows them.
+    const bool presets = !sound.empty() && titles[sound.front()].trim().endsWithIgnoreCase("preset");
+    auto cut = [&](const std::vector<int>& kind, const juce::String& firstName) {
+        std::vector<int> section;
+        bool first = true;
+        auto close = [&] {
+            if (section.empty()) return;
+            const bool named = first && (both || (presets && &kind == &sound));
+            juce::String name = named ? firstName : plain(section.front());
+            for (int n = 2; plan.names.contains(name); ++n) name = plain(section.front()) + " " + juce::String(n);
+            plan.groups.push_back(section);
+            plan.names.add(name);
+            section.clear();
+            first = false;
+        };
+        for (int g : kind) {
+            std::vector<int> more = section;
+            more.push_back(g);
+            if (!section.empty() && height(more) > available + tolerance) close();
+            section.push_back(g);
+        }
+        close();
+    };
+    cut(sound, "Sound");
+    cut(mod, "Modulation");
+    return plan;
+}
+
+SectionSwitch::SectionSwitch(const Skin& skin, const juce::StringArray& names) : skin_(skin)
+{
+    setNames(names);
+}
+
+void SectionSwitch::setNames(const juce::StringArray& names)
+{
+    juce::StringArray now;
+    for (auto* b : buttons_) now.add(b->getButtonText());
+    if (now == names) return;
+    buttons_.clear();
+    for (int i = 0; i < names.size(); ++i) {
+        auto* b = buttons_.add(new juce::TextButton(names[i]));
+        b->setClickingTogglesState(false);
+        b->setWantsKeyboardFocus(false);
+        b->setColour(juce::TextButton::buttonOnColourId, skin_.accent.withAlpha(0.42f));
+        b->onClick = [this, i] {
+            if (i == current_) return;
+            setCurrent(i);
+            if (onChange) onChange(i);
+        };
+        addAndMakeVisible(b);
+    }
+    setCurrent(current_);
+    resized();
+}
+
+void SectionSwitch::setCurrent(int index)
+{
+    current_ = juce::jlimit(0, std::max(0, buttons_.size() - 1), index);
+    for (int i = 0; i < buttons_.size(); ++i) buttons_[i]->setToggleState(i == current_, juce::dontSendNotification);
+}
+
+int SectionSwitch::bestWidth() const
+{
+    int w = 0;
+    for (auto* b : buttons_) w += std::max(84, juce::GlyphArrangement::getStringWidthInt(font(13.5f), b->getButtonText()) + 34);
+    return w;
+}
+
+void SectionSwitch::resized()
+{
+    auto r = getLocalBounds();
+    for (auto* b : buttons_)
+        b->setBounds(r.removeFromLeft(std::max(84, juce::GlyphArrangement::getStringWidthInt(font(13.5f), b->getButtonText()) + 34)).reduced(2, 0));
+}
+
+int pageOverflow(juce::Component& c)
+{
+    int most = 0;
+    if (auto* v = dynamic_cast<juce::Viewport*>(&c))
+        if (auto* inner = v->getViewedComponent()) most = inner->getHeight() - v->getMaximumVisibleHeight();
+    for (auto* child : c.getChildren())
+        if (child->isVisible()) most = std::max(most, pageOverflow(*child));
+    return std::max(0, most);
+}
+
+namespace {
+/** @brief The visible section switches under @p c (a page split into Sound and Modulation has one). */
+void findSwitches(juce::Component& c, std::vector<SectionSwitch*>& out)
+{
+    if (auto* s = dynamic_cast<SectionSwitch*>(&c)) { if (s->isVisible()) out.push_back(s); return; }
+    for (auto* child : c.getChildren())
+        if (child->isVisible()) findSwitches(*child, out);
+}
+
+} // namespace
+
+juce::String pageLines(juce::Component& page, const juce::String& name)
+{
+    juce::String out;
+    std::vector<SectionSwitch*> switches;
+    findSwitches(page, switches);
+    if (switches.empty()) { out << name << "\t" << pageOverflow(page) << "\n"; return out; }
+    SectionSwitch* s = switches.front();
+    const int was = s->current();
+    for (int k = 0; k < s->count(); ++k) {
+        s->setCurrent(k);
+        if (s->onChange) s->onChange(k);
+        out << name << " [" << s->name(k) << "]\t" << pageOverflow(page) << "\n";
+    }
+    s->setCurrent(was);
+    if (s->onChange) s->onChange(was);
+    return out;
+}
+
+juce::String pageReport(juce::TabbedComponent& tabs)
+{
+    juce::String out;
+    const int front = tabs.getCurrentTabIndex();
+    const juce::StringArray names = tabs.getTabNames();
+    for (int i = 0; i < tabs.getNumTabs(); ++i) {
+        tabs.setCurrentTabIndex(i, false);
+        juce::Component* page = tabs.getCurrentContentComponent();
+        if (page == nullptr) continue;
+        if (auto* st = dynamic_cast<SubTabs*>(page)) {
+            const int was = st->current();
+            for (int j = 0; j < st->count(); ++j) {
+                st->show(j);
+                out << pageLines(*st, names[i] + ": " + st->name(j));
+            }
+            st->show(was);
+        } else {
+            out << pageLines(*page, names[i]);
+        }
+    }
+    tabs.setCurrentTabIndex(front, false);
+    return out;
 }
 
 // ========================================================================================================= controls

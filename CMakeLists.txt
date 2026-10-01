@@ -11,6 +11,10 @@
 cmake_minimum_required(VERSION 3.22)
 project(Ephemeris VERSION 1.0.0 LANGUAGES C CXX)
 
+# The family's layout (01.10.2026): build/<preset>, bin/<preset>, dist/, work/ -- cmake/Family.cmake,
+# CMakePresets.json and build.ps1, the same in every repository of the family.
+include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/Family.cmake)
+
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
@@ -60,19 +64,7 @@ endif()
 # The plugin (Phase 5). JUCE from ThirdParty/JUCE, else from the sibling Phosphene's checkout, else
 # fetched. Nothing under Core/ includes JUCE.
 if(EPH_BUILD_PLUGIN)
-    include(FetchContent)
-    set(JUCE_BUILD_EXTRAS OFF CACHE BOOL "" FORCE)
-    set(JUCE_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
-    if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/ThirdParty/JUCE/CMakeLists.txt)
-        set(FETCHCONTENT_SOURCE_DIR_JUCE ${CMAKE_CURRENT_SOURCE_DIR}/ThirdParty/JUCE CACHE PATH "" FORCE)
-    elseif(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/../PsytranceGenerator/ThirdParty/JUCE/CMakeLists.txt)
-        set(FETCHCONTENT_SOURCE_DIR_JUCE ${CMAKE_CURRENT_SOURCE_DIR}/../PsytranceGenerator/ThirdParty/JUCE CACHE PATH "" FORCE)
-    endif()
-    FetchContent_Declare(JUCE
-        GIT_REPOSITORY https://github.com/juce-framework/JUCE.git
-        GIT_TAG        ${EPH_JUCE_TAG}
-        GIT_SHALLOW    TRUE)
-    FetchContent_MakeAvailable(JUCE)
+    family_juce(${EPH_JUCE_TAG})   # ThirdParty/JUCE, the sibling Phosphene's, or fetched (cmake/Family.cmake)
     add_subdirectory(Plugin)
     # The built VST3 loaded the way a DAW loads it (Tests/vst3test.cpp). Here and not in Tests/, because the
     # plugin's target exists only from this point on.

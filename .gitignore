@@ -11,3 +11,8 @@ __pycache__/
 # Reference-audio measurements are statistics and are committed; the audio never is.
 Deploy/stage/
 build-release*.log
+# The family's layout (01.10.2026): bin/<preset> what can be started, dist/ what is handed out,
+# work/ local data, renders and logs (cmake/Family.cmake).
+bin/
+dist/
+work/

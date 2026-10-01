@@ -2,6 +2,16 @@
 
 ## Next: the family's panel (01.10.2026, not yet released)
 
+**One layout for the repositories.** Every instrument of the family builds the same way now: `build.ps1` (msvc, icx,
+release, quest) on the presets of `CMakePresets.json`, the build trees under `build\<preset>`, everything that can be
+started -- the standalone, the VST3, the renderer -- flat in `bin\msvc` and `bin\icx` (and the Quest APK in
+`bin\quest`), the release in `dist\`, local data, renders and logs in `work\` (`cmake/Family.cmake`).
+
+**No page scrolls.** The window opens at 1280 x 860, as every generator of the family's. A tab of several modules has a
+small tab for each, and a page that is still taller than the window shows its groups in sections, one at a time --
+the sound and the modulation apart, cut further where needed (Filter, LFO, Matrix ...) --, switched at its top right.
+The overview above the tabs can be folded away in the settings.
+
 **One panel for the family.** Totality, Parhelion, Ephemeris and Phosphene share their panel now (Plugin/Frame.h,
 the same file in each, and Noctuary its right-hand tools): the header's two rows -- the logo, the style, the key and
 the scale, piece, concert or night set and its length, Compose, New seed, Play, Mute; the status, Undo, Redo, Help and the

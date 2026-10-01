@@ -31,8 +31,10 @@ def shot(exe, page, path, full, extra=None):
     env.update(extra or {})
     if full:
         env["EPH_SHOT_FULL"] = "1"
+        env["FAMILY_NO_SECTIONS"] = "1"   # every page whole in its picture, its sections at once (Frame.h, 01.10.2026)
     else:
         env.pop("EPH_SHOT_FULL", None)
+        env.pop("FAMILY_NO_SECTIONS", None)
     if os.path.exists(path):
         os.remove(path)
     subprocess.run([exe], env=env, timeout=600, check=False)
@@ -42,8 +44,7 @@ def shot(exe, page, path, full, extra=None):
 
 
 def main():
-    exe = sys.argv[1] if len(sys.argv) > 1 else os.path.join(ROOT, "build", "Plugin", "Ephemeris_artefacts", "Release",
-                                                              "Standalone", "Ephemeris.exe")
+    exe = sys.argv[1] if len(sys.argv) > 1 else os.path.join(ROOT, "bin", "msvc", "Ephemeris.exe")
     out = os.path.join(ROOT, "docs", "screenshots")
     os.makedirs(out, exist_ok=True)
     for page in range(len(PAGES)):

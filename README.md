@@ -95,12 +95,25 @@ The plan, the musical specification and the literature behind each building bloc
 
 ## Build
 
-```bash
-cmake -S . -B build -G "Visual Studio 18 2026" -A x64
-cmake --build build --config Release
-ctest --test-dir build -C Release
-build/Plugin/Ephemeris_artefacts/Release/Standalone/Ephemeris.exe
+The same in every instrument of the family (`build.ps1`, `CMakePresets.json`, `cmake/Family.cmake`):
+
+```powershell
+.\build.ps1               # Visual Studio's compiler, Release: build\msvc (the solution), the programs in bin\msvc
+.\build.ps1 icx           # Intel's oneAPI compiler: build\icx, the programs in bin\icx
+.\build.ps1 msvc -Test    # and the tests (ctest)
+.\build.ps1 icx -Run      # and start the standalone
+.\build.ps1 quest         # the Meta Quest app: bin\quest\EphemerisQuest.apk
 ```
+
+| Folder | What is in it |
+|---|---|
+| `bin\msvc`, `bin\icx` | what can be started: the standalone, the VST3, the renderer (and the files they read) |
+| `build\<preset>` | the build trees -- `build\msvc\Ephemeris.slnx` for Visual Studio |
+| `dist\` | the release: setup, portable zip, checksums (`Deploy\build_release.ps1`, from `build\release`) |
+| `work\` | local data, renders and logs, never in git |
+
+Without the script: `cmake --preset msvc`, `cmake --build --preset msvc`, `ctest --preset msvc`; the icx presets need
+Visual Studio's and oneAPI's environment, which `build.ps1` sets up.
 
 `EPH_MUTE=1` starts the standalone or the plugin muted (the screenshot mode `EPH_SHOT` does as well); every
 automated run uses it.
@@ -108,10 +121,10 @@ automated run uses it.
 ## Try it
 
 ```bash
-build/Tools/render/Release/eph_render.exe --minutes 14 --seed 11 --set "compose.style=Cosmic" --out out/piece.wav --midi out/piece.mid
-build/Tools/render/Release/eph_render.exe --concert 60 --seed 3 --set "compose.style=Drift" --out out/night.wav
-build/Tools/render/Release/eph_render.exe --set-file out/piece.ephset --reroll lead --save-set out/piece2.ephset
-build/Tools/render/Release/eph_render.exe --list
+bin/msvc/eph_render.exe --minutes 14 --seed 11 --set "compose.style=Cosmic" --out work/renders/piece.wav --midi work/renders/piece.mid
+bin/msvc/eph_render.exe --concert 60 --seed 3 --set "compose.style=Drift" --out work/renders/night.wav
+bin/msvc/eph_render.exe --set-file work/renders/piece.ephset --reroll lead --save-set work/renders/piece2.ephset
+bin/msvc/eph_render.exe --list
 ```
 
 ## Tools

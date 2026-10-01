@@ -226,6 +226,9 @@ public:
     int headsetPort() const;                      ///< the UDP port the hands arrive on (9100 + the instrument's offset)
     bool backdrop() const;                        ///< the picture behind the panel
     void setBackdrop(bool on);
+    /** @brief The overview above the tabs (01.10.2026: folded away, the pages get its height). */
+    bool overview() const;
+    void setOverview(bool on);
     juce::String app() const { return app_; }
 
 private:
@@ -374,6 +377,69 @@ private:
     std::vector<Page> pages_;
     int current_ = -1;
 };
+
+// ======================================================================================================= sections
+
+/**
+ * @brief Whether a group of a synth's page belongs to its modulation -- the LFOs, the mod envelope, the matrix, the
+ *        trance gate (01.10.2026). A page that does not fit the window shows its sound and its modulation as sections
+ *        of their own (planSections).
+ */
+bool isModulationGroup(const juce::String& title);
+
+/** @brief A page's groups as sections, each to be shown alone, and the sections' names. */
+struct SectionPlan {
+    std::vector<std::vector<int>> groups;         ///< per section the group indices, in the page's order
+    juce::StringArray names;                      ///< per section its name for the switch
+};
+
+/**
+ * @brief Splits a page's groups into sections that each fit @p available pixels (01.10.2026: no page scrolls at the
+ *        window's usual size). One section when the whole page fits (or overshoots by no more than @p tolerance); else
+ *        the sound's groups and the modulation's (isModulationGroup) apart, each in the page's order and cut where the
+ *        next group would not fit any more. Names: "Sound" and "Modulation" for the first of each kind where the page
+ *        has both ("Sound" also where it begins with a synth's presets), else the first group's title (without its
+ *        number: "LFO 1" -> "LFO", "Matrix 1-2" -> "Matrix"). FAMILY_NO_SECTIONS=1 keeps every page whole (the
+ *        manual's full-page pictures).
+ * @param titles the groups' titles, in the page's order
+ * @param available the height the page has
+ * @param height the height the page needs showing only the given groups (laid out as the page lays them out)
+ */
+SectionPlan planSections(const juce::StringArray& titles, int available, const std::function<int(const std::vector<int>&)>& height,
+                         int tolerance = 0);
+
+/** @brief The switch between a page's sections ("Sound" | "Modulation" | ...), drawn as the frame's small tabs. */
+class SectionSwitch final : public juce::Component {
+public:
+    explicit SectionSwitch(const Skin& skin, const juce::StringArray& names = { "Sound", "Modulation" });
+    int current() const { return current_; }
+    int count() const { return buttons_.size(); }
+    juce::String name(int index) const { return buttons_[index] != nullptr ? buttons_[index]->getButtonText() : juce::String(); }
+    void setCurrent(int index);                   ///< without onChange
+    void setNames(const juce::StringArray& names);   ///< new sections (the current one kept where it still exists)
+    std::function<void(int)> onChange;            ///< after a section was chosen
+    int bestWidth() const;                        ///< the width its buttons need
+    void resized() override;
+
+private:
+    const Skin& skin_;
+    juce::OwnedArray<juce::TextButton> buttons_;
+    int current_ = 0;
+};
+
+/**
+ * @brief How far every page of @p tabs reaches past the window (its viewports' overflow in pixels), every small tab
+ *        of a page of several too, one line each: "Synths: Lead<TAB>412". The pages are shown one after the other and
+ *        the one in front again at the end. For the screenshot mode's <P>_PAGE_REPORT (01.10.2026): which page still
+ *        scrolls at the window's usual size, and by how much.
+ */
+juce::String pageReport(juce::TabbedComponent& tabs);
+
+/** @brief The overflow of the viewports in @p c and below it (the largest), in pixels; 0 where nothing scrolls. */
+int pageOverflow(juce::Component& c);
+
+/** @brief One page's line of pageReport() -- and a line per section where it has a switch (Sound, Modulation). */
+juce::String pageLines(juce::Component& page, const juce::String& name);
 
 // ======================================================================================================== controls
 

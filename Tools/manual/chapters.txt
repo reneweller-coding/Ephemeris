@@ -133,6 +133,11 @@ seed, Play and Mute. Its second row: the status line, and at the right Undo, Red
 Under the header the whole piece, concert or night set at a glance; a click jumps there. The tabs come in one order everywhere: Set,
 Arrange, the instrument's own pages -- a page of several has small tabs of its own --, Mixer, Perform, Export, Style.
 
+A page taller than the window shows its groups in sections, one at a time, with a switch at its top right: a synth's
+sound and its modulation apart (Sound, Modulation), and where even those do not fit, cut further, each named after its
+first group (Filter, LFO, Matrix ...). At the window's usual size, 1280 by 860, no page scrolls. The overview above the
+tabs can be folded away in the settings; the pages then get its height.
+
 A colour says what a control does, the same on every page and in every generator of the family: the sources, the
 filters, the envelopes, what moves by itself, the room and the mix. A knob the composer moves has a thin ring round
 it that shows where it stands at this moment. A double click sets a control to its default; a right click offers
@@ -141,8 +146,8 @@ MIDI learn, forgetting the controller, and the default.
 Undo and Redo take back and bring back what was changed -- a knob, a new seed, a reroll, a preset, a loaded set --
 one step at a time; the button's tooltip names the step. Help opens this manual by topic, with the page in front, the
 keys and the headset as topics of their own. The settings hold the update check (it asks GitHub once a day whether a
-newer Ephemeris is out; nothing else is sent), the picture behind the panel, the headset, the window's size, full
-screen, the keys and About.
+newer Ephemeris is out; nothing else is sent), the picture behind the panel, the overview, the headset, the window's
+size, full screen, the keys and About.
 
     Space                 play / stop
     Ctrl+Z                undo
@@ -733,7 +738,7 @@ style is saved with the set and the plugin's state, and a concert starts from it
 
 == Meta Quest | | - ==
 
-The whole generator runs on the headset (build-quest\EphemerisQuest.apk, see Quest/README.md), played with the hands
+The whole generator runs on the headset (bin\quest\EphemerisQuest.apk, see Quest/README.md), played with the hands
 in the grammar every generator's headset shares (The panel): left pinch play and stop, right pinch the moves held and
 let go, both hands together the next piece; the left hand's height the rows' filters, the right's the echo throw. A
 head-locked panel shows the piece, its section, the root and the scale, the time and the two hand controls, the orrery

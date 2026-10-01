@@ -1,6 +1,6 @@
 ; Ephemeris -- the Windows installer (after Phosphene's Deploy\Phosphene.iss).
 ;
-; Built by Deploy\build_release.ps1, which stages everything under Deploy\stage first and only then calls the
+; Built by Deploy\build_release.ps1, which stages everything under dist\stage first and only then calls the
 ; compiler. Nothing in here reaches into a build tree: what is in the staging folder is exactly what gets
 ; installed, so the payload can be looked at before the setup is made.
 ;
@@ -15,7 +15,7 @@
 #endif
 #define AppName "Ephemeris"
 #define Publisher "Rene Weller"
-#define Stage "stage"
+#define Stage "..\dist\stage"
 
 [Setup]
 AppId={{7C3E9A52-4B1D-4E8F-9A27-6D5B3C81F0E4}
@@ -27,7 +27,7 @@ DefaultDirName={autopf}\{#AppName}
 DefaultGroupName={#AppName}
 DisableProgramGroupPage=yes
 LicenseFile={#Stage}\LICENSE.txt
-OutputDir=out
+OutputDir=..\dist
 OutputBaseFilename={#AppName}-{#Version}-Setup
 SetupIconFile={#Stage}\ephemeris.ico
 UninstallDisplayIcon={app}\Ephemeris.exe

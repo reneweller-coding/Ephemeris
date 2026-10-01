@@ -37,3 +37,7 @@ target_link_libraries(Ephemeris
     PUBLIC
         juce::juce_recommended_config_flags
         juce::juce_recommended_warning_flags)
+
+# Into bin/<preset> after every build (cmake/Family.cmake, 01.10.2026): the standalone and the VST3 bundle.
+family_bin(Ephemeris_Standalone)
+family_bin(Ephemeris_VST3 VST3)

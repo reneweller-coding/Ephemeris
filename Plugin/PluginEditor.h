@@ -57,6 +57,8 @@ public:
     void paint(juce::Graphics& g) override;   ///< the group boxes and their titles
     /** @brief The height the page needs at @p width (for a page in a viewport). */
     int heightFor(int width) const;
+    /** @brief The height the page has in its window (the scrolling page around it says so before heightFor). */
+    void setAvailableHeight(int h) { available_ = h; }
     /** @brief The page's parameters in words, group by group (the help's topic for the tab). */
     juce::String describe() const;
 
@@ -106,6 +108,19 @@ private:
         juce::Rectangle<int> bounds;
     };
     std::vector<Box> boxes_;
+    /**
+     * @brief A page taller than its window shows its groups in sections, one at a time (01.10.2026, frame::planSections):
+     *        the sound and the modulation apart, each cut where the window ends.
+     */
+    frame::SectionSwitch section_{ ephui::skin() };
+    bool split_ = false;                          ///< more than one section
+    std::vector<int> sectionOf_;                  ///< per box its section
+    const std::vector<int>* measuring_ = nullptr; ///< while planning: the boxes being measured
+    int available_ = 0, plannedWidth_ = -1, plannedAvailable_ = -1;
+    bool shown(size_t box) const;                 ///< the box is in the section shown (or being measured)
+    void plan(int width);                         ///< the sections of a page @p width wide in available_
+    void applySection();                          ///< the controls of the section shown, the others hidden
+    void refit();                                 ///< laid out again, and the scrolling page around it measures again
     int top() const;   ///< height of the instance and preset bar
     /** @brief Places the boxes and their cells in @p area (@p apply: move the components too); returns the height used. */
     int layoutBoxes(juce::Rectangle<int> area, bool apply);

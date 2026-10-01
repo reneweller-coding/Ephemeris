@@ -19,9 +19,9 @@ $project = Get-Content (Join-Path $root "CMakeLists.txt") -Raw
 if ($project -notmatch 'project\(\s*Ephemeris\s+VERSION\s+([0-9.]+)') { throw "no version in CMakeLists.txt" }
 $Version = $Matches[1]
 $files = @(
-    (Join-Path $root "Deploy\out\Ephemeris-$Version-Setup.exe"),
-    (Join-Path $root "Deploy\out\Ephemeris-$Version-portable.zip"),
-    (Join-Path $root "build-quest\EphemerisQuest.apk")
+    (Join-Path $root "dist\Ephemeris-$Version-Setup.exe"),
+    (Join-Path $root "dist\Ephemeris-$Version-portable.zip"),
+    (Join-Path $root "bin\quest\EphemerisQuest.apk")
 )
 foreach ($f in $files) { if (-not (Test-Path $f)) { throw "missing: $f" } }
 $apk = Join-Path $env:TEMP "EphemerisQuest-$Version.apk"

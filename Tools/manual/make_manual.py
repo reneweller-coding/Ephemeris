@@ -152,7 +152,7 @@ def find_browser():
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("--render", default=os.path.join(ROOT, "build", "Tools", "render", "Release", "eph_render.exe"))
+    ap.add_argument("--render", default=os.path.join(ROOT, "bin", "msvc", "eph_render.exe"))
     ap.add_argument("--params", help="a --dump-params JSON instead of running eph_render")
     ap.add_argument("--out", default=os.path.join(ROOT, "docs", "manual", "Ephemeris-Manual.html"))
     ap.add_argument("--no-pdf", action="store_true")

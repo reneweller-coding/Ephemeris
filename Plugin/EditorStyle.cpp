@@ -88,6 +88,7 @@ void StylePage::resized()
     copy_.setBounds(right.removeFromTop(28).withWidth(std::min(right.getWidth(), 260)));
     right.removeFromTop(6);
     view_.setBounds(right);
+    custom_->setAvailableHeight(right.getHeight());   // its sections are cut to it (01.10.2026)
     const int w = right.getWidth() - view_.getScrollBarThickness();
     custom_->setSize(w, std::max(right.getHeight(), custom_->heightFor(w)));
 }

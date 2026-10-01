@@ -17,7 +17,7 @@ $quest = Join-Path $root "Quest"
 $ndk = Join-Path $Sdk "ndk\$NdkVersion"
 $bt = Join-Path $Sdk "build-tools\$BuildTools"
 $androidJar = Join-Path $Sdk "platforms\$Platform\android.jar"
-$build = Join-Path $root "build-quest"
+$build = Join-Path $root "build\quest"
 # The version from the project() line of CMakeLists.txt; the version code 10000 major + 100 minor + patch.
 if ((Get-Content (Join-Path $root "CMakeLists.txt") -Raw) -notmatch 'project\(\s*Ephemeris\s+VERSION\s+(\d+)\.(\d+)\.(\d+)') { throw "no version in CMakeLists.txt" }
 $versionName = "$($Matches[1]).$($Matches[2]).$($Matches[3])"
@@ -76,6 +76,11 @@ $final = Join-Path $build "EphemerisQuest.apk"
 if ($LASTEXITCODE -ne 0) { throw "apksigner failed" }
 
 Write-Host ("APK size: {0:N0} bytes" -f (Get-Item $final).Length)
+# Beside the other programs (cmake/Family.cmake's bin/<preset>, 01.10.2026).
+$binQuest = Join-Path $root "bin\quest"
+New-Item -ItemType Directory -Force $binQuest | Out-Null
+Copy-Item $final $binQuest -Force
+$final = Join-Path $binQuest (Split-Path -Leaf $final)
 Write-Host "APK: $final"
 Write-Host "install:  adb install -r `"$final`""
 Write-Host "config:   adb push eph.cfg /sdcard/Android/data/com.reneweller.ephemeris.quest/files/eph.cfg"
