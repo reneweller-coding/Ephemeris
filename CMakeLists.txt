@@ -9,7 +9,7 @@
 #
 # Built after Phosphene's root CMakeLists.txt at 9a2f615; the rules below are its rules.
 cmake_minimum_required(VERSION 3.22)
-project(Ephemeris VERSION 1.0.0 LANGUAGES C CXX)
+project(Ephemeris VERSION 1.1.0 LANGUAGES C CXX)
 
 # The family's layout (01.10.2026): build/<preset>, bin/<preset>, dist/, work/ -- cmake/Family.cmake,
 # CMakePresets.json and build.ps1, the same in every repository of the family.

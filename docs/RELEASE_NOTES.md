@@ -1,6 +1,6 @@
 # Ephemeris release notes
 
-## Next: the family's panel (01.10.2026, not yet released)
+## 1.1.0 (01.10.2026): the family's panel
 
 **Play it yourself.** A Keyboard group on the Perform page: Keyboard Plays sends the keys of a MIDI keyboard to a voice
 (the lead, the drone, the poly synth, the tape keys, the strings, the drums, a row, or by channel), with the sound its page has; Replace leaves that voice's generated notes out, Layer plays over
@@ -55,7 +55,7 @@ right pinch was).
 
 **Words.** The automation is "the moves" now: Hold Moves, Move Length, Rest Between Moves, "reroll moves".
 
-## 1.0.1 (01.10.2026)
+## 1.0.1 (01.10.2026, released with 1.1.0)
 
 **A piece, a concert or a night set.** The top bar chooses what is composed with three buttons -- Piece, Concert,
 Night set -- and one Length beside them (a piece 4 to 40 minutes, a concert or a night set 20 minutes to 12 hours); a

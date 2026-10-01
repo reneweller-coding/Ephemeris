@@ -15,14 +15,14 @@ the room of a tape echo and a long hall. Everything is synthesised; nothing is p
 
 ## Download
 
-**[Ephemeris-1.0.0-Setup.exe](https://github.com/reneweller-coding/Ephemeris/releases/download/v1.0.0/Ephemeris-1.0.0-Setup.exe)**
+**[Ephemeris-1.1.0-Setup.exe](https://github.com/reneweller-coding/Ephemeris/releases/download/v1.1.0/Ephemeris-1.1.0-Setup.exe)**
 installs the standalone, the VST3, the offline renderer and the manual. Nothing else has to be installed: the runtime
 is linked in. There is a
-**[portable zip](https://github.com/reneweller-coding/Ephemeris/releases/download/v1.0.0/Ephemeris-1.0.0-portable.zip)**
+**[portable zip](https://github.com/reneweller-coding/Ephemeris/releases/download/v1.1.0/Ephemeris-1.1.0-portable.zip)**
 for anyone who would rather not run an installer, the
-**[Quest app](https://github.com/reneweller-coding/Ephemeris/releases/download/v1.0.0/EphemerisQuest-1.0.0.apk)**
+**[Quest app](https://github.com/reneweller-coding/Ephemeris/releases/download/v1.1.0/EphemerisQuest-1.1.0.apk)**
 (installed with `adb install -r`, developer mode), and the
-**[manual](https://github.com/reneweller-coding/Ephemeris/releases/download/v1.0.0/Ephemeris-Manual.pdf)** -- every
+**[manual](https://github.com/reneweller-coding/Ephemeris/releases/download/v1.1.0/Ephemeris-Manual.pdf)** -- every
 page of the panel as a picture, what each control does, and why it is built the way it is.
 
 Requirements: Windows 10 or 11, a 64-bit processor with AVX2 (every x86-64 since 2013), and a VST3 host if you want
