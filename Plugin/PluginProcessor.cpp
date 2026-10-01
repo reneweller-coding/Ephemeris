@@ -12,8 +12,10 @@
 #include "eph/compose/Composer.h"
 #include "eph/Midi.h"
 #include "eph/WavWriter.h"
+#include <algorithm>
 #include <cmath>
 #include <cstdlib>
+#include <limits>
 
 using namespace eph;
 
@@ -100,6 +102,7 @@ EphemerisProcessor::EphemerisProcessor()
         auto* p = new StoreParameter(s, id, juce::String(s.key(id)).replaceCharacter('.', ' ') + " (" + s.desc(id).name + ")");
         params_.push_back(p);
         addParameter(p);
+        p->addListener(this);   // undo: the panel's gestures (parameterGestureChanged)
     }
     seed_ = static_cast<uint64_t>(juce::Time::currentTimeMillis() % 100000);
     if (const char* env = std::getenv("EPH_SEED")) seed_ = std::strtoull(env, nullptr, 10);
@@ -110,17 +113,20 @@ EphemerisProcessor::EphemerisProcessor()
     // EPH_SETS: knobs for an automated run, as eph_render's --set takes them ("compose.concert_minutes=60;...").
     if (const char* sets = std::getenv("EPH_SETS")) s.parseText(sets);
     mute_ = forceMute_;
-    // The performer's controllers as a keyboard has them: mod wheel, expression pedal, sustain pedal.
+    // The performer's controllers, the same in every generator (01.10.2026): CC 74 (brightness) the rows' filters, the
+    // expression pedal the throw, the sustain pedal holds the moves. The mod wheel (1) is left free.
     for (auto& c : ccMap_) c = -1;
-    ccMap_[1] = s.id(Module::Perform, 0, perform::Filter);
+    ccMap_[74] = s.id(Module::Perform, 0, perform::Filter);
     ccMap_[11] = s.id(Module::Perform, 0, perform::Throw);
     ccMap_[64] = s.id(Module::Perform, 0, perform::Hold);
     startTimerHz(10);
+    headsetTick_.startTimerHz(30);
     compose();
 }
 
 EphemerisProcessor::~EphemerisProcessor()
 {
+    headsetTick_.stopTimer();
     stopTimer();
     stopThread(10000);
     if (exporter_ && exporter_->joinable()) exporter_->join();
@@ -159,20 +165,24 @@ void EphemerisProcessor::compose()
 
 void EphemerisProcessor::newSeed()
 {
+    beginStep("New seed");
     {
         std::lock_guard<std::mutex> g(lock_);
         seed_ = juce::Random::getSystemRandom().nextInt64() & 0xFFFFFF;
         curation_ = Curation{};
     }
+    endStep();
     compose();
 }
 
 void EphemerisProcessor::reroll(const juce::String& unit)
 {
+    beginStep("reroll " + juce::String(unit).replace("hands", "moves"));
     {
         std::lock_guard<std::mutex> g(lock_);
         curation_.reroll(unit.toStdString());
     }
+    endStep();
     compose();
 }
 
@@ -188,9 +198,12 @@ void EphemerisProcessor::chooseKind(int kind)
     ParamStore& s = store();
     const int concert = s.id(Module::Compose, 0, compose::ConcertMinutes);
     const int was = chosenKind();
+    static const char* const kKind[3] = { "Piece", "Concert", "Night set" };
+    beginStep(kKind[std::clamp(kind, 0, 2)]);
     if (was != 0 && kind == 0) concertMinutes_ = s.get(concert);
     if ((was == 0) != (kind == 0)) setFromUi(concert, kind == 0 ? 0.0f : std::max(20.0f, concertMinutes_));
     if (kind != 0) setFromUi(s.id(Module::Compose, 0, compose::NightSet), kind == 2 ? 1.0f : 0.0f);
+    endStep();
     if (was != kind || playingKind() != kind) compose();
 }
 
@@ -207,7 +220,7 @@ juce::String EphemerisProcessor::curationText() const
 {
     std::lock_guard<std::mutex> g(lock_);
     juce::String t;
-    for (const auto& r : curation_.rerolls) t << r.first << " x" << r.second << "  ";
+    for (const auto& r : curation_.rerolls) t << juce::String(r.first).replace("hands", "moves") << " x" << r.second << "  ";
     return t.isEmpty() ? juce::String("nothing rerolled") : t.trimEnd();
 }
 
@@ -523,7 +536,8 @@ bool EphemerisProcessor::loadSet(const juce::File& file)
 {
     SetFile sf;
     std::string err;
-    if (!eph::loadSet(file.getFullPathName().toRawUTF8(), sf, store(), &err)) return false;
+    beginStep("load " + file.getFileName());
+    if (!eph::loadSet(file.getFullPathName().toRawUTF8(), sf, store(), &err)) { endStep(); return false; }
     adoptNext_ = sf.soundsInParams;   // its parameters hold the sounds as they were played
     {
         std::lock_guard<std::mutex> g(lock_);
@@ -532,6 +546,7 @@ bool EphemerisProcessor::loadSet(const juce::File& file)
     }
     if (sf.minutes > 0.0) store().set(store().id(Module::Compose, 0, compose::PieceMinutes), static_cast<float>(sf.minutes));
     store().set(store().id(Module::Compose, 0, compose::ConcertMinutes), static_cast<float>(sf.concert));
+    endStep();
     compose();
     return true;
 }
@@ -694,6 +709,9 @@ bool EphemerisProcessor::saveUserPreset(Module module, int instance, const juce:
 
 void EphemerisProcessor::applyKeyText(const juce::String& text)
 {
+    beginStep("page preset");
+    const juce::ScopedValueSetter<bool> one(restoring_, true);   // the knobs' gestures join the step, not steps of their own
+    struct End { EphemerisProcessor& p; ~End() { p.restoring_ = false; p.endStep(); } } end{ *this };
     for (const juce::String& line : juce::StringArray::fromLines(text)) {
         const int eq = line.indexOfChar('=');
         if (eq <= 0) continue;
@@ -708,6 +726,9 @@ void EphemerisProcessor::applyKeyText(const juce::String& text)
 
 void EphemerisProcessor::applyPresetValues(Module module, int instance, const SoundPreset& preset)
 {
+    beginStep(juce::String("preset ") + preset.name);
+    const juce::ScopedValueSetter<bool> one(restoring_, true);   // the knobs' gestures join the step, not steps of their own
+    struct End { EphemerisProcessor& p; ~End() { p.restoring_ = false; p.endStep(); } } end{ *this };
     for (const auto& e : presetKnobs(module, preset)) {
         const int id = store().id(module, instance, e.first);
         StoreParameter* p = parameter(id);
@@ -789,7 +810,130 @@ void EphemerisProcessor::setStateInformation(const void* data, int sizeInBytes)
             if (item.contains("=")) curation_.rerolls[item.upToFirstOccurrenceOf("=", false, false).toStdString()] = item.fromFirstOccurrenceOf("=", false, false).getIntValue();
     }
     adoptNext_ = xml->getStringAttribute("sounds") == "knobs";   // the knobs as they were saved, the sounds among them
+    history_.clear();   // a host's state is a new beginning
     compose();
+}
+
+// ---------------------------------------------------------------------------------------------------------------- undo
+
+std::vector<float> EphemerisProcessor::values() const
+{
+    const ParamStore& s = const_cast<EphemerisProcessor*>(this)->store();
+    std::vector<float> v(static_cast<size_t>(s.count()));
+    for (int id = 0; id < s.count(); ++id) v[static_cast<size_t>(id)] = s.get(id);
+    return v;
+}
+
+juce::String EphemerisProcessor::extraState() const
+{
+    std::lock_guard<std::mutex> g(lock_);
+    juce::String t;
+    t << "seed=" << juce::String(static_cast<juce::int64>(seed_)) << "\nconcert=" << juce::String(concertMinutes_) << "\nrerolls=";
+    for (const auto& r : curation_.rerolls) t << r.first << ":" << r.second << ";";
+    return t;
+}
+
+void EphemerisProcessor::applyExtra(const juce::String& text)
+{
+    if (text == extraState()) return;
+    bool again = false;
+    {
+        std::lock_guard<std::mutex> g(lock_);
+        for (const juce::String& line : juce::StringArray::fromLines(text)) {
+            const juce::String k = line.upToFirstOccurrenceOf("=", false, false), v = line.fromFirstOccurrenceOf("=", false, false);
+            if (k == "seed") {
+                const uint64_t seed = static_cast<uint64_t>(v.getLargeIntValue());
+                again = again || seed != seed_;
+                seed_ = seed;
+            } else if (k == "concert") {
+                concertMinutes_ = v.getFloatValue();
+            } else if (k == "rerolls") {
+                Curation c;
+                for (const juce::String& item : juce::StringArray::fromTokens(v, ";", ""))
+                    if (item.contains(":")) c.rerolls[item.upToLastOccurrenceOf(":", false, false).toStdString()] = item.fromLastOccurrenceOf(":", false, false).getIntValue();
+                again = again || c.rerolls != curation_.rerolls;
+                curation_ = c;
+            }
+        }
+    }
+    if (again) compose();
+}
+
+void EphemerisProcessor::beginStep(const juce::String& what) { history_.begin(what, values(), extraState(), true); }
+
+void EphemerisProcessor::endStep() { history_.end(values(), extraState()); }
+
+void EphemerisProcessor::parameterGestureChanged(int parameterIndex, bool gestureIsStarting)
+{
+    // Only the panel's gestures, which come on the message thread: a controller's (perform(), the audio thread) and an
+    // undo's own are not steps.
+    if (restoring_ || !juce::MessageManager::existsAndIsCurrentThread()) return;
+    if (gestureIsStarting) {
+        const ParamStore& s = store();
+        history_.begin(parameterIndex >= 0 && parameterIndex < s.count() ? juce::String(s.desc(parameterIndex).name) : juce::String("knob"),
+                       values(), extraState(), false);
+        history_.touch(parameterIndex);
+    } else {
+        history_.end(values(), extraState());
+    }
+}
+
+void EphemerisProcessor::applyStep(const frame::UndoStep& step, bool after)
+{
+    const juce::ScopedValueSetter<bool> quiet(restoring_, true);
+    for (const auto& [id, before, now] : step.values) setFromUi(id, after ? now : before);
+    applyExtra(after ? step.extraAfter : step.extraBefore);
+}
+
+bool EphemerisProcessor::undo()
+{
+    if (const frame::UndoStep* s = history_.undo()) { applyStep(*s, false); return true; }
+    return false;
+}
+
+bool EphemerisProcessor::redo()
+{
+    if (const frame::UndoStep* s = history_.redo()) { applyStep(*s, true); return true; }
+    return false;
+}
+
+void EphemerisProcessor::resetToDefault(int id)
+{
+    if (id < 0 || id >= store().count()) return;
+    beginStep(juce::String(store().desc(id).name) + " to its default");
+    setFromUi(id, store().desc(id).defValue);
+    endStep();
+}
+
+float EphemerisProcessor::playedNormalised(int id) const
+{
+    const ParamStore& s = const_cast<EphemerisProcessor*>(this)->store();
+    if (id < 0 || id >= s.count()) return std::numeric_limits<float>::quiet_NaN();
+    const float v = engine_.playedNow(id), k = s.get(id);
+    if (std::fabs(s.toNormalised(id, v) - s.toNormalised(id, k)) < 1.0e-4f) return std::numeric_limits<float>::quiet_NaN();
+    return s.toNormalised(id, v);
+}
+
+// ------------------------------------------------------------------------------------------------------------- headset
+
+void EphemerisProcessor::pollHeadset()
+{
+    frame::Settings& st = frame::Settings::of("Ephemeris");
+    headset_.listen(st.headset() == frame::Settings::HeadsetMode::Off ? 0 : st.headsetPort());
+    const frame::HeadsetEvents e = headset_.poll();
+    const ParamStore& s = store();
+    {
+        // The hands' moves are performing, not editing: no steps of their own.
+        const juce::ScopedValueSetter<bool> quiet(restoring_, true);
+        if (e.playStop && wrapperType == wrapperType_Standalone) setPlaying(!isPlaying());
+        if (e.action) {
+            const int id = s.id(Module::Perform, 0, perform::Hold);
+            setFromUi(id, s.getBool(id) ? 0.0f : 1.0f);
+        }
+        if (e.filterMoved) setFromUi(s.id(Module::Perform, 0, perform::Filter), e.filter * 2.0f);   // two octaves either way
+        if (e.throwMoved) setFromUi(s.id(Module::Perform, 0, perform::Throw), e.throwAmount);
+    }
+    if (e.next) newSeed();
 }
 
 juce::AudioProcessorEditor* EphemerisProcessor::createEditor() { return new EphemerisEditor(*this); }

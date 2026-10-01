@@ -35,6 +35,10 @@ PerformPage::~PerformPage() { stopTimer(); }
 
 void PerformPage::timerCallback()
 {
+    // The headset's box: shown while one sends (or always, as the settings say), its hands live.
+    const bool hs = proc_.headset().shown(frame::Settings::of("Ephemeris").headset());
+    if (hs != headset_) { headset_ = hs; resized(); repaint(); }
+    if (headset_) repaint(headsetArea_);
     const ParamStore& s = proc_.store();
     for (size_t i = 0; i < ids_.size(); ++i) {
         const int id = ids_[i];
@@ -62,8 +66,9 @@ void PerformPage::resized()
         auto row = r.removeFromTop(30);
         learn_[i]->setBounds(row.removeFromLeft(90).reduced(0, 3));
         row.removeFromLeft(12);
-        bindings_[i]->setBounds(row);
+        bindings_[i]->setBounds(row.withWidth(std::min(row.getWidth(), 420)));
     }
+    headsetArea_ = headset_ ? juce::Rectangle<int>(r.getRight() - 380, getLocalBounds().getY() + controlsHeight_ + 10, 380, 190) : juce::Rectangle<int>();
 }
 
 void PerformPage::paint(juce::Graphics& g)
@@ -73,8 +78,11 @@ void PerformPage::paint(juce::Graphics& g)
     g.setColour(kDim);
     g.setFont(juce::Font(juce::FontOptions(13.0f)));
     g.drawFittedText("A MIDI keyboard's keys transpose the rows by their distance from middle C (C3 plays as composed); "
-                     "the transposition holds until the next key. The mod wheel grabs the rows' filters, the expression "
-                     "pedal throws the echo, the sustain pedal holds the hands on the knobs. Every control can be learned "
-                     "for any controller; the bindings are saved with the set.",
-                     r.removeFromTop(80), juce::Justification::topLeft, 4);
+                     "the transposition holds until the next key. Controller 74 (brightness) grabs the rows' filters, the "
+                     "expression pedal throws the echo, the sustain pedal holds the composed moves on the knobs -- as in every "
+                     "generator. Every control can be learned for any controller (a right click on it); the bindings are "
+                     "saved with the set.",
+                     r.removeFromTop(80).withTrimmedRight(headset_ ? 400 : 0), juce::Justification::topLeft, 5);
+    if (headset_ && !headsetArea_.isEmpty())   // the headset (the frame): what the hands do, and how they stand now
+        frame::drawHeadsetBox(g, headsetArea_, ephui::skin(), proc_.headset(), "hold the moves / let go", {});
 }

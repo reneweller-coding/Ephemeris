@@ -44,14 +44,14 @@ the plugin; Meta Quest 2 or later for the app. The installer is not code-signed:
 * **The rack.** Eight rows of different lengths and steps and a transposer row; sequence archetypes, probability
   gates, ratchets, a doubled pulse, a pattern that loses its steps in the breakdown; two modulation lanes per row that
   move the timbre against the notes.
-* **The hands.** Two of them, never more: the filters opening towards the peak and closing in the coda, the echo
-  thrown now and then, the wind rising and falling -- as offsets on the knobs you set.
+* **The moves.** A player's two hands, never more: the filters opening towards the peak and closing in the coda, the
+  echo thrown now and then, the wind rising and falling -- as offsets on the knobs you set.
 * **The sounds and the mix.** 1024 factory presets per synth, most of them with modulation; the composer chooses them
   for every piece and sets them, with the piece's mix, on the knobs themselves -- the pages show what plays, and a
   knob you turn moves from there.
 * **Every piece as loud as its style means:** its loudest part measured and brought to its style's level -- while
   the piece already plays, the correction gliding in.
-* **Reroll any part on its own** -- form, tempo, rows, rack, layers, lead, pads, hands, sounds -- save a piece as a
+* **Reroll any part on its own** -- form, tempo, rows, rack, layers, lead, pads, moves, sounds -- save a piece as a
   small set file, export WAV (with stems) and MIDI.
 
 ## The instruments
@@ -80,10 +80,14 @@ bass mono under 100 Hz, a guarded width, a gentle compressor, a soft clipper and
 
 | | |
 |---|---|
-| ![Voices](docs/screenshots/tab_04.png) | ![Mixer](docs/screenshots/tab_00.png) |
+| ![Voices](docs/screenshots/tab_03.png) | ![Mixer](docs/screenshots/tab_13.png) |
 | A row's voice: VCO, filter, envelopes, LFOs, matrix | The mixer: a strip per source, the composer's mix on the faders |
-| ![Poly](docs/screenshots/tab_09.png) | ![Gestures](docs/screenshots/tab_03.png) |
-| The pad synth | The hands: the gestures over the whole piece |
+| ![Poly](docs/screenshots/tab_06.png) | ![Arrange](docs/screenshots/tab_01.png) |
+| The pad synth | The rerolls and the moves over the whole piece |
+
+The panel is the family's (Phosphene, Totality, Parhelion and, in part, Noctuary): the same header, the same order
+of the tabs, the same keys (Space, Ctrl+Z / Ctrl+Y, F1, F11), the same controllers (74 the filters, 11 the echo throw,
+64 Hold Moves) and the same hands on a Meta Quest -- whose controls show only while a headset sends them.
 
 The plan, the musical specification and the literature behind each building block are in
 [docs/PLAN.md](docs/PLAN.md) (German); the manual is built out of the program itself

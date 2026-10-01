@@ -2,12 +2,14 @@
  * @file PluginEditor.h
  * @brief The plugin's panel (PLAN 8.1): the concert on top, the instrument in tabs below.
  *
- * Top: style, key, scale, lengths, compose, a new seed, play; a row of rerolls (one per unit of
- * SetFile.h) and the files; the arrange view -- the sections of the piece as blocks, the playhead,
- * click to jump. Below: the mixer (EditorMixer.h: a strip per source with its meter), then a tab per
- * part of the instrument, generated from the parameter tables (the rows and the voices with a selector
- * for the instance), as in Noctuary and Phosphene, so a parameter that exists is on the panel without
- * anyone writing it there.
+ * Top, the shared frame's header (Frame.h, 01.10.2026): style, key, scale, a piece, a concert or a night set and its
+ * length, compose, a new seed, play, mute; the status and the rerolls, then undo, redo, help and the settings; the
+ * arrange view -- the sections of the piece as blocks, the playhead, click to jump. Below, the tabs in the order every
+ * generator has them: Set, Arrange (the rerolls, the arrangement large and the automation -- the composed player's moves
+ * on the knobs), Rack, Synths (the row voices, the lead, the drone, the poly synth, the tape keys, the strings),
+ * Atmosphere, Drums, Rooms (echo and spring, the hall), Mixer (the console, the master), Perform, Export, Style. The
+ * synth pages are generated from the parameter tables (the rows and the voices with a selector for the instance), as in
+ * Noctuary and Phosphene, so a parameter that exists is on the panel without anyone writing it there.
  *
  * `EPH_SHOT` (a PNG file) and `EPH_TAB` (a tab index) render the panel into a picture after the first piece is
  * composed and quit the standalone -- how the layout is checked without a person looking. `EPH_SHOT_SIZE` ("1600x2400") the window's size, `EPH_SHOT_FULL` a window as tall as the page in front needs, `EPH_SHOT_AT` (a beat)
@@ -38,7 +40,10 @@ private:
     int number_;
 };
 
-/** @brief The parameters of one module instance as knobs, menus and switches. */
+/**
+ * @brief The parameters of one module instance as knobs, menus and switches: every control with the frame's right-click
+ *        menu (MIDI learn, forget, default), a double click to its default, and the live ring of the moves.
+ */
 class ParamPage final : public juce::Component, private juce::Timer {
 public:
     /**
@@ -52,6 +57,8 @@ public:
     void paint(juce::Graphics& g) override;   ///< the group boxes and their titles
     /** @brief The height the page needs at @p width (for a page in a viewport). */
     int heightFor(int width) const;
+    /** @brief The page's parameters in words, group by group (the help's topic for the tab). */
+    juce::String describe() const;
 
 private:
     void build();
@@ -60,6 +67,8 @@ private:
     /** @brief Fills the list: the factory presets in their groups, then the user's under "User". */
     void fillPresets();
     EphemerisProcessor& proc_;
+    frame::ControlActions actions_;               ///< the controls' right-click menu
+    frame::LiveRings live_;                       ///< where each knob's value plays
     std::vector<std::pair<eph::Module, int>> groups_;
     int instances_;
     juce::ComboBox instance_;
@@ -171,9 +180,49 @@ public:
     void resized() override;                                   ///< the page as wide as the view, as tall as it needs
     /** @brief Sizes @p page for a view of @p area (the scroll bar taken off where it will show). */
     static void fit(ParamPage& page, juce::Viewport& view, juce::Rectangle<int> area);
+    const ParamPage& page() const { return *page_; }           ///< the page (the help describes it)
 private:
     juce::Viewport view_;
     std::unique_ptr<ParamPage> page_;
+};
+
+/**
+ * @brief The Arrange tab (01.10.2026, as the siblings have it): the rerolls -- each unit on its own stream (SetFile.h),
+ *        so a reroll changes that and nothing else --, the arrangement large, and under it the automation: the moves of
+ *        the composed player's two hands on the knobs over the whole piece (EditorGestures.h).
+ */
+class ArrangePage final : public juce::Component, private juce::Timer {
+public:
+    explicit ArrangePage(EphemerisProcessor& p);
+    void resized() override;
+    void paint(juce::Graphics& g) override;
+
+private:
+    void timerCallback() override;
+    EphemerisProcessor& proc_;
+    juce::Label which_;
+    juce::OwnedArray<juce::TextButton> rerolls_;
+    std::unique_ptr<ArrangeView> view_;
+    std::unique_ptr<juce::Component> moves_;      ///< the automation (GestureView)
+};
+
+/** @brief The Export tab (01.10.2026, as the siblings have it): the files, what each holds, the OSC cues' settings. */
+class ExportPage final : public juce::Component, private juce::Timer {
+public:
+    explicit ExportPage(EphemerisProcessor& p);
+    void resized() override;
+    void paint(juce::Graphics& g) override;
+    void exportWith(bool stems);   ///< asks for a file, then exports (Ctrl+E: without the stems)
+    void save();                   ///< asks for a file, then saves the set (Ctrl+S)
+    void load();                   ///< asks for a set, then loads it (Ctrl+O)
+
+private:
+    void timerCallback() override;
+    EphemerisProcessor& proc_;
+    juce::TextButton wav_{ "WAV + MIDI" }, stems_{ "... with stems" }, save_{ "Save .ephset" }, load_{ "Load .ephset" };
+    juce::Label status_;
+    std::unique_ptr<ParamPage> cue_;
+    std::unique_ptr<juce::FileChooser> chooser_;
 };
 
 /**
@@ -188,31 +237,43 @@ public:
     void resized() override { if (onResize) onResize(); }
 };
 
-/** @brief The editor. */
-class EphemerisEditor final : public juce::AudioProcessorEditor, private juce::Timer {
+/** @brief The editor: the frame's header and keys, the arrange view, the tabs, the help over them. */
+class EphemerisEditor final : public juce::AudioProcessorEditor, private juce::Timer, private juce::ChangeListener {
 public:
     explicit EphemerisEditor(EphemerisProcessor& p);   ///< builds the panel for @p p
     ~EphemerisEditor() override;                       ///< stops the refresh timer
     void paint(juce::Graphics& g) override;            ///< the background
     void resized() override;                           ///< scales the body to the window
     void parentHierarchyChanged() override;            ///< the standalone's title bar gets a maximise button
-    bool keyPressed(const juce::KeyPress& key) override;   ///< F11: full screen (the standalone), Esc leaves it
+    bool keyPressed(const juce::KeyPress& key) override;   ///< the frame's keys (frame::handleKey)
 
 private:
     void timerCallback() override;
+    void changeListenerCallback(juce::ChangeBroadcaster*) override;   ///< the settings changed (the backdrop)
     void layoutBody();                                 ///< the top bar, the arrange view, the tabs, at the design scale
     void toggleFullScreen();                           ///< the standalone's window full screen and back
+    bool fullScreen() const;                           ///< whether it is
+    bool standalone() const;                           ///< the editor sits in the standalone's window
     void showLength(int kind);                         ///< the length slider for a piece's minutes or a concert's
+    void showHelp(bool on);                            ///< the help over the tabs (F1)
+    void showSettings();                               ///< the settings menu
+    ExportPage* exportPage() const;                    ///< the Export tab's page
     EphemerisProcessor& proc_;
-    ephui::LookAndFeel lnf_;                           ///< first, so it outlives every component that uses it
+    frame::LookAndFeel lnf_{ ephui::skin() };          ///< first, so it outlives every component that uses it
     juce::TooltipWindow tooltips_{ nullptr, 700 };
     EditorBody body_;
-    juce::TextButton full_{ "Full screen" };
-    // The update check (UpdateCheck.h): a link where a newer version is out, and the switch.
+    frame::Backdrop backdrop_;
+    int headerBottom_ = 0;                             ///< where the header ends (the backdrop is strong above)
+    // The update check (UpdateCheck.h): a link where a newer version is out; the settings switch it.
     juce::SharedResourcePointer<UpdateCheck> updates_;
     juce::HyperlinkButton update_;
-    juce::ToggleButton checkUpdates_{ "Update check" };
-    juce::Label title_, status_, rerolls_;
+    juce::Label status_, rerolls_;
+    juce::Component title_;                            ///< the name's place (drawn by the body)
+    frame::IconButton undo_{ frame::IconButton::Icon::Undo, "Undo (Ctrl+Z)" }, redo_{ frame::IconButton::Icon::Redo, "Redo (Ctrl+Y)" };
+    frame::IconButton help_{ frame::IconButton::Icon::Help, "Help (F1)" }, settings_{ frame::IconButton::Icon::Settings, "Settings" };
+    frame::IconButton headsetIcon_{ frame::IconButton::Icon::Headset, "A headset sends its hands: the Perform page shows them" };
+    std::unique_ptr<frame::HelpView> helpView_;
+    bool shotHands_ = false;                           ///< EPH_SHOT_HEADSET: the headset's hands kept alive
     juce::Rectangle<float> logo_;   ///< where the logo is drawn, left of the title
     juce::ComboBox style_, key_, scale_;
     /** A piece, a concert or a night set (EphemerisProcessor::chooseKind), and the length of what is chosen. */
@@ -222,12 +283,9 @@ private:
     int lengthKind_ = -1;                              ///< what the slider shows (0: compose.piece_minutes, else concert_minutes)
     bool syncing_ = false;                             ///< the slider is set from its parameter, not by a hand
     juce::TextButton compose_{ "Compose piece" }, seed_{ "New seed" }, play_{ "Play" }, mute_{ "Mute" };
-    juce::OwnedArray<juce::TextButton> rerollButtons_;
-    juce::TextButton save_{ "Save set" }, load_{ "Load set" }, export_{ "Export WAV + MIDI" };
     std::vector<std::unique_ptr<juce::ComboBoxParameterAttachment>> combos_;
     ArrangeView arrange_;
     juce::TabbedComponent tabs_{ juce::TabbedButtonBar::TabsAtTop };
-    std::unique_ptr<juce::FileChooser> chooser_;
     juce::String shotPath_;
     int shotTicks_ = 0;
 };

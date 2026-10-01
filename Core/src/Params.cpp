@@ -517,7 +517,7 @@ const ParamDesc kDrumsParams[drums::Count] = {
 const ParamDesc kPerformParams[perform::Count] = {
     { "filter",    "Filter",     "oct", -2.0f,  2.0f, 0.0f, Curve::Linear },
     { "transpose", "Transpose",  "st", -12.0f, 12.0f, 0.0f, Curve::Int },
-    { "hold",      "Hold Hands", "",     0.0f,  1.0f, 0.0f, Curve::Toggle },
+    { "hold",      "Hold Moves", "",     0.0f,  1.0f, 0.0f, Curve::Toggle },
     { "throw",     "Echo Throw", "",     0.0f,  1.0f, 0.0f, Curve::Linear },
 };
 
@@ -547,8 +547,8 @@ const ParamDesc kCustomParams[custom::Count] = {
     { "bleeps",       "Bleeps Chance",    "",     0.0f,   1.0f,   0.4f, Curve::Linear },
     { "drums",        "Drums Chance",     "",     0.0f,   1.0f,   0.0f, Curve::Linear },
     { "lead_density", "Lead Density",     "",     0.1f,   1.0f,   0.5f, Curve::Linear },
-    { "hand_move",    "Hands: a Move",    "s",    2.0f,  30.0f,   8.0f, Curve::Log },
-    { "hand_rest",    "Hands: a Rest",    "s",    4.0f,  40.0f,  14.0f, Curve::Log },
+    { "hand_move",    "Move Length",      "s",    2.0f,  30.0f,   8.0f, Curve::Log },
+    { "hand_rest",    "Rest Between Moves", "s",    4.0f,  40.0f,  14.0f, Curve::Log },
     { "darkness",     "Darkness",         "",    -0.5f,   0.5f,  -0.05f, Curve::Linear },
     { "hall",         "Hall",             "s",    1.0f,  15.0f,   6.0f, Curve::Log },
     { "level",        "Level",            "dB", -12.0f,  12.0f,   4.8f, Curve::Linear },

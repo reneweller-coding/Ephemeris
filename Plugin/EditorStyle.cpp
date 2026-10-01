@@ -60,7 +60,7 @@ const std::vector<Line>& lines()
         { "Granular cloud",         [](const StyleProfile& p) { return percent(p.grainChance); } },
         { "Tape set",               [](const StyleProfile& p) { return juce::String(kTapeSetNames[static_cast<int>(p.tape)]); } },
         { "Lead density",           [](const StyleProfile& p) { return juce::String(p.leadIntensity, 2); } },
-        { "Hands: a move / a rest", [](const StyleProfile& p) { return juce::String(p.hands.medianSeconds, 0) + " s / " + juce::String(p.hands.restSeconds, 0) + " s"; } },
+        { "Moves: length / rest", [](const StyleProfile& p) { return juce::String(p.hands.medianSeconds, 0) + " s / " + juce::String(p.hands.restSeconds, 0) + " s"; } },
         { "Darkness",               [](const StyleProfile& p) { return juce::String(p.darkness, 2); } },
         { "Hall",                   [](const StyleProfile& p) { return juce::String(p.hallSeconds, 1) + " s"; } },
         { "Level",                  [](const StyleProfile& p) { return juce::String(p.levelDb, 1) + " dB"; } },

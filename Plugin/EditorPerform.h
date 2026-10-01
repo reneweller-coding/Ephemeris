@@ -5,7 +5,8 @@
  * On top the perform module's controls (Params.h, perform): the filter the hand grabs, the transposition
  * key, the hold, the echo throw. Below, for each, the MIDI controller bound to it and a Learn button:
  * pressed, the next controller that moves is bound (EphemerisProcessor::learn). A line says what a
- * keyboard does without any binding: its keys transpose the rows from middle C.
+ * keyboard does without any binding: its keys transpose the rows from middle C. While a headset sends its hands (or
+ * the settings say always), the frame's headset box beside them: the hands as they stand and what they do.
  */
 #pragma once
 #include "PluginProcessor.h"
@@ -32,4 +33,6 @@ private:
     juce::OwnedArray<juce::Label> bindings_;  ///< "Filter: CC 1", one per control
     juce::OwnedArray<juce::TextButton> learn_;   ///< one per control
     std::vector<int> ids_;                    ///< the store ids of the controls
+    bool headset_ = false;                    ///< the headset's box is shown (the frame)
+    juce::Rectangle<int> headsetArea_;        ///< where it is drawn
 };

@@ -105,6 +105,11 @@ public:
      *        offset at the current cell, in real units.
      */
     float played(int id) const;
+    /**
+     * @brief As played(), without its cache (01.10.2026): the panel's live rings read it on the message thread while the
+     *        audio thread plays -- reading only, so the cache the audio thread keeps is never written from two threads.
+     */
+    float playedNow(int id) const;
 
     /** @brief The channel strips, in the order they are mixed: the eight rows, the lead, the drone, the tape
      *         keys, the string machine, the drums, the atmosphere. */

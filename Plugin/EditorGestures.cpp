@@ -102,7 +102,7 @@ void GestureView::paint(juce::Graphics& g)
     for (int h = 0; h < 2; ++h) {
         const float y = 8.0f + static_cast<float>(h) * (kHandsHeight * 0.5f);
         g.setColour(kDim);
-        g.drawText(h == 0 ? "left hand" : "right hand", juce::Rectangle<float>(8.0f, y - 2.0f, kNameWidth - 12.0f, kHandsHeight * 0.5f),
+        g.drawText(h == 0 ? "player, left" : "player, right", juce::Rectangle<float>(8.0f, y - 2.0f, kNameWidth - 12.0f, kHandsHeight * 0.5f),
                    juce::Justification::centredRight);
         g.setColour(kHand[h].withAlpha(0.8f));
         for (const Gesture& ge : score_.gestures)

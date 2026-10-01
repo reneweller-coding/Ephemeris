@@ -140,8 +140,8 @@ int main(int argc, char** argv)
     head.bpm = 131.0;
     const double afterTempo = play(*instance, head, 4.0, 256, &finite);
     check(finite && afterTempo > 0.05, "a new host tempo, and it plays on (peak " + juce::String(afterTempo, 3) + ")");
-    // The performer's MIDI (PluginProcessor.h): a key transposes by its distance from middle C, the mod wheel
-    // grabs the filters. What the processor made of it is read back from the host's parameters.
+    // The performer's MIDI (PluginProcessor.h): a key transposes by its distance from middle C, controller
+    // 74 grabs the filters (01.10.2026: the same controllers in every generator; the mod wheel is left free). What the processor made of it is read back from the host's parameters.
     {
         juce::AudioProcessorParameter* transpose = nullptr;
         juce::AudioProcessorParameter* filter = nullptr;
@@ -153,16 +153,16 @@ int main(int argc, char** argv)
         juce::AudioBuffer<float> buf(2, 256);
         juce::MidiBuffer midi;
         midi.addEvent(juce::MidiMessage::noteOn(1, 67, 0.8f), 10);
-        midi.addEvent(juce::MidiMessage::controllerEvent(1, 1, 127), 20);
+        midi.addEvent(juce::MidiMessage::controllerEvent(1, 74, 127), 20);
         instance->processBlock(buf, midi);
         juce::MessageManager::getInstance()->runDispatchLoopUntil(30);
         const juce::String t = transpose != nullptr ? transpose->getCurrentValueAsText() : juce::String("?");
         const juce::String f = filter != nullptr ? filter->getCurrentValueAsText() : juce::String("?");
         check(transpose != nullptr && t.getFloatValue() == 7.0f, "a MIDI key transposes by its distance from middle C (G: " + t + ")");
-        check(filter != nullptr && f.getFloatValue() > 1.9f, "the mod wheel grabs the filters (" + f + ")");
+        check(filter != nullptr && f.getFloatValue() > 1.9f, "controller 74 grabs the filters (" + f + ")");
         midi.clear();
         midi.addEvent(juce::MidiMessage::noteOn(1, 60, 0.8f), 0);
-        midi.addEvent(juce::MidiMessage::controllerEvent(1, 1, 64), 1);
+        midi.addEvent(juce::MidiMessage::controllerEvent(1, 74, 64), 1);
         instance->processBlock(buf, midi);
     }
     // A jump of the host's playhead.

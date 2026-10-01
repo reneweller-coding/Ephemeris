@@ -9,164 +9,16 @@
 
 using namespace eph;
 
-namespace {
-
-constexpr float kTopDb = 6.0f;       ///< the meter's top
-constexpr float kFloorDb = -60.0f;   ///< and its floor
-constexpr double kHoldSeconds = 1.5;
-constexpr double kFallDbPerSecond = 20.0;
-constexpr double kRmsRelease = 0.3;  ///< seconds for the RMS bar to fall by 1/e of its distance
-
-// The panel's colours (PluginEditor.cpp) and the meter's (Phosphene's).
-const juce::Colour kGroup = ephui::colour::group, kMeterBack = ephui::colour::bg, kEdge = ephui::colour::edge;
-const juce::Colour kInk = ephui::colour::ink, kDim = ephui::colour::dim, kFaint = ephui::colour::faint;
-const juce::Colour kGreen = ephui::colour::green, kWarm = ephui::colour::amber, kRed = ephui::colour::red;
-
-float toDb(float linear) { return linear > 1.0e-5f ? 20.0f * std::log10(linear) : -100.0f; }
-
-juce::Font font(float height, bool bold = false)
-{
-    return juce::Font(juce::FontOptions(height, bold ? juce::Font::bold : juce::Font::plain));
-}
-
-} // namespace
-
-// ==================================================================== MixerStrip
-
-MixerStrip::MixerStrip(EphemerisProcessor& proc, const juce::String& name, juce::Colour colour, int level,
-                       const std::vector<std::pair<int, const char*>>& knobs)
-    : name_(name), colour_(colour)
-{
-    const ParamStore& p = proc.store();
-    fader_ = std::make_unique<juce::Slider>(juce::Slider::LinearVertical, juce::Slider::NoTextBox);
-    fader_->setColour(juce::Slider::trackColourId, colour_.withAlpha(0.8f));
-    fader_->setColour(juce::Slider::thumbColourId, kInk);
-    fader_->setColour(juce::Slider::backgroundColourId, kMeterBack);
-    fader_->setPopupDisplayEnabled(true, true, nullptr);
-    fader_->setTooltip(juce::String(p.desc(level).name));
-    addAndMakeVisible(*fader_);
-    if (StoreParameter* sp = proc.parameter(level)) faderLink_ = std::make_unique<juce::SliderParameterAttachment>(*sp, *fader_);
-    for (const auto& [id, label] : knobs) {
-        StoreParameter* sp = proc.parameter(id);
-        if (sp == nullptr) continue;
-        auto k = std::make_unique<juce::Slider>(juce::Slider::RotaryHorizontalVerticalDrag, juce::Slider::NoTextBox);
-        k->setColour(juce::Slider::rotarySliderFillColourId, colour_);
-        k->setPopupDisplayEnabled(true, true, nullptr);
-        k->setTooltip(juce::String(p.desc(id).name));
-        addAndMakeVisible(*k);
-        knobLinks_.push_back(std::make_unique<juce::SliderParameterAttachment>(*sp, *k));
-        isSend_.push_back(juce::String(label) != "Pan");
-        auto l = std::make_unique<juce::Label>(juce::String(), label);
-        l->setJustificationType(juce::Justification::centred);
-        l->setColour(juce::Label::textColourId, kDim);
-        l->setFont(font(10.0f));
-        l->setInterceptsMouseClicks(false, false);
-        addAndMakeVisible(*l);
-        knobs_.push_back(std::move(k));
-        knobNames_.push_back(std::move(l));
-    }
-}
-
-void MixerStrip::meter(float peak, float rms, double seconds)
-{
-    const float pDb = toDb(peak), rDb = toDb(rms);
-    // The RMS bar rises at once and falls with kRmsRelease; the peak line holds, then falls.
-    const float a = static_cast<float>(std::exp(-seconds / kRmsRelease));
-    rmsDb_ = rDb >= rmsDb_ ? rDb : juce::jmax(rDb, kFloorDb - 1.0f + (rmsDb_ - (kFloorDb - 1.0f)) * a);
-    if (pDb >= holdDb_) { holdDb_ = pDb; holdAge_ = 0.0; }
-    else {
-        holdAge_ += seconds;
-        if (holdAge_ > kHoldSeconds) holdDb_ = juce::jmax(pDb, holdDb_ - static_cast<float>(kFallDbPerSecond * seconds));
-    }
-    repaint(meterArea_.expanded(2).withBottom(getHeight()));
-}
-
-void MixerStrip::resized()
-{
-    auto r = getLocalBounds().reduced(3);
-    r.removeFromTop(32);   // the name, and the composer's preset under it
-    // The knobs one under the other: fourteen strips leave a strip too narrow for two knobs of a size a hand
-    // can grab. The name sits under each knob.
-    // Folded, only the pan above the fader; unfolded, up to six sends as well, shrinking where the console is short.
-    // Every strip keeps the same room, so the faders and meters line up across the console.
-    const int slots = sends_ ? 6 : 1;
-    const int lh = 12, kh = juce::jlimit(20, 44, std::min(r.getWidth() - 18, (r.getHeight() - 170) / slots - lh));
-    int used = 0;
-    for (size_t i = 0; i < knobs_.size(); ++i) {
-        const bool show = sends_ || !isSend_[i];
-        knobs_[i]->setVisible(show);
-        knobNames_[i]->setVisible(show);
-        if (!show) continue;
-        auto row = r.removeFromTop(kh + lh);
-        knobs_[i]->setBounds(row.removeFromTop(kh));
-        knobNames_[i]->setBounds(row);
-        ++used;
-    }
-    r.removeFromTop(std::max(0, slots - used) * (kh + lh));
-    r.removeFromTop(6);
-    r.removeFromBottom(15);   // the peak readout
-    const int half = r.getWidth() / 2;
-    fader_->setBounds(r.removeFromLeft(half));
-    meterArea_ = r.reduced(4, 6);
-}
-
-void MixerStrip::paint(juce::Graphics& g)
-{
-    const auto b = getLocalBounds().toFloat().reduced(1.0f);
-    g.setColour(kGroup);
-    g.fillRoundedRectangle(b, 4.0f);
-    g.setColour(colour_);
-    g.fillRoundedRectangle(b.withHeight(3.0f), 1.5f);
-    g.setColour(kInk);
-    g.setFont(font(12.5f, true));
-    g.drawFittedText(name_, getLocalBounds().withHeight(22).reduced(2, 0), juce::Justification::centred, 1);
-    if (sound_.isNotEmpty()) {
-        g.setColour(kDim);
-        g.setFont(font(10.0f, false));
-        g.drawFittedText(sound_, getLocalBounds().withTrimmedTop(18).withHeight(14).reduced(3, 0), juce::Justification::centred, 1, 0.8f);
-    }
-
-    // The meter: a dB scale from kFloorDb to kTopDb, the RMS bar, the held peak, 0 dBFS marked.
-    const auto m = meterArea_.toFloat();
-    g.setColour(kMeterBack);
-    g.fillRect(m);
-    auto yOf = [&](float db) {
-        const float t = (juce::jlimit(kFloorDb, kTopDb, db) - kFloorDb) / (kTopDb - kFloorDb);
-        return m.getBottom() - t * m.getHeight();
-    };
-    const float top = yOf(rmsDb_);
-    if (rmsDb_ > kFloorDb) {
-        const float y6 = yOf(-6.0f), y0 = yOf(0.0f);
-        g.setColour(kGreen.withAlpha(0.85f));
-        g.fillRect(juce::Rectangle<float>(m.getX(), juce::jmax(top, y6), m.getWidth(), m.getBottom() - juce::jmax(top, y6)));
-        if (top < y6) {
-            g.setColour(kWarm.withAlpha(0.9f));
-            g.fillRect(juce::Rectangle<float>(m.getX(), juce::jmax(top, y0), m.getWidth(), y6 - juce::jmax(top, y0)));
-        }
-        if (top < y0) {
-            g.setColour(kRed);
-            g.fillRect(juce::Rectangle<float>(m.getX(), top, m.getWidth(), y0 - top));
-        }
-    }
-    if (holdDb_ > kFloorDb) {
-        g.setColour(holdDb_ > 0.0f ? kRed : kInk);
-        g.fillRect(m.getX(), yOf(holdDb_) - 1.0f, m.getWidth(), 2.0f);
-    }
-    g.setColour(kFaint);
-    for (float db : { 0.0f, -12.0f, -24.0f, -36.0f, -48.0f }) g.fillRect(m.getRight() + 1.0f, yOf(db), 3.0f, 1.0f);
-    g.setColour(kEdge);
-    g.drawRect(m, 1.0f);
-    // The held peak in figures under the meter.
-    g.setColour(holdDb_ > 0.0f ? kRed : kDim);
-    g.setFont(font(10.5f));
-    const juce::String readout = holdDb_ > -99.0f ? juce::String(holdDb_, 1) : juce::String("-inf");
-    g.drawFittedText(readout, getLocalBounds().removeFromBottom(17).reduced(2, 1), juce::Justification::centred, 1);
-}
-
 // ==================================================================== MixerConsole
 
-MixerConsole::MixerConsole(EphemerisProcessor& proc) : proc_(proc)
+MixerConsole::MixerConsole(EphemerisProcessor& proc)
+    : proc_(proc), live_([this](int id) { return proc_.playedNormalised(id); }), console_(ephui::skin())
 {
+    actions_.learn = [this](int id) { proc_.learn(id); };
+    actions_.controllerFor = [this](int id) { return proc_.controllerFor(id); };
+    actions_.forget = [this](int id) { proc_.forget(id); };
+    actions_.reset = [this](int id) { proc_.resetToDefault(id); };
+    actions_.describe = [this](int id) { return juce::String(proc_.store().desc(id).name) + "  (" + proc_.store().key(id) + ")"; };
     const ParamStore& p = proc.store();
     using M = Module;
     // The strips in eph::Engine channel order; the drone's table is laid out like the lead's (Params.h).
@@ -223,17 +75,21 @@ MixerConsole::MixerConsole(EphemerisProcessor& proc) : proc_(proc)
         if (shimmerSend >= 0) knobs.emplace_back(p.id(m, inst, shimmerSend), "Shimmer");
         synths_.push_back({ c < kRows ? M::Voice : m, c < kRows ? c : 0 });
         colour = ephui::channelColour(c);   // (26.09.2026: the families' palette, EditorTheme.h)
-        auto strip = std::make_unique<MixerStrip>(proc, Engine::channelName(c), colour, p.id(m, inst, level), knobs);
-        addAndMakeVisible(*strip);
-        strips_.push_back(std::move(strip));
+        auto control = [&](int id, const juce::String& label, bool send) {
+            frame::ChannelStrip::Control k;
+            k.id = id;
+            k.param = proc_.parameter(id);
+            k.label = label;
+            k.send = send;
+            return k;
+        };
+        std::vector<frame::ChannelStrip::Control> controls;
+        for (const auto& [id, label] : knobs) controls.push_back(control(id, label, juce::String(label) != "Pan"));
+        console_.add(std::make_unique<frame::ChannelStrip>(ephui::skin(), Engine::channelName(c), colour,
+                                                           control(p.id(m, inst, level), juce::String(Engine::channelName(c)) + " level", false),
+                                                           controls, &actions_, &live_));
     }
-    // The sends fold away: the console shows level, pan and meter until they are asked for.
-    fold_.onClick = [this] {
-        sends_ = !sends_;
-        fold_.setButtonText(sends_ ? "Hide sends" : "Show sends");
-        for (auto& st : strips_) st->showSends(sends_);
-    };
-    addAndMakeVisible(fold_);
+    addAndMakeVisible(console_);
     lastPoll_ = juce::Time::getMillisecondCounterHiRes() * 0.001;
     startTimerHz(30);
 }
@@ -249,23 +105,15 @@ void MixerConsole::timerCallback()
     lastPoll_ = now;
     // The strips follow the readings whether the page is on screen or not, so a page that comes into view --
     // or into a screenshot -- shows the level of now.
-    for (size_t i = 0; i < strips_.size(); ++i) strips_[i]->meter(peak[i], rms[i], dt);
+    for (int i = 0; i < console_.size() && i < Engine::kChannels; ++i) console_.strip(i).meter(peak[i], rms[i], dt);
     // The composer's presets of the moment, about once a second.
     if (++tick_ % 16 != 1) return;
-    for (size_t i = 0; i < strips_.size() && i < synths_.size(); ++i) {
-        const int index = proc_.composedPreset(synths_[i].first, synths_[i].second);
-        const std::vector<SoundPreset>& list = factoryPresets(synths_[i].first);
-        strips_[i]->setSound(index >= 0 && index < static_cast<int>(list.size()) ? juce::String(list[static_cast<size_t>(index)].name) : juce::String());
+    for (int i = 0; i < console_.size() && i < static_cast<int>(synths_.size()); ++i) {
+        const auto [m, inst] = synths_[static_cast<size_t>(i)];
+        const int index = proc_.composedPreset(m, inst);
+        const std::vector<SoundPreset>& list = factoryPresets(m);
+        console_.strip(i).setSound(index >= 0 && index < static_cast<int>(list.size()) ? juce::String(list[static_cast<size_t>(index)].name) : juce::String());
     }
 }
 
-void MixerConsole::resized()
-{
-    const int n = static_cast<int>(strips_.size());
-    if (n == 0) return;
-    auto area = getLocalBounds().reduced(6);
-    fold_.setBounds(area.removeFromTop(22).removeFromLeft(110));
-    area.removeFromTop(4);
-    const int gap = 4, w = (area.getWidth() - gap * (n - 1)) / n;
-    for (int i = 0; i < n; ++i) strips_[static_cast<size_t>(i)]->setBounds(area.getX() + i * (w + gap), area.getY(), w, area.getHeight());
-}
+void MixerConsole::resized() { console_.setBounds(getLocalBounds()); }

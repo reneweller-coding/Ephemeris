@@ -193,6 +193,16 @@ float Engine::played(int id) const
     return c[2];
 }
 
+float Engine::playedNow(int id) const
+{
+    const float knob = params_.get(id);
+    const int t = id >= 0 && id < static_cast<int>(trackOf_.size()) ? trackOf_[static_cast<size_t>(id)] : -1;
+    if (t < 0) return knob;
+    const float off = tracks_[static_cast<size_t>(t)].offset;
+    if (off == 0.0f) return knob;
+    return params_.fromNormalised(id, std::clamp(params_.toNormalised(id, knob) + off, 0.0f, 1.0f));
+}
+
 VoiceSettings Engine::voiceSettings(Module m, int instance, bool vibrato) const
 {
     // The voice table and the lead's share their first thirteen entries (Params.h), so one reader does.

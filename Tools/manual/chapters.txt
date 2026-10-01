@@ -2,11 +2,11 @@
 #
 # Everything else in the manual -- the parameter tables and the pictures -- comes from the program itself:
 # `eph_render --dump-params` writes every parameter's description, and the standalone's screenshot mode
-# (EPH_SHOT, EPH_TAB) one picture per tab. Only the text that explains *why* lives here.
+# (EPH_SHOT, EPH_TAB, EPH_SUBTAB) one picture per page. Only the text that explains *why* lives here.
 #
 # Format: "== Title | module prefixes | screenshot ==" starts a chapter. The module prefixes (space
 # separated, may be empty) are the parameter tables printed under the chapter; the screenshot is the
-# tab's index (docs/screenshots/tab_NN.png) or "-". Every module must belong to a chapter, or the
+# page's index (docs/screenshots/tab_NN.png, the order of Tools/manual/make_shots.py's PAGES) or "-". Every module must belong to a chapter, or the
 # generator refuses to print (a parameter on no page cannot be reached). Blank lines separate
 # paragraphs; a line indented by four spaces is printed as it stands; lines starting with '#' are comments.
 
@@ -31,8 +31,8 @@ again only now and then. The Rack page draws them that way.
 [image flow.png: The signal flow: every unit a box in the colour of its family, the groups as frames, the buses as arrows.]
 
 What plays the instruments comes in at the top: the composer, who writes the form, the harmony, the sounds and the mix
-of every piece; the rack, eight sequencer rows and the transposer that moves them; the hands, the gestures of a player
-on the knobs; and you, on the Perform page or with MIDI. The ten modular voices -- the rows, the lead and the drone --
+of every piece; the rack, eight sequencer rows and the transposer that moves them; the moves, the automation of a
+player's two hands on the knobs; and you, on the Perform page or with MIDI. The ten modular voices -- the rows, the lead and the drone --
 run side by side in the lanes of the processor's vector registers at twice the sample rate: two oscillators after one
 of six classic designs, a driven mixer, one of ten filters solved as circuits, envelopes, LFOs and a matrix. The other
 sources play beside them. Every source has a channel strip that places it in depth and in the stereo field and sends
@@ -52,9 +52,10 @@ status row says what plays: a single piece, or a concert or a night set of so ma
 Morph To (on the Master page) a concert also wanders from its style to another: each piece is composed
 between the two, the further into the concert the nearer the second. Concert Arc gives a concert an arc
 of tension: its first and last pieces quieter -- fewer rows at the peak, the lead and the drums rarer, the
-hands slower, the sound a little darker -- and the pieces around 60 % of the way the densest.
+moves slower, the sound a little darker -- and the pieces around 60 % of the way the densest.
 Compose writes it with the current seed, New seed draws another one, Play starts and stops the
-standalone (in a host the host's transport plays).
+standalone (in a host the host's transport plays), Mute silences it. Undo, Redo, Help and the settings are at the
+right of the row below (The panel).
 
 A night set (up to twelve hours) is played as a DJ plays one. The pieces last
 eight to fifteen minutes and their styles climb and descend a ladder -- Drift, Doom, Cosmic, Modern,
@@ -85,12 +86,12 @@ drone stays on the centre. At some peaks Aeolian brightens to Dorian, in some br
 Phrygian, and every piece ends on the open fifth. A later phase may move its key by a fourth, a tone or a
 third, and take a minor mode of its own, as the parts of a suite do.
 
-The reroll buttons draw one part of the piece again and leave everything else as it was, to the note:
-the form, the tempo, the rows' shapes, the rack's patterns, the layers, the lead, the chords and pads,
-the hands on the knobs, and the sounds. Save set and Load set keep a piece as a small text file; Export writes the
-piece offline as a 24-bit WAV and a MIDI file beside it, with the gestures as controllers -- and, if you
-choose so, the stems: a WAV per channel strip and one for the rooms in a folder beside the mix, whose sum
-is the mix before the master.
+The reroll buttons (on the Arrange page) draw one part of the piece again and leave everything else as it was, to
+the note: the form, the tempo, the rows' shapes, the rack's patterns, the layers, the lead, the chords and pads, the
+moves on the knobs, and the sounds. Save set and Load set (on the Export page) keep a piece as a small text file;
+Export writes the piece offline as a 24-bit WAV and a MIDI file beside it, with the moves as controllers -- and, if
+you choose so, the stems: a WAV per channel strip and one for the rooms in a folder beside the mix, whose sum is the
+mix before the master.
 
 The panel. Every synth's page is laid out as an instrument's panel: its controls in titled groups --
 Oscillators, Wavetable, Filter, the Amp, Filter and Mod Envelopes, the LFOs and the Mod Matrix, Mix, Sends, and on
@@ -99,10 +100,12 @@ resonance, the registration and the ensemble, the pad synth's place in its table
 control does, the same on every page -- they are the logo's five planets: amber for the sources (oscillators,
 tapes, registers), copper for the filters, sage for the envelopes, teal for everything that moves by itself (LFOs,
 scans, ensembles, the echoes' time), steel blue for the room and the mix; the sun's amber marks the page in front
-and the transport. A page taller than the window scrolls. The standalone's window can be maximised, and Full
-screen (or F11; Esc leaves it) fills the screen; the whole panel grows with the window. Update check, in the status row, asks GitHub once a day
-whether a newer Ephemeris is out and shows it there as a link to its page -- nothing else is sent, nothing is
-downloaded; switched off, it asks nothing. A jump on the arrange view finds the notes that sound on across it -- the
+and the transport. A page taller than the window scrolls. The standalone's window can be maximised, and full
+screen (F11, or in the settings; Esc leaves it) fills the screen; the whole panel grows with the window. The update
+check (in the settings) asks GitHub once a day whether a newer Ephemeris is out and shows it in the status row as a
+link to its page -- nothing else is sent, nothing is downloaded; switched off, it asks nothing. The synths that share
+a tab -- the row voices, the lead, the drone, the poly synth, the tape keys and the strings under Synths, the echoes
+and the hall under Rooms, the console and the master under Mixer -- each have a small tab of their own. A jump on the arrange view finds the notes that sound on across it -- the
 drone, the pads, a long lead note -- and starts them where it lands.
 
 Below, the arrange view shows the sections of the piece -- the atmosphere at the start, the entry of the
@@ -119,7 +122,59 @@ double click shows the whole length again.
 
 [image screenshots/zoom.png: The arrange view zoomed in on forty bars of a build: the rows' notes, the pads, the drone, the bar numbers.]
 
-== Mixer | | 0 ==
+== The panel | | - ==
+
+Ephemeris shares its panel with the other generators of the family -- Phosphene, Totality and Parhelion (and, in part, Noctuary) -- so that what is learned on one holds
+on the others: the same places, the same keys, the same controllers, the same hands. Each keeps its own colours, its
+own letters and the picture behind its panel (Settings > Picture behind the panel takes it away).
+
+The header's first row: the logo, the style, the key and the scale, what is composed and its length, Compose, New
+seed, Play and Mute. Its second row: the status line, and at the right Undo, Redo, Help and the settings.
+Under the header the whole piece, concert or night set at a glance; a click jumps there. The tabs come in one order everywhere: Set,
+Arrange, the instrument's own pages -- a page of several has small tabs of its own --, Mixer, Perform, Export, Style.
+
+A colour says what a control does, the same on every page and in every generator of the family: the sources, the
+filters, the envelopes, what moves by itself, the room and the mix. A knob the composer moves has a thin ring round
+it that shows where it stands at this moment. A double click sets a control to its default; a right click offers
+MIDI learn, forgetting the controller, and the default.
+
+Undo and Redo take back and bring back what was changed -- a knob, a new seed, a reroll, a preset, a loaded set --
+one step at a time; the button's tooltip names the step. Help opens this manual by topic, with the page in front, the
+keys and the headset as topics of their own. The settings hold the update check (it asks GitHub once a day whether a
+newer Ephemeris is out; nothing else is sent), the picture behind the panel, the headset, the window's size, full
+screen, the keys and About.
+
+    Space                 play / stop
+    Ctrl+Z                undo
+    Ctrl+Y, Ctrl+Shift+Z  redo
+    F1                    help
+    F11                   full screen (the standalone); Esc leaves it and closes the help
+    Ctrl+S, Ctrl+O        save the set, open one
+    Ctrl+E                export
+
+The controllers every generator of the family listens to without learning: controller 74 (brightness) moves the rows' filters, 11 (the expression pedal) throws the echo, 64 (the sustain pedal) holds the moves; the mod wheel is left free.
+
+The headset. The controls of a Meta Quest's hands are shown only while a headset sends them -- or always, if the
+settings say so (Headset > Always show them); Off stops listening. The Quest app sends its hands to this computer in
+bridge mode: bridge_host = this computer's address in its eph.cfg (audio=0 leaves the headset silent), and Ephemeris
+listens on port 9102. The hands mean the same in every generator of the family, on the headset alone and here:
+
+    left pinch            play / stop
+    both hands pinched    the next piece (a new seed)
+    right pinch           hold the moves, or let them go again (Hold Moves)
+    left hand up, down    the rows' filters, two octaves either way
+    right hand up         the echo throw
+
+A pinch acts when it opens again, so a pinch of both hands is never also one of each; a hand moves its control only
+while it does not pinch, and both glide and are centred: a hand at mid height plays what was composed.
+
+== Set | compose | 0 ==
+
+The composer's settings: the style, the key, the scale, the tempo and whether the style chooses it, the lengths of a
+piece, a concert and a night set, Morph To, Concert Arc and Album Form -- the top bar shows the first of them as well.
+Their meaning is told under The top bar and Master.
+
+== Mixer | | 13 ==
 
 A channel strip per source, in the order the engine mixes them: the eight rows, the lead, the drone,
 the tape keys, the string machine, the drums and the atmosphere. Each strip has its pan (where the
@@ -163,20 +218,21 @@ level with a release of 300 ms, turning amber above -6 dBFS and red above 0, and
 for a second and a half before it falls at 20 dB per second. The figure under the meter is the held
 peak. A strip that shows -inf is not playing at the moment.
 
-== Perform | perform | 1 ==
+== Perform | perform | 15 ==
 
 The performer's controls act on the piece as it plays, and at their defaults they do nothing at all:
 the piece is then exactly as composed. Filter moves the rows' filters up to two octaves either way, as
 a hand on the cutoff knobs of a modular would. Transpose is the transposition key: every note that
-starts after a change comes in transposed; notes that sound keep their pitch. Hold Hands lets go of the
-knobs: the gestures the composer wrote stand where they are until you release it. Echo Throw sends
+starts after a change comes in transposed; notes that sound keep their pitch. Hold Moves lets go of the
+knobs: the moves the composer wrote stand where they are until you release it. Echo Throw sends
 every source into the tape echo and raises the echo's feedback with it, for a dub throw at the end of
 a phrase.
 
 A MIDI keyboard plays the transposition key directly: a key transposes by its distance from middle C
-and holds until the next key, as the transposer of a sequencer did. The mod wheel grabs the filters,
-the expression pedal throws the echo, the sustain pedal holds the hands. Learn binds any controller to
-any of the four; the bindings are saved with the plugin's state.
+and holds until the next key, as the transposer of a sequencer did. Controller 74 (brightness) grabs the
+filters, the expression pedal (11) throws the echo, the sustain pedal (64) holds the moves -- the same controllers
+in every generator of the family. Learn binds any controller to any of the four; the bindings are saved with the
+plugin's state. While a headset sends its hands, a box beside the controls shows what they do (The panel).
 
 A row cannot be mutated live: the piece is composed before it plays. To hear the rack with other
 patterns, reroll the rack.
@@ -237,9 +293,10 @@ the pads and the lead go on with the echo's feedback raised, and everything come
 peak's downbeat (Melodic and Modern in three pieces of five, Drift in one). One to three times a piece
 the tape echo switches from its dotted eighths to eighths or quarter triplets for a section.
 
-== Gestures | | 3 ==
+== Arrange and automation | | 1 ==
 
-What the player's two hands do to the knobs over the whole piece. Every knob the composer moves has a lane:
+The Arrange page: the rerolls, which draw one part of the piece again (The top bar), and the automation -- the moves,
+what the player's two hands do to the knobs over the whole piece. Every knob the composer moves has a lane:
 its offset from where you set the knob, as a curve over the piece, from -1 to +1 of the knob's range --
 the filter of the bass row opening towards the peak and closing in the coda, the counter rows' filters,
 the lead's, the echo's feedback thrown now and then, the wind rising and falling in the atmosphere. The
@@ -247,10 +304,10 @@ colour is the hand that moves the knob.
 
 Above the lanes, a bar per hand shows where it is busy. A player has two hands, and the composer keeps to
 that: never more than two knobs move at once, and a hand finishes one move before it starts the next. The
-sections of the piece lie behind the lanes, the playhead runs over them, and a click jumps there. The hands
-can be let go on the Perform page (Hold Hands): every knob then stays where the curve has it.
+sections of the piece lie behind the lanes, the playhead runs over them, and a click jumps there. The moves
+can be held on the Perform page (Hold Moves): every knob then stays where the curve has it.
 
-== Voices | voice | 4 ==
+== Voices | voice | 3 ==
 
 Each row plays its own modular voice: two drifting oscillators (a sawtooth blended into a pulse, the
 second detuned), a mixer driven into a soft saturation, a four-pole transistor ladder (or one of nine other
@@ -436,7 +493,7 @@ the legato glides, the bowed pads and the violins a vibrato that comes in late; 
 through their tables; the Oberheim brass a filter swell of its own. The composer's sounds bring them into a piece
 with the presets.
 
-== Lead | lead | 5 ==
+== Lead | lead | 4 ==
 
 The lead is the same voice as a row's, with vibrato that comes in over the first half second of a held
 note, as a hand reaches the wheel. It plays in its own section and over the peak: phrases of four to
@@ -445,7 +502,7 @@ the mode is Dorian), chord tones on the strong beats, glides from the tone below
 phrases, and an end on the fifth or the minor third rather than the root. It plays a little behind the
 beat, as a player over a machine does.
 
-== Drone | drone | 6 ==
+== Drone | drone | 5 ==
 
 The drone is the ground under the whole piece: the root, low, held from the start to the fading coda,
 following the key when a phase changes it. It is a modular voice as well and has the lead's table.
@@ -484,7 +541,7 @@ Octave Balance tilts the footages towards the low or the high ones. Ensemble Typ
 spread wider). Phaser sends the machine through four swept all-passes, the classic swirl of strings
 through a phase shifter.
 
-== Poly | poly | 9 ==
+== Poly | poly | 6 ==
 
 The pad synth: the polysynth plane of the modern Berlin School -- the Oberheim and Juno pads under Stürtzer's,
 Quaeschning's and Redshift's sequences, and the glassy planes of the PPG Wave and the Waldorf wavetable synths.
@@ -515,7 +572,7 @@ Juno Strings, Oberheim Brass, Sync Sweep, Formant Pad, Vocal Pad, Glass Pad, Sin
 PPG Choir, PPG Upper, Overtone Pad, Morph Pad, Sampled Air, Dark Drone Pad -- and the composer's sounds choose
 among them by style.
 
-== Atmosphere | atmos | 10 ==
+== Atmosphere | atmos | 9 ==
 
 Wind (filtered noise in a moving band), slow sweeps, and bursts of sample-and-hold bleeps on the notes
 of the scale: the space at the start of a piece and in the bridges, and the stars over the builds.
@@ -581,7 +638,7 @@ decay -- denser and brighter than the hall and without a room's early reflection
 plates on the records of the seventies. Decay, damping, pre-delay and the band work on it as well; its
 return is matched to the hall's level, so the switch changes the room, not the loudness.
 
-== Drums | drums | 13 ==
+== Drums | drums | 10 ==
 
 A small analogue kit for the styles that have drums: kick, snare, hats, toms tuned to the root, rim and
 shaker, with patterns per style. The kit comes late in a piece, from the second build to the end of the
@@ -593,7 +650,7 @@ Modern, a heartbeat in Cosmic, a slow beat on one and three in Drift, a low tom 
 comes with the second build (not before a fifth of the piece) and makes way for the kit or the breakdown;
 Melodic has it in four pieces out of five, Drift in one out of three.
 
-== Master | master compose cue | 14 ==
+== Master | master | 14 ==
 
 The master: its level, a gentle bus compressor that keeps the music's dynamics (a ratio of at most 1.5),
 and a true-peak limiter as protection at -1 dBTP. Before them the mix bus removes DC and subsonics under
@@ -651,7 +708,14 @@ tempo (/eph/beat), every section with its phase (/eph/phase), every new root (/e
 conjunction of the rows with the share of the running rows that meet (/eph/conjunction). Each cue leaves
 when its sound is heard, not when it is composed.
 
-== Style | custom | 15 ==
+== Export | cue | 16 ==
+
+What leaves the instrument, in one place, as every generator of the family has it: Export writes what plays as a
+24-bit WAV and a MIDI file beside it, Export with stems adds a WAV per channel strip and one for the rooms, Save set
+and Load set keep a piece as a small .ephset file (the seed, the lengths, the rerolls and every changed knob). The
+score cues tell a visualiser such as Kaleidoscope over OSC what the score knows, at the moment it is heard.
+
+== Style | custom | 17 ==
 
 The five style profiles side by side, the chosen one lit. A style is not a sound but a set of ranges and
 chances the composer draws from: the tempo, the length and the number of sequence phases, how much of the
@@ -666,3 +730,13 @@ starting point; change what you like on the right, and turn on Use Custom Style:
 your numbers. The counter rows' lengths, the transposer, the tape set and the drum patterns still come
 from the chosen style -- Cosmic and Drift have no drum patterns, so there Drums Chance does nothing. Your
 style is saved with the set and the plugin's state, and a concert starts from it (and morphs from it).
+
+== Meta Quest | | - ==
+
+The whole generator runs on the headset (build-quest\EphemerisQuest.apk, see Quest/README.md), played with the hands
+in the grammar every generator's headset shares (The panel): left pinch play and stop, right pinch the moves held and
+let go, both hands together the next piece; the left hand's height the rows' filters, the right's the echo throw. A
+head-locked panel shows the piece, its section, the root and the scale, the time and the two hand controls, the orrery
+of the Rack page beside it. A file eph.cfg in the app's folder sets the seed, the style, a piece's length, the quality
+and any knob; bridge_host (and bridge_port, 9102) send the hands to Ephemeris on a computer instead, which then plays
+with them as with its own; audio=0 leaves the headset silent.

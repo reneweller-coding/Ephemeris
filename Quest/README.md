@@ -44,13 +44,22 @@ has not run on a device yet.
 | Gesture | Effect |
 |---|---|
 | left pinch | play / stop — a 15 ms fade, the music pauses where it is |
-| right pinch | next piece: composed from the next seed, swapped in behind a fade |
+| right pinch | hold the moves (`perform.hold`: the score's moves stand where they are), or let them go again |
+| both hands pinched together | the next piece: composed from the next seed, swapped in behind a fade |
 | left hand height | the rows' filters (`perform.filter`), two octaves either way, mid height = as composed |
 | right hand height | the echo throw (`perform.throw`), from mid height up |
 
-A hand moves its control only while it is **not** pinching. Height is measured against the head, so it
+The grammar every generator's headset shares (01.10.2026; until then the right pinch was the next piece): a pinch acts
+when it opens again, so a pinch of both hands never also counts as two single ones. The left hand has a dead zone round
+the middle. A hand moves its control only while it is **not** pinching. Height is measured against the head, so it
 works standing or sitting; both controls are smoothed over 0.15 s and centred, so nothing ever jumps. When a
 piece has ended and its rooms have rung out, the next one follows by itself.
+
+**The bridge.** With `bridge_host` set, the app sends its hands to Ephemeris on that computer as well: OSC `/hands` with
+six floats (left and right height, left and right pinch, left and right tracked), 30 times a second, to `bridge_port`
+(9102 by default, the port in the plugin's settings under Headset). The plugin reads them with the same grammar and
+the same numbers -- every generator of the family has them (its `Plugin/Frame.h`) -- and shows its headset controls
+while they arrive. `audio=0` leaves the headset silent, so only the computer plays.
 
 The panel is head-locked (yaw only) and drawn as points: a title line with the logo (the icon's orrery, in points of
 light; larger on the start screen while the first piece is composed), the piece and its style, the section, the root and
@@ -74,6 +83,9 @@ style=Cosmic               Cosmic, Doom, Melodic, Modern or Drift
 quality=quest              quest (default: 3 singers per choir key) or desktop (6)
 osc_host=192.168.1.20      the score cues to a visualiser (Cue.h: /eph/beat, /eph/phase, /eph/key, /eph/conjunction)
 osc_port=9000
+bridge_host=192.168.1.20   the bridge: the hands to Ephemeris on that computer; empty = off
+bridge_port=9102                its headset port (the plugin's settings, Headset)
+audio=0                    no sound on the headset, the computer plays (the same as mute=1)
 set=compose.key=D;compose.scale=Dorian     any knobs, repeatable
 night=8                    a night set of 8 hours: the styles mixed, the pieces overlapping as a DJ mixes them
 ```

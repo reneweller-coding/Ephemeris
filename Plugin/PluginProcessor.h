@@ -35,6 +35,7 @@
 #include "eph/Presets.h"
 #include "eph/Engine.h"
 #include "eph/SetFile.h"
+#include "Frame.h"
 #include <juce_audio_processors/juce_audio_processors.h>
 #include <juce_audio_utils/juce_audio_utils.h>
 #include <array>
@@ -68,7 +69,8 @@ private:
 };
 
 /** @brief The Ephemeris processor. */
-class EphemerisProcessor final : public juce::AudioProcessor, private juce::Thread, private juce::Timer {
+class EphemerisProcessor final : public juce::AudioProcessor, private juce::Thread, private juce::Timer,
+                                 private juce::AudioProcessorParameter::Listener {
 public:
     EphemerisProcessor();                            ///< registers every parameter and composes a first piece
     ~EphemerisProcessor() override;                  ///< stops the composer and the exporter
@@ -144,6 +146,29 @@ public:
     int learning() const { return learn_.load(); }   ///< the store id waiting for a controller, or -1
     /** @brief The controller bound to store id @p id, or -1. */
     int controllerFor(int id) const;
+    /** @brief Unbinds store id @p id (the controls' right-click menu). */
+    void forget(int id) { for (auto& c : ccMap_) if (c.load() == id) c = -1; }
+
+    // Undo (the frame, 01.10.2026): a knob turned on the panel, a preset, a new seed, a reroll, a loaded set or a choice of
+    // piece, concert or night set is a step; a step holds only what it changed, so taking it back never takes back the
+    // sounds the composer wrote on the knobs since. Knobs moved from MIDI or by a host's automation are not steps.
+    bool undo();                                     ///< takes the last step back; false if there was none
+    bool redo();                                     ///< makes the last undone step again
+    juce::String undoName() const { return history_.undoName(); }   ///< what undo takes back (empty: nothing)
+    juce::String redoName() const { return history_.redoName(); }   ///< what redo makes again
+    /** @brief Opens a step of several knobs (a preset, a reset): they are undone together. Close with endStep. */
+    void beginStep(const juce::String& what);
+    void endStep();                                  ///< closes beginStep's step
+    /** @brief Store id @p id back to its default (one step). */
+    void resetToDefault(int id);
+    /** @brief The value store id @p id plays at the moment (the moves' offsets), normalised -- NaN where it is the knob's own. */
+    float playedNormalised(int id) const;
+    /**
+     * @brief The headset (the frame): the hands of the Quest app in bridge mode, as OSC, while the settings do not say
+     *        Off -- left pinch play and stop, both hands the next piece, right pinch holds the moves, the left hand's
+     *        height the rows' filters, the right hand's the echo throw.
+     */
+    frame::Headset& headset() { return headset_; }
 
     eph::ParamStore& store() { return engine_.params(); }   ///< the engine's parameters
     /** @brief The host parameter of store id @p id, or null. */
@@ -179,6 +204,17 @@ public:
     void setStateInformation(const void* data, int sizeInBytes) override;   ///< restores them and composes
 
 private:
+    void parameterValueChanged(int, float) override {}
+    void parameterGestureChanged(int parameterIndex, bool gestureIsStarting) override;   ///< a knob on the panel: a step
+    std::vector<float> values() const;               ///< every store value (undo)
+    juce::String extraState() const;                 ///< seed, rerolls and the concert's length as text (undo)
+    void applyExtra(const juce::String& text);       ///< the inverse; composes if seed or rerolls changed
+    void applyStep(const frame::UndoStep& s, bool after);
+    void pollHeadset();                              ///< the hands' events, 30 times a second (message thread)
+    frame::UndoHistory history_;                     ///< undo and redo (message thread)
+    bool restoring_ = false;                         ///< an undo or the headset moves knobs: no step of their own
+    frame::Headset headset_;                         ///< the Quest's hands (message thread)
+    juce::TimedCallback headsetTick_{ [this] { pollHeadset(); } };
     void run() override;          // the composer thread
     void timerCallback() override;   // loads a finished score on the message thread
     eph::Score composeNow(eph::ParamStore& snapshot);   ///< composes with the knobs as they are (copied into @p snapshot)

@@ -15,7 +15,12 @@ juce_add_plugin(Ephemeris
     VERSION                     ${PROJECT_VERSION}
     PRODUCT_NAME                "Ephemeris"
     ICON_BIG                    "${CMAKE_SOURCE_DIR}/Deploy/ephemeris.png")
-target_sources(Ephemeris PRIVATE PluginProcessor.cpp PluginEditor.cpp EditorMixer.cpp EditorOrrery.cpp EditorPerform.cpp EditorGestures.cpp EditorStyle.cpp EditorTheme.cpp UpdateCheck.cpp)
+target_sources(Ephemeris PRIVATE PluginProcessor.cpp PluginEditor.cpp EditorMixer.cpp EditorOrrery.cpp EditorPerform.cpp EditorGestures.cpp EditorStyle.cpp EditorTheme.cpp UpdateCheck.cpp Frame.cpp)
+# The frame's pieces (01.10.2026): the picture behind the panel and the manual's prose for the help (F1).
+juce_add_binary_data(EphemerisData
+    HEADER_NAME EphemerisData.h
+    NAMESPACE EphemerisData
+    SOURCES Resources/backdrop.jpg ${CMAKE_SOURCE_DIR}/Tools/manual/chapters.txt)
 target_compile_definitions(Ephemeris PUBLIC
     JUCE_WEB_BROWSER=0
     JUCE_USE_CURL=0
@@ -26,7 +31,9 @@ target_compile_definitions(Ephemeris PUBLIC
 target_link_libraries(Ephemeris
     PRIVATE
         EphemerisCore
+        EphemerisData
         juce::juce_audio_utils
+        juce::juce_osc
     PUBLIC
         juce::juce_recommended_config_flags
         juce::juce_recommended_warning_flags)
