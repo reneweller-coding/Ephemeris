@@ -107,6 +107,8 @@ EphemerisProcessor::EphemerisProcessor()
     // EPH_MUTE=1 (and the screenshot mode): silent from the first sample, never unmuted from inside. The house
     // rule for every automated run -- tests, screenshots, the manual -- is that nothing makes a sound.
     forceMute_ = std::getenv("EPH_MUTE") != nullptr || std::getenv("EPH_SHOT") != nullptr;
+    // EPH_SETS: knobs for an automated run, as eph_render's --set takes them ("compose.concert_minutes=60;...").
+    if (const char* sets = std::getenv("EPH_SETS")) s.parseText(sets);
     mute_ = forceMute_;
     // The performer's controllers as a keyboard has them: mod wheel, expression pedal, sustain pedal.
     for (auto& c : ccMap_) c = -1;
@@ -174,6 +176,33 @@ void EphemerisProcessor::reroll(const juce::String& unit)
     compose();
 }
 
+int EphemerisProcessor::chosenKind() const
+{
+    const ParamStore& s = const_cast<EphemerisProcessor*>(this)->store();
+    if (s.get(s.id(Module::Compose, 0, compose::ConcertMinutes)) <= 0.0f) return 0;
+    return s.getBool(s.id(Module::Compose, 0, compose::NightSet)) ? 2 : 1;
+}
+
+void EphemerisProcessor::chooseKind(int kind)
+{
+    ParamStore& s = store();
+    const int concert = s.id(Module::Compose, 0, compose::ConcertMinutes);
+    const int was = chosenKind();
+    if (was != 0 && kind == 0) concertMinutes_ = s.get(concert);
+    if ((was == 0) != (kind == 0)) setFromUi(concert, kind == 0 ? 0.0f : std::max(20.0f, concertMinutes_));
+    if (kind != 0) setFromUi(s.id(Module::Compose, 0, compose::NightSet), kind == 2 ? 1.0f : 0.0f);
+    if (was != kind || playingKind() != kind) compose();
+}
+
+void EphemerisProcessor::setFromUi(int id, float value)
+{
+    StoreParameter* p = parameter(id);
+    if (p == nullptr) return;
+    p->beginChangeGesture();
+    p->setValueNotifyingHost(store().toNormalised(id, value));
+    p->endChangeGesture();
+}
+
 juce::String EphemerisProcessor::curationText() const
 {
     std::lock_guard<std::mutex> g(lock_);
@@ -187,11 +216,14 @@ void EphemerisProcessor::run()
     const bool adopt = adoptNext_.exchange(false);
     ParamStore snapshot;
     Score s = composeNow(snapshot);
+    const int kind = snapshot.get(snapshot.id(Module::Compose, 0, compose::ConcertMinutes)) <= 0.0f ? 0
+                   : (snapshot.getBool(snapshot.id(Module::Compose, 0, compose::NightSet)) ? 2 : 1);
     uint64_t id = 0;
     {
         std::lock_guard<std::mutex> g(lock_);
         pending_ = std::make_unique<Score>(s);
         pendingAdopt_ = adopt;
+        pendingKind_ = kind;
         id = pendingId_ = ++composed_;
     }
     composing_ = false;
@@ -276,11 +308,13 @@ void EphemerisProcessor::timerCallback()
     std::unique_ptr<Score> next;
     bool adopt = false;
     uint64_t nextId = 0;
+    int nextKind = 0;
     {
         std::lock_guard<std::mutex> g(lock_);
         next = std::move(pending_);
         adopt = pendingAdopt_;
         nextId = pendingId_;
+        nextKind = pendingKind_;
     }
     // A piece asked for again while it was composed is out of date: the next one comes (and inherits its word on the
     // sounds -- a state restored right after the start must not be overwritten by the first piece's).
@@ -337,6 +371,7 @@ void EphemerisProcessor::timerCallback()
         playingId_ = nextId;
         levelled_ = current_.levels.empty();
     }
+    playingKind_ = nextKind;
     ++scoreVersion_;
     position_ = 0.0;
     if (autoPlay_) { autoPlay_ = false; playing_ = true; }
@@ -587,9 +622,17 @@ juce::String EphemerisProcessor::status() const
     std::vector<Marker> m;
     double beats = 0.0, secs = 0.0;
     arrangement(m, beats, secs);
+    // What plays, in words: a single piece, or a concert or a night set of so many (their markers say "Stueck N").
+    int pieces = 0;
+    for (const Marker& mk : m)
+        if (mk.text.rfind("Stueck ", 0) == 0) pieces = std::max(pieces, std::atoi(mk.text.c_str() + 7));
+    const int kind = playingKind_.load();
     juce::String t;
     std::lock_guard<std::mutex> g(lock_);
-    t << "seed " << juce::String(static_cast<juce::int64>(seed_)) << "   " << juce::String(secs / 60.0, 1) << " min";
+    t << "seed " << juce::String(static_cast<juce::int64>(seed_)) << "   ";
+    if (kind == 0) t << "single piece";
+    else t << (kind == 2 ? "night set of " : "concert of ") << pieces << (pieces == 1 ? " piece" : " pieces");
+    t << ", " << juce::String(secs / 60.0, 1) << " min";
     if (lastExport_.isNotEmpty()) t << "   " << lastExport_;
     return t;
 }
@@ -719,6 +762,7 @@ void EphemerisProcessor::getStateInformation(juce::MemoryBlock& destData)
     for (int c = 0; c < 128; ++c)
         if (const int id = ccMap_[static_cast<size_t>(c)].load(); id >= 0) cc << c << "=" << juce::String(store().key(id)) << ";";
     xml.setAttribute("controllers", cc);
+    xml.setAttribute("concertMinutes", static_cast<double>(concertMinutes_));
     copyXmlToBinary(xml, destData);
 }
 
@@ -728,6 +772,7 @@ void EphemerisProcessor::setStateInformation(const void* data, int sizeInBytes)
     if (xml == nullptr || !xml->hasTagName("Ephemeris")) return;
     store().resetDefaults();
     store().parseText(xml->getStringAttribute("params").toStdString());
+    if (xml->hasAttribute("concertMinutes")) concertMinutes_ = static_cast<float>(xml->getDoubleAttribute("concertMinutes", 60.0));
     if (xml->hasAttribute("controllers")) {
         for (auto& c : ccMap_) c = -1;
         for (const auto& item : juce::StringArray::fromTokens(xml->getStringAttribute("controllers"), ";", "")) {

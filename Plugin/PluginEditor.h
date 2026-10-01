@@ -109,20 +109,59 @@ private:
  * @brief The sections of the piece as blocks, with the playhead, and the instrumentation matrix (PLAN 8.1,
  *        Arrange): under the sections' names a lane per layer -- the rows (brighter the more of them play),
  *        the lead, the tape keys, the strings, the drone, the drums -- lit where it has notes.
+ *
+ * It zooms (01.10.2026, as Parhelion's and Totality's do): the mouse wheel in and out around the pointer, down to four
+ * bars; a drag, Shift with the wheel or the wheel sideways moves along; a double click shows the whole length again.
+ * A ruler of bars (a piece) or of minutes (a concert, a night set); once a beat has two pixels, the notes themselves on
+ * the lanes; zoomed, a bar along the bottom where the window lies in the whole. The window pages on with the playhead,
+ * unless it was moved away from it. A concert's pieces are apart by a line, seen whole by their numbers. What does not
+ * move is drawn into an image when the window changes; the playhead goes over it.
  */
-class ArrangeView final : public juce::Component {
+class ArrangeView final : public juce::Component, public juce::SettableTooltipClient, private juce::Timer {
 public:
-    explicit ArrangeView(EphemerisProcessor& p) : proc_(p) {}   ///< shows @p p's score
-    void paint(juce::Graphics& g) override;                     ///< the sections, the matrix and the playhead
-    void mouseDown(const juce::MouseEvent& e) override;         ///< jumps to the clicked position
+    explicit ArrangeView(EphemerisProcessor& p);                ///< shows @p p's score
+    void paint(juce::Graphics& g) override;                     ///< the picture of the window, the playhead over it
+    void mouseDown(const juce::MouseEvent& e) override;         ///< jumps there (zoomed: on release, if it was no drag)
+    void mouseDrag(const juce::MouseEvent& e) override;         ///< moves a zoomed view along
+    void mouseUp(const juce::MouseEvent& e) override;           ///< the jump of a zoomed view
+    void mouseDoubleClick(const juce::MouseEvent& e) override;  ///< the whole length again
+    /** @brief Zooms around the pointer; the wheel sideways, or with Shift, moves along. */
+    void mouseWheelMove(const juce::MouseEvent& e, const juce::MouseWheelDetails& wheel) override;
+    void mouseMagnify(const juce::MouseEvent& e, float scale) override;   ///< a trackpad's pinch zooms
+    /** @brief Shows the beats @p from to @p to once a score is there (the pictures' EPH_SHOT_ZOOM). */
+    void zoomTo(double from, double to) { wanted_ = { from, to }; }
 
 private:
-    static constexpr int kLanes = 6;      ///< rows, lead, tape keys, strings, drone, drums
-    static constexpr int kBins = 480;     ///< columns of the matrix across the piece
-    void rebuild();                       ///< the matrix of a new score
+    /** @brief A note as the zoomed lanes draw it: where it begins and ends (beats), how loud. */
+    struct Hit { float from, to, velocity; };
+    static constexpr int kLanes = 6;             ///< rows, lead, tape keys, strings, drone, drums
+    static constexpr double kNarrowest = 16.0;   ///< the least the view shows, in beats (four bars)
+    void timerCallback() override;               ///< pages on with the playhead, repaints
+    void rebuild();                              ///< the lanes of a new score
+    void show(double from, double span);         ///< the window, kept inside the length (all of it: not zoomed)
+    void zoomAround(float x, double factor);     ///< the window times @p factor, the beat under @p x staying put
+    void window(double& from, double& to) const; ///< the beats shown
+    bool zoomed(double& from, double& to) const; ///< the beats shown; false while it is the whole length
+    double beatAt(float x) const;                ///< the beat under @p x
+    void render(juce::Graphics& g, float w, float h, double from, double to, bool zoom);   ///< all but the playhead
     EphemerisProcessor& proc_;
-    int version_ = -1;                    ///< the score the matrix was built from
-    std::vector<float> lanes_;            ///< kLanes x kBins activity, 0..1
+    int version_ = -1;                    ///< the score the lanes were built from
+    double beats_ = 0.0;                  ///< its length
+    std::vector<eph::Marker> markers_;    ///< its sections
+    eph::TempoMap tempo_;                 ///< its tempo (the ruler's minutes)
+    int bins_ = 0;                        ///< the lanes' columns across the score: one a beat
+    std::vector<float> lanes_;            ///< kLanes x bins_ activity, 0..1
+    std::vector<Hit> hits_[kLanes];       ///< the notes per lane, in the order they begin
+    double longest_ = 0.0;                ///< the longest note (how far before a window its notes begin)
+    double from_ = 0.0, span_ = 0.0;      ///< the window (span 0: the whole length)
+    double lastPos_ = -1.0, lastFrom_ = 0.0, lastTo_ = 0.0;   ///< the playhead and the window at the last tick
+    float downX_ = 0.0f;                  ///< where a press began
+    double downFrom_ = 0.0;               ///< the window's beginning then
+    bool dragged_ = false;
+    std::pair<double, double> wanted_{ 0.0, 0.0 };   ///< zoomTo's window, until a score takes it
+    juce::Image cache_;                   ///< the picture of the window
+    double cachedFrom_ = -1.0, cachedTo_ = -1.0;
+    int cachedVersion_ = -1;
 };
 
 /** @brief A parameter page in a viewport: it scrolls when its groups need more height than the tab gives. */
@@ -163,6 +202,7 @@ private:
     void timerCallback() override;
     void layoutBody();                                 ///< the top bar, the arrange view, the tabs, at the design scale
     void toggleFullScreen();                           ///< the standalone's window full screen and back
+    void showLength(int kind);                         ///< the length slider for a piece's minutes or a concert's
     EphemerisProcessor& proc_;
     ephui::LookAndFeel lnf_;                           ///< first, so it outlives every component that uses it
     juce::TooltipWindow tooltips_{ nullptr, 700 };
@@ -175,15 +215,16 @@ private:
     juce::Label title_, status_, rerolls_;
     juce::Rectangle<float> logo_;   ///< where the logo is drawn, left of the title
     juce::ComboBox style_, key_, scale_;
-    juce::Slider minutes_, concert_;
-    juce::Label minutesLabel_, concertLabel_;
-    juce::ToggleButton night_ { "Night" };   ///< compose.night_set: the concert as a night set
-    std::unique_ptr<juce::ButtonParameterAttachment> nightAttach_;
-    juce::TextButton compose_{ "Compose" }, seed_{ "New seed" }, play_{ "Play" }, mute_{ "Mute" };
+    /** A piece, a concert or a night set (EphemerisProcessor::chooseKind), and the length of what is chosen. */
+    juce::TextButton pieceMode_{ "Piece" }, concertMode_{ "Concert" }, nightMode_{ "Night set" };
+    juce::Slider length_;
+    juce::Label lengthLabel_;
+    int lengthKind_ = -1;                              ///< what the slider shows (0: compose.piece_minutes, else concert_minutes)
+    bool syncing_ = false;                             ///< the slider is set from its parameter, not by a hand
+    juce::TextButton compose_{ "Compose piece" }, seed_{ "New seed" }, play_{ "Play" }, mute_{ "Mute" };
     juce::OwnedArray<juce::TextButton> rerollButtons_;
     juce::TextButton save_{ "Save set" }, load_{ "Load set" }, export_{ "Export WAV + MIDI" };
     std::vector<std::unique_ptr<juce::ComboBoxParameterAttachment>> combos_;
-    std::vector<std::unique_ptr<juce::SliderParameterAttachment>> sliders_;
     ArrangeView arrange_;
     juce::TabbedComponent tabs_{ juce::TabbedButtonBar::TabsAtTop };
     std::unique_ptr<juce::FileChooser> chooser_;

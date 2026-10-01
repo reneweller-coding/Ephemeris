@@ -78,6 +78,17 @@ public:
     void newSeed();                                  ///< a fresh seed, no rerolls, then compose
     void reroll(const juce::String& unit);           ///< draw one unit again, then compose
     bool isComposing() const { return composing_.load(); }   ///< whether the composer thread is at work
+    /** @brief What the knobs ask Compose for: 0 a piece, 1 a concert, 2 a night set (compose.concert_minutes, night_set). */
+    int chosenKind() const;
+    /**
+     * @brief A piece, a concert or a night set (message thread, 01.10.2026 -- as Parhelion and Totality have it): the
+     *        concert's length to 0, or back to its last (60 min at first), the night switch; then composes, if what plays
+     *        is not that already.
+     */
+    void chooseKind(int kind);
+    int playingKind() const { return playingKind_.load(); }   ///< what plays: 0 a piece, 1 a concert, 2 a night set
+    /** @brief Sets store id @p id to the real value @p value as a hand on the panel does (one gesture, the host told). */
+    void setFromUi(int id, float value);
     uint64_t seed() const { std::lock_guard<std::mutex> g(lock_); return seed_; }   ///< the seed of what plays
     double concertMinutes() const;                   ///< compose.concert_minutes
     juce::String curationText() const;               ///< the rerolls, for the panel
@@ -198,6 +209,9 @@ private:
     std::vector<float> trims_;               ///< the corrections found for the composition trimsFor_ (lock_)
     uint64_t trimsFor_ = 0;
     bool levelled_ = false;                  ///< current_ carries its corrections (lock_)
+    int pendingKind_ = 0;                    ///< what pending_ is: 0 a piece, 1 a concert, 2 a night set (lock_)
+    std::atomic<int> playingKind_{ 0 };      ///< ... and current_ (playingKind())
+    float concertMinutes_ = 60.0f;           ///< the concert's length while a piece is chosen (chooseKind; the state)
     // The composer's sounds (Score::knobs, 26.09.2026): a new piece puts them on the knobs of the synths whose sound it
     // changes; after a restored state or a loaded set the knobs already hold them.
     std::atomic<bool> adoptNext_{ false };   ///< the next composition's sounds are already on the knobs

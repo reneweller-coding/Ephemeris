@@ -42,16 +42,21 @@ correction measured on the piece's loudest part brings every piece to its style'
 == The top bar | | - ==
 
 Style, key and scale choose the piece's character: Cosmic, Doom, Melodic, Modern and Drift are five
-style profiles with their own tempi, forms, layers and spaces. Piece min is the length of one piece;
-Concert min above zero strings pieces together into a concert that travels through related keys. With
+style profiles with their own tempi, forms, layers and spaces. Beside them, three buttons choose what is
+composed: Piece -- a single piece; Concert -- pieces strung together into a concert that travels through
+related keys; Night set -- pieces in mixed styles, each mixed into the next as a DJ does it. Length is the
+length of what is chosen: a piece's 4 to 40 minutes, a concert's or a night set's 20 minutes to 12 hours. A
+button composes what it names at once if what plays is something else; Compose names what it makes (Compose
+piece, Compose concert, Compose night set) and is lit while what plays is not what the buttons choose. The
+status row says what plays: a single piece, or a concert or a night set of so many pieces. With
 Morph To (on the Master page) a concert also wanders from its style to another: each piece is composed
 between the two, the further into the concert the nearer the second. Concert Arc gives a concert an arc
 of tension: its first and last pieces quieter -- fewer rows at the peak, the lead and the drums rarer, the
 hands slower, the sound a little darker -- and the pieces around 60 % of the way the densest.
-Compose writes a piece with the current seed, New seed draws another one, Play starts and stops the
+Compose writes it with the current seed, New seed draws another one, Play starts and stops the
 standalone (in a host the host's transport plays).
 
-Night turns a concert (up to twelve hours) into a night set, played as a DJ plays one. The pieces last
+A night set (up to twelve hours) is played as a DJ plays one. The pieces last
 eight to fifteen minutes and their styles climb and descend a ladder -- Drift, Doom, Cosmic, Modern,
 Melodic -- one rung at a time, along waves of energy of 80 to 120 minutes over the night's own arc (the
 densest around 60 % of the way), never three pieces of one style in a row; the style in the top bar is the
@@ -101,7 +106,18 @@ downloaded; switched off, it asks nothing. A jump on the arrange view finds the 
 drone, the pads, a long lead note -- and starts them where it lands.
 
 Below, the arrange view shows the sections of the piece -- the atmosphere at the start, the entry of the
-rows, the builds, the lead, the peak, the bridges, the fade -- with the playhead. Click to jump.
+rows, the builds, the lead, the peak, the bridges, the fade -- with the playhead, a lane per layer lit where it
+has notes, and a ruler of bars (of minutes for a concert or a night set). Click to jump. A concert's pieces are
+apart by a line and carry their number (a night set's its style as well).
+
+[image screenshots/concert.png: A concert of four pieces in the arrange view: their numbers at their starts, the ruler in minutes.]
+
+The mouse wheel zooms in and out around the pointer, down to four bars; zoomed in, the lanes show the notes
+themselves, a bar along the bottom shows where the window lies in the whole, and the window pages on with the
+playhead -- unless it was moved away from it. A drag, Shift with the wheel or the wheel sideways moves along; a
+double click shows the whole length again.
+
+[image screenshots/zoom.png: The arrange view zoomed in on forty bars of a build: the rows' notes, the pads, the drone, the bar numbers.]
 
 == Mixer | | 0 ==
 
