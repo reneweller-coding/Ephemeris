@@ -265,6 +265,18 @@ public:
     bool link() const;
     /** @brief Joins the Link session or leaves it (the standalone reads it on its timer); written at once. */
     void setLink(bool on);
+    /** @brief Score cues to a visualiser over OSC (02.10.2026; Noctuary's -- the others have parameters); off by default. */
+    bool cues() const;
+    /** @brief Sends the score cues or stops; written at once. */
+    void setCues(bool on);
+    /** @brief The UDP port the score cues go to on this machine (9000, as the family's parameters say). */
+    int cuePort() const;
+    /** @brief The instrument's part in the family jam (02.10.2026, Jam.h): none, leading the others, or following one. */
+    enum class JamRole { Off, Lead, Follow };
+    /** @brief Its part in the family jam; Off by default. */
+    JamRole jamRole() const;
+    /** @brief Takes part in the family jam as @p r from now on; written at once. */
+    void setJamRole(JamRole r);
     /** @brief The instrument's name, as given to of(). */
     juce::String app() const { return app_; }
 
@@ -288,6 +300,8 @@ struct SettingsMenu {
     std::function<void(juce::PopupMenu&)> headsetItems;   ///< more items in the headset's submenu (calibrate ...)
     std::function<void(juce::PopupMenu&)> moreItems;      ///< the instrument's own items, before Keys and About
     std::function<juce::String()> linkStatus;     ///< the standalone's Ableton Link: a line on the session (empty: no item)
+    std::function<juce::String()> cueStatus;      ///< the score cues' switch, with a line on them (empty: no item)
+    std::function<juce::String()> jamStatus;      ///< the family jam's roles, with a line on what is heard (empty: no item)
     std::function<juce::String()> about;          ///< more lines for "About"
     std::function<void()> showAbout;              ///< the instrument's own About (replaces the frame's)
     /** @brief Shows the menu under @p target. */

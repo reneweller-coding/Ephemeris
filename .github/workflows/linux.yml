@@ -63,7 +63,9 @@ jobs:
           mkdir -p "$out"
           cp "$app" "$cli" "$out/"
           cp -R "$vst" "$lv2" "$out/"
-          strip "$out/Ephemeris" "$out/eph_render" "$out/Ephemeris.vst3/Contents/x86_64-linux/Ephemeris.so" "$out/Ephemeris.lv2/Ephemeris.so"
+          strip "$out/Ephemeris" "$out/eph_render" "$out/Ephemeris.vst3/Contents/x86_64-linux/Ephemeris.so"
+          find "$out/Ephemeris.lv2" -name "*.so" -exec strip {} +
+          ls "$out/Ephemeris.lv2"
           cp LICENSE "$out/LICENSE.txt"
           if [ -f docs/manual/Ephemeris-Manual.pdf ]; then cp docs/manual/Ephemeris-Manual.pdf "$out/"; fi
           cat > "$out/README-Linux.txt" <<'EOF'

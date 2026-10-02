@@ -4,6 +4,7 @@
  */
 #include "Frame.h"
 #include <cmath>
+#include <cstdlib>
 #include <array>
 #include <algorithm>
 #include <map>
@@ -645,6 +646,35 @@ void Settings::setLink(bool on)
     sendChangeMessage();
 }
 
+// FAMILY_CUES=<port> switches the cues on for one process, to that port (a test aid, as FAMILY_LINK is Link's).
+bool Settings::cues() const { return std::getenv("FAMILY_CUES") != nullptr || file_->getBoolValue("cues", false); }
+
+void Settings::setCues(bool on)
+{
+    file_->setValue("cues", on);
+    file_->saveIfNeeded();
+    sendChangeMessage();
+}
+
+int Settings::cuePort() const
+{
+    if (const char* p = std::getenv("FAMILY_CUES")) return juce::jlimit(1024, 65535, std::atoi(p));
+    return juce::jlimit(1024, 65535, file_->getIntValue("cuePort", 9000));
+}
+
+Settings::JamRole Settings::jamRole() const
+{
+    const int r = file_->getIntValue("jam", 0);
+    return r == 1 ? JamRole::Lead : r == 2 ? JamRole::Follow : JamRole::Off;
+}
+
+void Settings::setJamRole(JamRole r)
+{
+    file_->setValue("jam", r == JamRole::Lead ? 1 : r == JamRole::Follow ? 2 : 0);
+    file_->saveIfNeeded();
+    sendChangeMessage();
+}
+
 void SettingsMenu::show(juce::Component& target) const
 {
     Settings& s = Settings::of(app);
@@ -672,6 +702,22 @@ void SettingsMenu::show(juce::Component& target) const
     }
     if (linkStatus)   // the standalone only (02.10.2026): a DAW's transport rules the plugin
         m.addItem("Ableton Link: tempo and beat with other apps (" + linkStatus() + ")", true, s.link(), [&s] { s.setLink(!s.link()); });
+    if (cueStatus)
+        m.addItem("Score cues for a visualiser: OSC to port " + juce::String(s.cuePort()) + " (" + cueStatus() + ")", true, s.cues(),
+                  [&s] { s.setCues(!s.cues()); });
+    if (jamStatus) {
+        // The family jam (02.10.2026, Jam.h): one instrument leads -- its key, its sections, its breaks and drops go out
+        // to the others on the network --, the ones that follow take them up; tempo and bars come from Ableton Link.
+        juce::PopupMenu j;
+        using R = Settings::JamRole;
+        const R role = s.jamRole();
+        j.addItem("Off", true, role == R::Off, [&s] { s.setJamRole(R::Off); });
+        j.addItem("Lead: the others follow this one's key, sections, breaks and drops", true, role == R::Lead, [&s] { s.setJamRole(R::Lead); });
+        j.addItem("Follow: take up the leader's key, energy, breaks and drops", true, role == R::Follow, [&s] { s.setJamRole(R::Follow); });
+        j.addSeparator();
+        j.addItem(jamStatus(), false, false, nullptr);
+        m.addSubMenu("Family jam", j);
+    }
     if (setWindowScale) {
         juce::PopupMenu w;
         for (int pct : { 75, 100, 125, 150, 200 })
