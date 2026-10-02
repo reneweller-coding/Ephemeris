@@ -7,7 +7,7 @@ itself -- sequencer rows of different lengths turning against each other over a 
 ground, tape choirs and string machines, a lead that sings over the peak, the hands of a player on the filters, and
 the room of a tape echo and a long hall. Everything is synthesised; nothing is played back from a recording.
 
-**VST3 plugin and standalone application** for Windows (x64), and a native app for **Meta Quest**. Licence: AGPL-3.0.
+**VST3 plugin and standalone application** for Windows (x64) and macOS (Apple Silicon), and a native app for **Meta Quest**. Licence: AGPL-3.0.
 
 <br clear="left" />
 
@@ -15,18 +15,31 @@ the room of a tape echo and a long hall. Everything is synthesised; nothing is p
 
 ## Download
 
-**[Ephemeris-1.1.0-Setup.exe](https://github.com/reneweller-coding/Ephemeris/releases/download/v1.1.0/Ephemeris-1.1.0-Setup.exe)**
+**[Ephemeris-1.2.0-Setup.exe](https://github.com/reneweller-coding/Ephemeris/releases/download/v1.2.0/Ephemeris-1.2.0-Setup.exe)**
 installs the standalone, the VST3, the offline renderer and the manual. Nothing else has to be installed: the runtime
 is linked in. There is a
-**[portable zip](https://github.com/reneweller-coding/Ephemeris/releases/download/v1.1.0/Ephemeris-1.1.0-portable.zip)**
+**[portable zip](https://github.com/reneweller-coding/Ephemeris/releases/download/v1.2.0/Ephemeris-1.2.0-portable.zip)**
 for anyone who would rather not run an installer, the
-**[Quest app](https://github.com/reneweller-coding/Ephemeris/releases/download/v1.1.0/EphemerisQuest-1.1.0.apk)**
+**[Quest app](https://github.com/reneweller-coding/Ephemeris/releases/download/v1.2.0/EphemerisQuest-1.2.0.apk)**
 (installed with `adb install -r`, developer mode), and the
-**[manual](https://github.com/reneweller-coding/Ephemeris/releases/download/v1.1.0/Ephemeris-Manual.pdf)** -- every
+**[manual](https://github.com/reneweller-coding/Ephemeris/releases/download/v1.2.0/Ephemeris-Manual.pdf)** -- every
 page of the panel as a picture, what each control does, and why it is built the way it is.
+
+**[macOS zip](https://github.com/reneweller-coding/Ephemeris/releases/download/v1.2.0/Ephemeris-1.2.0-macOS.zip)** for Apple Silicon (macOS 12 or newer): the standalone and
+the VST3, built on GitHub's runners and attached to the release within the hour after it; signed ad hoc,
+not notarized (README-macOS.txt inside says how to open it), and not yet tried on a real Mac.
 
 Requirements: Windows 10 or 11, a 64-bit processor with AVX2 (every x86-64 since 2013), and a VST3 host if you want
 the plugin; Meta Quest 2 or later for the app. The installer is not code-signed: Windows' SmartScreen may warn once.
+
+## Demos
+
+[![Ephemeris, the Cosmic demo, with pictures by KaleidoscopeEnhanced (click for the video)](docs/demo.jpg)](https://github.com/reneweller-coding/Ephemeris/releases/download/demos/cosmic.mp4)
+
+A track per style, rendered by `eph_render` and nothing else: [Cosmic](https://github.com/reneweller-coding/Ephemeris/releases/download/demos/cosmic.mp3), [Doom](https://github.com/reneweller-coding/Ephemeris/releases/download/demos/doom.mp3), [Melodic](https://github.com/reneweller-coding/Ephemeris/releases/download/demos/melodic.mp3), [Modern](https://github.com/reneweller-coding/Ephemeris/releases/download/demos/modern.mp3), [Drift](https://github.com/reneweller-coding/Ephemeris/releases/download/demos/drift.mp3) (MP3). The video is the Cosmic demo with pictures by
+[KaleidoscopeEnhanced](https://github.com/reneweller-coding/KaleidoscopeEnhanced), its cuts placed by the
+track's own score cues (the bars, the sections, the drops). `Tools/demo/make_demos.py` renders them all again; they live on the release
+[demos](https://github.com/reneweller-coding/Ephemeris/releases/tag/demos).
 
 ## How it is put together
 
@@ -93,6 +106,14 @@ The plan, the musical specification and the literature behind each building bloc
 [docs/PLAN.md](docs/PLAN.md) (German); the manual is built out of the program itself
 ([docs/manual](docs/manual/Ephemeris-Manual.pdf)).
 
+## With a DAW and other apps
+
+In a DAW Ephemeris sends what it plays as MIDI -- every part on a channel of its own, as in the MIDI export -- and has a
+stereo output per stem besides the main one, off until the host switches them on, so a part can be recorded as
+notes or mixed on a channel of its own. The standalone joins an **Ableton Link** session (Settings > Ableton
+Link): the session's tempo, its bars, its start and stop. A MIDI keyboard can be split between two voices,
+locked to the scale and given a velocity curve (the Keyboard group). The manual has the details (With a DAW and other apps).
+
 ## Build
 
 The same in every instrument of the family (`build.ps1`, `CMakePresets.json`, `cmake/Family.cmake`):
@@ -142,6 +163,11 @@ bin/msvc/eph_render.exe --list
 
 Once a day the program asks GitHub's releases whether a newer version is out and shows it in the status row as a link
 to its page; nothing else is sent, nothing is downloaded. "Update check" in the status row turns it off.
+
+## The family
+
+Ephemeris is one of five instruments that share their build, their panel and the hands of a Meta Quest: [Noctuary](https://github.com/reneweller-coding/Noctuary) (ambient), [Phosphene](https://github.com/reneweller-coding/Phosphene) (psytrance), [Ephemeris](https://github.com/reneweller-coding/Ephemeris) (Berlin School), [Totality](https://github.com/reneweller-coding/Totality) (techno) and [Parhelion](https://github.com/reneweller-coding/Parhelion) (trance).
+All five, with their demos, on one page: **[reneweller-coding.github.io/VRAudio](https://reneweller-coding.github.io/VRAudio/)**.
 
 ## Licence
 

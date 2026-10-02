@@ -247,6 +247,13 @@ generated notes out, Layer plays over them; Composer off leaves every generated 
 sounds, through the mix and the effects as composed. The keys play while the music runs, each on its sample; an export
 plays what was composed.
 
+Three options of the Keyboard group, each off until you choose it: Lower Keys Play splits the keyboard -- the keys
+below Split At (C1 to C5, C3 to begin with) play the voice chosen there, the keys from it upwards the voice of Keyboard
+Plays; Scale Lock moves a key outside the piece's scale to the nearest note inside it, so no wrong note can sound; Velocity
+Curve shapes the touch -- As Played, Soft (a light touch is enough), Hard (it takes a firm one) or Fixed (every note
+at 100, for pads that send no velocity). A key's release always ends the note its press started, even when an option
+changed while it was held.
+
 A row cannot be mutated live: the piece is composed before it plays. To hear the rack with other
 patterns, reroll the rack.
 
@@ -743,6 +750,31 @@ starting point; change what you like on the right, and turn on Use Custom Style:
 your numbers. The counter rows' lengths, the transposer, the tape set and the drum patterns still come
 from the chosen style -- Cosmic and Drift have no drum patterns, so there Drums Chance does nothing. Your
 style is saved with the set and the plugin's state, and a concert starts from it (and morphs from it).
+
+== With a DAW and other apps | | - ==
+
+Three things connect Ephemeris to the software around it (02.10.2026). The outputs and Link are off until they are
+wanted, the MIDI goes nowhere until a track takes it, and none of the three changes what the music sounds like.
+
+MIDI out: in a DAW the plugin also sends what it plays -- every note of every part at the moment it sounds, a channel
+per part as in the MIDI file of an export -- and leaves the muted parts out. Record it on a MIDI track to keep a part
+as notes, or route it to another instrument to double it. A stop or a jump of the transport sends all notes off.
+
+Outputs of their own: besides the main output the plugin has a stereo output for each of the fifteen channel strips -- the eight rows, the lead, the drone, the tape keys, the strings, the poly synth, the drums and the atmosphere -- and one for the rooms, the stems an export writes. They are off to
+begin with; switched on in the DAW (in most hosts: the plugin's output configuration, or its multi-output version),
+each carries its part before the master, while the main output plays on as before.
+
+Ableton Link (the standalone; Settings > Ableton Link): with another Link app on the network -- Live, Bitwig, a phone
+app, another generator of the family -- Ephemeris takes the session's tempo, lines its bars up with the session's and
+starts and stops with it; alone in a session it offers its own tempo to whoever joins. In a DAW the
+host's transport leads, as before.
+
+On a Mac: every release has a build for Apple Silicon (macOS 12 or newer), the standalone and the VST3, built and
+tested on GitHub's machines. It is signed ad hoc, not notarized: macOS asks once (README-macOS.txt in the zip says
+how), and it has not yet been played on a real Mac -- reports are welcome.
+
+Demos: the release "demos" holds a track per style as an MP3 and one of them as a video, with pictures by
+KaleidoscopeEnhanced cut to the track's own score cues; Tools/demo/make_demos.py makes them all again (eph_render).
 
 == Meta Quest | | - ==
 

@@ -43,6 +43,8 @@ $Footer = @'
 Requirements: Windows 10 or 11 (x64) with AVX2 (every x86-64 since 2013), a VST3 host for the plugin, Meta Quest 2 or
 later for the app. The installer is not code-signed: Windows' SmartScreen may warn once ("More info", "Run anyway").
 Licence: AGPL-3.0.
+The macOS zip (Apple Silicon) is built on GitHub's runners and attached here by the workflow `macos` within
+the hour; it is signed ad hoc, not notarized, and not yet tried on a real Mac.
 '@
 
 $root = Split-Path -Parent $PSScriptRoot
