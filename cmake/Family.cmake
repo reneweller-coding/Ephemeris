@@ -85,6 +85,15 @@ if(CMAKE_SCRIPT_MODE_FILE)
     return()
 endif()
 
+# The plugin formats (02.10.2026): VST3 and the standalone everywhere; on macOS also an Audio Unit (Logic, GarageBand,
+# MainStage), on Linux also LV2 (Ardour, Carla, Qtractor, ...). juce_add_plugin(... FORMATS ${FAMILY_PLUGIN_FORMATS}).
+set(FAMILY_PLUGIN_FORMATS VST3 Standalone)
+if(APPLE)
+    list(APPEND FAMILY_PLUGIN_FORMATS AU)
+elseif(CMAKE_SYSTEM_NAME STREQUAL "Linux")
+    list(APPEND FAMILY_PLUGIN_FORMATS LV2)
+endif()
+
 set(FAMILY_BIN_DIR "" CACHE PATH "Where the startable programs are copied after each build (bin/<preset>); empty: nowhere")
 set(FAMILY_LAYOUT_FILE "${CMAKE_CURRENT_LIST_FILE}" CACHE INTERNAL "")
 

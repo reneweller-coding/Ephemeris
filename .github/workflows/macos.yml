@@ -1,7 +1,8 @@
 # Ephemeris for macOS (02.10.2026): built on GitHub's Apple Silicon runners, since nobody here has a Mac.
 #
 # A tag v* (the release, Deploy/publish_release.ps1) or "Run workflow" by hand: the core, the tests and the plugin --
-# VST3 and the standalone app, arm64 -- built in Release, the quick tests run, both bundles signed ad hoc (codesign -s -:
+# VST3, the Audio Unit and the standalone app, arm64 -- built in Release, the quick tests run, the Audio Unit validated
+# by Apple's auval, the bundles signed ad hoc (codesign -s -:
 # no Apple developer account, so not notarized: macOS asks once, see README-macOS.txt in the zip), zipped, kept as the
 # run's artifact and, for a tag, attached to its release once the release exists. JUCE and Ableton Link are fetched by
 # cmake/Family.cmake. Nobody waits for it: it runs beside the Windows release.
@@ -11,6 +12,11 @@ on:
   push:
     tags: ['v*']
   workflow_dispatch:
+    inputs:
+      release:
+        description: "also attach the zip to this release (a tag such as v1.2.0); empty: only the artifact"
+        type: string
+        default: ""
 
 permissions:
   contents: write
@@ -32,17 +38,30 @@ jobs:
           EPH_MUTE: "1"
         run: ctest --test-dir build -LE "slow|docs|sound" --output-on-failure
 
+      - name: Validate the Audio Unit (auval)
+        run: |
+          comp=$(find build -path "*_artefacts*" -name "Ephemeris.component" -maxdepth 6 | head -1)
+          test -n "$comp"
+          mkdir -p ~/Library/Audio/Plug-Ins/Components
+          cp -R "$comp" ~/Library/Audio/Plug-Ins/Components/
+          codesign --force --deep -s - ~/Library/Audio/Plug-Ins/Components/Ephemeris.component
+          killall -9 AudioComponentRegistrar 2>/dev/null || true
+          auval -a | grep -i "Rnwl" || true
+          auval -strict -v aumu Ephm Rnwl
+
       - name: Package (signed ad hoc)
         run: |
           version=$(sed -nE 's/^project\(Ephemeris VERSION ([0-9.]+).*/\1/p' CMakeLists.txt)
           app=$(find build -path "*_artefacts*" -name "Ephemeris.app" -maxdepth 6 | head -1)
           vst=$(find build -path "*_artefacts*" -name "Ephemeris.vst3" -maxdepth 6 | head -1)
-          test -n "$app" && test -n "$vst"
+          comp=$(find build -path "*_artefacts*" -name "Ephemeris.component" -maxdepth 6 | head -1)
+          test -n "$app" && test -n "$vst" && test -n "$comp"
           out="dist/Ephemeris"
           mkdir -p "$out"
-          cp -R "$app" "$vst" "$out/"
+          cp -R "$app" "$vst" "$comp" "$out/"
           codesign --force --deep -s - "$out/Ephemeris.app"
           codesign --force --deep -s - "$out/Ephemeris.vst3"
+          codesign --force --deep -s - "$out/Ephemeris.component"
           cp LICENSE "$out/LICENSE.txt"
           if [ -f docs/manual/Ephemeris-Manual.pdf ]; then cp docs/manual/Ephemeris-Manual.pdf "$out/"; fi
           cat > "$out/README-macOS.txt" <<'EOF'
@@ -50,11 +69,14 @@ jobs:
 
           Ephemeris.app      the standalone: drag it into Applications.
           Ephemeris.vst3     the plugin: copy it into ~/Library/Audio/Plug-Ins/VST3 (or /Library/Audio/Plug-Ins/VST3).
+          Ephemeris.component  the Audio Unit (Logic, GarageBand, MainStage): copy it into
+                          ~/Library/Audio/Plug-Ins/Components (or /Library/Audio/Plug-Ins/Components).
 
           The app and the plugin are signed ad hoc, not notarized (that needs a paid Apple developer account). macOS
           therefore asks once: open the app with a right click > Open > Open. For the plugin, or if macOS refuses:
               xattr -dr com.apple.quarantine "/path/to/Ephemeris.app"
               xattr -dr com.apple.quarantine ~/Library/Audio/Plug-Ins/VST3/Ephemeris.vst3
+              xattr -dr com.apple.quarantine ~/Library/Audio/Plug-Ins/Components/Ephemeris.component
           Built on GitHub's runners and not yet tried on a Mac by its author -- reports are welcome.
           EOF
           sed -i '' 's/^          //' "$out/README-macOS.txt"
@@ -67,9 +89,10 @@ jobs:
           path: dist/*.zip
 
       - name: Attach to the release
-        if: startsWith(github.ref, 'refs/tags/')
+        if: startsWith(github.ref, 'refs/tags/') || inputs.release != ''
         env:
           GH_TOKEN: ${{ github.token }}
+          TAG: ${{ inputs.release != '' && inputs.release || github.ref_name }}
         run: |
-          for i in $(seq 1 60); do gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1 && break; sleep 60; done
-          gh release upload "$GITHUB_REF_NAME" dist/*.zip --clobber
+          for i in $(seq 1 60); do gh release view "$TAG" >/dev/null 2>&1 && break; sleep 60; done
+          gh release upload "$TAG" dist/*.zip --clobber

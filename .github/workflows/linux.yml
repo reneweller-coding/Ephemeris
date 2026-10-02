@@ -1,7 +1,7 @@
 # Ephemeris for Linux (02.10.2026): built on GitHub's Ubuntu runners, as the macOS build is (macos.yml).
 #
 # A tag v* (the release, Deploy/publish_release.ps1) or "Run workflow" by hand: the core, the tests and the plugin --
-# VST3 and the standalone, x86-64 with AVX2, and the renderer -- built in Release with GCC 12 on Ubuntu 22.04 (so the
+# VST3, LV2 and the standalone, x86-64 with AVX2, and the renderer -- built in Release with GCC 12 on Ubuntu 22.04 (so the
 # binaries run on its glibc 2.35 and anything newer), the quick tests run (those that open a window in a virtual X
 # server), packed as Ephemeris-<version>-linux-x86_64.tar.gz, kept as the run's artifact and, for a tag -- or for the
 # release named by hand --, attached to its release. JUCE and Ableton Link are fetched by cmake/Family.cmake.
@@ -30,7 +30,7 @@ jobs:
       - name: The libraries JUCE needs
         run: |
           sudo apt-get update
-          sudo apt-get install -y --no-install-recommends ninja-build g++-12 xvfb \
+          sudo apt-get install -y --no-install-recommends ninja-build g++-12 xvfb lilv-utils \
             libasound2-dev libjack-jackd2-dev libfreetype-dev libfontconfig1-dev libx11-dev libxcomposite-dev \
             libxcursor-dev libxext-dev libxi-dev libcurl4-openssl-dev libxinerama-dev libxrandr-dev libxrender-dev libgl1-mesa-dev libglu1-mesa-dev
 
@@ -45,18 +45,25 @@ jobs:
           EPH_MUTE: "1"
         run: xvfb-run -a ctest --test-dir build -LE "slow|docs|sound" --output-on-failure
 
+      - name: Check the LV2 bundle (lilv reads its description)
+        run: |
+          lv2=$(find build -path "*_artefacts*" -type d -name "Ephemeris.lv2" | head -1)
+          test -n "$lv2"
+          LV2_PATH="$(dirname "$lv2")" lv2info https://github.com/reneweller-coding/Ephemeris | head -40
+
       - name: Package
         run: |
           version=$(sed -nE 's/^project\(Ephemeris VERSION ([0-9.]+).*/\1/p' CMakeLists.txt)
           app=$(find build -path "*_artefacts*" -path "*Standalone*" -type f -name "Ephemeris" | head -1)
           vst=$(find build -path "*_artefacts*" -type d -name "Ephemeris.vst3" | head -1)
           cli=$(find build -type f -name "eph_render" -perm -u+x | head -1)
-          test -n "$app" && test -n "$vst" && test -n "$cli"
+          lv2=$(find build -path "*_artefacts*" -type d -name "Ephemeris.lv2" | head -1)
+          test -n "$app" && test -n "$vst" && test -n "$cli" && test -n "$lv2"
           out="dist/Ephemeris-$version-linux-x86_64"
           mkdir -p "$out"
           cp "$app" "$cli" "$out/"
-          cp -R "$vst" "$out/"
-          strip "$out/Ephemeris" "$out/eph_render" "$out/Ephemeris.vst3/Contents/x86_64-linux/Ephemeris.so"
+          cp -R "$vst" "$lv2" "$out/"
+          strip "$out/Ephemeris" "$out/eph_render" "$out/Ephemeris.vst3/Contents/x86_64-linux/Ephemeris.so" "$out/Ephemeris.lv2/Ephemeris.so"
           cp LICENSE "$out/LICENSE.txt"
           if [ -f docs/manual/Ephemeris-Manual.pdf ]; then cp docs/manual/Ephemeris-Manual.pdf "$out/"; fi
           cat > "$out/README-Linux.txt" <<'EOF'
@@ -66,6 +73,8 @@ jobs:
                             through ALSA or JACK -- PipeWire serves both --, chosen under Settings > Audio.
           Ephemeris.vst3    the plugin: copy the folder to ~/.vst3 (or /usr/lib/vst3) and rescan
                             in the host (Reaper, Bitwig Studio, Ardour, Carla, ...).
+          Ephemeris.lv2     the same as LV2: copy the folder to ~/.lv2 (or /usr/lib/lv2)
+                            (Ardour, Carla, Qtractor, ...).
           eph_render        the offline renderer (--help lists its options).
 
           Needs: a 64-bit processor with AVX2 (every x86-64 since 2013), glibc 2.35 or newer (Ubuntu 22.04,
