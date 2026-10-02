@@ -79,6 +79,7 @@ void Engine::load(const Score& score, bool sounds)
         return a.sample != b.sample ? a.sample < b.sample : a.on < b.on;
     });
     offAt_.assign(static_cast<size_t>(id) + 1, 0);
+    tapPitch_.assign(offAt_.size(), 0xFF);
     for (const Ev& e : events_) if (!e.on) offAt_[static_cast<size_t>(e.id)] = e.sample;
 
     // Gestures grouped by the knob they move.
@@ -1086,6 +1087,18 @@ void Engine::seek(double beat)
 void Engine::dispatch(const Ev& e)
 {
     if (e.on && !liveEvent_ && silenced(e.source)) return;   // the keyboard's or nobody's (01.10.2026)
+    // MIDI out (02.10.2026): the composer's notes as they are played, transposed as they are heard; an off goes out
+    // with the pitch its on had, and only when that on went out.
+    if (noteTap_ != nullptr && !liveEvent_ && static_cast<size_t>(e.id) < tapPitch_.size()) {
+        uint8_t& sent = tapPitch_[static_cast<size_t>(e.id)];
+        if (e.on) {
+            sent = static_cast<uint8_t>(e.source == kSrcDrums ? e.pitch : std::clamp(e.pitch + transpose_, 0, 127));
+            noteTap_->add(e.sample, static_cast<int>(partOf(e.source)), sent, e.velocity, true, -1);
+        } else if (sent != 0xFF) {
+            noteTap_->add(e.sample, static_cast<int>(partOf(e.source)), sent, 0.0f, false, -1);
+            sent = 0xFF;
+        }
+    }
     switch (e.source) {
     case kSrcDrums:
         if (e.on) {
@@ -1153,6 +1166,20 @@ int Engine::targetOf(int source)
     for (int t = perform::keys::Lead; t < perform::keys::ByChannel; ++t)
         if (sourceOf(t) == source) return t;
     return perform::keys::Off;
+}
+
+Part Engine::partOf(int source)
+{
+    switch (source) {
+    case kSrcLead: return Part::Lead;
+    case kSrcDrone: return Part::Drone;
+    case kSrcTape: return Part::TapeKeys;
+    case kSrcStrings: return Part::Strings;
+    case kSrcPoly: return Part::Pad;
+    case kSrcDrums: return Part::Drums;
+    case kSrcAtmos: return Part::Atmos;
+    default: return rowPart(source);
+    }
 }
 
 bool Engine::silenced(int source) const

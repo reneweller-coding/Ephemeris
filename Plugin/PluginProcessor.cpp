@@ -428,6 +428,7 @@ void EphemerisProcessor::prepareToPlay(double sampleRate, int samplesPerBlock)
     engine_.setLive(true);   // the keyboard and the composer switch act here, never in an export (01.10.2026)
     engine_.prepare(sampleRate, samplesPerBlock);
     engine_.setMetering(true);   // reading only: the mix is the same to the bit (Engine.h)
+    engine_.setNoteTap(&noteTap_);   // MIDI out (02.10.2026)
     if (const char* secs = std::getenv("EPH_PLAY"); secs != nullptr && std::getenv("EPH_RECORD") != nullptr) {
         recordTarget_ = static_cast<size_t>(std::atof(secs) * sampleRate) * 2;
         record_.assign(recordTarget_, 0.0f);
@@ -484,11 +485,17 @@ void EphemerisProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::Mi
         keyboardSeen_ = target;
     }
     if (!play || buffer.getNumChannels() < 2) {
+        silenceMidi(midi);
         buffer.clear();
         return;
     }
     const double before = engine_.beat();
+    const int64_t start = engine_.samplePosition();
+    if (start != midiExpect_) silenceMidi(midi);   // a jump: whatever sounded is released
+    noteTap_.clear();
     engine_.process(buffer.getWritePointer(0), buffer.getWritePointer(1), n);
+    emitMidi(midi, start, n);
+    midiExpect_ = engine_.samplePosition();
     position_ = engine_.beat();
     if (cues_.running()) {
         // The cues of this block, stamped with the moment it is heard (Cue.h); a jump starts the marks again.
@@ -523,6 +530,29 @@ void EphemerisProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::Mi
     if (mute_.load(std::memory_order_relaxed)) buffer.clear();   // after the meters and the recording
     // The standalone stops at the end of the piece, with the rooms rung out.
     if (wrapperType == wrapperType_Standalone && engine_.seconds() > engine_.lengthSeconds() + 8.0) playing_ = false;
+}
+
+void EphemerisProcessor::silenceMidi(juce::MidiBuffer& midi)
+{
+    midiExpect_ = -1;
+    if (!midiSounding_) return;
+    midiSounding_ = false;
+    for (int ch = 1; ch <= 16; ++ch) midi.addEvent(juce::MidiMessage::allNotesOff(ch), 0);
+}
+
+void EphemerisProcessor::emitMidi(juce::MidiBuffer& midi, int64_t start, int n)
+{
+    for (int i = 0; i < noteTap_.count; ++i) {
+        const eph::NoteTap::Note& nt = noteTap_.notes[i];
+        const int at = static_cast<int>(std::clamp<int64_t>(nt.sample - start, 0, n - 1));
+        const int channel = eph::midiChannelOf(static_cast<eph::Part>(nt.part)) + 1;
+        if (nt.velocity == 0) {
+            midi.addEvent(juce::MidiMessage::noteOff(channel, nt.pitch), at);
+        } else {
+            midi.addEvent(juce::MidiMessage::noteOn(channel, nt.pitch, static_cast<juce::uint8>(nt.velocity)), at);
+            midiSounding_ = true;
+        }
+    }
 }
 
 bool EphemerisProcessor::saveSet(const juce::File& file)

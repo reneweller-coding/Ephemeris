@@ -4,7 +4,7 @@ juce_add_plugin(Ephemeris
     BUNDLE_ID                   "com.reneweller.ephemeris"
     IS_SYNTH                    TRUE
     NEEDS_MIDI_INPUT            TRUE
-    NEEDS_MIDI_OUTPUT           FALSE
+    NEEDS_MIDI_OUTPUT           TRUE    # the composer's notes as they play (02.10.2026; PluginProcessor::emitMidi)
     IS_MIDI_EFFECT              FALSE
     EDITOR_WANTS_KEYBOARD_FOCUS FALSE
     COPY_PLUGIN_AFTER_BUILD     FALSE

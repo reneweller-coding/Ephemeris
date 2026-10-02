@@ -27,6 +27,7 @@
 #include "eph/synth/Drums.h"
 #include "eph/fx/Dynamics.h"
 #include "eph/synth/ModVoice.h"
+#include "eph/NoteTap.h"
 #include "eph/Params.h"
 #include "eph/Cue.h"
 #include "eph/fx/Reverb.h"
@@ -114,6 +115,10 @@ public:
     const Score& score() const { return score_; }
     /** @brief Current position in seconds. */
     double seconds() const { return static_cast<double>(sample_) / sampleRate_; }
+    /** @brief Current position in samples (the clock of NoteTap's notes). */
+    int64_t samplePosition() const { return sample_; }
+    /** @brief From now on every composer note it plays is also written to @p tap (null: stops; NoteTap.h, MIDI out). */
+    void setNoteTap(NoteTap* tap) { noteTap_ = tap; }
     /** @brief Current position in beats. */
     double beat() const { return score_.tempo.beatAt(seconds()); }
     /** @brief Length of the score in seconds. */
@@ -276,6 +281,10 @@ private:
     /** @brief Puts the score's knob settings up to @p beat on the knobs, from the cursor on. */
     void applyKnobs(double beat);
     std::vector<int64_t> offAt_;   ///< every note's off sample, by its id (a seek chases the notes that sound on)
+    NoteTap* noteTap_ = nullptr;   ///< where the composer's played notes go for MIDI out (setNoteTap), or null
+    std::vector<uint8_t> tapPitch_;   ///< by note id: the pitch its on went out with (0xFF: none sounds), for its off
+    /** @brief The Part a source plays (the MIDI export's channel of its notes). */
+    static Part partOf(int source);
     std::vector<Ev> events_;   ///< the score's notes on the sample grid, in time order
     size_t evCursor_ = 0;   ///< index of the next event not yet played
     std::vector<Track> tracks_;   ///< the set's own automation, one track per knob

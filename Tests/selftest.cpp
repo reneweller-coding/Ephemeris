@@ -43,6 +43,7 @@
 #include "eph/compose/Harmony.h"
 #include "eph/compose/Lead.h"
 #include "eph/Midi.h"
+#include "eph/NoteTap.h"
 #include "eph/synth/ModVoice.h"
 #include "eph/compose/Pads.h"
 #include "eph/Params.h"
@@ -2992,11 +2993,71 @@ void testKeyboard()
           fmt("%.6g against %.6g", offline, plainOffline));
 }
 
+/** MIDI out (02.10.2026, NoteTap.h): in live play the engine writes the composer notes it plays into the tap, each on its
+ *  sample inside the block and transposed as heard; every off goes out with its on's pitch; with the composer off nothing
+ *  is written. */
+void testNoteTap()
+{
+    section("MIDI out (note tap)");
+    ParamStore p;
+    const Score score = composePiece(p, 21, 8.0);
+    struct Count { int ons = 0, offs = 0, unpaired = 0; int first[kNumParts]; bool inBlock = true; };
+    auto run = [&](const char* knobs) {
+        auto e = std::make_unique<Engine>();
+        e->params().parseText(knobs);
+        e->setLive(true);
+        e->prepare(48000.0, 256);
+        e->load(score);
+        e->seek(96.0);
+        auto tap = std::make_unique<NoteTap>();
+        e->setNoteTap(tap.get());
+        std::vector<float> L(256), R(256);
+        Count c;
+        std::fill(std::begin(c.first), std::end(c.first), -1);
+        int sounding[kNumParts][128] = {};
+        for (int b = 0; b < 48000 * 8 / 256; ++b) {
+            tap->clear();
+            const int64_t s0 = e->samplePosition();
+            e->process(L.data(), R.data(), 256);
+            for (int i = 0; i < tap->count; ++i) {
+                const NoteTap::Note& nt = tap->notes[i];
+                if (nt.sample < s0 - 48000 || nt.sample >= s0 + 256) c.inBlock = false;   // a seek's chased notes: the past
+                if (nt.velocity == 0) {
+                    ++c.offs;
+                    if (sounding[nt.part][nt.pitch] > 0) --sounding[nt.part][nt.pitch]; else ++c.unpaired;
+                    continue;
+                }
+                ++c.ons;
+                ++sounding[nt.part][nt.pitch];
+                if (c.first[nt.part] < 0) c.first[nt.part] = nt.pitch;
+            }
+        }
+        return c;
+    };
+    const Count plain = run("");
+    const Count up = run("perform.transpose=5");
+    const Count off = run("perform.composer=0");
+    check(plain.ons > 8 && plain.offs > 0, "the composer's notes are tapped, ons and offs", fmt("%d ons, %d offs", plain.ons, plain.offs));
+    check(plain.inBlock, "every tapped note lies in the block it was played in (or before it, chased by the seek)");
+    check(plain.unpaired == 0 && up.unpaired == 0, "every off has its on's pitch",
+          fmt("%d and %d unpaired", plain.unpaired, up.unpaired));
+    int parts = 0, shifted = 0;
+    for (int k = 0; k < kNumParts; ++k) {
+        if (k == static_cast<int>(Part::Drums) || plain.first[k] < 0 || up.first[k] < 0) continue;
+        ++parts;
+        if (up.first[k] == plain.first[k] + 5) ++shifted;
+    }
+    check(parts > 0 && shifted == parts, "the notes go out transposed as they are heard (the drums are not)",
+          fmt("%d of %d parts five semitones up", shifted, parts));
+    check(off.ons == 0, "the composer off: nothing tapped", fmt("%d notes", off.ons));
+}
+
 /** @brief Every section, in the order they run. */
 const TestSection kSections[] = {
     { "testTempoMap", testTempoMap },
     { "testGestures", testGestures },
     { "testKeyboard", testKeyboard },
+    { "testNoteTap", testNoteTap },
     { "testParams", testParams },
     { "testMidiTempo", testMidiTempo },
     { "testRack", testRack },
