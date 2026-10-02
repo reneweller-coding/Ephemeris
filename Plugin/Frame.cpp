@@ -391,7 +391,7 @@ void IconButton::paintButton(juce::Graphics& g, bool highlighted, bool down)
     lf.drawButtonBackground(g, *this, findColour(getToggleState() ? juce::TextButton::buttonOnColourId : juce::TextButton::buttonColourId),
                             highlighted && isEnabled(), down);
     const auto b = getLocalBounds().toFloat();
-    const float s = std::min(b.getWidth(), b.getHeight()) * 0.56f;
+    const float s = std::min(std::min(b.getWidth(), b.getHeight()) * 0.56f, 20.0f);   // a page's tall button: still a glyph
     const auto r = b.withSizeKeepingCentre(s, s);
     const juce::Colour ink = findColour(juce::TextButton::textColourOffId).withMultipliedAlpha(isEnabled() ? 1.0f : 0.35f);
     g.setColour(ink);
@@ -468,6 +468,113 @@ void IconButton::paintButton(juce::Graphics& g, bool highlighted, bool down)
         g.fillEllipse(r.getRight() - s * 0.38f, r.getCentreY() - s * 0.08f, s * 0.2f, s * 0.16f);
         break;
     }
+    default:
+        paintGlyph(g, r, ink, stroke);
+        break;
+    }
+}
+
+void IconButton::paintGlyph(juce::Graphics& g, juce::Rectangle<float> r, juce::Colour ink, const juce::PathStrokeType& stroke) const
+{
+    // The glyphs of 03.10.2026, drawn in a unit square and placed on r.
+    const float s = r.getWidth();
+    const juce::AffineTransform at = juce::AffineTransform::scale(s, s).translated(r.getX(), r.getY());
+    auto put = [&at](juce::Path p) { p.applyTransform(at); return p; };
+    juce::Path p;
+    switch (icon_) {
+    case Icon::Play:
+        p.addTriangle(0.2f, 0.06f, 0.2f, 0.94f, 0.94f, 0.5f);
+        g.fillPath(put(p));
+        break;
+    case Icon::Stop:
+        p.addRoundedRectangle(0.17f, 0.17f, 0.66f, 0.66f, 0.06f);
+        g.fillPath(put(p));
+        break;
+    case Icon::Record:
+        // Red while it waits; lit (the button's on colour behind it) the disc takes the ink.
+        g.setColour(getToggleState() ? ink : juce::Colour(0xffe5484d).withMultipliedAlpha(isEnabled() ? 1.0f : 0.35f));
+        p.addEllipse(0.1f, 0.1f, 0.8f, 0.8f);
+        g.fillPath(put(p));
+        break;
+    case Icon::Speaker:
+    case Icon::SpeakerOff: {
+        // The box and the cone; sounding, two waves; muted, a cross.
+        p.startNewSubPath(0.04f, 0.36f);
+        p.lineTo(0.26f, 0.36f);
+        p.lineTo(0.52f, 0.12f);
+        p.lineTo(0.52f, 0.88f);
+        p.lineTo(0.26f, 0.64f);
+        p.lineTo(0.04f, 0.64f);
+        p.closeSubPath();
+        g.fillPath(put(p));
+        juce::Path w;
+        if (icon_ == Icon::Speaker) {
+            for (float rad : { 0.18f, 0.34f })
+                w.addCentredArc(0.54f, 0.5f, rad, rad, 0.0f, juce::MathConstants<float>::pi * 0.22f,
+                                juce::MathConstants<float>::pi * 0.78f, true);
+        } else {
+            w.startNewSubPath(0.66f, 0.34f);
+            w.lineTo(0.96f, 0.66f);
+            w.startNewSubPath(0.66f, 0.66f);
+            w.lineTo(0.96f, 0.34f);
+        }
+        g.strokePath(put(w), stroke);
+        break;
+    }
+    case Icon::Dice: {
+        // A die showing five.
+        p.addRoundedRectangle(0.06f, 0.06f, 0.88f, 0.88f, 0.2f);
+        g.strokePath(put(p), stroke);
+        juce::Path pips;
+        for (const auto& c : { juce::Point<float>(0.31f, 0.31f), { 0.69f, 0.31f }, { 0.5f, 0.5f }, { 0.31f, 0.69f }, { 0.69f, 0.69f } })
+            pips.addEllipse(c.x - 0.085f, c.y - 0.085f, 0.17f, 0.17f);
+        g.fillPath(put(pips));
+        break;
+    }
+    case Icon::Save: {
+        // A disk: the case with its corner cut, the shutter, the label.
+        p.startNewSubPath(0.08f, 0.08f);
+        p.lineTo(0.72f, 0.08f);
+        p.lineTo(0.92f, 0.28f);
+        p.lineTo(0.92f, 0.92f);
+        p.lineTo(0.08f, 0.92f);
+        p.closeSubPath();
+        p.addRectangle(0.26f, 0.58f, 0.48f, 0.34f);
+        g.strokePath(put(p), stroke);
+        juce::Path shutter;
+        shutter.addRectangle(0.28f, 0.08f, 0.34f, 0.24f);
+        g.fillPath(put(shutter));
+        break;
+    }
+    case Icon::Open:
+        // A folder, its flap open.
+        p.startNewSubPath(0.04f, 0.18f);
+        p.lineTo(0.36f, 0.18f);
+        p.lineTo(0.46f, 0.3f);
+        p.lineTo(0.92f, 0.3f);
+        p.lineTo(0.92f, 0.86f);
+        p.lineTo(0.04f, 0.86f);
+        p.closeSubPath();
+        p.startNewSubPath(0.04f, 0.44f);
+        p.lineTo(0.92f, 0.44f);
+        g.strokePath(put(p), stroke);
+        break;
+    case Icon::MidiLearn: {
+        // A MIDI socket: the ring, five pins on an arc, the notch at the bottom.
+        p.addEllipse(0.04f, 0.04f, 0.92f, 0.92f);
+        g.strokePath(put(p), stroke);
+        juce::Path pins;
+        for (int i = 0; i < 5; ++i) {
+            const float a = juce::MathConstants<float>::pi * (static_cast<float>(i) - 2.0f) * 0.25f;
+            const float x = 0.5f + 0.26f * std::sin(a), y = 0.54f - 0.26f * std::cos(a);
+            pins.addEllipse(x - 0.065f, y - 0.065f, 0.13f, 0.13f);
+        }
+        pins.addRectangle(0.42f, 0.8f, 0.16f, 0.12f);
+        g.fillPath(put(pins));
+        break;
+    }
+    default:
+        break;
     }
 }
 
@@ -477,8 +584,8 @@ void layoutHeader(juce::Rectangle<int>& area, const Header& h)
 {
     // The first row: who, what, how long -- then make, play, silence. What does not fit squeezes the length slider.
     auto top = area.removeFromTop(kHeaderRow);
-    if (h.mute != nullptr) h.mute->setBounds(top.removeFromRight(68).reduced(3));
-    if (h.play != nullptr) h.play->setBounds(top.removeFromRight(66).reduced(3));
+    if (h.mute != nullptr) h.mute->setBounds(top.removeFromRight(kIconWidth).reduced(3));   // icons since 03.10.2026
+    if (h.play != nullptr) h.play->setBounds(top.removeFromRight(kIconWidth).reduced(3));
     for (auto it = h.actions.rbegin(); it != h.actions.rend(); ++it)
         it->first->setBounds(top.removeFromRight(it->second > 0 ? it->second : 96).reduced(3));
     top.removeFromRight(6);

@@ -24,8 +24,9 @@ PerformPage::PerformPage(EphemerisProcessor& p, std::unique_ptr<ParamPage> param
         auto* label = bindings_.add(new juce::Label());
         label->setColour(juce::Label::textColourId, kInk);
         addAndMakeVisible(label);
-        auto* button = learn_.add(new juce::TextButton("Learn"));
-        button->setTooltip("Binds the next MIDI controller that moves to " + juce::String(s.desc(id).name));
+        auto* button = learn_.add(new frame::IconButton(frame::IconButton::Icon::MidiLearn, "MIDI learn: binds the next controller that moves to "
+                                                                                     + juce::String(s.desc(id).name)));
+        button->setColour(juce::TextButton::buttonOnColourId, kAccent.withAlpha(0.45f));
         button->onClick = [this, id] { proc_.learn(proc_.learning() == id ? -1 : id); timerCallback(); };
         addAndMakeVisible(button);
     }
@@ -53,7 +54,10 @@ void PerformPage::timerCallback()
         if (id == s.id(Module::Perform, 0, perform::Transpose)) text << "  (and the keys)";
         bindings_[static_cast<int>(i)]->setText(text, juce::dontSendNotification);
         bindings_[static_cast<int>(i)]->setColour(juce::Label::textColourId, learning ? kAccent : kInk);
-        learn_[static_cast<int>(i)]->setButtonText(learning ? "Cancel" : "Learn");
+        learn_[static_cast<int>(i)]->setToggleState(learning, juce::dontSendNotification);
+        learn_[static_cast<int>(i)]->show(frame::IconButton::Icon::MidiLearn, learning ? juce::String("Cancel: bind nothing")
+                                                                           : "MIDI learn: binds the next controller that moves to "
+                                                                                 + juce::String(s.desc(id).name));
     }
 }
 
@@ -66,7 +70,7 @@ void PerformPage::resized()
     r = r.reduced(16, 0);
     for (int i = 0; i < bindings_.size(); ++i) {
         auto row = r.removeFromTop(30);
-        learn_[i]->setBounds(row.removeFromLeft(90).reduced(0, 3));
+        learn_[i]->setBounds(row.removeFromLeft(frame::kIconWidth).reduced(3));
         row.removeFromLeft(12);
         bindings_[i]->setBounds(row.withWidth(std::min(row.getWidth(), 420)));
     }

@@ -53,8 +53,8 @@ Morph To (on the Master page) a concert also wanders from its style to another: 
 between the two, the further into the concert the nearer the second. Concert Arc gives a concert an arc
 of tension: its first and last pieces quieter -- fewer rows at the peak, the lead and the drums rarer, the
 moves slower, the sound a little darker -- and the pieces around 60 % of the way the densest.
-Compose writes it with the current seed, New seed draws another one, Play starts and stops the
-standalone (in a host the host's transport plays), Mute silences it. Undo, Redo, Help and the settings are at the
+Compose writes it with the current seed, the die draws another one, Play (the triangle, a square while it plays)
+starts and stops the standalone (in a host the host's transport plays), the speaker silences it. Undo, Redo, Help and the settings are at the
 right of the row below (The panel).
 
 A night set (up to twelve hours) is played as a DJ plays one. The pieces last
@@ -88,7 +88,7 @@ third, and take a minor mode of its own, as the parts of a suite do.
 
 The reroll buttons (on the Arrange page) draw one part of the piece again and leave everything else as it was, to
 the note: the form, the tempo, the rows' shapes, the rack's patterns, the layers, the lead, the chords and pads, the
-moves on the knobs, and the sounds. Save set and Load set (on the Export page) keep a piece as a small text file;
+moves on the knobs, and the sounds. The disk and the folder on the Export page save and load a piece as a small text file;
 Export writes the piece offline as a 24-bit WAV and a MIDI file beside it, with the moves as controllers -- and, if
 you choose so, the stems: a WAV per channel strip and one for the rooms in a folder beside the mix, whose sum is the
 mix before the master.
@@ -128,10 +128,12 @@ Ephemeris shares its panel with the other generators of the family -- Phosphene,
 on the others: the same places, the same keys, the same controllers, the same hands. Each keeps its own colours, its
 own letters and the picture behind its panel (Settings > Picture behind the panel takes it away).
 
-The header's first row: the logo, the style, the key and the scale, what is composed and its length, Compose, New
-seed, Play and Mute. Its second row: the status line, and at the right Undo, Redo, Help and the settings.
+The header's first row: the logo, the style, the key and the scale, what is composed and its length, Compose, the
+die (a new seed), Play and the speaker (mute). Its second row: the status line, and at the right Undo, Redo, Help and the settings.
 Under the header the whole piece, concert or night set at a glance; a click jumps there. The tabs come in one order everywhere: Set,
 Arrange, the instrument's own pages -- a page of several has small tabs of its own --, Mixer, Perform, Export, Style.
+
+The unambiguous actions are icons since 03.10.2026, their words in the tooltips: the die draws a new seed, the triangle plays and the square stops, the speaker mutes (crossed out while muted), the disk saves and the folder loads, the MIDI socket learns a controller (Perform).
 
 A page taller than the window shows its groups in sections, one at a time, with a switch at its top right: a synth's
 sound and its modulation apart (Sound, Modulation), and where even those do not fit, cut further, each named after its
@@ -236,7 +238,7 @@ a phrase.
 A MIDI keyboard plays the transposition key directly: a key transposes by its distance from middle C
 and holds until the next key, as the transposer of a sequencer did. Controller 74 (brightness) grabs the
 filters, the expression pedal (11) throws the echo, the sustain pedal (64) holds the moves -- the same controllers
-in every generator of the family. Learn binds any controller to any of the four; the bindings are saved with the
+in every generator of the family. The MIDI socket beside each binds any controller to it; the bindings are saved with the
 plugin's state. While a headset sends its hands, a box beside the controls shows what they do (The panel).
 
 The keyboard (the Keyboard group): Keyboard Plays sends the keys of a MIDI keyboard to a voice instead of the
@@ -348,7 +350,7 @@ atmosphere -- has 1024 factory presets above its knobs, in sixteen groups of six
 "Glass Arp", "Cathedral Choir", "Slow Swell", "Solar Wind" ...); the arrows step through them. Each name is
 two words: the first runs from dark to bright ("Umbral" ... "Radiant"), the second is the group's own, so
 "Umbral Keel" is the darkest and "Radiant Piston" the brightest of the ladder basses. On the voices page a
-preset goes to the row chosen on the left. Save... keeps the synth's knobs as they stand under a name of
+preset goes to the row chosen on the left. The disk keeps the synth's knobs as they stand under a name of
 your own (a small text file in the application data, Ephemeris/Presets); they appear under "User". All rows,
 on the voices page, sends a preset to every row at once. The effect pages (Echo + Spring, Hall) keep presets
 of your own too, each the whole page -- all its rooms -- as it stands. A preset sets the sound, never the mix: level, pan, the sends,
@@ -731,8 +733,8 @@ when its sound is heard, not when it is composed.
 == Export | cue | 16 ==
 
 What leaves the instrument, in one place, as every generator of the family has it: Export writes what plays as a
-24-bit WAV and a MIDI file beside it, Export with stems adds a WAV per channel strip and one for the rooms, Save set
-and Load set keep a piece as a small .ephset file (the seed, the lengths, the rerolls and every changed knob). The
+24-bit WAV and a MIDI file beside it, Export with stems adds a WAV per channel strip and one for the rooms, the disk
+and the folder save and load a piece as a small .ephset file (the seed, the lengths, the rerolls and every changed knob). The
 score cues tell a visualiser such as Kaleidoscope over OSC what the score knows, at the moment it is heard.
 
 == Style | custom | 17 ==

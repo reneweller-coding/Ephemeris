@@ -19,6 +19,11 @@ a leader that falls silent for four seconds leaves its followers to themselves.
 02.10.2026) -- Totality's blocks and keys, Parhelion's sections, Ephemeris' phases, Phosphene's sections and drops,
 Noctuary's bars, keys and scenes -- and cuts its pictures to them, on a drop at once.
 
+**Icons where the action is unambiguous.** The die (a new seed), Play and Stop, the speaker (mute, crossed out while
+muted), the disk and the folder (a set saved and loaded, a sound saved as a preset) and the MIDI socket (learn a
+controller) are vector glyphs now, sharp at every window size, their words in the tooltips; everything else keeps its
+name.
+
 **Behind the panel.** A test of the follower's engine (`testJam`): the transposition note for note, the drums as
 written, the break without its foundation. The jam's bus (Plugin/Jam.h) is the same file in all five repositories.
 

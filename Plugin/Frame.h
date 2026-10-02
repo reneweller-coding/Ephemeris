@@ -167,21 +167,62 @@ public:
     int bestWidth() const;
 };
 
-/** @brief A small button with a drawn glyph (no font needed): undo, redo, help, settings, the ratings, play, stop. */
+/**
+ * @brief A small button with a drawn glyph (no font needed; a vector, sharp at every window size): the tools, the
+ *        ratings, the transport and the files. Its words are its tooltip (and its name, for a screen reader) -- since
+ *        03.10.2026 every unambiguous action of the family's panels is such a button.
+ */
 class IconButton final : public juce::Button {
 public:
     /** @brief The glyphs it can draw. */
-    enum class Icon { Undo, Redo, Help, Settings, ThumbUp, ThumbDown, Headset };
+    enum class Icon {
+        Undo,         ///< an arrow turning back
+        Redo,         ///< an arrow turning on
+        Help,         ///< a question mark
+        Settings,     ///< a cog
+        ThumbUp,      ///< a raised thumb: I like this
+        ThumbDown,    ///< a lowered thumb: not this
+        Headset,      ///< a visor: the Meta Quest
+        Play,         ///< a triangle: start
+        Stop,         ///< a square: stop
+        Record,       ///< a red disc: record the output
+        Speaker,      ///< a speaker sounding: the output on (pressed, it mutes)
+        SpeakerOff,   ///< a speaker crossed out: the output muted
+        Dice,         ///< a die showing five: a new seed
+        Save,         ///< a disk: save to a file
+        Open,         ///< a folder: load from a file
+        MidiLearn     ///< a MIDI socket: bind the next controller that moves
+    };
     /** @brief A button with glyph @p icon and @p tooltip; it never takes the keyboard focus. */
     IconButton(Icon icon, const juce::String& tooltip);
-    /** @brief Draws another glyph from now on (a play button that becomes a stop button). */
-    void setIcon(Icon icon) { icon_ = icon; repaint(); }
+    /** @brief Draws another glyph from now on (a play button that becomes a stop button); repaints only on a change. */
+    void setIcon(Icon icon)
+    {
+        if (icon == icon_) return;
+        icon_ = icon;
+        repaint();
+    }
+    /** @brief Draws @p icon and says @p tooltip from now on; nothing happens when both are as they were (a timer may
+     *         call it every tick). */
+    void show(Icon icon, const juce::String& tooltip)
+    {
+        setIcon(icon);
+        if (getTooltip() != tooltip) setTooltip(tooltip);
+    }
+    /** @brief The glyph it draws. */
+    Icon icon() const { return icon_; }
     /** @brief Draws the button's background as the look and feel draws a button, the glyph on it. */
     void paintButton(juce::Graphics& g, bool highlighted, bool down) override;
 
 private:
+    /** @brief Draws the glyphs from Play on into the square @p r, in @p ink, lines with @p stroke. */
+    void paintGlyph(juce::Graphics& g, juce::Rectangle<float> r, juce::Colour ink, const juce::PathStrokeType& stroke) const;
+
     Icon icon_;   ///< the glyph drawn
 };
+
+/** @brief The width of an icon button in a header row, its margins included (Play, Mute, the die ...). */
+constexpr int kIconWidth = 42;
 
 // ========================================================================================================== header
 

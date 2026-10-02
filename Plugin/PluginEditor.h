@@ -86,7 +86,7 @@ private:
     juce::ComboBox preset_;   ///< the presets in their groups, then the user's
     juce::TextButton prev_ { "<" };   ///< the preset before
     juce::TextButton next_ { ">" };   ///< the preset after
-    juce::TextButton save_ { "Save..." };   ///< saves the page as a user preset
+    frame::IconButton save_ { frame::IconButton::Icon::Save, "Save the sound as a preset of your own" };   ///< saves the page as a user preset: a disk
     std::vector<eph::SoundPreset> user_;   ///< the user's presets of the synth (ids from 5001 in the list)
     std::unique_ptr<juce::AlertWindow> nameDialog_;   ///< the user preset's name dialog while it is open
     juce::ToggleButton allRows_ { "All rows" };   ///< on a page with instances: a preset goes to every one
@@ -264,8 +264,8 @@ private:
     EphemerisProcessor& proc_;   ///< the processor: the export, the set file
     juce::TextButton wav_{ "WAV + MIDI" };   ///< exports the WAV and the MIDI
     juce::TextButton stems_{ "... with stems" };   ///< ... and the stems
-    juce::TextButton save_{ "Save .ephset" };   ///< saves the set (Ctrl+S)
-    juce::TextButton load_{ "Load .ephset" };   ///< loads a set (Ctrl+O)
+    frame::IconButton save_{ frame::IconButton::Icon::Save, "Save the set (Ctrl+S)" };   ///< saves the set (Ctrl+S): a disk
+    frame::IconButton load_{ frame::IconButton::Icon::Open, "Load a set (Ctrl+O)" };   ///< loads a set (Ctrl+O): a folder
     juce::Label status_;   ///< the export's progress and result
     std::unique_ptr<ParamPage> cue_;   ///< the OSC cues' settings
     std::unique_ptr<juce::FileChooser> chooser_;   ///< the file dialog while it is open
@@ -340,9 +340,9 @@ private:
     int lengthKind_ = -1;                              ///< what the slider shows (0: compose.piece_minutes, else concert_minutes)
     bool syncing_ = false;                             ///< the slider is set from its parameter, not by a hand
     juce::TextButton compose_{ "Compose piece" };   ///< composes a piece, a concert or a night set
-    juce::TextButton seed_{ "New seed" };   ///< a new seed, then composes
-    juce::TextButton play_{ "Play" };   ///< play and stop
-    juce::TextButton mute_{ "Mute" };   ///< mutes the output
+    frame::IconButton seed_{ frame::IconButton::Icon::Dice, "New seed" };   ///< a new seed, then composes: a die
+    frame::IconButton play_{ frame::IconButton::Icon::Play, "Play (Space)" };   ///< play and stop: a triangle, a square
+    frame::IconButton mute_{ frame::IconButton::Icon::Speaker, "Silence the output" };   ///< mutes the output: a speaker, crossed out when muted
     std::vector<std::unique_ptr<juce::ComboBoxParameterAttachment>> combos_;   ///< the header's menus on their parameters
     ArrangeView arrange_;   ///< the arrange strip on top
     juce::TabbedComponent tabs_{ juce::TabbedButtonBar::TabsAtTop };   ///< the pages

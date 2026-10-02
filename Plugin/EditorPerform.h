@@ -31,7 +31,7 @@ private:
     std::unique_ptr<ParamPage> params_;       ///< the perform module's controls
     int controlsHeight_ = 150;                ///< the height the controls took at the last layout
     juce::OwnedArray<juce::Label> bindings_;  ///< "Filter: CC 1", one per control
-    juce::OwnedArray<juce::TextButton> learn_;   ///< one per control
+    juce::OwnedArray<frame::IconButton> learn_;   ///< one per control: a MIDI socket, lit while it learns
     std::vector<int> ids_;                    ///< the store ids of the controls
     bool headset_ = false;                    ///< the headset's box is shown (the frame)
     juce::Rectangle<int> headsetArea_;        ///< where it is drawn
