@@ -43,6 +43,29 @@ def shot(exe, page, path, full, extra=None):
     print("%-14s %s" % (name, os.path.relpath(path, ROOT)))
 
 
+def check_distinct(out):
+    """Exits when two small tabs of one tab came out as the same page (02.10.2026).
+
+    A small tab the screenshot mode did not reach leaves the page before it in front, and its picture is that page
+    again (01.10.2026: the Mixer's "Buses and Master" and "Decks" showed the Console). The pages of one synth module
+    look alike by design, so the check reads the row of small tabs, where the lit one moves: measured in the band
+    y 200..270, a missed small tab differs from the page before it in 0 to 109 pixels (by more than 24 levels), two
+    different small tabs in 4091 to 6007. Under 1000 is the same small tab.
+    """
+    from PIL import Image, ImageChops
+    same = []
+    for i in range(len(PAGES)):
+        for j in range(i + 1, len(PAGES)):
+            if PAGES[i][2] is None or PAGES[i][1] != PAGES[j][1]:
+                continue
+            a, b = (Image.open(os.path.join(out, "tab_%02d.png" % k)).convert("L").crop((0, 200, 1280, 270)) for k in (i, j))
+            if sum(ImageChops.difference(a, b).histogram()[25:]) < 1000:
+                same.append("%s (tab_%02d) and %s (tab_%02d)" % (PAGES[i][0], i, PAGES[j][0], j))
+    if same:
+        sys.exit("the same small tab twice: " + "; ".join(same))
+    print("every small tab its own picture")
+
+
 def main():
     exe = sys.argv[1] if len(sys.argv) > 1 else os.path.join(ROOT, "bin", "msvc", "Ephemeris.exe")
     out = os.path.join(ROOT, "docs", "screenshots")
@@ -52,6 +75,7 @@ def main():
     shot(exe, RACK, os.path.join(out, "concert.png"), False, {"EPH_SETS": "compose.concert_minutes=60", "EPH_SHOT_AT": "900"})
     shot(exe, RACK, os.path.join(out, "zoom.png"), False, {"EPH_SHOT_ZOOM": "360:520"})
     shot(exe, RACK, os.path.join(ROOT, "docs", "screenshot.png"), False)
+    check_distinct(out)
 
 
 if __name__ == "__main__":
