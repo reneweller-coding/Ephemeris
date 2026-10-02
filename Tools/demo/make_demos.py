@@ -4,7 +4,8 @@
     python Tools/demo/make_demos.py --publish
 
 Every demo below is rendered with the instrument's own renderer into work/demos/ and encoded as an MP3 (ffmpeg, LAME
-VBR around 190 kbit/s, title and style in the tags, a short fade at the end). The demo marked VIDEO is also rendered
+VBR around 190 kbit/s, title and style in the tags, a short fade at the end, and just enough less gain to keep
+the encoded true peak at -1 dBTP). The demo marked VIDEO is also rendered
 through KaleidoscopeEnhanced (github.com/reneweller-coding/KaleidoscopeEnhanced): its batch mode (-x) records the
 visualizer to that WAV, and its score cues (-k) -- the bars, the sections, the drops and the key, written here from
 what the renderer knows about the track -- put the cuts on the music instead of guessing them. The recording is then
@@ -70,6 +71,13 @@ def ffmpeg():
     return exe
 
 
+def aac():
+    """The AAC encoder for the video's sound: Windows' own (aac_mf) where ffmpeg has it -- ffmpeg's native one lets a
+    dense master, Phosphene's at -9 LUFS, overshoot by 4 dB --, else the native one."""
+    p = subprocess.run([ffmpeg(), '-hide_banner', '-encoders'], capture_output=True, text=True, errors='replace')
+    return ['-c:a', 'aac_mf', '-b:a', '256000'] if ' aac_mf ' in p.stdout else ['-c:a', 'aac', '-b:a', '256k']
+
+
 def renderer(given):
     """The renderer: --exe, else the newest bin/<preset>/RENDER.exe of this checkout."""
     if given:
@@ -102,9 +110,19 @@ def wav_seconds(path):
     return 0.0
 
 
-def fades(seconds):
-    """The fades of a demo: in over FADE_IN seconds (if any), out over the last eight."""
-    out = []
+def headroom(wav):
+    """The gain in dB (never above 0) that would bring a file's true peak down to -1 dBTP."""
+    p = subprocess.run([ffmpeg(), '-hide_banner', '-nostats', '-i', wav, '-af', 'ebur128=peak=true', '-f', 'null', '-'],
+                       capture_output=True, text=True, errors='replace')
+    peaks = re.findall(r'Peak:\s+(-?[\d.]+|-inf) dBFS', p.stderr)
+    if not peaks or peaks[-1] == '-inf':
+        return 0.0
+    return min(0.0, -1.0 - float(peaks[-1]))
+
+
+def fades(seconds, gain=0.0):
+    """The fades of a demo: in over FADE_IN seconds (if any), out over the last eight; and its headroom."""
+    out = ['volume=%.2fdB' % gain] if gain < 0.0 else []
     if FADE_IN > 0:
         out.append('afade=t=in:d=%.1f' % FADE_IN)
     out.append('afade=t=out:st=%.3f:d=8' % max(0.0, seconds - 8.0))
@@ -255,20 +273,28 @@ def render(exe, name, args):
 
 
 def mp3(wav, name, title):
-    """The MP3 of a demo, with its tags and its fades."""
+    """The MP3 of a demo, with its tags and its fades; encoded a second time a little quieter when the first one's
+    true peak came out above -1 dBTP (an encoder overshoots a master that ends at -1). Returns the gain it took."""
     out = os.path.join(OUT, name + '.mp3')
     seconds = wav_seconds(wav)
-    subprocess.run([ffmpeg(), '-v', 'error', '-y', '-i', wav, '-af', fades(seconds), '-c:a', 'libmp3lame', '-q:a', '2',
-                    '-metadata', 'title=%s (%s demo)' % (title, NAME), '-metadata', 'artist=' + NAME,
-                    '-metadata', 'album=%s demos' % NAME, '-metadata', 'genre=' + GENRE,
-                    '-metadata', 'comment=Rendered by %s; github.com/reneweller-coding/%s' % (RENDER, NAME), out],
-                   check=True)
-    print('  mp3 %s (%.0f s)' % (out, seconds), flush=True)
-    return out
+    gain = 0.0
+    for _ in range(2):
+        subprocess.run([ffmpeg(), '-v', 'error', '-y', '-i', wav, '-af', fades(seconds, gain), '-c:a', 'libmp3lame',
+                        '-q:a', '2', '-metadata', 'title=%s (%s demo)' % (title, NAME), '-metadata', 'artist=' + NAME,
+                        '-metadata', 'album=%s demos' % NAME, '-metadata', 'genre=' + GENRE,
+                        '-metadata', 'comment=Rendered by %s; github.com/reneweller-coding/%s' % (RENDER, NAME), out],
+                       check=True)
+        more = headroom(out)
+        if more >= 0.0:
+            break
+        gain += more - 0.2
+    print('  mp3 %s (%.0f s, %.1f dB)' % (out, seconds, gain), flush=True)
+    return gain
 
 
-def video(wav, name, title, config, kaleido, stdout):
-    """The video of a demo: the cues, the batch render in KaleidoscopeEnhanced, the web encode, the poster."""
+def video(wav, name, title, config, kaleido, stdout, gain=0.0):
+    """The video of a demo: the cues, the batch render in KaleidoscopeEnhanced, the web encode, the poster; its sound
+    with the MP3's gain."""
     seconds = wav_seconds(wav)
     tsv = os.path.join(OUT, name + '.cues.tsv')
     cues = {'rekordbox': lambda: cues_rekordbox(wav, seconds),
@@ -279,7 +305,7 @@ def video(wav, name, title, config, kaleido, stdout):
 
     # Kaleidoscope reads 16-bit PCM; the fades go in here, so the video sounds like the MP3.
     pcm = os.path.join(OUT, name + '.video.wav')
-    subprocess.run([ffmpeg(), '-v', 'error', '-y', '-i', wav, '-af', fades(seconds), '-c:a', 'pcm_s16le', '-ar', '48000',
+    subprocess.run([ffmpeg(), '-v', 'error', '-y', '-i', wav, '-af', fades(seconds, gain), '-c:a', 'pcm_s16le', '-ar', '48000',
                     '-ac', '2', pcm], check=True)
 
     bindir = os.path.join(kaleido, 'bin')
@@ -314,7 +340,7 @@ def video(wav, name, title, config, kaleido, stdout):
     out = os.path.join(OUT, name + '.mp4')
     subprocess.run([ffmpeg(), '-v', 'error', '-y', '-i', os.path.join(rec, 'video.mp4'), '-i', os.path.join(rec, 'audio.wav'),
                     '-map', '0:v:0', '-map', '1:a:0', '-vf', "scale='min(1920,iw)':-2", '-c:v', 'libx264',
-                    '-preset', 'slow', '-crf', '23', '-pix_fmt', 'yuv420p', '-c:a', 'aac', '-b:a', '256k', '-shortest',
+                    '-preset', 'slow', '-crf', '23', '-maxrate', '6M', '-bufsize', '12M', '-pix_fmt', 'yuv420p'] + aac() + ['-shortest',
                     '-movflags', '+faststart', '-metadata', 'title=%s (%s demo)' % (title, NAME),
                     '-metadata', 'artist=' + NAME, '-metadata',
                     'comment=Music by %s, pictures by KaleidoscopeEnhanced (%s)' % (NAME, config), out], check=True)
@@ -375,9 +401,9 @@ def main():
         if a.only and name not in a.only:
             continue
         wav, stdout = render(exe, name, args)
-        mp3(wav, name, title)
+        gain = mp3(wav, name, title)
         if want_video and name == VIDEO[0]:
-            video(wav, name, title, VIDEO[1], a.kaleidoscope, stdout)
+            video(wav, name, title, VIDEO[1], a.kaleidoscope, stdout, gain)
 
 
 if __name__ == '__main__':
