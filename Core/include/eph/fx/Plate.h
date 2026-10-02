@@ -14,6 +14,7 @@
  * takes 0.716 s and passes the gain four times, so gain = 0.001^(0.179 / T60).
  */
 #pragma once
+#include <cstddef>
 #include <cstdint>
 #include <vector>
 
