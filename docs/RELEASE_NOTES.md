@@ -31,6 +31,11 @@ before anybody listens. A CI run on every push (GitHub Actions: the build and th
 check on Linux) that nobody waits for. One release script for the family (`Deploy/publish_release.ps1`: the notes from
 this file, the checksums, the tag, the release).
 
+**On Linux** (the same evening, attached to the release afterwards): an archive for x86-64 with the
+standalone, the VST3 and the renderer, built by the workflow `linux` on GitHub's Ubuntu 22.04 runners
+(GCC 12), its quick tests run there, and tried under WSL: the window, and the sound check against the
+Windows renders.
+
 ## 1.1.0 (01.10.2026): the family's panel
 
 **Play it yourself.** A Keyboard group on the Perform page: Keyboard Plays sends the keys of a MIDI keyboard to a voice

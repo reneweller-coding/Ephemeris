@@ -773,6 +773,11 @@ On a Mac: every release has a build for Apple Silicon (macOS 12 or newer), the s
 tested on GitHub's machines. It is signed ad hoc, not notarized: macOS asks once (README-macOS.txt in the zip says
 how), and it has not yet been played on a real Mac -- reports are welcome.
 
+On Linux: every release has an archive for x86-64 (glibc 2.35 or newer: Ubuntu 22.04, Debian 12, Fedora 36 and later)
+with the standalone, the VST3 and the renderer, built and tested on GitHub's Ubuntu machines and tried under WSL.
+README-Linux.txt in it says where everything goes: the VST3 into ~/.vst3, the standalone started where it lies, sound
+through ALSA or JACK (PipeWire serves both).
+
 Demos: the release "demos" holds a track per style as an MP3 and one of them as a video, with pictures by
 KaleidoscopeEnhanced cut to the track's own score cues; Tools/demo/make_demos.py makes them all again (eph_render).
 
