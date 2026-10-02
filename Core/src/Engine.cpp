@@ -219,6 +219,7 @@ VoiceSettings Engine::voiceSettings(Module m, int instance, bool vibrato) const
     if (m == Module::Voice) {
         const float grab = played(params_.id(Module::Perform, 0, perform::Filter));
         if (grab != 0.0f) s.cutoffHz *= std::exp2(grab);
+        else if (std::fabs(jamOctaves_) > 0.01f) s.cutoffHz *= std::exp2(jamOctaves_);   // the family jam's energy
     }
     s.resonance = v(voice::Resonance);
     s.envOctaves = v(voice::EnvAmount);
@@ -373,7 +374,13 @@ void Engine::updateCell()
         t.cursor = c;
         t.offset = c == none ? 0.0f : gestureValue(t.gestures[c], beat);
     }
-    transpose_ = static_cast<int>(std::lround(knob(Module::Perform, perform::Transpose)));
+    transpose_ = static_cast<int>(std::lround(knob(Module::Perform, perform::Transpose))) + jamTranspose_;
+    // The family jam (02.10.2026): the leader's energy on the rows' filters -- open at full energy, an octave and a half
+    // down at 0.3 --, gliding over half a second.
+    {
+        const float target = jamEnergy_ >= 0.0f ? (std::clamp(jamEnergy_, 0.0f, 1.0f) - 1.0f) * 2.0f : 0.0f;
+        jamOctaves_ += (target - jamOctaves_) * (1.0f - std::exp(-static_cast<float>(kCell) / (0.5f * static_cast<float>(sampleRate_))));
+    }
     // The keyboard (live play only, 01.10.2026): what it plays, whether that replaces the composer's notes, whether the
     // composer plays at all.
     keyTarget_ = live_ ? params_.getInt(params_.id(Module::Perform, 0, perform::KeyboardPart)) : perform::keys::Off;
@@ -1087,6 +1094,7 @@ void Engine::seek(double beat)
 void Engine::dispatch(const Ev& e)
 {
     if (e.on && !liveEvent_ && silenced(e.source)) return;   // the keyboard's or nobody's (01.10.2026)
+    if (e.on && !liveEvent_ && jamDrumsOut_ && e.source == kSrcDrums) return;   // the family jam: the leader's break
     // MIDI out (02.10.2026): the composer's notes as they are played, transposed as they are heard; an off goes out
     // with the pitch its on had, and only when that on went out.
     if (noteTap_ != nullptr && !liveEvent_ && static_cast<size_t>(e.id) < tapPitch_.size()) {

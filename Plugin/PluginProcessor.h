@@ -37,6 +37,7 @@
 #include "eph/SetFile.h"
 #include "Frame.h"
 #include "LinkClock.h"
+#include "Jam.h"
 #include <juce_audio_processors/juce_audio_processors.h>
 #include <juce_audio_utils/juce_audio_utils.h>
 #include <array>
@@ -101,6 +102,8 @@ public:
     bool isPlaying() const { return playing_.load(); }   ///< whether the standalone plays
     /** @brief The standalone's Ableton Link, as the settings menu says it: off, alone, or how many apps are with it. */
     juce::String linkStatus() const;
+    /** @brief The family jam, as the settings menu says it (Jam.h): off, leading, or whom it follows. */
+    juce::String jamStatus() const { return jam_.status(); }
     void seekTo(double beat) { seekRequest_ = beat; }    ///< jump to @p beat at the next block
     double positionBeats() const { return position_.load(); }   ///< where the audio thread is, in beats
     /** @brief Counts the scores the engine has loaded: a display compares it to know when to copy again. */
@@ -313,6 +316,24 @@ private:
     // Ableton Link in the standalone (02.10.2026, LinkClock.h; Settings > Ableton Link).
     frame::LinkClock link_;                          ///< the session (joined on the timer when the setting is on)
     std::atomic<bool> linkFollowing_{ false };       ///< other apps are in the session: it rules tempo and phase as a host does
+    double linkBeat_ = -1.0;                         ///< audio thread: the session's beat at this block (the jam's timeline)
+    // The family jam (02.10.2026, Jam.h; Settings > Family jam).
+    /** @brief Audio thread: as the jam's leader, the phases and roots of the coming beat go out, stamped with their bar. */
+    void jamLead(double before, double after, double shared);
+    /** @brief Audio thread: as a follower, the engine takes the leader's root (on a bar line), energy and breaks. */
+    void jamFollow(double before, double shared);
+    /** @brief Which of compose.scale's values a mode named @p mode is (-1: none of them). */
+    static int scaleOfMode(const juce::String& mode);
+    frame::JamBus jam_ { "Ephemeris" };              ///< the family jam's bus
+    bool jamLeadStarted_ = false;                    ///< audio thread: the leader has said where it stands
+    double jamLeadLast_ = -1.0;                      ///< audio thread: where the leader's last block ended (a jump)
+    double jamLastBefore_ = -1.0;                    ///< audio thread: the previous block's start (its length in beats)
+    int jamTranspose_ = 0;                           ///< audio thread: the transposition the engine plays now
+    std::atomic<int> jamTransposeOut_ { 0 };         ///< the same, for the message thread
+    bool jamFollowing_ = false;                      ///< audio thread: the engine follows the jam (setJam was called)
+    std::atomic<int> jamComposeKey_ { -1 };         ///< a follower's next piece: the leader's root (-1: its own key)
+    std::atomic<int> jamComposeScale_ { -1 };       ///< and its mode as compose.scale (-1: its own)
+    juce::String jamLogged_;                         ///< the last line written to FAMILY_JAM_LOG
     bool linkPlayed_ = false;                        ///< audio thread: the transport last told to or taken from the session
     /** @brief Whether a clock outside rules the tempo: a host's playhead, or a Link session with other apps in it. */
     bool followsClock() const { return wrapperType != wrapperType_Standalone || linkFollowing_.load(std::memory_order_relaxed); }

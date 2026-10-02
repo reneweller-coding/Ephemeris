@@ -5,6 +5,7 @@
 #include "Frame.h"
 #include <cmath>
 #include <cstdlib>
+#include <cstring>
 #include <array>
 #include <algorithm>
 #include <map>
@@ -664,6 +665,8 @@ int Settings::cuePort() const
 
 Settings::JamRole Settings::jamRole() const
 {
+    // FAMILY_JAM=lead|follow sets the role for one process (a test aid, as FAMILY_LINK is Link's).
+    if (const char* e = std::getenv("FAMILY_JAM")) return std::strcmp(e, "lead") == 0 ? JamRole::Lead : JamRole::Follow;
     const int r = file_->getIntValue("jam", 0);
     return r == 1 ? JamRole::Lead : r == 2 ? JamRole::Follow : JamRole::Off;
 }

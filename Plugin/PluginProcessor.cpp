@@ -4,6 +4,7 @@
  */
 #include "PluginProcessor.h"
 #include "eph/Leveler.h"
+#include <cstring>
 #include <map>
 #include <tuple>
 #include "PluginEditor.h"
@@ -150,6 +151,10 @@ Score EphemerisProcessor::composeNow(ParamStore& snapshot)
     }
     const double concert = snapshot.get(snapshot.id(Module::Compose, 0, compose::ConcertMinutes));
     const double minutes = snapshot.get(snapshot.id(Module::Compose, 0, compose::PieceMinutes));
+    if (const int k = jamComposeKey_.load(); k >= 0) {   // following the family jam: the leader's key and mode
+        snapshot.set(snapshot.id(Module::Compose, 0, compose::Key), static_cast<float>(k));
+        if (const int sc = jamComposeScale_.load(); sc >= 0) snapshot.set(snapshot.id(Module::Compose, 0, compose::Scale), static_cast<float>(sc));
+    }
     return concert > 0.0 ? composeConcert(snapshot, seed, concert, &cur) : composePiece(snapshot, seed, minutes, 0, &cur);
 }
 
@@ -310,6 +315,24 @@ void EphemerisProcessor::timerCallback()
     link_.setEnabled(wrapperType == wrapperType_Standalone && (frame::Settings::of("Ephemeris").link() || frame::LinkClock::forcedOn()));
     link_.tick();
     if (!link_.enabled()) linkFollowing_ = false;
+    // The family jam (02.10.2026, Jam.h): the role from the settings; a follower composes its next piece in the
+    // leader's key and mode.
+    jam_.setRole(frame::Settings::of("Ephemeris").jamRole());
+    if (jam_.role() == frame::Settings::JamRole::Follow && jam_.leaderRoot() >= 0) {
+        jamComposeKey_ = jam_.leaderRoot();
+        jamComposeScale_ = scaleOfMode(jam_.leaderMode());
+    } else {
+        jamComposeKey_ = -1;
+        jamComposeScale_ = -1;
+    }
+    // FAMILY_JAM_LOG=<file>: what the jam does here, a line whenever it changes (a test aid).
+    if (const char* logFile = std::getenv("FAMILY_JAM_LOG")) {
+        const juce::String line = jam_.status() + "; transposed " + juce::String(jamTransposeOut_.load());
+        if (line != jamLogged_) {
+            jamLogged_ = line;
+            juce::File(logFile).appendText(juce::Time::getCurrentTime().toString(false, true, true, true) + "  " + line + "\n");
+        }
+    }
     // The cue sender follows its two parameters (message thread: the socket is opened and closed here).
     {
         const ParamStore& s = store();
@@ -522,6 +545,7 @@ void EphemerisProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::Mi
                 playing_ = play;
             }
             hostBpm_ = ln.bpm;
+            linkBeat_ = ln.beat;
             const bool tempoPending = std::fabs(hostBpm_.load() - playedBpm_.load()) > 1.0e-3;
             if (play && !tempoPending) {
                 double d = std::fmod(ln.beat - engine_.beat(), 4.0);
@@ -536,6 +560,10 @@ void EphemerisProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::Mi
     }
     const double seek = seekRequest_.exchange(-1.0);
     if (seek >= 0.0) engine_.seek(seek);
+    // The family jam's shared timeline (Jam.h): the host's beat in a DAW, Link's with others in the session; none alone.
+    double shared = -1.0;
+    if (play && wrapperType != wrapperType_Standalone) shared = engine_.beat();
+    else if (play && linkFollowing_.load(std::memory_order_relaxed)) shared = linkBeat_;
     {   // Stopped, or another keyboard target: every played key is released (01.10.2026).
         const int target = store().getInt(store().id(Module::Perform, 0, perform::KeyboardPart));
         if (!play || target != keyboardSeen_) engine_.liveAllOff();
@@ -560,7 +588,9 @@ void EphemerisProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::Mi
             stemsOn_ = want;
         }
     }
+    jamFollow(before, shared);
     engine_.process(buffer.getWritePointer(0), buffer.getWritePointer(1), n);
+    jamLead(before, engine_.beat(), shared);
     emitMidi(midi, start, n);
     if (stemsOn_)
         for (int b = 1; b < getBusCount(false) && b - 1 < kStemOuts; ++b) {
@@ -631,6 +661,97 @@ void EphemerisProcessor::emitMidi(juce::MidiBuffer& midi, int64_t start, int n)
             midiSounding_ = true;
         }
     }
+}
+
+int EphemerisProcessor::scaleOfMode(const juce::String& mode)
+{
+    const juce::String m = mode.trim();
+    for (int i = 0; i < 8; ++i)   // compose.scale's eight (kScaleNames, Params.cpp)
+        if (m.equalsIgnoreCase(eph::kScaleNames[i])) return i;
+    if (m.containsIgnoreCase("penta")) return scaleOfMode("Minor Pentatonic");
+    if (m.containsIgnoreCase("harmonic")) return scaleOfMode("Harmonic Minor");
+    if (m.containsIgnoreCase("minor")) return scaleOfMode("Aeolian");   // a minor, the just minor too
+    if (m.containsIgnoreCase("major") || m.containsIgnoreCase("ionian")) return scaleOfMode("Mixolydian");   // the nearest it has
+    return -1;
+}
+
+void EphemerisProcessor::jamFollow(double before, double shared)
+{
+    if (jam_.role() != frame::Settings::JamRole::Follow) {
+        if (jamFollowing_) engine_.setJam(0, -1.0f, false);
+        jamFollowing_ = false;
+        jamTranspose_ = 0;
+        jamTransposeOut_ = 0;
+        jamLastBefore_ = before;
+        return;
+    }
+    const double step = (jamLastBefore_ >= 0.0 && before > jamLastBefore_ && before - jamLastBefore_ < 1.0) ? before - jamLastBefore_ : 0.0;
+    jamLastBefore_ = before;
+    const frame::JamState js = jam_.stateAt(shared >= 0.0 ? shared + step : -1.0);
+    int want = 0;
+    if (js.root >= 0) {
+        // From the piece's own key: its transposer goes on moving the rows above it, the jam moves the whole.
+        const int d = ((js.root - current_.keyRoot) % 12 + 12) % 12;
+        want = d > 6 ? d - 12 : d;
+    }
+    const bool barLine = step <= 0.0 || std::floor((before + step) / 4.0) > std::floor(before / 4.0);
+    if (want != jamTranspose_ && barLine) jamTranspose_ = want;
+    jamTransposeOut_ = jamTranspose_;
+    engine_.setJam(jamTranspose_, js.root >= 0 ? js.energy : -1.0f, js.root >= 0 && js.rhythmOut);
+    jamFollowing_ = true;
+}
+
+void EphemerisProcessor::jamLead(double before, double after, double shared)
+{
+    if (jam_.role() != frame::Settings::JamRole::Lead) {
+        jamLeadStarted_ = false;
+        return;
+    }
+    static const char* const kRoots[] = { "C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B" };
+    const auto rootOf = [](const char* name) {
+        for (int i = 11; i >= 0; --i) if (std::strcmp(name, kRoots[i]) == 0) return i;
+        static const char* const kFlats[] = { "C", "Db", "D", "Eb", "E", "F", "Gb", "G", "Ab", "A", "Bb", "B" };
+        for (int i = 11; i >= 0; --i) if (std::strcmp(name, kFlats[i]) == 0) return i;
+        return -1;
+    };
+    const char* mode = eph::kScaleNames[juce::jlimit(0, 7, store().getInt(store().id(Module::Compose, 0, compose::Scale)))];
+    const auto& marks = engine_.cueMarks();
+    const auto barOf = [&](double beat) {
+        return shared >= 0.0 ? static_cast<int64_t>(std::llround((shared + beat - before) / 4.0)) : int64_t(-1);
+    };
+    if (!jamLeadStarted_ || std::fabs(before - jamLeadLast_) > 1.0e-6) {
+        const CueMark* phase = nullptr;
+        const CueMark* key = nullptr;
+        for (const CueMark& m : marks) {
+            if (m.beat > before + 1.0) break;
+            if (m.kind == CueKind::Phase) phase = &m;
+            else if (m.kind == CueKind::Key) key = &m;
+        }
+        const int root = key != nullptr ? rootOf(key->text) : current_.keyRoot;
+        jam_.postKey(root >= 0 ? root : current_.keyRoot, mode);
+        if (phase != nullptr) {
+            float e = 0.5f;
+            bool drop = false;
+            const frame::JamSection s = frame::jamSectionOf(phase->text, e, drop);
+            jam_.postSection(s, e, false, -1);
+        }
+        jamLeadStarted_ = true;
+    } else {
+        for (const CueMark& m : marks) {   // one beat ahead: a follower acts on the very bar line meant
+            if (m.beat < before + 1.0) continue;
+            if (m.beat >= after + 1.0) break;
+            if (m.kind == CueKind::Phase) {
+                float e = 0.5f;
+                bool drop = false;
+                const frame::JamSection s = frame::jamSectionOf(m.text, e, drop);
+                jam_.postSection(s, e, drop, barOf(m.beat));
+            } else if (m.kind == CueKind::Key) {
+                const int r = rootOf(m.text);
+                if (r >= 0) jam_.postKey(r, mode);
+            }
+        }
+    }
+    jamLeadLast_ = after;
 }
 
 juce::String EphemerisProcessor::linkStatus() const

@@ -7,7 +7,7 @@ itself -- sequencer rows of different lengths turning against each other over a 
 ground, tape choirs and string machines, a lead that sings over the peak, the hands of a player on the filters, and
 the room of a tape echo and a long hall. Everything is synthesised; nothing is played back from a recording.
 
-**VST3 plugin and standalone application** for Windows (x64), macOS (Apple Silicon) and Linux (x86-64), and a native app for **Meta Quest**. Licence: AGPL-3.0.
+**VST3 plugin and standalone application** (on macOS also an Audio Unit, on Linux an LV2) for Windows (x64), macOS (Apple Silicon) and Linux (x86-64), and a native app for **Meta Quest**. Licence: AGPL-3.0.
 
 <br clear="left" />
 
@@ -25,12 +25,12 @@ for anyone who would rather not run an installer, the
 **[manual](https://github.com/reneweller-coding/Ephemeris/releases/download/v1.2.0/Ephemeris-Manual.pdf)** -- every
 page of the panel as a picture, what each control does, and why it is built the way it is.
 
-**[macOS zip](https://github.com/reneweller-coding/Ephemeris/releases/download/v1.2.0/Ephemeris-1.2.0-macOS.zip)** for Apple Silicon (macOS 12 or newer): the standalone and
-the VST3, built on GitHub's runners and attached to the release within the hour after it; signed ad hoc,
+**[macOS zip](https://github.com/reneweller-coding/Ephemeris/releases/download/v1.2.0/Ephemeris-1.2.0-macOS.zip)** for Apple Silicon (macOS 12 or newer): the standalone,
+the VST3 and the Audio Unit, built on GitHub's runners and attached to the release within the hour after it; signed ad hoc,
 not notarized (README-macOS.txt inside says how to open it), and not yet tried on a real Mac.
 
 **[Linux archive](https://github.com/reneweller-coding/Ephemeris/releases/download/v1.2.0/Ephemeris-1.2.0-linux-x86_64.tar.gz)** for x86-64 (glibc 2.35 or newer: Ubuntu 22.04, Debian 12,
-Fedora 36 and later): the standalone, the VST3 and the renderer, built and tested on GitHub's Ubuntu runners
+Fedora 36 and later): the standalone, the VST3, the LV2 and the renderer, built and tested on GitHub's Ubuntu runners
 and tried under WSL; README-Linux.txt inside says where everything goes.
 
 Requirements: Windows 10 or 11, a 64-bit processor with AVX2 (every x86-64 since 2013), and a VST3 host if you want
@@ -117,6 +117,12 @@ stereo output per stem besides the main one, off until the host switches them on
 notes or mixed on a channel of its own. The standalone joins an **Ableton Link** session (Settings > Ableton
 Link): the session's tempo, its bars, its start and stop. A MIDI keyboard can be split between two voices,
 locked to the scale and given a velocity curve (the Keyboard group). The manual has the details (With a DAW and other apps).
+
+**The family jam** (Settings > Family jam): the five instruments play as one band on the local network. One leads, the
+others follow -- its key (the root at their next bar line, the mode with their next piece), the energy of its
+sections, its breaks and drops --, on the bars Ableton Link or the DAW gives them all.
+[KaleidoscopeEnhanced](https://github.com/reneweller-coding/KaleidoscopeEnhanced) cuts its pictures to the score cues
+of all five.
 
 ## Build
 

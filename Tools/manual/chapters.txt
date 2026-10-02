@@ -753,8 +753,9 @@ style is saved with the set and the plugin's state, and a concert starts from it
 
 == With a DAW and other apps | | - ==
 
-Three things connect Ephemeris to the software around it (02.10.2026). The outputs and Link are off until they are
-wanted, the MIDI goes nowhere until a track takes it, and none of the three changes what the music sounds like.
+Four things connect Ephemeris to the software around it and to the rest of the family (02.10.2026). The outputs, Link
+and the jam are off until they are wanted, the MIDI goes nowhere until a track takes it, and only the jam -- as a
+follower -- changes what the music sounds like.
 
 MIDI out: in a DAW the plugin also sends what it plays -- every note of every part at the moment it sounds, a channel
 per part as in the MIDI file of an export -- and leaves the muted parts out. Record it on a MIDI track to keep a part
@@ -769,17 +770,35 @@ app, another generator of the family -- Ephemeris takes the session's tempo, lin
 starts and stops with it; alone in a session it offers its own tempo to whoever joins. In a DAW the
 host's transport leads, as before.
 
-On a Mac: every release has a build for Apple Silicon (macOS 12 or newer), the standalone and the VST3, built and
+The family jam (Settings > Family jam, in the plugin and in the standalone; off to begin with): the five instruments
+of the family -- Totality, Parhelion, Ephemeris, Phosphene and Noctuary -- play as one band on the local network. One
+leads: its key, the energy of its sections, its breaks and its drops go out to the others. Those set to Follow take
+them up -- in Ephemeris: every voice but the drums moves to the leader's key, on top of its own Transpose; the rows'
+filters close with a quiet section of the leader's (while the performer's hand leaves them alone); and in the leader's
+breaks the drums are out until its drop. A new root comes in at the follower's next bar line, by the shortest way, the
+mode with its next piece. Tempo and bars come from Ableton Link in the standalone (switch it on in each of them) or
+from the DAW's transport, so that a section the leader announces lands on the same bar everywhere. As the leader
+Ephemeris says its piece's key and, a beat ahead, each phase -- the atmosphere, the entry, the build, the peak, the
+breakdown, the coda --, with its energy. The jam stays on this network (UDP multicast to 239.255.77.77, port 9177, not
+past the router), instruments on one machine find each other as well, and a follower that has not heard its leader for
+four seconds goes back to its own key and its own form. The last line of the submenu says what it does: off, leading,
+or whom it follows.
+
+On a Mac: every release has a build for Apple Silicon (macOS 12 or newer), the standalone, the VST3 and the Audio Unit (Logic, GarageBand, MainStage; passed by Apple's auval), built and
 tested on GitHub's machines. It is signed ad hoc, not notarized: macOS asks once (README-macOS.txt in the zip says
 how), and it has not yet been played on a real Mac -- reports are welcome.
 
 On Linux: every release has an archive for x86-64 (glibc 2.35 or newer: Ubuntu 22.04, Debian 12, Fedora 36 and later)
-with the standalone, the VST3 and the renderer, built and tested on GitHub's Ubuntu machines and tried under WSL.
-README-Linux.txt in it says where everything goes: the VST3 into ~/.vst3, the standalone started where it lies, sound
+with the standalone, the VST3, the LV2 (Ardour, Carla, Reaper, Qtractor) and the renderer, built and tested on GitHub's Ubuntu machines and tried under WSL.
+README-Linux.txt in it says where everything goes: the VST3 into ~/.vst3, the LV2 into ~/.lv2, the standalone started where it lies, sound
 through ALSA or JACK (PipeWire serves both).
 
 Demos: the release "demos" holds a track per style as an MP3 and one of them as a video, with pictures by
 KaleidoscopeEnhanced cut to the track's own score cues; Tools/demo/make_demos.py makes them all again (eph_render).
+
+KaleidoscopeEnhanced understands the score cues of all five instruments as they come (since 02.10.2026) -- Totality's
+blocks and keys, Parhelion's sections, Ephemeris' phases, Phosphene's sections and drops, Noctuary's bars, keys and
+scenes -- and cuts its pictures to them, on a drop at once.
 
 == Meta Quest | | - ==
 

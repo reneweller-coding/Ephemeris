@@ -121,6 +121,12 @@ public:
     int64_t samplePosition() const { return sample_; }
     /** @brief From now on every composer note it plays is also written to @p tap (null: stops; NoteTap.h, MIDI out). */
     void setNoteTap(NoteTap* tap) { noteTap_ = tap; }
+    /**
+     * @brief The family jam (02.10.2026, the plugin's Jam.h), live only: the composer's notes @p transpose semitones
+     *        further (on top of perform.transpose, from the next note on), the leader's @p energy (0..1; negative: none)
+     *        on the rows' filters while the performer's hand rests, and with @p rhythmOut the drums out for its break.
+     */
+    void setJam(int transpose, float energy, bool rhythmOut) { jamTranspose_ = transpose; jamEnergy_ = energy; jamDrumsOut_ = rhythmOut; }
     /** @brief Current position in beats. */
     double beat() const { return score_.tempo.beatAt(seconds()); }
     /** @brief Length of the score in seconds. */
@@ -382,6 +388,10 @@ private:
     Svf subHpL_[2];   ///< ... the rest above it, left (two sections)
     Svf subHpR_[2];   ///< ... right
     int transpose_ = 0;   ///< perform.transpose at the current cell, for the notes that start
+    int jamTranspose_ = 0;        ///< the family jam's transposition (setJam), added to transpose_
+    float jamEnergy_ = -1.0f;     ///< the family jam's energy (setJam); negative: no leader
+    float jamOctaves_ = 0.0f;     ///< the rows' filters as the jam's energy wants them, octaves, glided (updateCell)
+    bool jamDrumsOut_ = false;    ///< the family jam: the drums are out for the leader's break (setJam)
     // Live play and the keyboard (01.10.2026, setLive, queueLive).
     /// Live play (setLive).
     bool live_ = false;

@@ -17,7 +17,7 @@ juce_add_plugin(Ephemeris
     VERSION                     ${PROJECT_VERSION}
     PRODUCT_NAME                "Ephemeris"
     ICON_BIG                    "${CMAKE_SOURCE_DIR}/Deploy/ephemeris.png")
-target_sources(Ephemeris PRIVATE PluginProcessor.cpp PluginEditor.cpp EditorMixer.cpp EditorOrrery.cpp EditorPerform.cpp EditorGestures.cpp EditorStyle.cpp EditorTheme.cpp UpdateCheck.cpp Frame.cpp LinkClock.cpp)
+target_sources(Ephemeris PRIVATE PluginProcessor.cpp PluginEditor.cpp EditorMixer.cpp EditorOrrery.cpp EditorPerform.cpp EditorGestures.cpp EditorStyle.cpp EditorTheme.cpp UpdateCheck.cpp Frame.cpp LinkClock.cpp Jam.cpp)
 # The frame's pieces (01.10.2026): the picture behind the panel and the manual's prose for the help (F1).
 juce_add_binary_data(EphemerisData
     HEADER_NAME EphemerisData.h

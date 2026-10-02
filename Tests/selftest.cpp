@@ -2993,6 +2993,58 @@ void testKeyboard()
           fmt("%.6g against %.6g", offline, plainOffline));
 }
 
+/** The family jam (02.10.2026, the plugin's Jam.h): a follower's engine plays its notes the jam's transposition away,
+ *  note for note (on top of its own Transpose), the drums as written; in the leader's break the drums are out. */
+void testJam()
+{
+    section("family jam (a follower's engine)");
+    // A piece with drums (they come by chance), from a little before their first hit.
+    Score score;
+    double from = -1.0;
+    for (uint64_t seed = 1; seed <= 16 && from < 0.0; ++seed) {
+        ParamStore p;
+        p.parseText("compose.style=Melodic");
+        score = composePiece(p, seed, 14.0);
+        for (const NoteEvent& n : score.notes)
+            if (n.part == Part::Drums) { from = std::max(0.0, n.beat - 2.0); break; }
+    }
+    struct Got {
+        std::vector<std::pair<int, int>> pitched;   ///< (part, pitch) of every note-on but the drums', in order
+        std::vector<int> drums;                     ///< the drums' note-on pitches, in order
+    };
+    auto run = [&](int transpose, bool rhythmOut) {
+        auto e = std::make_unique<Engine>();
+        e->setLive(true);
+        e->prepare(48000.0, 256);
+        e->load(score);
+        e->setJam(transpose, 1.0f, rhythmOut);
+        e->seek(from);
+        auto tap = std::make_unique<NoteTap>();
+        e->setNoteTap(tap.get());
+        std::vector<float> L(256), R(256);
+        Got g;
+        for (int b = 0; b < 48000 * 8 / 256; ++b) {
+            tap->clear();
+            e->process(L.data(), R.data(), 256);
+            for (int i = 0; i < tap->count; ++i) {
+                const NoteTap::Note& nt = tap->notes[i];
+                if (nt.velocity == 0) continue;
+                if (nt.part == static_cast<uint8_t>(Part::Drums)) g.drums.push_back(nt.pitch);
+                else g.pitched.emplace_back(nt.part, nt.pitch);
+            }
+        }
+        return g;
+    };
+    const Got plain = run(0, false), up = run(3, false), brk = run(0, true);
+    bool shifted = !plain.pitched.empty() && up.pitched.size() == plain.pitched.size();
+    for (size_t i = 0; shifted && i < plain.pitched.size(); ++i)
+        shifted = up.pitched[i].first == plain.pitched[i].first && up.pitched[i].second == std::min(127, plain.pitched[i].second + 3);
+    check(shifted, "the notes play the jam's transposition, note for note", fmt("%d notes", static_cast<int>(plain.pitched.size())));
+    check(up.drums == plain.drums && !plain.drums.empty(), "the drums play as written", fmt("%d hits", static_cast<int>(plain.drums.size())));
+    check(brk.drums.empty() && brk.pitched.size() == plain.pitched.size(), "in the leader's break the drums are out, the rest plays",
+          fmt("%d hits as written, %d in the break", static_cast<int>(plain.drums.size()), static_cast<int>(brk.drums.size())));
+}
+
 /** MIDI out (02.10.2026, NoteTap.h): in live play the engine writes the composer notes it plays into the tap, each on its
  *  sample inside the block and transposed as heard; every off goes out with its on's pitch; with the composer off nothing
  *  is written. */
@@ -3090,6 +3142,7 @@ const TestSection kSections[] = {
     { "testGestures", testGestures },
     { "testKeyboard", testKeyboard },
     { "testNoteTap", testNoteTap },
+    { "testJam", testJam },
     { "testKeySplit", testKeySplit },
     { "testParams", testParams },
     { "testMidiTempo", testMidiTempo },
