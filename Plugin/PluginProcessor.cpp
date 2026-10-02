@@ -94,7 +94,7 @@ float StoreParameter::getValueForText(const juce::String& text) const
 // The processor
 
 EphemerisProcessor::EphemerisProcessor()
-    : juce::AudioProcessor(BusesProperties().withOutput("Output", juce::AudioChannelSet::stereo(), true)),
+    : juce::AudioProcessor(busLayout()),
       juce::Thread("Ephemeris composer")
 {
     ParamStore& s = store();
@@ -437,6 +437,14 @@ void EphemerisProcessor::prepareToPlay(double sampleRate, int samplesPerBlock)
     engine_.prepare(sampleRate, samplesPerBlock);
     engine_.setMetering(true);   // reading only: the mix is the same to the bit (Engine.h)
     engine_.setNoteTap(&noteTap_);   // MIDI out (02.10.2026)
+    // The stems' buffers for their outputs (02.10.2026); the engine writes them only while a stem's bus is on.
+    stemBuf_.assign(static_cast<size_t>(kStemOuts * 2 * samplesPerBlock), 0.0f);
+    for (int s = 0; s < kStemOuts; ++s) {
+        stemL_[static_cast<size_t>(s)] = stemBuf_.data() + static_cast<size_t>(2 * s * samplesPerBlock);
+        stemR_[static_cast<size_t>(s)] = stemBuf_.data() + static_cast<size_t>((2 * s + 1) * samplesPerBlock);
+    }
+    engine_.setStems(nullptr, nullptr);
+    stemsOn_ = false;
     if (const char* secs = std::getenv("EPH_PLAY"); secs != nullptr && std::getenv("EPH_RECORD") != nullptr) {
         recordTarget_ = static_cast<size_t>(std::atof(secs) * sampleRate) * 2;
         record_.assign(recordTarget_, 0.0f);
@@ -455,9 +463,24 @@ Score EphemerisProcessor::forPlayback(const Score& s) const
     return out;
 }
 
+juce::AudioProcessor::BusesProperties EphemerisProcessor::busLayout()
+{
+    BusesProperties b = BusesProperties().withOutput("Output", juce::AudioChannelSet::stereo(), true);
+    for (int s = 0; s < kStemOuts; ++s) {
+        const juce::String name(s < Engine::kChannels ? Engine::channelName(s) : "rooms");
+        b = b.withOutput(name.substring(0, 1).toUpperCase() + name.substring(1), juce::AudioChannelSet::stereo(), false);
+    }
+    return b;
+}
+
 bool EphemerisProcessor::isBusesLayoutSupported(const BusesLayout& layouts) const
 {
-    return layouts.getMainOutputChannelSet() == juce::AudioChannelSet::stereo();
+    if (layouts.getMainOutputChannelSet() != juce::AudioChannelSet::stereo()) return false;
+    for (int b = 1; b < layouts.outputBuses.size(); ++b) {   // a stem's bus: stereo, or off
+        const juce::AudioChannelSet& set = layouts.outputBuses.getReference(b);
+        if (!set.isDisabled() && set != juce::AudioChannelSet::stereo()) return false;
+    }
+    return true;
 }
 
 void EphemerisProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::MidiBuffer& midi)
@@ -527,8 +550,27 @@ void EphemerisProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::Mi
     const int64_t start = engine_.samplePosition();
     if (start != midiExpect_) silenceMidi(midi);   // a jump: whatever sounded is released
     noteTap_.clear();
+    {   // The stems' outputs (02.10.2026): the engine writes the stems while the host has one of their buses on.
+        bool want = false;
+        for (int b = 1; b < getBusCount(false) && !want; ++b)
+            if (const auto* bus = getBus(false, b)) want = bus->isEnabled();
+        want = want && n <= blockSize_;   // the stems' buffers hold the prepared block
+        if (want != stemsOn_) {
+            engine_.setStems(want ? stemL_.data() : nullptr, want ? stemR_.data() : nullptr);
+            stemsOn_ = want;
+        }
+    }
     engine_.process(buffer.getWritePointer(0), buffer.getWritePointer(1), n);
     emitMidi(midi, start, n);
+    if (stemsOn_)
+        for (int b = 1; b < getBusCount(false) && b - 1 < kStemOuts; ++b) {
+            const auto* bus = getBus(false, b);
+            if (bus == nullptr || !bus->isEnabled()) continue;
+            auto out = getBusBuffer(buffer, false, b);
+            if (out.getNumChannels() < 2 || n > blockSize_) continue;
+            out.copyFrom(0, 0, stemL_[static_cast<size_t>(b - 1)], n);
+            out.copyFrom(1, 0, stemR_[static_cast<size_t>(b - 1)], n);
+        }
     if (link_.enabled() && !linkFollowing_.load(std::memory_order_relaxed) && n > 0)   // alone in the session: it takes our tempo
         link_.proposeTempo(60.0 * (engine_.beat() - before) * sampleRate_ / static_cast<double>(n), 0.0);
     midiExpect_ = engine_.samplePosition();

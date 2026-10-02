@@ -261,6 +261,51 @@ int main(int argc, char** argv)
         }
     }
 
+    // ---------------------------------------------------------------- the stems' outputs (02.10.2026)
+    {
+        // A stereo output per stem besides the main one, off by default; switched on, each carries its stem.
+        const int buses = instance->getBusCount(false);
+        check(buses > 1, "the stems have outputs of their own (" + juce::String(buses - 1) + ")");
+        juce::AudioProcessor::BusesLayout layout = instance->getBusesLayout();
+        for (int b = 1; b < buses; ++b) layout.outputBuses.getReference(b) = juce::AudioChannelSet::stereo();
+        instance->releaseResources();
+        check(instance->setBusesLayout(layout), "the host can switch every stem's output on");
+        instance->prepareToPlay(48000.0, 256);
+        TestPlayHead h;   // the rates' section left the instance without a transport
+        h.ppq = 300.0;
+        instance->setPlayHead(&h);
+        const int channels = instance->getTotalNumOutputChannels();
+        juce::AudioBuffer<float> buf(channels, 256);
+        juce::MidiBuffer midi;
+        std::vector<double> peak(static_cast<size_t>(buses), 0.0);
+        bool finite = true;
+        for (int i = 0; i < 48000 * 6 / 256; ++i) {
+            if (i % 16 == 0) juce::MessageManager::getInstance()->runDispatchLoopUntil(5);
+            buf.clear();
+            midi.clear();
+            instance->processBlock(buf, midi);
+            for (int b = 0; b < buses; ++b) {
+                auto bus = instance->getBusBuffer(buf, false, b);
+                for (int c = 0; c < bus.getNumChannels(); ++c)
+                    for (int s = 0; s < 256; ++s) {
+                        const float v = bus.getReadPointer(c)[s];
+                        if (!std::isfinite(v)) finite = false;
+                        peak[static_cast<size_t>(b)] = juce::jmax(peak[static_cast<size_t>(b)], static_cast<double>(std::fabs(v)));
+                    }
+            }
+            h.advance(256);
+        }
+        instance->setPlayHead(nullptr);
+        int sounding = 0;
+        for (int b = 1; b < buses; ++b) if (peak[static_cast<size_t>(b)] > 0.001) ++sounding;
+        check(finite && peak[0] > 0.05, "with every stem's output on, the main output plays on (peak " + juce::String(peak[0], 3) + ")");
+        check(sounding >= 3, "and the stems' outputs carry their stems (" + juce::String(sounding) + " of " + juce::String(buses - 1) + " sound)");
+        for (int b = 1; b < buses; ++b) layout.outputBuses.getReference(b) = juce::AudioChannelSet::disabled();
+        instance->releaseResources();
+        instance->setBusesLayout(layout);
+        instance->prepareToPlay(48000.0, 256);
+    }
+
     // ---------------------------------------------------------------- the editor, and away again
     {
         check(instance->hasEditor(), "the wrapper offers an editor");

@@ -237,6 +237,15 @@ private:
     // MIDI out (02.10.2026): the composer's notes as the engine plays them, on the channels of the MIDI export (Midi.h).
     eph::NoteTap noteTap_;   ///< what the engine played in the last process() call (audio thread)
     frame::KeyMemory keyMemory_;   ///< where each held key went (the split, Scale Lock), so its release follows (02.10.2026)
+    // The stems as outputs of their own (02.10.2026): a stereo bus per channel strip and one for the rooms (Engine::setStems),
+    // off until the host switches one on; pre-master, as the export's stems.
+    static constexpr int kStemOuts = eph::Engine::kChannels + 1;   ///< the strips and the rooms
+    std::vector<float> stemBuf_;                                    ///< kStemOuts x 2 x block (prepareToPlay)
+    std::array<float*, kStemOuts> stemL_{};                         ///< per stem: its left channel in stemBuf_
+    std::array<float*, kStemOuts> stemR_{};                         ///< per stem: its right channel in stemBuf_
+    bool stemsOn_ = false;                                          ///< audio thread: the engine writes the stems now
+    /** @brief The buses: the main stereo output, then one stereo output per strip and one for the rooms, those off. */
+    static BusesProperties busLayout();
     int64_t midiExpect_ = -1;      ///< the sample the next block should start at; another is a jump
     bool midiSounding_ = false;    ///< a note-on went out since the last all-notes-off
     /** @brief Writes the notes the engine played in the block from @p start (@p n samples) into @p midi. */
