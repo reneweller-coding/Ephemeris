@@ -261,6 +261,10 @@ public:
     bool overview() const;
     /** @brief Shows the overview above the tabs or folds it away; written at once. */
     void setOverview(bool on);
+    /** @brief Ableton Link in the standalone (02.10.2026, LinkClock.h): tempo and bar phase with other apps; off by default. */
+    bool link() const;
+    /** @brief Joins the Link session or leaves it (the standalone reads it on its timer); written at once. */
+    void setLink(bool on);
     /** @brief The instrument's name, as given to of(). */
     juce::String app() const { return app_; }
 
@@ -283,6 +287,7 @@ struct SettingsMenu {
     juce::String headsetOffText = "Off: do not listen";   ///< what Off means for this instrument
     std::function<void(juce::PopupMenu&)> headsetItems;   ///< more items in the headset's submenu (calibrate ...)
     std::function<void(juce::PopupMenu&)> moreItems;      ///< the instrument's own items, before Keys and About
+    std::function<juce::String()> linkStatus;     ///< the standalone's Ableton Link: a line on the session (empty: no item)
     std::function<juce::String()> about;          ///< more lines for "About"
     std::function<void()> showAbout;              ///< the instrument's own About (replaces the frame's)
     /** @brief Shows the menu under @p target. */

@@ -140,6 +140,32 @@ function(family_soundcheck target)
     set_tests_properties(soundcheck PROPERTIES LABELS "sound;slow" SKIP_RETURN_CODE 77 TIMEOUT 3600)
 endfunction()
 
+# family_link(<target>): Ableton Link (GPL-2.0-or-later) for the standalone's tempo, bar phase and start/stop with
+# other apps (02.10.2026, Plugin/LinkClock.h): this repository's ThirdParty/link, else the sibling Phosphene's, else
+# fetched from GitHub (Link-4.1 with its asio). Link's own CMakeLists (examples, tests) is never added: only its config.
+function(family_link target)
+    set(_dir "")
+    foreach(d "${CMAKE_SOURCE_DIR}/ThirdParty/link" "${CMAKE_SOURCE_DIR}/../PsytranceGenerator/ThirdParty/link")
+        if(NOT _dir AND EXISTS "${d}/AbletonLinkConfig.cmake")
+            set(_dir "${d}")
+        endif()
+    endforeach()
+    if(NOT _dir)
+        include(FetchContent)
+        FetchContent_Declare(ableton_link
+            GIT_REPOSITORY https://github.com/Ableton/link.git
+            GIT_TAG        Link-4.1
+            GIT_SHALLOW    TRUE
+            GIT_SUBMODULES modules/asio-standalone
+            SOURCE_SUBDIR  family-no-cmake)   # a folder that does not exist: fetched, not added
+        FetchContent_MakeAvailable(ableton_link)
+        set(_dir "${ableton_link_SOURCE_DIR}")
+    endif()
+    include("${_dir}/AbletonLinkConfig.cmake")
+    target_link_libraries(${target} PRIVATE Ableton::Link)
+    target_compile_definitions(${target} PRIVATE FAMILY_HAS_LINK=1)
+endfunction()
+
 # family_juce(<tag>): JUCE for the plugin -- this repository's ThirdParty/JUCE, else the sibling Phosphene's checkout,
 # else fetched from GitHub at <tag>. Nothing under Core/ ever includes JUCE.
 macro(family_juce tag)

@@ -305,6 +305,11 @@ void EphemerisProcessor::tellSounds(const Score& s)
 
 void EphemerisProcessor::timerCallback()
 {
+    // Ableton Link (02.10.2026): the standalone joins the session while the setting is on (or FAMILY_LINK=1); a DAW's
+    // transport rules the plugin. The follow flag falls when the session goes.
+    link_.setEnabled(wrapperType == wrapperType_Standalone && (frame::Settings::of("Ephemeris").link() || frame::LinkClock::forcedOn()));
+    link_.tick();
+    if (!link_.enabled()) linkFollowing_ = false;
     // The cue sender follows its two parameters (message thread: the socket is opened and closed here).
     {
         const ParamStore& s = store();
@@ -353,7 +358,10 @@ void EphemerisProcessor::timerCallback()
         // event, and the engine allocates when it loads: so the score is loaded again here, on the message
         // thread, and the engine goes on from the beat it was at.
         const double bpm = hostBpm_.load();
-        if (wrapperType != wrapperType_Standalone && bpm > 0.0 && std::fabs(bpm - playedBpm_.load()) > 1.0e-3) {
+        // A Link session the standalone followed and now leads again (the others left, or Link went off): back to the
+        // composed tempo (02.10.2026).
+        const bool back = !followsClock() && playedBpm_.load() > 0.0;
+        if (back || (followsClock() && bpm > 0.0 && std::fabs(bpm - playedBpm_.load()) > 1.0e-3)) {
             Score s;
             {
                 std::lock_guard<std::mutex> g(lock_);
@@ -364,7 +372,7 @@ void EphemerisProcessor::timerCallback()
             engine_.prepare(sampleRate_, blockSize_);
             engine_.load(s, false);   // the knobs hold the sounds as they are
             engine_.seek(beat);
-            playedBpm_ = bpm;
+            playedBpm_ = back ? 0.0 : bpm;
             suspendProcessing(false);
         }
         if (again_ && !composing_) { again_ = false; compose(); }
@@ -377,7 +385,7 @@ void EphemerisProcessor::timerCallback()
     engine_.prepare(sampleRate_, blockSize_);
     engine_.load(forPlayback(*next), false);
     toldSounds_ = engine_.soundsVersion();
-    playedBpm_ = wrapperType != wrapperType_Standalone ? hostBpm_.load() : 0.0;
+    playedBpm_ = followsClock() ? hostBpm_.load() : 0.0;
     {
         std::lock_guard<std::mutex> g(lock_);
         current_ = std::move(*next);
@@ -436,14 +444,14 @@ void EphemerisProcessor::prepareToPlay(double sampleRate, int samplesPerBlock)
     }
     std::lock_guard<std::mutex> g(lock_);
     engine_.load(forPlayback(current_), false);   // the knobs hold the sounds as they are
-    playedBpm_ = wrapperType != wrapperType_Standalone ? hostBpm_.load() : 0.0;
+    playedBpm_ = followsClock() ? hostBpm_.load() : 0.0;
 }
 
 Score EphemerisProcessor::forPlayback(const Score& s) const
 {
     Score out = s;
     const double bpm = hostBpm_.load();
-    if (wrapperType != wrapperType_Standalone && bpm > 0.0) out.tempo.setConstant(bpm);
+    if (followsClock() && bpm > 0.0) out.tempo.setConstant(bpm);
     return out;
 }
 
@@ -476,6 +484,32 @@ void EphemerisProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::Mi
                 }
             }
         }
+    } else if (link_.enabled()) {
+        // Ableton Link (02.10.2026, LinkClock.h): with other apps in the session the standalone follows it as a DAW's
+        // playhead -- its tempo (the score reloaded at it on the message thread), its bar phase (the bars line up, the
+        // place in the piece stays), its start and stop; alone in it, the standalone leads (the tempo goes out below).
+        const double latency = static_cast<double>(getLatencySamples() + n) / sampleRate_;
+        const frame::LinkClock::Now ln = link_.capture(latency, 4.0);
+        linkFollowing_ = ln.peers > 0;
+        if (ln.peers > 0) {
+            if (play != linkPlayed_) {
+                link_.setPlaying(play, latency, 4.0);   // Play or Stop pressed here: to the session
+            } else if (ln.playing != play) {
+                play = ln.playing;                      // pressed elsewhere: here too
+                playing_ = play;
+            }
+            hostBpm_ = ln.bpm;
+            const bool tempoPending = std::fabs(hostBpm_.load() - playedBpm_.load()) > 1.0e-3;
+            if (play && !tempoPending) {
+                double d = std::fmod(ln.beat - engine_.beat(), 4.0);
+                if (d > 2.0) d -= 4.0;
+                else if (d <= -2.0) d += 4.0;
+                if (std::fabs(d) > 0.05) engine_.seek(engine_.beat() + d);
+            }
+        }
+        linkPlayed_ = play;
+    } else {
+        linkFollowing_ = false;
     }
     const double seek = seekRequest_.exchange(-1.0);
     if (seek >= 0.0) engine_.seek(seek);
@@ -495,6 +529,8 @@ void EphemerisProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::Mi
     noteTap_.clear();
     engine_.process(buffer.getWritePointer(0), buffer.getWritePointer(1), n);
     emitMidi(midi, start, n);
+    if (link_.enabled() && !linkFollowing_.load(std::memory_order_relaxed) && n > 0)   // alone in the session: it takes our tempo
+        link_.proposeTempo(60.0 * (engine_.beat() - before) * sampleRate_ / static_cast<double>(n), 0.0);
     midiExpect_ = engine_.samplePosition();
     position_ = engine_.beat();
     if (cues_.running()) {
@@ -553,6 +589,13 @@ void EphemerisProcessor::emitMidi(juce::MidiBuffer& midi, int64_t start, int n)
             midiSounding_ = true;
         }
     }
+}
+
+juce::String EphemerisProcessor::linkStatus() const
+{
+    if (!link_.enabled()) return "off";
+    const int n = link_.peers();
+    return n == 0 ? "alone in the session: it takes this tempo" : juce::String(n) + (n == 1 ? " other app" : " other apps");
 }
 
 bool EphemerisProcessor::saveSet(const juce::File& file)

@@ -1415,6 +1415,8 @@ void EphemerisEditor::showSettings()
         if (!fullScreen()) setSize(juce::roundToInt(1280.0f * k), juce::roundToInt(860.0f * k));
     };
     m.headsetStatus = [this] { return proc_.headset().statusText(); };
+    if (proc_.wrapperType == juce::AudioProcessor::wrapperType_Standalone)   // Ableton Link, the standalone only (02.10.2026)
+        m.linkStatus = [this] { return proc_.linkStatus(); };
     m.about = [] { return juce::String("Berlin School sequencer music, composed and synthesised.\ngithub.com/reneweller-coding/Ephemeris"); };
     m.show(settings_);
 }

@@ -636,6 +636,15 @@ void Settings::setOverview(bool on)
     sendChangeMessage();
 }
 
+bool Settings::link() const { return file_->getBoolValue("link", false); }
+
+void Settings::setLink(bool on)
+{
+    file_->setValue("link", on);
+    file_->saveIfNeeded();
+    sendChangeMessage();
+}
+
 void SettingsMenu::show(juce::Component& target) const
 {
     Settings& s = Settings::of(app);
@@ -661,6 +670,8 @@ void SettingsMenu::show(juce::Component& target) const
         }
         m.addSubMenu("Headset (Meta Quest)", h);
     }
+    if (linkStatus)   // the standalone only (02.10.2026): a DAW's transport rules the plugin
+        m.addItem("Ableton Link: tempo and beat with other apps (" + linkStatus() + ")", true, s.link(), [&s] { s.setLink(!s.link()); });
     if (setWindowScale) {
         juce::PopupMenu w;
         for (int pct : { 75, 100, 125, 150, 200 })
