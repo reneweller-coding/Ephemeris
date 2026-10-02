@@ -1,6 +1,6 @@
 """Ephemeris -- the sound regression check: fixed seeds rendered, measured, and held against Tests/golden/soundcheck.json.
 
-    python Tools/soundcheck.py [--exe path\to\eph_render.exe] [--update] [--only CASE] [--jobs N]
+    python Tools/soundcheck.py [--exe path/to/eph_render.exe] [--update] [--only CASE] [--jobs N]
 
 A change of the code must not thin or swell the sound without anybody noticing (02.10.2026; Totality's "only kick and
 hats" rounds were found by ear, never by a test). For every case below the render tool writes the mix and its stems;
