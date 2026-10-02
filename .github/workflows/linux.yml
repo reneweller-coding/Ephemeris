@@ -1,0 +1,92 @@
+# Ephemeris for Linux (02.10.2026): built on GitHub's Ubuntu runners, as the macOS build is (macos.yml).
+#
+# A tag v* (the release, Deploy/publish_release.ps1) or "Run workflow" by hand: the core, the tests and the plugin --
+# VST3 and the standalone, x86-64 with AVX2, and the renderer -- built in Release with GCC 12 on Ubuntu 22.04 (so the
+# binaries run on its glibc 2.35 and anything newer), the quick tests run (those that open a window in a virtual X
+# server), packed as Ephemeris-<version>-linux-x86_64.tar.gz, kept as the run's artifact and, for a tag -- or for the
+# release named by hand --, attached to its release. JUCE and Ableton Link are fetched by cmake/Family.cmake.
+name: linux
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      release:
+        description: "also attach the archive to this release (a tag such as v1.2.0); empty: only the artifact"
+        type: string
+        default: ""
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 150
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: The libraries JUCE needs
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends ninja-build g++-12 xvfb \
+            libasound2-dev libjack-jackd2-dev libfreetype-dev libfontconfig1-dev libx11-dev libxcomposite-dev \
+            libxcursor-dev libxext-dev libxinerama-dev libxrandr-dev libxrender-dev libgl1-mesa-dev libglu1-mesa-dev
+
+      - name: Configure (Release, GCC 12, the plugin and the tools)
+        run: cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER=gcc-12 -DCMAKE_CXX_COMPILER=g++-12 -DEPH_BUILD_PLUGIN=ON
+
+      - name: Build
+        run: cmake --build build --parallel 4
+
+      - name: Test (the quick ones, in a virtual X server)
+        env:
+          EPH_MUTE: "1"
+        run: xvfb-run -a ctest --test-dir build -LE "slow|docs|sound" --output-on-failure
+
+      - name: Package
+        run: |
+          version=$(sed -nE 's/^project\(Ephemeris VERSION ([0-9.]+).*/\1/p' CMakeLists.txt)
+          app=$(find build -path "*_artefacts*" -path "*Standalone*" -type f -name "Ephemeris" | head -1)
+          vst=$(find build -path "*_artefacts*" -type d -name "Ephemeris.vst3" | head -1)
+          cli=$(find build -type f -name "eph_render" -perm -u+x | head -1)
+          test -n "$app" && test -n "$vst" && test -n "$cli"
+          out="dist/Ephemeris-$version-linux-x86_64"
+          mkdir -p "$out"
+          cp "$app" "$cli" "$out/"
+          cp -R "$vst" "$out/"
+          strip "$out/Ephemeris" "$out/eph_render" "$out/Ephemeris.vst3/Contents/x86_64-linux/Ephemeris.so"
+          cp LICENSE "$out/LICENSE.txt"
+          if [ -f docs/manual/Ephemeris-Manual.pdf ]; then cp docs/manual/Ephemeris-Manual.pdf "$out/"; fi
+          cat > "$out/README-Linux.txt" <<'EOF'
+          Ephemeris for Linux (x86-64)
+
+          Ephemeris         the standalone: start it from this folder (./Ephemeris). Sound goes out
+                            through ALSA or JACK -- PipeWire serves both --, chosen under Settings > Audio.
+          Ephemeris.vst3    the plugin: copy the folder to ~/.vst3 (or /usr/lib/vst3) and rescan
+                            in the host (Reaper, Bitwig Studio, Ardour, Carla, ...).
+          eph_render        the offline renderer (--help lists its options).
+
+          Needs: a 64-bit processor with AVX2 (every x86-64 since 2013), glibc 2.35 or newer (Ubuntu 22.04,
+          Debian 12, Fedora 36 and later), X11 or XWayland, and the libraries every desktop has: libasound2,
+          libfreetype6, libfontconfig1, libX11 and its extensions, libGL.
+          Built and tested on GitHub's Ubuntu 22.04 runners; reports from a Linux desktop are welcome.
+          EOF
+          sed -i 's/^          //' "$out/README-Linux.txt"
+          tar -C dist -czf "dist/Ephemeris-$version-linux-x86_64.tar.gz" "Ephemeris-$version-linux-x86_64"
+          ls -la dist
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Ephemeris-linux
+          path: dist/*.tar.gz
+
+      - name: Attach to the release
+        if: startsWith(github.ref, 'refs/tags/') || inputs.release != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ inputs.release != '' && inputs.release || github.ref_name }}
+        run: |
+          for i in $(seq 1 60); do gh release view "$TAG" >/dev/null 2>&1 && break; sleep 60; done
+          gh release upload "$TAG" dist/*.tar.gz --clobber
