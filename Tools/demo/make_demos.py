@@ -47,6 +47,7 @@ DEMOS = [
     ('drift', 'Drift', ['--seed', '5', '--minutes', '5', '--set', 'compose.style=Drift']),
 ]
 VIDEO = ('cosmic', 'SpaceAmbient')   # the demo that becomes a video, and KaleidoscopeEnhanced's configuration for it
+POSTER_AT = 280   # the video's frame that becomes its poster (seconds)
 CUES = 'ephemeris'                   # the tempo points the renderer prints, the phases and keys of its --cues file
 # A phase -> the section KaleidoscopeEnhanced knows, its energy (0..1), and whether it lands as a drop.
 SECTIONS = {
@@ -344,12 +345,19 @@ def video(wav, name, title, config, kaleido, stdout, gain=0.0):
                     '-movflags', '+faststart', '-metadata', 'title=%s (%s demo)' % (title, NAME),
                     '-metadata', 'artist=' + NAME, '-metadata',
                     'comment=Music by %s, pictures by KaleidoscopeEnhanced (%s)' % (NAME, config), out], check=True)
-    jpg = os.path.join(OUT, name + '.jpg')
-    subprocess.run([ffmpeg(), '-v', 'error', '-y', '-ss', '%.1f' % min(90.0, seconds * 0.4), '-i', out, '-frames:v', '1',
-                    '-vf', 'scale=1280:-2', '-q:v', '3', jpg], check=True)
+    jpg = poster(out, name)
     os.remove(pcm)
     print('  video %s (from %s), poster %s' % (out, os.path.basename(rec), jpg), flush=True)
     return out
+
+
+def poster(mp4, name):
+    """The poster of the video: its frame at POSTER_AT seconds (chosen by eye, the scheduler's scenes being what they
+    are), 1280 pixels wide, as work/demos/<name>.jpg."""
+    jpg = os.path.join(OUT, name + '.jpg')
+    subprocess.run([ffmpeg(), '-v', 'error', '-y', '-ss', '%.1f' % POSTER_AT, '-i', mp4, '-frames:v', '1',
+                    '-vf', 'scale=1280:-2', '-q:v', '3', jpg], check=True)
+    return jpg
 
 
 def publish():
