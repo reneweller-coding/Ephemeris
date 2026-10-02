@@ -3052,12 +3052,45 @@ void testNoteTap()
     check(off.ons == 0, "the composer off: nothing tapped", fmt("%d notes", off.ons));
 }
 
+/** The keyboard's split (02.10.2026): a key that names its target plays that voice, whatever Keyboard Plays says --
+ *  with Keyboard Plays off a plain key goes nowhere, a key naming the lead sounds. */
+void testKeySplit()
+{
+    section("keyboard split (a key names its voice)");
+    ParamStore p;
+    const Score score = composePiece(p, 21, 8.0);
+    auto run = [&](int target) {
+        auto e = std::make_unique<Engine>();
+        e->params().parseText("perform.composer=0");
+        e->setLive(true);
+        e->prepare(48000.0, 256);
+        e->load(score);
+        e->seek(96.0);
+        std::vector<float> L(256), R(256);
+        double held = 0.0;
+        for (int b = 0; b < 48000 * 3 / 256; ++b) {
+            if (b == 50) e->queueLive(5, 60, 110, 0, true, target);
+            if (b == 200) e->queueLive(5, 60, 0, 0, false, target);
+            e->process(L.data(), R.data(), 256);
+            if (b >= 60 && b < 200)
+                for (int i = 0; i < 256; ++i) held += static_cast<double>(L[static_cast<size_t>(i)]) * L[static_cast<size_t>(i)];
+        }
+        return held;
+    };
+    const double plain = run(-1);
+    const double named = run(perform::keys::Lead);
+    // The atmosphere is no note: it goes on with the composer off, so "silent" is "nothing above it".
+    check(named > 10.0 * std::max(plain, 1e-9), "a key naming its voice plays it; with Keyboard Plays off a plain key goes nowhere",
+          fmt("%.3g against %.3g", named, plain));
+}
+
 /** @brief Every section, in the order they run. */
 const TestSection kSections[] = {
     { "testTempoMap", testTempoMap },
     { "testGestures", testGestures },
     { "testKeyboard", testKeyboard },
     { "testNoteTap", testNoteTap },
+    { "testKeySplit", testKeySplit },
     { "testParams", testParams },
     { "testMidiTempo", testMidiTempo },
     { "testRack", testRack },

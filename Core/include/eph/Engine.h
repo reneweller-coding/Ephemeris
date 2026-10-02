@@ -84,7 +84,9 @@ public:
      *        rendering thread, before process().
      * @param pitch MIDI note; @param velocity 1..127; @param channel 0..15 (by channel); @param on false: its release
      */
-    void queueLive(int offset, int pitch, int velocity, int channel, bool on);
+    void queueLive(int offset, int pitch, int velocity, int channel, bool on, int target = -1);
+    /** @brief The target a key on @p channel plays when it names none (perform.keyboard_part; perform::keys). */
+    int keyTargetFor(int channel) const { return keyboardTarget(channel); }
     /** @brief Releases every played key and forgets the queued ones (a stop, another keyboard target). */
     void liveAllOff();
     /** @} */

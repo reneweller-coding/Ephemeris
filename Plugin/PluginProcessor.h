@@ -233,6 +233,7 @@ private:
     int keyboardSeen_ = 0;   ///< the keyboard target of the last block (audio thread): a change releases every key
     // MIDI out (02.10.2026): the composer's notes as the engine plays them, on the channels of the MIDI export (Midi.h).
     eph::NoteTap noteTap_;   ///< what the engine played in the last process() call (audio thread)
+    frame::KeyMemory keyMemory_;   ///< where each held key went (the split, Scale Lock), so its release follows (02.10.2026)
     int64_t midiExpect_ = -1;      ///< the sample the next block should start at; another is a jump
     bool midiSounding_ = false;    ///< a note-on went out since the last all-notes-off
     /** @brief Writes the notes the engine played in the block from @p start (@p n samples) into @p midi. */

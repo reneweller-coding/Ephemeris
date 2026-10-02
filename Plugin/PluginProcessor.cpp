@@ -785,8 +785,34 @@ void EphemerisProcessor::perform(const juce::MidiBuffer& midi)
         const juce::MidiMessage m = meta.getMessage();
         if (m.isAllNotesOff() || m.isAllSoundOff()) {
             engine_.liveAllOff();
+            keyMemory_.clear();
         } else if (keys && (m.isNoteOn() || m.isNoteOff())) {
-            engine_.queueLive(meta.samplePosition, m.getNoteNumber(), m.getVelocity(), m.getChannel() - 1, m.isNoteOn());
+            // The keyboard's options (02.10.2026): the keys under the split play the lower voice, Scale Lock moves a key
+            // to the nearest note of the piece's key and scale as it sounds (the transposer's root and the Transpose knob
+            // with it; not on the drums, whose keys are their instruments), the velocity goes through its curve. Where a
+            // press went, its release goes too.
+            const int ch = m.getChannel() - 1, key = m.getNoteNumber();
+            if (m.isNoteOn()) {
+                const int lower = s.getInt(s.id(Module::Perform, 0, perform::KeyboardLower));
+                const int split = 36 + 12 * s.getInt(s.id(Module::Perform, 0, perform::KeyboardSplit));
+                const int target = lower != perform::keys::Off && key < split ? lower : -1;
+                int pitch = key;
+                if (s.getBool(s.id(Module::Perform, 0, perform::KeyboardScale))
+                    && (target >= 0 ? target : engine_.keyTargetFor(ch)) != perform::keys::Drums) {
+                    const Score& sc = engine_.score();
+                    const double beat = engine_.beat();
+                    const int root = sc.keyRoot + sc.rootAt(beat) + s.getInt(s.id(Module::Perform, 0, perform::Transpose));
+                    const int scale = std::clamp(sc.scaleAt(beat, s.getInt(s.id(Module::Compose, 0, compose::Scale))), 0, 7);
+                    pitch = frame::snapToScale(key, ((root % 12) + 12) % 12, frame::scaleMask(kScaleNames[scale]));
+                }
+                const int velocity = frame::shapeVelocity(m.getVelocity(), s.getInt(s.id(Module::Perform, 0, perform::KeyboardVelocity)));
+                keyMemory_.press(ch, key, target, pitch);
+                engine_.queueLive(meta.samplePosition, pitch, velocity, ch, true, target);
+            } else {
+                int target = -1, pitch = key;
+                keyMemory_.release(ch, key, target, pitch);
+                engine_.queueLive(meta.samplePosition, pitch, 0, ch, false, target);
+            }
         } else if (m.isNoteOn()) {
             // The transposition key: the distance from middle C, an octave either way at most.
             setFromMidi(s.id(Module::Perform, 0, perform::Transpose), static_cast<float>(std::clamp(m.getNoteNumber() - 60, -12, 12)));

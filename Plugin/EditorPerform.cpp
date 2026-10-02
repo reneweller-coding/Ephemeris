@@ -82,7 +82,8 @@ void PerformPage::paint(juce::Graphics& g)
     g.drawFittedText("A MIDI keyboard's keys transpose the rows by their distance from middle C (C3 plays as composed); "
                      "the transposition holds until the next key. With Keyboard Plays on a voice the keys play that voice "
                      "instead (Replace leaves out its composed notes, Layer plays over them; Composer off leaves out every "
-                     "composed note). Controller 74 (brightness) grabs the rows' filters, the "
+                     "composed note); Lower Keys Play puts a second voice under Split At, Scale Lock keeps the keys in the "
+                     "piece's scale, the velocity curve shapes the touch. Controller 74 (brightness) grabs the rows' filters, the "
                      "expression pedal throws the echo, the sustain pedal holds the composed moves on the knobs -- as in every "
                      "generator. Every control can be learned for any controller (a right click on it); the bindings are "
                      "saved with the set.",

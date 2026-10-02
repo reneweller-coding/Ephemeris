@@ -768,4 +768,33 @@ void drawHeadsetBox(juce::Graphics& g, juce::Rectangle<int> area, const Skin& sk
                     const juce::String& action, const juce::String& hold, const juce::String& left = "master filter",
                     const juce::String& right = "echo throw", bool framed = true);
 
+// ---------------------------------------------------------------------------------------------------------------------
+// The keyboard's options (02.10.2026): what each generator's perform() does with a played key before the engine has it.
+// All of them off by default -- a key plays as it always did.
+
+/** @brief Pitch-class mask (bit k: k semitones above the root) of the scale named @p name; all twelve for an unknown. */
+uint16_t scaleMask(const juce::String& name);
+/** @brief The note of the scale (@p root 0..11, @p mask) nearest to @p pitch, a tie going down (Scale Lock). */
+int snapToScale(int pitch, int root, uint16_t mask);
+/** @brief The velocity curve names, in the order shapeVelocity() takes them. */
+inline const char* const kVelocityCurveNames[] = { "As Played", "Soft", "Hard", "Fixed" };
+/** @brief A played velocity (1..127) through a curve: 0 as played, 1 soft (a light touch louder), 2 hard, 3 fixed 100. */
+int shapeVelocity(int velocity, int curve);
+
+/** @brief What became of each held key -- the voice and the pitch its press went to --, so that its release goes there. */
+class KeyMemory {
+public:
+    KeyMemory() { clear(); }
+    /** @brief Forgets every held key. */
+    void clear();
+    /** @brief Key @p key on @p channel (0..15) was pressed and went to @p target (-1: the keyboard's own) as @p pitch. */
+    void press(int channel, int key, int target, int pitch);
+    /** @brief Where key @p key's press went; false when it is not held (then the release goes as it comes). */
+    bool release(int channel, int key, int& target, int& pitch);
+
+private:
+    int16_t target_[16][128];   ///< by channel and key: the target its press went to, -2 for none held
+    int16_t pitch_[16][128];    ///< by channel and key: the pitch its press went as
+};
+
 } // namespace frame

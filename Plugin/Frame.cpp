@@ -3,6 +3,9 @@
  * @brief The frame the generators share (Frame.h).
  */
 #include "Frame.h"
+#include <cmath>
+#include <array>
+#include <algorithm>
 #include <map>
 
 namespace frame {
@@ -1575,6 +1578,72 @@ juce::String headsetGrammar(const juce::String& action, const juce::String& hold
          "plays what was composed. The Quest app sends its hands to this computer in bridge mode: bridge_host = this "
          "computer's address in the app's config file (audio=0 leaves the headset silent).";
     return t;
+}
+
+// ---------------------------------------------------------------------------------------------------------------------
+// The keyboard's options (02.10.2026).
+
+uint16_t scaleMask(const juce::String& name)
+{
+    static const std::pair<const char*, std::array<int, 8>> kScales[] = {
+        { "aeolian", { 0, 2, 3, 5, 7, 8, 10, -1 } },          { "minor", { 0, 2, 3, 5, 7, 8, 10, -1 } },
+        { "dorian", { 0, 2, 3, 5, 7, 9, 10, -1 } },           { "phrygian", { 0, 1, 3, 5, 7, 8, 10, -1 } },
+        { "harmonic minor", { 0, 2, 3, 5, 7, 8, 11, -1 } },   { "minor pentatonic", { 0, 3, 5, 7, 10, -1, -1, -1 } },
+        { "ionian", { 0, 2, 4, 5, 7, 9, 11, -1 } },           { "major", { 0, 2, 4, 5, 7, 9, 11, -1 } },
+        { "mixolydian", { 0, 2, 4, 5, 7, 9, 10, -1 } },       { "lydian", { 0, 2, 4, 6, 7, 9, 11, -1 } },
+        { "locrian", { 0, 1, 3, 5, 6, 8, 10, -1 } },          { "phrygian dominant", { 0, 1, 4, 5, 7, 8, 10, -1 } },
+        { "double harmonic", { 0, 1, 4, 5, 7, 8, 11, -1 } },  { "hexachord", { 0, 2, 3, 5, 7, 10, -1, -1 } },
+    };
+    const juce::String n = name.trim().toLowerCase();
+    for (const auto& [key, steps] : kScales)
+        if (n == key) {
+            uint16_t m = 0;
+            for (int s : steps) if (s >= 0) m = static_cast<uint16_t>(m | (1u << s));
+            return m;
+        }
+    return 0x0FFF;
+}
+
+int snapToScale(int pitch, int root, uint16_t mask)
+{
+    if ((mask & 0x0FFF) == 0x0FFF || (mask & 0x0FFF) == 0) return pitch;
+    auto in = [&](int p) { return ((mask >> (((p - root) % 12 + 12) % 12)) & 1u) != 0; };
+    for (int d = 0; d < 12; ++d) {
+        if (pitch - d >= 0 && in(pitch - d)) return pitch - d;   // a tie goes down
+        if (pitch + d <= 127 && in(pitch + d)) return pitch + d;
+    }
+    return pitch;
+}
+
+int shapeVelocity(int velocity, int curve)
+{
+    const int v = std::clamp(velocity, 1, 127);
+    if (curve == 3) return 100;
+    if (curve != 1 && curve != 2) return v;
+    const double x = static_cast<double>(v) / 127.0;
+    return std::clamp(static_cast<int>(std::lround(127.0 * std::pow(x, curve == 1 ? 0.6 : 1.7))), 1, 127);
+}
+
+void KeyMemory::clear()
+{
+    for (auto& row : target_) for (auto& t : row) t = -2;
+    for (auto& row : pitch_) for (auto& p : row) p = 0;
+}
+
+void KeyMemory::press(int channel, int key, int target, int pitch)
+{
+    if (channel < 0 || channel > 15 || key < 0 || key > 127) return;
+    target_[channel][key] = static_cast<int16_t>(target);
+    pitch_[channel][key] = static_cast<int16_t>(pitch);
+}
+
+bool KeyMemory::release(int channel, int key, int& target, int& pitch)
+{
+    if (channel < 0 || channel > 15 || key < 0 || key > 127 || target_[channel][key] == -2) return false;
+    target = target_[channel][key];
+    pitch = pitch_[channel][key];
+    target_[channel][key] = -2;
+    return true;
 }
 
 } // namespace frame
