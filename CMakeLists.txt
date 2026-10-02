@@ -81,6 +81,8 @@ if(EPH_BUILD_PLUGIN)
         if(MSVC)
             target_compile_options(eph_vst3test PRIVATE /W4 /permissive- /utf-8)
             target_link_options(eph_vst3test PRIVATE "LINKER:/STACK:16777216")
+        elseif(APPLE)
+            target_link_options(eph_vst3test PRIVATE "LINKER:-stack_size,0x1000000")
         endif()
         add_test(NAME vst3test COMMAND eph_vst3test "$<TARGET_FILE:Ephemeris_VST3>")
         # It checks that the plugin sounds (offline, nothing reaches a speaker), so it must not be muted.

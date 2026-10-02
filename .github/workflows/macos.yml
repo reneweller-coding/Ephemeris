@@ -44,6 +44,7 @@ jobs:
           codesign --force --deep -s - "$out/Ephemeris.app"
           codesign --force --deep -s - "$out/Ephemeris.vst3"
           cp LICENSE "$out/LICENSE.txt"
+          if [ -f docs/manual/Ephemeris-Manual.pdf ]; then cp docs/manual/Ephemeris-Manual.pdf "$out/"; fi
           cat > "$out/README-macOS.txt" <<'EOF'
           Ephemeris for macOS (Apple Silicon)
 
