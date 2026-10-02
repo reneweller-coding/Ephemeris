@@ -1,0 +1,73 @@
+# Ephemeris CI -- the family's (02.10.2026; the same file in all five instruments but for its names).
+#
+# Every push to master builds the core, the tools and the tests on a clean Windows machine and runs every test that is
+# not slow; beside it, on Linux, the documentation check with the doxygen this machine has (1.18.0). Nobody waits for
+# it: a push returns at once, a newer push cancels the run before it, and GitHub mails only when a run fails. Prose and
+# pictures (docs, *.md) start no run. "Run workflow" on the Actions tab runs it by hand, with the slow tests if asked.
+#
+# What it proves that a local run cannot: that a fresh clone builds and passes on a machine that has never seen this
+# tree -- no build cache, no data outside the repository, Visual Studio 2022 instead of this machine's 2026. The plugin
+# (JUCE) is not built here; Deploy/build_release.ps1 builds and validates it.
+name: ci
+
+on:
+  push:
+    branches: [master]
+    paths-ignore:
+      - 'docs/**'
+      - '**/*.md'
+      - 'work/**'
+  workflow_dispatch:
+    inputs:
+      slow:
+        description: "also the slow tests"
+        type: boolean
+        default: false
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure (core, tools, tests; no plugin)
+        run: cmake -S . -B build -DEPH_BUILD_PLUGIN=OFF
+
+      - name: Build
+        run: cmake --build build --config Release --parallel
+
+      - name: Test
+        shell: bash
+        env:
+          EPH_MUTE: "1"
+        run: |
+          if [ "${{ inputs.slow }}" = "true" ]; then exclude="docs"; else exclude="slow|docs"; fi
+          ctest --test-dir build -C Release -j 4 -LE "$exclude" --output-on-failure
+
+      - name: Keep the test log
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ctest-log
+          path: build/Testing/Temporary/LastTest.log
+
+  docs:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Doxygen 1.18.0, as on the development machine
+        run: |
+          curl -sSL -o doxygen.tgz https://www.doxygen.nl/files/doxygen-1.18.0.linux.bin.tar.gz \
+            || curl -sSL -o doxygen.tgz https://github.com/doxygen/doxygen/releases/download/Release_1_18_0/doxygen-1.18.0.linux.bin.tar.gz
+          tar xzf doxygen.tgz
+          echo "$PWD/doxygen-1.18.0/bin" >> "$GITHUB_PATH"
+
+      - name: Every entity documented (cmake/Family.cmake)
+        run: cmake -DDOCCHECK=1 -DDOXYGEN=doxygen -DROOT="$PWD" -DOUT="$PWD/build/doccheck" -DNAME=Ephemeris -P cmake/Family.cmake
