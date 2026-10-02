@@ -49,6 +49,12 @@ endif()
 if(CMAKE_CXX_COMPILER_ID STREQUAL "IntelLLVM")
     add_compile_options(/fp:precise /Qfma- /clang:-Wno-overriding-option)
 endif()
+# GCC 11's SLP vectoriser at -O3 turns the four-stage cascades of Filters.h into three (02.10.2026, the first Linux
+# build: selftest.testFilters 10 dB off at 3 kHz, a three-pole response; -O0 to -O2 and GCC 12 are right). Ubuntu
+# 22.04's own compiler is GCC 11, so a build from the sources there goes without it.
+if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU" AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS 12)
+    add_compile_options(-fno-tree-slp-vectorize)
+endif()
 if(ANDROID)
     set(EPH_AVX2 OFF CACHE BOOL "" FORCE)
 endif()
