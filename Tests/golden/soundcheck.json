@@ -1,0 +1,113 @@
+{
+ "render": "eph_render",
+ "mix_tol": 1.0,
+ "stem_tol": 3.0,
+ "quiet": -40.0,
+ "cases": {
+  "cosmic": {
+   "mix": -16.2,
+   "stems": {
+    "01_Row_1": -4.15,
+    "02_Row_2": -5.03,
+    "03_Row_3": -5.98,
+    "04_Row_4": null,
+    "05_Row_5": null,
+    "06_Row_6": null,
+    "07_Row_7": null,
+    "08_Row_8": null,
+    "09_Lead": -10.26,
+    "10_Drone": -7.43,
+    "11_Tape_Keys": -11.22,
+    "12_Strings": null,
+    "13_Poly": -6.21,
+    "14_Drums": -12.72,
+    "15_Atmosphere": -24.61,
+    "16_Rooms": -14.23
+   }
+  },
+  "doom": {
+   "mix": -17.66,
+   "stems": {
+    "01_Row_1": -4.5,
+    "02_Row_2": -4.68,
+    "03_Row_3": -8.4,
+    "04_Row_4": null,
+    "05_Row_5": null,
+    "06_Row_6": null,
+    "07_Row_7": null,
+    "08_Row_8": null,
+    "09_Lead": -10.94,
+    "10_Drone": -8.03,
+    "11_Tape_Keys": -11.01,
+    "12_Strings": null,
+    "13_Poly": null,
+    "14_Drums": -8.22,
+    "15_Atmosphere": -18.42,
+    "16_Rooms": -15.57
+   }
+  },
+  "drift": {
+   "mix": -18.83,
+   "stems": {
+    "01_Row_1": -7.47,
+    "02_Row_2": -6.52,
+    "03_Row_3": null,
+    "04_Row_4": null,
+    "05_Row_5": null,
+    "06_Row_6": null,
+    "07_Row_7": null,
+    "08_Row_8": null,
+    "09_Lead": -3.8,
+    "10_Drone": -16.85,
+    "11_Tape_Keys": -10.66,
+    "12_Strings": null,
+    "13_Poly": -9.34,
+    "14_Drums": null,
+    "15_Atmosphere": -12.83,
+    "16_Rooms": -13.09
+   }
+  },
+  "melodic": {
+   "mix": -17.41,
+   "stems": {
+    "01_Row_1": -3.7,
+    "02_Row_2": -6.32,
+    "03_Row_3": -3.66,
+    "04_Row_4": -3.71,
+    "05_Row_5": null,
+    "06_Row_6": null,
+    "07_Row_7": null,
+    "08_Row_8": null,
+    "09_Lead": -4.16,
+    "10_Drone": -6.21,
+    "11_Tape_Keys": null,
+    "12_Strings": -13.17,
+    "13_Poly": -13.35,
+    "14_Drums": -10.1,
+    "15_Atmosphere": -22.67,
+    "16_Rooms": -14.76
+   }
+  },
+  "modern": {
+   "mix": -13.89,
+   "stems": {
+    "01_Row_1": -6.53,
+    "02_Row_2": -10.98,
+    "03_Row_3": -24.19,
+    "04_Row_4": -13.97,
+    "05_Row_5": null,
+    "06_Row_6": null,
+    "07_Row_7": null,
+    "08_Row_8": null,
+    "09_Lead": -13.61,
+    "10_Drone": -9.29,
+    "11_Tape_Keys": -4.39,
+    "12_Strings": -19.64,
+    "13_Poly": -37.34,
+    "14_Drums": -12.18,
+    "15_Atmosphere": -27.84,
+    "16_Rooms": -14.55
+   }
+  }
+ }
+}

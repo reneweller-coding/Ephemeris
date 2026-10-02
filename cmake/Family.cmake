@@ -126,6 +126,20 @@ function(family_doccheck)
     set_tests_properties(doccheck PROPERTIES LABELS "docs")
 endfunction()
 
+# family_soundcheck(<render target>): the sound regression check (Tools/soundcheck.py, 02.10.2026) as the ctest
+# "soundcheck", labelled sound and slow: fixed seeds rendered with <render target> and measured against
+# Tests/golden/soundcheck.json. Python with numpy and scipy; without them the test reports itself skipped (77).
+function(family_soundcheck target)
+    find_package(Python3 COMPONENTS Interpreter QUIET)
+    if(NOT Python3_Interpreter_FOUND OR NOT TARGET ${target} OR NOT EXISTS "${CMAKE_SOURCE_DIR}/Tools/soundcheck.py")
+        message(STATUS "soundcheck: no python or no ${target}, no test")
+        return()
+    endif()
+    add_test(NAME soundcheck COMMAND "${Python3_EXECUTABLE}" "${CMAKE_SOURCE_DIR}/Tools/soundcheck.py"
+                                     --exe "$<TARGET_FILE:${target}>" --work "${CMAKE_BINARY_DIR}/soundcheck")
+    set_tests_properties(soundcheck PROPERTIES LABELS "sound;slow" SKIP_RETURN_CODE 77 TIMEOUT 3600)
+endfunction()
+
 # family_juce(<tag>): JUCE for the plugin -- this repository's ThirdParty/JUCE, else the sibling Phosphene's checkout,
 # else fetched from GitHub at <tag>. Nothing under Core/ ever includes JUCE.
 macro(family_juce tag)

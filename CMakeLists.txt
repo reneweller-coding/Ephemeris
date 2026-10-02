@@ -59,6 +59,7 @@ if(EPH_BUILD_TOOLS)
     family_doccheck()   # every entity documented (cmake/Family.cmake, 01.10.2026)
     add_subdirectory(Tools/pieces)
     add_subdirectory(Tools/render)
+    family_soundcheck(eph_render)   # the sound regression check (Tools/soundcheck.py, 02.10.2026)
     add_subdirectory(Tests)
 endif()
 
