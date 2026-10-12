@@ -25,6 +25,7 @@ int portOf(const juce::String& app)
     if (app == "Ephemeris") return 9102;
     if (app == "Totality") return 9103;
     if (app == "Parhelion") return 9104;
+    if (app == "Empyrean") return 9105;
     return 9100;
 }
 
