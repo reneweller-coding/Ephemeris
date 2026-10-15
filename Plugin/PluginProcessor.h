@@ -180,6 +180,18 @@ public:
     /** @brief The host parameter of store id @p id, or null. */
     /** @brief Applies factory preset @p index of @p module (Presets.h) to instance @p instance, through the host's parameters. */
     void applyPreset(eph::Module module, int instance, int index);
+    /**
+     * @brief Sets the knobs @p values (store id, real value) through the host's parameters as one undo step named @p what
+     *        (15.10.2026: a value typed into the command palette).
+     */
+    void applyKnobs(const juce::String& what, const std::vector<std::pair<int, float>>& values);
+    /**
+     * @brief Plays @p values (store id, real value) while a preset is listened to in the browser -- in the store only: no
+     *        undo step, nothing to the host --; endPreview() takes them back.
+     */
+    void previewKnobs(const std::vector<std::pair<int, float>>& values);
+    /** @brief Back to the knobs as they were before previewKnobs (nothing when no preview plays). */
+    void endPreview();
     /** @brief Applies @p preset (a factory or a user preset) to instance @p instance of @p module, through the host. */
     void applyPresetValues(eph::Module module, int instance, const eph::SoundPreset& preset);
     /** @brief The user's presets of a synth: the text files in its folder under the application data, by name. */
@@ -222,6 +234,7 @@ private:
     void pollHeadset();                              ///< the hands' events, 30 times a second (message thread)
     frame::UndoHistory history_;                     ///< undo and redo (message thread)
     bool restoring_ = false;                         ///< an undo or the headset moves knobs: no step of their own
+    std::vector<std::pair<int, float>> previewSaved_;   ///< the knobs a preview replaced (store id, real value)
     frame::Headset headset_;                         ///< the Quest's hands (message thread)
     juce::TimedCallback headsetTick_{ [this] { pollHeadset(); } };   ///< polls the headset 30 times a second
     void run() override;   ///< the composer thread

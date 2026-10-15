@@ -47,6 +47,63 @@ juce::Colour sectionColour(const juce::String& name)
     return tone(Family::Space, 0.8f);
 }
 
+/** @brief A synth's name in the presets' folder and the browser: its parameters' key without the lane's number ("bass", "perc"). */
+juce::String synthKey(const ParamStore& s, Module m)
+{
+    const std::string& k = s.key(s.id(m, 0, 0));
+    return juce::String(k.substr(0, k.find('.'))).trimCharactersAtEnd("0123456789");
+}
+
+/** @brief "perc3.decay" -> "Perc 3", "kick.tune" -> "Kick": the module instance a store id belongs to, for the palette and the info line. */
+juce::String moduleLabel(const ParamStore& s, int id)
+{
+    const std::string& k = s.key(id);
+    const juce::String p(k.substr(0, k.find('.')));
+    const juce::String name = p.trimCharactersAtEnd("0123456789");
+    const juce::String digits = p.substring(name.length());
+    const juce::String nice = name.substring(0, 1).toUpperCase() + name.substring(1);
+    return digits.isEmpty() ? nice : nice + " " + digits;
+}
+
+/** @brief Whether the knobs stand where @p values put them (within a thousandth of each one's range). */
+bool knobsAt(const ParamStore& s, const std::vector<std::pair<int, float>>& values)
+{
+    for (const auto& [id, v] : values) {
+        const ParamDesc& d = s.desc(id);
+        if (std::abs(s.get(id) - v) > 0.001f * std::max(1.0e-6f, d.maxValue - d.minValue)) return false;
+    }
+    return true;
+}
+
+/** @brief The small tabs of a page: the page itself, or the first SubTabs inside it. */
+frame::SubTabs* findSubTabs(juce::Component* c)
+{
+    if (c == nullptr) return nullptr;
+    if (auto* subs = dynamic_cast<frame::SubTabs*>(c)) return subs;
+    for (auto* child : c->getChildren())
+        if (auto* subs = findSubTabs(child)) return subs;
+    return nullptr;
+}
+
+/** @brief The knobs of menu id @p menuId of synth @p m on instance @p instance (a factory preset's index + 1, or 5001 + one of the player's). */
+std::vector<std::pair<int, float>> knobsOf(EphemerisProcessor& p, Module m, int instance, int menuId)
+{
+    std::vector<std::pair<int, float>> out;
+    const ParamStore& s = p.store();
+    const SoundPreset* preset = nullptr;
+    std::vector<SoundPreset> user;
+    if (menuId > 5000) {
+        user = p.userPresets(m);
+        if (menuId - 5001 < static_cast<int>(user.size())) preset = &user[static_cast<size_t>(menuId - 5001)];
+    } else {
+        const std::vector<SoundPreset>& list = factoryPresets(m);
+        if (menuId >= 1 && menuId <= static_cast<int>(list.size())) preset = &list[static_cast<size_t>(menuId - 1)];
+    }
+    if (preset != nullptr)
+        for (const auto& [k, v] : presetKnobs(m, *preset)) out.emplace_back(s.id(m, instance, k), v);
+    return out;
+}
+
 } // namespace
 
 // ---------------------------------------------------------------------------------------------------
@@ -59,6 +116,16 @@ ParamPage::ParamPage(EphemerisProcessor& p, std::vector<std::pair<Module, int>> 
     actions_.forget = [this](int id) { proc_.forget(id); };
     actions_.reset = [this](int id) { proc_.resetToDefault(id); };
     actions_.describe = [this](int id) { return juce::String(proc_.store().desc(id).name) + "  (" + proc_.store().key(id) + ")"; };
+    // The modulation at the knob (15.10.2026, Frame.h): the voice's matrix rows on its knobs, as arcs round them and in
+    // their right-click menus; an Alt-drag sets a row's depth.
+    {
+        frame::ModAccess a = frame::slotMatrix(proc_.store(), [this](int id, float v) { proc_.setFromUi(id, v); },
+                                               [this](const juce::String& what) { proc_.beginStep(what); }, [this] { proc_.endStep(); },
+                                               ephui::skin());
+        a.say = [this](const juce::String& text) { if (auto* ed = findParentComponentOfClass<EphemerisEditor>()) ed->say(text); };
+        modulation_ = std::make_unique<frame::ModulationAtKnob>(std::move(a));
+        modulation_->install(actions_, &live_);
+    }
     if (instances_ > 1) {
         for (int i = 0; i < instances_; ++i) instance_.addItem(juce::String(i + 1), i + 1);
         instance_.setSelectedId(1, juce::dontSendNotification);
@@ -80,6 +147,7 @@ ParamPage::ParamPage(EphemerisProcessor& p, std::vector<std::pair<Module, int>> 
                 for (int i = 0; i < instances_; ++i)
                     if (i == one || allRows_.getToggleState())
                         proc_.applyPresetValues(presetModule_, i, user_[static_cast<size_t>(id - 5001)]);
+                chosen(id);
             } else if (id > 0) {
                 choosePreset(id - 1);
             }
@@ -99,6 +167,20 @@ ParamPage::ParamPage(EphemerisProcessor& p, std::vector<std::pair<Module, int>> 
             }), false);
         };
         addAndMakeVisible(save_);
+        browse_.onClick = [this] {
+            if (auto* ed = findParentComponentOfClass<EphemerisEditor>())
+                ed->browsePresets(presetModule_, instance(), [safe = juce::Component::SafePointer<ParamPage>(this)](int id) {
+                    if (safe == nullptr) return;
+                    safe->fillPresets();
+                    safe->chosen(id);
+                });
+        };
+        addAndMakeVisible(browse_);
+        star_.setColour(juce::Label::textColourId, kAccent);
+        star_.setFont(juce::FontOptions(16.0f, juce::Font::bold));
+        star_.setJustificationType(juce::Justification::centred);
+        star_.setTooltip("The knobs have moved from the preset (the disk saves the sound as one of your own)");
+        addAndMakeVisible(star_);
         composed_.setColour(juce::Label::textColourId, kDim);
         composed_.setTooltip("The preset the composer chose for this synth in the piece that plays (Composer's Sounds on the "
                              "Master page; reroll sounds draws others)");
@@ -196,12 +278,17 @@ void ParamPage::timerCallback()
 {
     const int inst = instances_ > 1 ? instance_.getSelectedId() - 1 : 0;
     const int index = proc_.composedPreset(presetModule_, inst);
-    if (index == shown_) return;
-    shown_ = index;
-    const std::vector<SoundPreset>& list = factoryPresets(presetModule_);
-    composed_.setText(index >= 0 && index < static_cast<int>(list.size())
-                          ? juce::String("this piece: ") + list[static_cast<size_t>(index)].name + " (" + list[static_cast<size_t>(index)].group + ")"
-                          : juce::String(), juce::dontSendNotification);
+    if (index != shown_) {
+        shown_ = index;
+        const std::vector<SoundPreset>& list = factoryPresets(presetModule_);
+        composed_.setText(index >= 0 && index < static_cast<int>(list.size())
+                              ? juce::String("this piece: ") + list[static_cast<size_t>(index)].name + " (" + list[static_cast<size_t>(index)].group + ")"
+                              : juce::String(), juce::dontSendNotification);
+        if (index >= 0 && index < static_cast<int>(list.size())) loadedKnobs_ = knobsOf(proc_, presetModule_, inst, index + 1);   // the composer's, until another is chosen
+    }
+    // The star: the knobs have moved from the preset they came from.
+    const bool moved = !loadedKnobs_.empty() && !knobsAt(proc_.store(), loadedKnobs_);
+    if (star_.getText().isNotEmpty() != moved) star_.setText(moved ? "*" : "", juce::dontSendNotification);
 }
 
 void ParamPage::choosePreset(int index)
@@ -212,6 +299,48 @@ void ParamPage::choosePreset(int index)
     const int one = instances_ > 1 ? instance_.getSelectedId() - 1 : 0;
     for (int i = 0; i < instances_; ++i)
         if (i == one || allRows_.getToggleState()) proc_.applyPreset(presetModule_, i, index);
+    chosen(index + 1);
+}
+
+void ParamPage::chosen(int menuId)
+{
+    if (menuId <= 5000) presetIndex_ = menuId - 1;
+    preset_.setSelectedId(menuId, juce::dontSendNotification);
+    loadedKnobs_ = knobsOf(proc_, presetModule_, instance(), menuId);
+    if (preset_.getText().isNotEmpty()) frame::PresetBrowser::played("Ephemeris", synthKey(proc_.store(), presetModule_), preset_.getText());
+    star_.setText({}, juce::dontSendNotification);
+}
+
+void ParamPage::reveal(juce::Component& part)
+{
+    // The box holding it, and its section in front.
+    for (size_t b = 0; b < boxes_.size(); ++b)
+        for (const Cell& c : boxes_[b].cells) {
+            juce::Component* comp = controls_[c.control];
+            if (comp != &part && !comp->isParentOf(&part)) continue;
+            if (split_ && b < sectionOf_.size() && sectionOf_[b] != section_.current()) {
+                section_.setCurrent(sectionOf_[b]);
+                applySection();
+                refit();
+            }
+            return;
+        }
+}
+
+bool ParamPage::bringId(int id)
+{
+    if (instances_ <= 1) return false;
+    const ParamStore& s = proc_.store();
+    if (id < 0 || id >= s.count()) return false;
+    // The instance of a module of this page whose parameters hold it.
+    for (const auto& g : groups_)
+        for (int inst = 0; inst < instances_; ++inst) {
+            const int b = s.base(g.first, inst);
+            if (b < 0 || id < b || id >= b + ParamStore::moduleCount(g.first)) continue;
+            instance_.setSelectedId(inst + 1, juce::sendNotificationSync);   // build() makes that row's controls
+            return true;
+        }
+    return false;
 }
 
 ModSlotControl::ModSlotControl(int number, juce::Colour colour) : number_(number)
@@ -585,6 +714,8 @@ void ParamPage::resized()
             next_.setBounds(top.removeFromLeft(28));
             top.removeFromLeft(8);
             save_.setBounds(top.removeFromLeft(frame::kIconWidth));
+            browse_.setBounds(top.removeFromLeft(frame::kIconWidth));
+            star_.setBounds(top.removeFromLeft(16));
             if (instances_ > 1) { top.removeFromLeft(8); allRows_.setBounds(top.removeFromLeft(90)); }
             top.removeFromLeft(12);
             composed_.setBounds(top);
@@ -1213,7 +1344,8 @@ EphemerisEditor::EphemerisEditor(EphemerisProcessor& p) : juce::AudioProcessorEd
         for (int i = 0; i < tabs_.getNumTabs(); ++i)
             if (tabs_.getTabNames()[i] == "Perform") tabs_.setCurrentTabIndex(i);
     };
-    for (auto* b : { &undo_, &redo_, &help_, &settings_ }) body_.addAndMakeVisible(b);
+    search_.onClick = [this] { openPalette(); };
+    for (auto* b : { &undo_, &redo_, &search_, &help_, &settings_ }) body_.addAndMakeVisible(b);
     body_.addChildComponent(headsetIcon_);
     rerolls_.setColour(juce::Label::textColourId, kDim);
     rerolls_.setJustificationType(juce::Justification::centredRight);
@@ -1269,6 +1401,14 @@ EphemerisEditor::EphemerisEditor(EphemerisProcessor& p) : juce::AudioProcessorEd
     tabs_.addTab("Style", kPanel, new StylePage(proc_, std::make_unique<ParamPage>(proc_, std::vector<std::pair<M, int>>{ { M::Custom, 0 } }, 1)), true);
     tabs_.setOutline(0);
     body_.addAndMakeVisible(tabs_);
+    // The family's ways around the panel (15.10.2026, Frame.h): the info line at the bottom, and over everything while
+    // open the command palette, the preset browser and the first steps.
+    info_ = std::make_unique<frame::InfoLine>(ephui::skin(), body_);
+    info_->describe = [this](int id, juce::String& name, juce::String& text) { return describeControl(id, name, text); };
+    body_.addAndMakeVisible(*info_);
+    for (juce::Component* c : { static_cast<juce::Component*>(&palette_), static_cast<juce::Component*>(&browser_), static_cast<juce::Component*>(&tour_) })
+        body_.addChildComponent(c);
+    tour_.onDone = [] { frame::Settings::of("Ephemeris").setValue("tourDone", "1"); };
     frame::keepKeysForEditor(body_);
     setWantsKeyboardFocus(true);
 
@@ -1328,6 +1468,8 @@ void EphemerisEditor::parentHierarchyChanged()
         if (window != nullptr)
             window->setTitleBarButtonsRequired(juce::DocumentWindow::minimiseButton | juce::DocumentWindow::maximiseButton
                                                    | juce::DocumentWindow::closeButton, false);
+        // The standalone's window back where it was left (15.10.2026; not in the screenshot and report modes).
+        if (std::getenv("EPH_SHOT") == nullptr && std::getenv("EPH_PAGE_REPORT") == nullptr) safe->window_.attach(*safe, "Ephemeris");
         safe->layoutBody();
     });
 }
@@ -1372,6 +1514,7 @@ bool EphemerisEditor::keyPressed(const juce::KeyPress& key)
     k.save = [this] { if (auto* e = exportPage()) e->save(); };
     k.open = [this] { if (auto* e = exportPage()) e->load(); };
     k.exportFile = [this] { if (auto* e = exportPage()) e->exportWith(false); };
+    k.palette = [this] { openPalette(); };
     return frame::handleKey(key, k);
 }
 
@@ -1422,6 +1565,10 @@ void EphemerisEditor::showSettings()
         m.linkStatus = [this] { return proc_.linkStatus(); };
     m.jamStatus = [this] { return proc_.jamStatus(); };   // the family jam (02.10.2026), plugin and standalone
     m.about = [] { return juce::String("Berlin School sequencer music, composed and synthesised.\ngithub.com/reneweller-coding/Ephemeris"); };
+    m.moreItems = [this](juce::PopupMenu& pm) {
+        pm.addItem("Search: any control, preset or action (Ctrl+K) ...", [this] { openPalette(); });
+        pm.addItem("First steps (the tour) ...", [this] { startTour(); });
+    };
     m.show(settings_);
 }
 
@@ -1467,9 +1614,16 @@ void EphemerisEditor::layoutBody()
     h.status = &status_;
     h.curation = &rerolls_;
     h.update = &update_;
-    h.tools = { &headsetIcon_, nullptr, &undo_, &redo_, nullptr, &help_, &settings_ };
+    h.tools = { &headsetIcon_, nullptr, &undo_, &redo_, nullptr, &search_, &help_, &settings_ };
     frame::layoutHeader(area, h);
     headerBottom_ = area.getY();
+    // The info line along the bottom (15.10.2026); the overlays over the whole body.
+    if (info_ != nullptr) {
+        info_->setBounds(area.removeFromBottom(frame::InfoLine::kHeight));
+        area.removeFromBottom(4);
+    }
+    for (juce::Component* c : { static_cast<juce::Component*>(&palette_), static_cast<juce::Component*>(&browser_), static_cast<juce::Component*>(&tour_) })
+        c->setBounds(body_.getLocalBounds());
     // The overview, unless the settings fold it away (01.10.2026): then the pages get its height.
     const bool overview = frame::Settings::of("Ephemeris").overview();
     arrange_.setVisible(overview);
@@ -1481,6 +1635,13 @@ void EphemerisEditor::layoutBody()
 
 void EphemerisEditor::timerCallback()
 {
+    // The first steps on the first start (not in an automated run: the screenshots, the report, EPH_MUTE).
+    if (tourTicks_ >= 0 && ++tourTicks_ > 25) {
+        tourTicks_ = -1;
+        if (shotPath_.isEmpty() && std::getenv("EPH_PAGE_REPORT") == nullptr && !proc_.muteForced()
+            && frame::Settings::of("Ephemeris").value("tourDone").isEmpty())
+            startTour();
+    }
     if (shotHands_) proc_.headset().inject(proc_.headset().hands());
     status_.setText(proc_.status(), juce::dontSendNotification);
     rerolls_.setText(proc_.curationText(), juce::dontSendNotification);
@@ -1577,4 +1738,181 @@ void EphemerisEditor::timerCallback()
         shotPath_ = {};
         if (juce::JUCEApplicationBase::isStandaloneApp()) juce::JUCEApplicationBase::quit();
     }
+}
+
+// --------------------------------------------------------------------------------------------------- ways around the panel
+
+void EphemerisEditor::openPalette()
+{
+    if (browser_.isVisible()) browser_.close();
+    palette_.open(paletteCommands());
+}
+
+bool EphemerisEditor::revealId(int id) { return frame::revealControl(tabs_, id, kAccent); }
+
+std::vector<frame::CommandPalette::Command> EphemerisEditor::paletteCommands()
+{
+    using Command = frame::CommandPalette::Command;
+    std::vector<Command> out;
+    auto action = [&out](const juce::String& title, const juce::String& detail, std::function<void()> f) {
+        out.push_back({ title, detail, "Action", false, [f](const juce::String&) { f(); } });
+    };
+    action("Play / stop", "Space", [this] { proc_.setPlaying(!proc_.isPlaying()); });
+    action("Compose piece", "a single piece, its length in the header", [this] { proc_.chooseKind(0); proc_.compose(); });
+    action("Compose concert", "pieces in a row, an evening's concert", [this] { proc_.chooseKind(1); proc_.compose(); });
+    action("Compose night set", "a concert through the night", [this] { proc_.chooseKind(2); proc_.compose(); });
+    action("New seed", "another piece from the same settings", [this] { proc_.newSeed(); });
+    action("Undo", "Ctrl+Z", [this] { proc_.undo(); });
+    action("Redo", "Ctrl+Y", [this] { proc_.redo(); });
+    action("Mute / unmute the output", "the speaker", [this] { proc_.setMuted(!proc_.muted()); });
+    action("Save the set", "Ctrl+S", [this] { if (auto* e = exportPage()) e->save(); });
+    action("Open a set", "Ctrl+O", [this] { if (auto* e = exportPage()) e->load(); });
+    action("Export WAV + MIDI", "Ctrl+E", [this] { if (auto* e = exportPage()) e->exportWith(false); });
+    action("Export with stems", "a WAV per voice", [this] { if (auto* e = exportPage()) e->exportWith(true); });
+    action("Help", "F1: the manual by topic", [this] { showHelp(true); });
+    action("Settings", "the window, the headset, the jam, Link", [this] { showSettings(); });
+    action("First steps", "the tour of the panel", [this] { startTour(); });
+    action("Overview above the tabs", "show it or fold it away", [] {
+        auto& s = frame::Settings::of("Ephemeris");
+        s.setOverview(!s.overview());
+    });
+    if (standalone()) action("Full screen", "F11", [this] { toggleFullScreen(); });
+    // The pages, and the small tabs of the pages of several.
+    const juce::StringArray names = tabs_.getTabNames();
+    for (int t = 0; t < tabs_.getNumTabs(); ++t) {
+        out.push_back({ names[t], "page", "Page", false, [this, t](const juce::String&) { tabs_.setCurrentTabIndex(t); } });
+        if (auto* st = findSubTabs(tabs_.getTabContentComponent(t)))
+            for (int j = 0; j < st->count(); ++j)
+                out.push_back({ names[t] + ": " + st->name(j), "page", "Page", false, [this, t, j](const juce::String&) {
+                                   tabs_.setCurrentTabIndex(t);
+                                   if (auto* s2 = findSubTabs(tabs_.getTabContentComponent(t))) s2->show(j);
+                               } });
+    }
+    // Every control: its page opens and it lights up; a number after its name sets it.
+    const ParamStore& s = proc_.store();
+    for (int id = 0; id < s.count(); ++id) {
+        if (proc_.parameter(id) == nullptr) continue;
+        const ParamDesc& d = s.desc(id);
+        const bool number = d.curve != Curve::Choice && d.curve != Curve::Toggle;
+        out.push_back({ d.name, moduleLabel(s, id), "Control", number, [this, id](const juce::String& n) {
+                           if (n.isNotEmpty()) proc_.applyKnobs(juce::String(proc_.store().desc(id).name), { { id, n.getFloatValue() } });
+                           revealId(id);
+                           if (info_ != nullptr) info_->showControl(id);
+                       } });
+    }
+    // Every preset of every synth (on the first row or instance), the player's own first.
+    for (int mi = 0; mi < static_cast<int>(Module::Count); ++mi) {
+        const auto m = static_cast<Module>(mi);
+        const std::vector<SoundPreset>& list = factoryPresets(m);
+        if (list.empty()) continue;
+        const juce::String where = moduleLabel(s, s.id(m, 0, 0));
+        const std::vector<SoundPreset> yours = proc_.userPresets(m);
+        for (size_t k = 0; k < yours.size(); ++k)
+            out.push_back({ yours[k].name, where + " preset, yours", "Yours", false, [this, m, k](const juce::String&) {
+                               const std::vector<SoundPreset> now = proc_.userPresets(m);
+                               if (k >= now.size()) return;
+                               proc_.applyPresetValues(m, 0, now[k]);
+                               frame::PresetBrowser::played("Ephemeris", synthKey(proc_.store(), m), juce::String(now[k].name));
+                               revealId(proc_.store().id(m, 0, 0));
+                           } });
+        for (size_t i = 0; i < list.size(); ++i)
+            out.push_back({ list[i].name, where + " preset, " + list[i].group, "Preset", false, [this, m, i](const juce::String&) {
+                               proc_.applyPreset(m, 0, static_cast<int>(i));
+                               frame::PresetBrowser::played("Ephemeris", synthKey(proc_.store(), m), juce::String(factoryPresets(m)[i].name));
+                               revealId(proc_.store().id(m, 0, 0));
+                           } });
+    }
+    return out;
+}
+
+bool EphemerisEditor::describeControl(int id, juce::String& name, juce::String& text)
+{
+    const ParamStore& s = proc_.store();
+    if (id < 0 || id >= s.count()) return false;
+    const ParamDesc& d = s.desc(id);
+    auto fmt = [&d](float v) {
+        return juce::String(v, std::abs(v) >= 100.0f ? 0 : std::abs(v) >= 10.0f ? 1 : 2) + (d.unit[0] != 0 ? juce::String(" ") + d.unit : juce::String());
+    };
+    name = d.name;
+    text = moduleLabel(s, id) + "    now " + juce::String(s.format(id));
+    if (d.curve != Curve::Choice && d.curve != Curve::Toggle) {
+        text << "    " << fmt(d.minValue) << " .. " << fmt(d.maxValue) << ", default " << fmt(s.defaultValue(id));
+        // Where it plays now, when the composed player's moves take it away from where it stands.
+        const float played = proc_.playedNormalised(id);
+        if (!std::isnan(played) && std::abs(played - s.toNormalised(id, s.get(id))) > 0.004f)
+            text << "    plays at " << fmt(s.fromNormalised(id, played)) << " (the player's moves)";
+    }
+    // What moves it: the voice's matrix rows on it.
+    {
+        juce::String by;
+        const std::string& k = s.key(id);
+        const std::string prefix = k.substr(0, k.find('.'));
+        for (const char* stem : { ".mx", ".mod" })
+            for (int n = 1; n <= 32; ++n) {
+                const int src = s.find(prefix + stem + std::to_string(n) + "_src");
+                if (src < 0 || src + 2 >= s.count()) break;
+                const int which = s.getInt(src);
+                if (which <= 0) continue;
+                const auto& dd = s.desc(src + 1);
+                const int t = s.getInt(src + 1);
+                if (dd.choices == nullptr || t <= 0 || t > static_cast<int>(dd.maxValue)) continue;
+                const juce::String target = frame::detail::loose(dd.choices[t]), knob = frame::detail::loose(d.name);
+                if (!(knob == target || knob.endsWith(target) || (target.length() >= 4 && knob.startsWith(target)))) continue;
+                const auto& sd = s.desc(src);
+                by << (by.isEmpty() ? "" : ", ") << (sd.choices != nullptr ? juce::String(sd.choices[which]) : juce::String(which)) << " ("
+                   << (s.get(src + 2) >= 0.0f ? "+" : "") << juce::String(s.get(src + 2), 2) << ")";
+            }
+        if (by.isNotEmpty()) text << "    moved by " << by;
+    }
+    if (const int cc = proc_.controllerFor(id); cc >= 0) text << "    MIDI CC " << cc;
+    text << "    [" << juce::String(s.key(id)) << "]";
+    return true;
+}
+
+void EphemerisEditor::browsePresets(Module m, int inst, std::function<void(int)> chosen)
+{
+    if (palette_.isVisible()) palette_.close();
+    const ParamStore& s = proc_.store();
+    frame::PresetBrowser::Bank bank;
+    bank.key = synthKey(s, m);
+    bank.title = moduleLabel(s, s.id(m, inst, 0)) + " presets";
+    const std::vector<SoundPreset> yours = proc_.userPresets(m);
+    for (size_t k = 0; k < yours.size(); ++k) bank.entries.push_back({ yours[k].name, "Yours", {}, 5001 + static_cast<int>(k), true, {} });
+    const std::vector<SoundPreset>& list = factoryPresets(m);
+    for (size_t i = 0; i < list.size(); ++i) bank.entries.push_back({ list[i].name, list[i].group, {}, static_cast<int>(i) + 1, false, {} });
+    bank.preview = [this, m, inst](const frame::PresetBrowser::Entry& e) { proc_.previewKnobs(knobsOf(proc_, m, inst, e.index)); };
+    bank.endPreview = [this] { proc_.endPreview(); };
+    bank.choose = [this, m, inst, chosen](const frame::PresetBrowser::Entry& e) {
+        if (e.index > 5000) {
+            const std::vector<SoundPreset> now = proc_.userPresets(m);
+            if (e.index - 5001 < static_cast<int>(now.size())) proc_.applyPresetValues(m, inst, now[static_cast<size_t>(e.index - 5001)]);
+        } else {
+            proc_.applyPreset(m, inst, e.index - 1);
+        }
+        if (chosen) chosen(e.index);
+    };
+    browser_.open(std::move(bank));
+}
+
+void EphemerisEditor::startTour()
+{
+    if (helpView_ != nullptr && helpView_->isVisible()) showHelp(false);
+    std::vector<frame::Tour::Step> steps;
+    steps.push_back({ &style_, "The style", "What the next piece is composed in -- the Berlin School's ways, from the sequencer's pulse to the "
+                                            "drifting space -- with its key and scale beside it." });
+    steps.push_back({ &compose_, "Compose", "Composes a piece (or a concert, or a night set) from the knobs, the seed and the rerolls. The die "
+                                            "beside it: a new seed, another piece from the same settings." });
+    steps.push_back({ &play_, "Play", "Plays and stops (Space). The speaker beside it silences the output." });
+    if (arrange_.isVisible())
+        steps.push_back({ &arrange_, "The overview", "The piece's sections, its voices lit where they play. Click to jump there, the wheel zooms." });
+    steps.push_back({ &tabs_.getTabbedButtonBar(), "The pages", "Every part of the instrument: the set, the arrangement, the rack of sequencer "
+                                                                "rows, the synths (each with its presets and your own, and its modulation), the "
+                                                                "atmosphere, the drums, the rooms, the mixer, Perform for playing live, Export." });
+    steps.push_back({ &search_, "Search", "Ctrl+K: any knob, preset or action by a few letters -- its page opens and it lights up. A number after a "
+                                          "knob's name sets it (\"cutoff 800\")." });
+    if (info_ != nullptr)
+        steps.push_back({ info_.get(), "The info line", "What the control under the mouse is: its value, its range, what moves it, its MIDI controller." });
+    steps.push_back({ &help_, "Help", "F1: the manual by topic, and the knobs of the page in front." });
+    steps.push_back({ &settings_, "Settings", "The window's size, the headset, the family jam, Ableton Link -- and these first steps again." });
+    tour_.start(std::move(steps));
 }

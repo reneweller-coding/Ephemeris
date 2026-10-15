@@ -34,6 +34,20 @@ target_compile_definitions(Ephemeris PUBLIC
     JUCE_DISPLAY_SPLASH_SCREEN=0
     JUCE_REPORT_APP_USAGE=0
     _CRT_SECURE_NO_WARNINGS)
+# ASIO in the standalone's audio dialog (Windows, 15.10.2026, as Empyrean): the Steinberg ASIO SDK under its GPLv3 option
+# (since 29.10.2025), which goes with this program's AGPLv3. The SDK Steinberg publishes, where it lies beside the
+# repositories (_Sources/ASIO-SDK/ASIOSDK, from https://www.steinberg.net/asiosdk); else the same headers JUCE carries.
+if(WIN32)
+    set(FAMILY_ASIO_SDK "${CMAKE_SOURCE_DIR}/../_Sources/ASIO-SDK/ASIOSDK/common" CACHE PATH "the ASIO SDK's common folder")
+    target_compile_definitions(Ephemeris PUBLIC JUCE_ASIO=1)
+    if(EXISTS "${FAMILY_ASIO_SDK}/iasiodrv.h")
+        target_compile_definitions(Ephemeris PUBLIC JUCE_ASIO_USE_EXTERNAL_SDK=1)
+        target_include_directories(Ephemeris PUBLIC "${FAMILY_ASIO_SDK}")
+        message(STATUS "Ephemeris: ASIO from ${FAMILY_ASIO_SDK}")
+    else()
+        message(STATUS "Ephemeris: ASIO from JUCE's copy of the SDK's headers")
+    endif()
+endif()
 target_link_libraries(Ephemeris
     PRIVATE
         EphemerisCore

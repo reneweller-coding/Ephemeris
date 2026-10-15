@@ -135,6 +135,8 @@ Arrange, the instrument's own pages -- a page of several has small tabs of its o
 
 The unambiguous actions are icons since 03.10.2026, their words in the tooltips: the die draws a new seed, the triangle plays and the square stops, the speaker mutes (crossed out while muted), the disk saves and the folder loads, the MIDI socket learns a controller (Perform).
 
+The ways around the panel (15.10.2026, the family's). The magnifier at the right of the header (Ctrl+K) opens the search: a few letters find any knob -- its page opens, its section or lane comes to the front and it lights up; a number after its name sets it ("cutoff 800") --, any preset of any synth, a page or an action. The line along the bottom of the window says what the control under the mouse is: its value now, its range and default, where the score plays it, what moves it, its MIDI controller and its key. Beside a synth's presets on its page sits a magnifier, the browser: by name, by group, the starred and the recently played; hold a row's triangle to hear it, double-click to take it. The disk beside saves the sound as a preset of your own, listed under Yours, and a star says that the knobs have moved from the preset. A knob a voice's modulation moves wears an arc round it for every row of the matrix on it -- the span the row can move it over, in its source's colour; a right click lists those rows, each with its depth to drag and a button to take it out, and offers every source (Modulate with: a row in the first free slot, a quarter of the target's span); an Alt-drag on such a knob sets its last row's depth (up deeper, down the other way). The first steps show the panel on the first start (Settings > First steps, again). The standalone's window comes back where it was left -- its place, its size, maximised or not --, and its audio settings offer ASIO (Windows).
+
 A page taller than the window shows its groups in sections, one at a time, with a switch at its top right: a synth's
 sound and its modulation apart (Sound, Modulation), and where even those do not fit, cut further, each named after its
 first group (Filter, LFO, Matrix ...). At the window's usual size, 1280 by 860, no page scrolls. The overview above the
@@ -158,6 +160,7 @@ size, full screen, the keys and About.
     F11                   full screen (the standalone); Esc leaves it and closes the help
     Ctrl+S, Ctrl+O        save the set, open one
     Ctrl+E                export
+    Ctrl+K                search: any control, preset, page or action
 
 The controllers every generator of the family listens to without learning: controller 74 (brightness) moves the rows' filters, 11 (the expression pedal) throws the echo, 64 (the sustain pedal) holds the moves; the mod wheel is left free.
 

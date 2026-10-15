@@ -110,6 +110,8 @@ The plan, the musical specification and the literature behind each building bloc
 [docs/PLAN.md](docs/PLAN.md) (German); the manual is built out of the program itself
 ([docs/manual](docs/manual/Ephemeris-Manual.pdf)).
 
+**Around the panel** (15.10.2026): Ctrl+K searches any knob, preset, page or action; an info line says what the control under the mouse is; every synth's presets in a browser, with your own and a star; modulation at the knob (arcs, depths in the menu, Alt-drag); the first steps on the first start; the standalone's window comes back where it was left, and its audio settings offer ASIO (Windows).
+
 ## With a DAW and other apps
 
 In a DAW Ephemeris sends what it plays as MIDI -- every part on a channel of its own, as in the MIDI export -- and has a

@@ -8,6 +8,19 @@ Der Name: Eine Ephemeride ist die Tafel, die für jeden Zeitpunkt die Stellung d
 Ein Sequenzer ist eine solche Tafel, und die Musik, die hier entstehen soll, besteht aus Umläufen
 verschiedener Länge um einen gemeinsamen Grundton, die nur selten wieder zusammenfallen.
 
+
+## Die Wege durchs Panel (15.10.2026, aus Empyrean, Frame.h)
+
+Nutzer: „Bitte baue alles ein, die Tests erst am Ende.“ -- die GUI-Verbesserungen und ASIO in allen fünf Instrumenten:
+- **Frame.h** (Vorlage hier, in alle sechs kopiert): WindowKeeper (Fensterzustand in <App>.frame "window"), Settings::value,
+  IconButton Search/Night/Compare, Keys::palette (Strg+K), CommandPalette, InfoLine (frameId-Eigenschaft für eigene
+  Regler), Tour, PresetBrowser (Favoriten/zuletzt in den Settings), revealControl (Tabs, SubTabs, Abschnitte, Instanzen
+  über Revealer), ModArc + LiveRings-Bögen, ModAccess/ModulationAtKnob, Vorlage slotMatrix (mx/mod-Slots).
+- **ASIO**: JUCE_ASIO=1, das SDK aus _Sources/ASIO-SDK (sonst JUCEs Kopie), nur Windows.
+- **Zoom** gab es schon: der Inhalt skaliert mit dem Fenster ("Window size" 75-200 %).
+- Prozessor: applyKnobs (ein Undo-Schritt), previewKnobs/endPreview (Vorhören im Browser).
+- Presets in der ParamPage (5001+ eigene): Browser-Knopf und Stern dort; Modulation am Knopf; Instanz per Basis-IDs (kein moduleOf).
+
 ## Stand der Umsetzung
 
 **Erledigt (26.09.2026, nachts; freigegeben: "Das klingt alles super, bitte baue das ein. Wenn du für einen VCO oder so neue

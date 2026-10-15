@@ -911,6 +911,39 @@ void EphemerisProcessor::setFromMidi(int id, float value)
     p->endChangeGesture();
 }
 
+void EphemerisProcessor::applyKnobs(const juce::String& what, const std::vector<std::pair<int, float>>& values)
+{
+    endPreview();
+    beginStep(what);
+    {
+        const juce::ScopedValueSetter<bool> one(restoring_, true);   // the knobs' gestures join the step
+        for (const auto& [id, v] : values) {
+            StoreParameter* p = parameter(id);
+            if (p == nullptr) continue;
+            p->beginChangeGesture();
+            p->setValueNotifyingHost(store().toNormalised(id, v));
+            p->endChangeGesture();
+        }
+    }
+    endStep();
+}
+
+void EphemerisProcessor::previewKnobs(const std::vector<std::pair<int, float>>& values)
+{
+    endPreview();
+    for (const auto& [id, v] : values) {
+        if (id < 0 || id >= store().count()) continue;
+        previewSaved_.emplace_back(id, store().get(id));
+        store().set(id, v);
+    }
+}
+
+void EphemerisProcessor::endPreview()
+{
+    for (const auto& [id, v] : previewSaved_) store().set(id, v);
+    previewSaved_.clear();
+}
+
 void EphemerisProcessor::applyPreset(Module module, int instance, int index)
 {
     const std::vector<SoundPreset>& list = factoryPresets(module);

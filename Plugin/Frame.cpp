@@ -90,7 +90,12 @@ void LookAndFeel::drawRotarySlider(juce::Graphics& g, int x, int y, int width, i
     const auto bounds = juce::Rectangle<float>(static_cast<float>(x), static_cast<float>(y), static_cast<float>(width), static_cast<float>(height));
     const float size = std::min(bounds.getWidth(), bounds.getHeight());
     const auto c = bounds.getCentre();
-    const float ring = size * 0.5f - 3.0f, track = std::max(2.5f, size * 0.07f);
+    // The modulations on it (ModulationAtKnob; the slider property "mods"): a knob with arcs is drawn a little smaller,
+    // so they fit round it.
+    const juce::var mods = slider.getProperties()["mods"];
+    const int numMods = mods.isArray() ? std::min(4, mods.size()) : 0;
+    const float ring = size * 0.5f - 3.0f - (numMods > 0 ? 2.0f + 2.4f * static_cast<float>(numMods) : 0.0f);
+    const float track = std::max(2.5f, size * 0.07f);
     const juce::Colour colour = slider.isEnabled() ? slider.findColour(juce::Slider::rotarySliderFillColourId) : s.faint;
     const float angle = startAngle + pos * (endAngle - startAngle);
     float from = startAngle;
@@ -121,6 +126,27 @@ void LookAndFeel::drawRotarySlider(juce::Graphics& g, int x, int y, int width, i
             g.strokePath(l, juce::PathStrokeType(1.6f, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
             g.fillEllipse(c.x + std::sin(la) * lr - 2.2f, c.y - std::cos(la) * lr - 2.2f, 4.4f, 4.4f);
         }
+    }
+    // The modulations: per row the span it can move the knob over, faint, and a dot where it moves it now.
+    for (int k = 0; k < numMods; ++k) {
+        const juce::var& m = mods[k];
+        if (!m.isArray() || m.size() < 4) continue;
+        const float d = static_cast<float>(static_cast<double>(m[0]));
+        const bool uni = static_cast<bool>(m[1]);
+        const float src = static_cast<float>(static_cast<double>(m[2]));
+        const juce::Colour col(static_cast<juce::uint32>(static_cast<juce::int64>(m[3])));
+        const float lo = juce::jlimit(0.0f, 1.0f, uni ? std::min(pos, pos + d) : pos - std::abs(d));
+        const float hi = juce::jlimit(0.0f, 1.0f, uni ? std::max(pos, pos + d) : pos + std::abs(d));
+        const float now = juce::jlimit(0.0f, 1.0f, pos + d * src);
+        const float rad = ring + 3.6f + 2.4f * static_cast<float>(k);
+        juce::Path span;
+        span.addCentredArc(c.x, c.y, rad, rad, 0.0f, startAngle + lo * (endAngle - startAngle),
+                           startAngle + std::max(hi, lo + 0.002f) * (endAngle - startAngle), true);
+        g.setColour(col.withAlpha(slider.isEnabled() ? 0.45f : 0.2f));
+        g.strokePath(span, juce::PathStrokeType(1.4f, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
+        const float an = startAngle + now * (endAngle - startAngle);
+        g.setColour(col);
+        g.fillEllipse(c.x + std::sin(an) * rad - 2.0f, c.y - std::cos(an) * rad - 2.0f, 4.0f, 4.0f);
     }
     // The cap, lit a little from above, with a hairline rim.
     const float cap = ring - track - std::max(2.0f, size * 0.05f);
@@ -574,6 +600,38 @@ void IconButton::paintGlyph(juce::Graphics& g, juce::Rectangle<float> r, juce::C
         g.fillPath(put(pins));
         break;
     }
+    case Icon::Search:
+        // A magnifier: the lens and its handle.
+        p.addEllipse(0.08f, 0.08f, 0.56f, 0.56f);
+        p.startNewSubPath(0.6f, 0.6f);
+        p.lineTo(0.92f, 0.92f);
+        g.strokePath(put(p), stroke);
+        break;
+    case Icon::Night: {
+        // A crescent: a disc with another taken out of its upper right.
+        juce::Path outside;
+        outside.addRectangle(-1.0f, -1.0f, 3.0f, 3.0f);
+        outside.addEllipse(0.34f, -0.08f, 0.72f, 0.72f);
+        outside.setUsingNonZeroWinding(false);
+        g.saveState();
+        g.reduceClipRegion(put(outside));
+        p.addEllipse(0.06f, 0.06f, 0.88f, 0.88f);
+        g.fillPath(put(p));
+        g.restoreState();
+        break;
+    }
+    case Icon::Compare: {
+        // Before | after: a frame split down the middle, its left half filled -- no letters, so it is not taken for an
+        // instrument's own A and B (Noctuary's morph slots).
+        p.addRoundedRectangle(0.06f, 0.2f, 0.88f, 0.6f, 0.08f);
+        p.startNewSubPath(0.5f, 0.2f);
+        p.lineTo(0.5f, 0.8f);
+        g.strokePath(put(p), stroke);
+        juce::Path half;
+        half.addRectangle(0.06f, 0.2f, 0.44f, 0.6f);
+        g.fillPath(put(half));
+        break;
+    }
     default:
         break;
     }
@@ -786,6 +844,14 @@ void Settings::setJamRole(JamRole r)
     sendChangeMessage();
 }
 
+juce::String Settings::value(const juce::String& key, const juce::String& fallback) const { return file_->getValue(key, fallback); }
+
+void Settings::setValue(const juce::String& key, const juce::String& v, bool now)
+{
+    file_->setValue(key, v);
+    if (now) file_->saveIfNeeded();   // else the file's own timer writes it a few seconds later
+}
+
 void SettingsMenu::show(juce::Component& target) const
 {
     Settings& s = Settings::of(app);
@@ -873,6 +939,7 @@ bool handleKey(const juce::KeyPress& key, const Keys& k)
         if (c == 's') return run(k.save);
         if (c == 'o') return run(k.open);
         if (c == 'e') return run(k.exportFile);
+        if (c == 'k') return run(k.palette);
     }
     return false;
 }
@@ -887,7 +954,8 @@ juce::String keysText()
            "Esc\tclose the help, leave full screen\n"
            "Ctrl+S\tsave the set\n"
            "Ctrl+O\topen a set\n"
-           "Ctrl+E\texport\n\n"
+           "Ctrl+E\texport\n"
+           "Ctrl+K\tsearch: any control, preset or action\n\n"
            "On every control: double click its default, right click MIDI learn, forget, default.";
 }
 
@@ -1117,6 +1185,29 @@ void SubTabs::show(int index)
 
 juce::Component* SubTabs::page() const { return current_ >= 0 ? pages_[static_cast<size_t>(current_)].comp.get() : nullptr; }
 
+void SubTabs::reveal(juce::Component& part)
+{
+    for (size_t i = 0; i < pages_.size(); ++i) {
+        juce::Component* c = pages_[i].comp.get();
+        if (c != nullptr && (c == &part || c->isParentOf(&part))) {
+            if (current_ != static_cast<int>(i)) show(static_cast<int>(i));
+            return;
+        }
+    }
+}
+
+void SubTabs::makeAll()
+{
+    auto r = getLocalBounds();
+    r.removeFromTop(36);
+    for (auto& p : pages_)
+        if (p.comp == nullptr) {
+            p.comp = p.make();
+            addChildComponent(*p.comp);   // hidden until its tab is chosen
+            p.comp->setBounds(r);
+        }
+}
+
 void SubTabs::resized()
 {
     auto r = getLocalBounds();
@@ -1314,6 +1405,7 @@ void ControlActions::showMenu(juce::Component& target, int id) const
     if (learn) m.addItem(cc >= 0 ? "MIDI learn (now CC " + juce::String(cc) + ") ..." : juce::String("MIDI learn ..."), [f = learn, id] { f(id); });
     if (forget && cc >= 0) m.addItem("Forget CC " + juce::String(cc), [f = forget, id] { f(id); });
     if (reset) m.addItem("Default value", [f = reset, id] { f(id); });
+    if (more) more(m, id);
     m.showMenuAsync(juce::PopupMenu::Options().withTargetComponent(&target));
 }
 
@@ -1325,7 +1417,25 @@ Knob::Knob(SliderStyle style, TextEntryBoxPosition box, const ControlActions* ac
 void Knob::mouseDown(const juce::MouseEvent& e)
 {
     if (e.mods.isPopupMenu() && actions_ != nullptr) { actions_->showMenu(*this, id_); return; }
+    altDragging_ = e.mods.isAltDown() && actions_ != nullptr && actions_->altDrag && actions_->altDrag(id_, e, 0);
+    if (altDragging_) return;
     juce::Slider::mouseDown(e);
+}
+
+void Knob::mouseDrag(const juce::MouseEvent& e)
+{
+    if (altDragging_) { actions_->altDrag(id_, e, 1); return; }
+    juce::Slider::mouseDrag(e);
+}
+
+void Knob::mouseUp(const juce::MouseEvent& e)
+{
+    if (altDragging_) {
+        altDragging_ = false;
+        actions_->altDrag(id_, e, 2);
+        return;
+    }
+    juce::Slider::mouseUp(e);
 }
 
 void Choice::mouseDown(const juce::MouseEvent& e)
@@ -1360,12 +1470,11 @@ void LiveRings::timerCallback()
         const juce::var was = props["live"];
         if (std::isnan(v)) {
             if (!was.isVoid()) { props.remove("live"); sl->repaint(); }
-            continue;
-        }
-        if (was.isVoid() || std::abs(static_cast<float>(static_cast<double>(was)) - v) > 0.002f) {
+        } else if (was.isVoid() || std::abs(static_cast<float>(static_cast<double>(was)) - v) > 0.002f) {
             props.set("live", v);
             sl->repaint();
         }
+        if (arcs_) showModArcs(*sl, arcs_(id));   // the modulations on it, redrawn when one of them moved
     }
 }
 
@@ -1811,6 +1920,1011 @@ bool KeyMemory::release(int channel, int key, int& target, int& pitch)
     target = target_[channel][key];
     pitch = pitch_[channel][key];
     target_[channel][key] = -2;
+    return true;
+}
+
+// ========================================================================================================== window
+
+WindowKeeper::~WindowKeeper()
+{
+    if (window_ != nullptr) window_->removeComponentListener(this);
+}
+
+bool WindowKeeper::attach(juce::Component& editor, const juce::String& app)
+{
+    if (window_ != nullptr) return true;
+    // Only the standalone's own window: a host's is the host's to place.
+    if (!juce::JUCEApplicationBase::isStandaloneApp()) return false;
+    auto* w = editor.findParentComponentOfClass<juce::ResizableWindow>();
+    if (w == nullptr) return false;
+    app_ = app;
+    const juce::String state = Settings::of(app).value("window");
+    if (state.isNotEmpty()) w->restoreWindowStateFromString(state);   // onto a screen should that one be gone
+    window_ = w;
+    w->addComponentListener(this);
+    return true;
+}
+
+void WindowKeeper::componentMovedOrResized(juce::Component&, bool, bool)
+{
+    // Not while minimised or in full screen (the state would be the screen's); maximised is kept as such ("fs ...").
+    if (window_ == nullptr || window_->isMinimised() || juce::Desktop::getInstance().getKioskModeComponent() != nullptr) return;
+    Settings::of(app_).setValue("window", window_->getWindowStateAsString(), false);
+}
+
+// ========================================================================================================== reveal
+
+namespace {
+
+/** @brief The revealers under @p c (c itself included). */
+void collectRevealers(juce::Component& c, std::vector<Revealer*>& out)
+{
+    if (auto* r = dynamic_cast<Revealer*>(&c)) out.push_back(r);
+    for (auto* child : c.getChildren()) collectRevealers(*child, out);
+}
+
+/** @brief Makes every part under @p page that is made only when first shown (a few rounds: a part made may hold more). */
+void makeEverything(juce::Component& page)
+{
+    std::vector<Revealer*> done;
+    for (int round = 0; round < 4; ++round) {
+        std::vector<Revealer*> all;
+        collectRevealers(page, all);
+        bool any = false;
+        for (Revealer* r : all)
+            if (std::find(done.begin(), done.end(), r) == done.end()) {
+                done.push_back(r);
+                r->makeAll();
+                any = true;
+            }
+        if (!any) return;
+    }
+}
+
+/** @brief A ring that lights a control for a moment, over its window, and goes by itself. */
+class Flash final : public juce::Component, private juce::Timer {
+public:
+    /** @brief Lights @p target in @p colour. */
+    Flash(juce::Component& target, juce::Colour colour) : target_(&target), colour_(colour)
+    {
+        setInterceptsMouseClicks(false, false);
+        if (auto* top = target.getTopLevelComponent()) top->addAndMakeVisible(this);
+        place();
+        startTimerHz(30);
+    }
+    /** @brief The ring, pulsing twice and fading. */
+    void paint(juce::Graphics& g) override
+    {
+        const float t = static_cast<float>(ticks_) / 30.0f;
+        const float a = juce::jlimit(0.0f, 1.0f, 1.0f - t / 1.6f) * (0.6f + 0.4f * std::cos(t * juce::MathConstants<float>::twoPi * 1.25f));
+        const auto r = getLocalBounds().toFloat().reduced(2.0f);
+        g.setColour(colour_.withAlpha(0.14f * a));
+        g.fillRoundedRectangle(r, 6.0f);
+        g.setColour(colour_.withAlpha(a));
+        g.drawRoundedRectangle(r, 6.0f, 2.5f);
+    }
+
+private:
+    /** @brief Over the control, a little larger. */
+    void place()
+    {
+        auto* top = getParentComponent();
+        if (top == nullptr || target_ == nullptr) return;
+        setBounds(top->getLocalArea(target_.getComponent(), target_->getLocalBounds()).expanded(6));
+    }
+    /** @brief Follows the control; gone after 1.6 s. */
+    void timerCallback() override
+    {
+        if (++ticks_ > 48 || target_ == nullptr || getParentComponent() == nullptr) {
+            stopTimer();
+            juce::MessageManager::callAsync([safe = juce::Component::SafePointer<Flash>(this)] { delete safe.getComponent(); });
+            return;
+        }
+        place();
+        repaint();
+    }
+    juce::Component::SafePointer<juce::Component> target_;   ///< what it lights
+    juce::Colour colour_;                                     ///< in what
+    int ticks_ = 0;                                           ///< timer ticks so far
+};
+
+} // namespace
+
+int controlId(const juce::Component& c)
+{
+    if (auto* k = dynamic_cast<const Knob*>(&c)) return k->id();
+    if (auto* ch = dynamic_cast<const Choice*>(&c)) return ch->id();
+    if (auto* s = dynamic_cast<const Switch*>(&c)) return s->id();
+    const juce::var v = c.getProperties()["frameId"];
+    return v.isVoid() ? -1 : static_cast<int>(v);
+}
+
+juce::Component* findControl(juce::Component& root, int id)
+{
+    if (controlId(root) == id) return &root;
+    for (auto* child : root.getChildren())
+        if (auto* f = findControl(*child, id)) return f;
+    return nullptr;
+}
+
+void showModArcs(juce::Slider& slider, const std::vector<ModArc>& arcs)
+{
+    auto& props = slider.getProperties();
+    juce::String key;
+    for (const ModArc& m : arcs)
+        key << juce::roundToInt(m.depth * 1000.0f) << ',' << (m.unipolar ? 1 : 0) << ',' << juce::roundToInt(m.now * 300.0f) << ','
+            << static_cast<juce::int64>(m.colour.getARGB()) << ';';
+    if (key == props["modsKey"].toString()) return;
+    if (arcs.empty()) {
+        props.remove("mods");
+        props.remove("modsKey");
+    } else {
+        juce::Array<juce::var> list;
+        for (const ModArc& m : arcs) {
+            juce::Array<juce::var> one;
+            one.add(m.depth);
+            one.add(m.unipolar);
+            one.add(m.now);
+            one.add(static_cast<juce::int64>(m.colour.getARGB()));
+            list.add(juce::var(one));
+        }
+        props.set("mods", juce::var(list));
+        props.set("modsKey", key);
+    }
+    slider.repaint();
+}
+
+void flash(juce::Component& c, juce::Colour colour) { new Flash(c, colour); }
+
+bool revealControl(const std::vector<juce::Component*>& pages, const std::function<void(int)>& showPage, int id, juce::Colour colour)
+{
+    for (size_t i = 0; i < pages.size(); ++i) {
+        juce::Component* page = pages[i];
+        if (page == nullptr) continue;
+        juce::Component* c = findControl(*page, id);
+        if (c == nullptr) {   // a page that makes its parts when they are first shown: all of them now
+            makeEverything(*page);
+            c = findControl(*page, id);
+        }
+        if (c == nullptr) {   // a part that shows one of several (an instance chooser): asked for this one
+            std::vector<Revealer*> all;
+            collectRevealers(*page, all);
+            for (Revealer* r : all)
+                if (r->bringId(id) && (c = findControl(*page, id)) != nullptr) break;
+        }
+        if (c == nullptr) continue;
+        if (showPage) showPage(static_cast<int>(i));
+        // Every revealer between the page and the control, the outermost first: its sub-tab, its section.
+        std::vector<Revealer*> chain;
+        for (juce::Component* p = c->getParentComponent(); p != nullptr; p = p->getParentComponent()) {
+            if (auto* r = dynamic_cast<Revealer*>(p)) chain.push_back(r);
+            if (p == page) break;
+        }
+        for (auto it = chain.rbegin(); it != chain.rend(); ++it) (*it)->reveal(*c);
+        // A viewport holding it scrolled to it (inside the page, or the panel's own around it).
+        for (juce::Component* p = c->getParentComponent(); p != nullptr; p = p->getParentComponent())
+            if (auto* v = dynamic_cast<juce::Viewport*>(p))
+                if (auto* inner = v->getViewedComponent()) {
+                    const auto r = inner->getLocalArea(c, c->getLocalBounds());
+                    const auto seen = v->getViewArea();
+                    if (!seen.contains(r)) v->setViewPosition(std::max(0, r.getX() - 20), std::max(0, r.getY() - 40));
+                }
+        // Lit on the next turn of the message loop, when the page has laid itself out.
+        juce::MessageManager::callAsync([safe = juce::Component::SafePointer<juce::Component>(c), colour] {
+            if (safe != nullptr && safe->isShowing()) flash(*safe, colour);
+        });
+        return true;
+    }
+    return false;
+}
+
+bool revealControl(juce::TabbedComponent& tabs, int id, juce::Colour colour)
+{
+    std::vector<juce::Component*> pages;
+    for (int i = 0; i < tabs.getNumTabs(); ++i) pages.push_back(tabs.getTabContentComponent(i));
+    return revealControl(pages, [&tabs](int i) { tabs.setCurrentTabIndex(i); }, id, colour);
+}
+
+// ========================================================================================================= palette
+
+namespace {
+
+/**
+ * @brief How well one word of the search fits a text: its start best, a word's start next, anywhere in it, then its
+ *        letters in order (scattered). 0 when it does not fit, else the higher the better.
+ */
+float fitWord(const juce::String& text, const juce::String& word)
+{
+    if (text.startsWith(word)) return 4.0f;
+    const int at = text.indexOf(word);
+    if (at > 0) return text[at - 1] == ' ' ? 3.0f : 2.0f;
+    int i = 0;
+    for (const juce::juce_wchar c : text)
+        if (i < word.length() && c == word[i]) ++i;
+    return i == word.length() ? 0.6f : 0.0f;
+}
+
+} // namespace
+
+CommandPalette::CommandPalette(const Skin& skin) : skin_(skin), list_({}, this)
+{
+    search_.setFont(juce::FontOptions(17.0f));
+    search_.setTextToShowWhenEmpty("A control, a preset or an action -- \"cutoff\", \"cutoff 800\", \"export\" ...", skin_.dim);
+    search_.setColour(juce::TextEditor::backgroundColourId, skin_.raised);
+    search_.setColour(juce::TextEditor::textColourId, skin_.ink);
+    search_.setColour(juce::TextEditor::outlineColourId, skin_.edge);
+    search_.setColour(juce::TextEditor::focusedOutlineColourId, skin_.accent);
+    search_.addListener(this);
+    search_.addKeyListener(this);
+    list_.setRowHeight(30);
+    list_.setColour(juce::ListBox::backgroundColourId, juce::Colours::transparentBlack);
+    addAndMakeVisible(search_);
+    addAndMakeVisible(list_);
+    setInterceptsMouseClicks(true, true);
+    setVisible(false);
+}
+
+void CommandPalette::open(std::vector<Command> commands)
+{
+    all_ = std::move(commands);
+    fixed_ = all_.size();
+    if (auto* p = getParentComponent()) setBounds(p->getLocalBounds());
+    search_.clear();
+    filter();
+    setVisible(true);
+    toFront(true);
+    search_.grabKeyboardFocus();
+}
+
+void CommandPalette::close()
+{
+    setVisible(false);
+    all_.clear();
+    shown_.clear();
+    if (auto* p = getParentComponent()) p->grabKeyboardFocus();
+}
+
+juce::Rectangle<int> CommandPalette::panel() const
+{
+    const int w = std::min(680, getWidth() - 40), h = std::min(480, getHeight() - 120);
+    return { (getWidth() - w) / 2, 70, w, h };
+}
+
+void CommandPalette::resized()
+{
+    auto r = panel().reduced(12);
+    search_.setBounds(r.removeFromTop(36));
+    r.removeFromTop(8);
+    list_.setBounds(r);
+}
+
+void CommandPalette::paint(juce::Graphics& g)
+{
+    g.fillAll(skin_.bg.withAlpha(0.55f));
+    const auto p = panel().toFloat();
+    g.setColour(skin_.group.withAlpha(1.0f));
+    g.fillRoundedRectangle(p, skin_.radius * 2.0f);
+    g.setColour(skin_.accent.withAlpha(0.6f));
+    g.drawRoundedRectangle(p.reduced(0.5f), skin_.radius * 2.0f, 1.2f);
+}
+
+void CommandPalette::mouseDown(const juce::MouseEvent& e)
+{
+    if (!panel().contains(e.getPosition())) close();
+}
+
+void CommandPalette::filter()
+{
+    // The words, and a number after them (a control's value).
+    juce::StringArray words = juce::StringArray::fromTokens(search_.getText().toLowerCase().trim(), " ", "");
+    words.removeEmptyStrings();
+    number_.clear();
+    if (!words.isEmpty() && words[words.size() - 1].containsOnly("0123456789.-") && words[words.size() - 1].containsAnyOf("0123456789")) {
+        number_ = words[words.size() - 1];
+        words.remove(words.size() - 1);
+    }
+    std::vector<std::pair<float, int>> scored;
+    // What the words make (an instrument's own): first, in their own order.
+    all_.resize(fixed_);
+    if (fromWords && !words.isEmpty())
+        for (Command& c : fromWords(words)) {
+            scored.emplace_back(1000.0f - static_cast<float>(scored.size()), static_cast<int>(all_.size()));
+            all_.push_back(std::move(c));
+        }
+    for (size_t i = 0; i < fixed_; ++i) {
+        const Command& c = all_[i];
+        if (words.isEmpty()) {   // nothing typed: the actions and the pages
+            if (c.kind == "Action" || c.kind == "Page") scored.emplace_back(c.kind == "Action" ? 1.0f : 0.5f, static_cast<int>(i));
+            continue;
+        }
+        const juce::String title = c.title.toLowerCase(), detail = c.detail.toLowerCase();
+        float s = 0.0f;
+        bool all = true;
+        for (const juce::String& w : words) {
+            const float a = fitWord(title, w), d = fitWord(detail, w) * 0.4f;
+            if (a <= 0.0f && d <= 0.0f) { all = false; break; }
+            s += std::max(a, d);
+        }
+        if (!all) continue;
+        if (!number_.isEmpty() && !c.takesNumber) s *= 0.5f;   // a number asks for a control
+        s += c.kind == "Action" ? 0.3f : c.kind == "Page" ? 0.25f : c.kind == "Control" ? 0.2f : c.kind == "Yours" ? 0.1f : 0.0f;
+        s -= 0.002f * static_cast<float>(c.title.length());    // the shorter of two equal fits
+        scored.emplace_back(s, static_cast<int>(i));
+    }
+    std::stable_sort(scored.begin(), scored.end(), [](const auto& a, const auto& b) { return a.first > b.first; });
+    shown_.clear();
+    for (size_t i = 0; i < scored.size() && i < 80; ++i) shown_.push_back(scored[i].second);
+    list_.updateContent();
+    list_.selectRow(shown_.empty() ? -1 : 0);
+    list_.repaint();
+}
+
+void CommandPalette::run(int row)
+{
+    if (row < 0 || row >= static_cast<int>(shown_.size())) return;
+    const Command c = all_[static_cast<size_t>(shown_[static_cast<size_t>(row)])];
+    const juce::String number = c.takesNumber ? number_ : juce::String();
+    close();
+    if (c.run) c.run(number);
+}
+
+int CommandPalette::getNumRows() { return static_cast<int>(shown_.size()); }
+
+void CommandPalette::paintListBoxItem(int row, juce::Graphics& g, int width, int height, bool selected)
+{
+    if (row < 0 || row >= static_cast<int>(shown_.size())) return;
+    const Command& c = all_[static_cast<size_t>(shown_[static_cast<size_t>(row)])];
+    if (selected) {
+        g.setColour(skin_.accent.withAlpha(0.18f));
+        g.fillRoundedRectangle(juce::Rectangle<float>(0.0f, 1.0f, static_cast<float>(width), static_cast<float>(height - 2)), skin_.radius);
+    }
+    const juce::Colour kindColour = c.kind == "Control" ? skin_.family(Family::Source)
+                                  : c.kind == "Action"  ? skin_.accent
+                                  : c.kind == "Page"    ? skin_.family(Family::Motion)
+                                  : c.kind == "Yours"   ? skin_.family(Family::Envelope)
+                                                        : skin_.family(Family::Space);
+    g.setColour(kindColour);
+    g.setFont(font(11.0f, true));
+    g.drawText(c.kind.toUpperCase(), 8, 0, 70, height, juce::Justification::centredLeft);
+    g.setColour(skin_.ink);
+    g.setFont(font(14.0f));
+    const juce::String title = c.takesNumber && number_.isNotEmpty() ? c.title + "  = " + number_ : c.title;
+    g.drawText(title, 82, 0, width / 2, height, juce::Justification::centredLeft);
+    g.setColour(skin_.dim);
+    g.setFont(font(12.0f));
+    g.drawText(c.detail, 82 + width / 2, 0, width / 2 - 90, height, juce::Justification::centredRight);
+}
+
+void CommandPalette::listBoxItemClicked(int row, const juce::MouseEvent&) { run(row); }
+
+void CommandPalette::returnKeyPressed(int row) { run(row); }
+
+void CommandPalette::textEditorTextChanged(juce::TextEditor&) { filter(); }
+
+void CommandPalette::textEditorReturnKeyPressed(juce::TextEditor&) { run(list_.getSelectedRow()); }
+
+void CommandPalette::textEditorEscapeKeyPressed(juce::TextEditor&) { close(); }
+
+bool CommandPalette::keyPressed(const juce::KeyPress& key, juce::Component*)
+{
+    const int n = static_cast<int>(shown_.size());
+    if (n == 0) return false;
+    if (key.isKeyCode(juce::KeyPress::downKey)) { list_.selectRow(std::min(list_.getSelectedRow() + 1, n - 1)); return true; }
+    if (key.isKeyCode(juce::KeyPress::upKey)) { list_.selectRow(std::max(list_.getSelectedRow() - 1, 0)); return true; }
+    if (key.isKeyCode(juce::KeyPress::pageDownKey)) { list_.selectRow(std::min(list_.getSelectedRow() + 10, n - 1)); return true; }
+    if (key.isKeyCode(juce::KeyPress::pageUpKey)) { list_.selectRow(std::max(list_.getSelectedRow() - 10, 0)); return true; }
+    return false;
+}
+
+// ======================================================================================================= info line
+
+InfoLine::InfoLine(const Skin& skin, juce::Component& watched) : skin_(skin), watched_(watched)
+{
+    tracker_.line = this;
+    watched_.addMouseListener(&tracker_, true);
+    setInterceptsMouseClicks(false, false);
+    text_ = "Point at a control: what it is and what it does is told here.";
+    startTimerHz(5);
+}
+
+InfoLine::~InfoLine() { watched_.removeMouseListener(&tracker_); }
+
+void InfoLine::over(juce::Component* c)
+{
+    // The control under the mouse, or the nearest of its parents that is one.
+    for (juce::Component* p = c; p != nullptr && p != &watched_; p = p->getParentComponent()) {
+        const int id = controlId(*p);
+        juce::String name, text;
+        if (id >= 0 && describe && describe(id, name, text)) {
+            if (id != id_ || name != name_ || text != text_) {
+                id_ = id;
+                name_ = name;
+                text_ = text;
+                repaint();
+            }
+            return;
+        }
+        if (auto* tip = dynamic_cast<juce::SettableTooltipClient*>(p)) {
+            const juce::String t = tip->getTooltip();
+            if (t.isNotEmpty()) {
+                if (id_ != -1 || name_.isNotEmpty() || text_ != t) {
+                    id_ = -1;
+                    name_.clear();
+                    text_ = t;
+                    repaint();
+                }
+                return;
+            }
+        }
+    }
+}
+
+void InfoLine::showControl(int id)
+{
+    juce::String name, text;
+    if (!describe || !describe(id, name, text)) return;
+    id_ = id;
+    name_ = name;
+    text_ = text;
+    repaint();
+}
+
+void InfoLine::showText(const juce::String& text)
+{
+    id_ = -1;
+    name_.clear();
+    text_ = text;
+    repaint();
+}
+
+void InfoLine::timerCallback()
+{
+    if (id_ < 0 || !describe) return;
+    juce::String name, text;
+    if (describe(id_, name, text) && (text != text_ || name != name_)) {
+        name_ = name;
+        text_ = text;
+        repaint();
+    }
+}
+
+void InfoLine::paint(juce::Graphics& g)
+{
+    g.setColour(skin_.group.withAlpha(0.85f));
+    g.fillRect(getLocalBounds());
+    g.setColour(skin_.edge);
+    g.drawHorizontalLine(0, 0.0f, static_cast<float>(getWidth()));
+    juce::AttributedString a;
+    if (name_.isNotEmpty()) a.append(name_ + "    ", juce::FontOptions(12.5f, juce::Font::bold), skin_.accent);
+    a.append(text_, juce::FontOptions(12.5f), skin_.dim);
+    a.setJustification(juce::Justification::centredLeft);
+    a.setWordWrap(juce::AttributedString::none);
+    a.draw(g, getLocalBounds().reduced(12, 0).toFloat());
+}
+
+// ============================================================================================================ tour
+
+Tour::Tour(const Skin& skin) : skin_(skin)
+{
+    next_.onClick = [this] { next(); };
+    skip_.onClick = [this] { finish(); };
+    addAndMakeVisible(next_);
+    addAndMakeVisible(skip_);
+    setInterceptsMouseClicks(true, true);
+    setVisible(false);
+}
+
+void Tour::start(std::vector<Step> steps)
+{
+    steps_ = std::move(steps);
+    at_ = 0;
+    if (steps_.empty()) return;
+    if (auto* p = getParentComponent()) setBounds(p->getLocalBounds());
+    setVisible(true);
+    toFront(true);
+    resized();
+    repaint();
+}
+
+void Tour::next()
+{
+    if (++at_ >= steps_.size()) { finish(); return; }
+    resized();
+    repaint();
+}
+
+void Tour::finish()
+{
+    setVisible(false);
+    steps_.clear();
+    if (onDone) onDone();
+}
+
+juce::Rectangle<int> Tour::hole() const
+{
+    if (at_ >= steps_.size() || steps_[at_].target == nullptr || !steps_[at_].target->isShowing()) return {};
+    return getLocalArea(steps_[at_].target.getComponent(), steps_[at_].target->getLocalBounds()).expanded(6);
+}
+
+juce::Rectangle<int> Tour::bubble() const
+{
+    const auto h = hole();
+    const int w = 440, ht = 156;
+    if (h.isEmpty()) return { (getWidth() - w) / 2, (getHeight() - ht) / 2, w, ht };
+    const int x = juce::jlimit(12, std::max(12, getWidth() - w - 12), h.getCentreX() - w / 2);
+    int y = h.getBottom() + 14;
+    if (y + ht > getHeight() - 12) y = std::max(12, h.getY() - ht - 14);   // above it when there is no room below
+    if (y + ht > getHeight() - 12 || (y < h.getBottom() && y + ht > h.getY())) y = juce::jlimit(12, std::max(12, getHeight() - ht - 12), h.getCentreY() - ht / 2);
+    return { x, y, w, ht };
+}
+
+void Tour::resized()
+{
+    const auto b = bubble();
+    next_.setButtonText(at_ + 1 >= steps_.size() ? "Done" : "Next");
+    next_.setBounds(b.getRight() - 92, b.getBottom() - 36, 80, 26);
+    skip_.setBounds(b.getRight() - 180, b.getBottom() - 36, 80, 26);
+    skip_.setVisible(at_ + 1 < steps_.size());
+}
+
+void Tour::paint(juce::Graphics& g)
+{
+    if (at_ >= steps_.size()) return;
+    const auto h = hole();
+    // The window dimmed, the control left bright.
+    juce::Path dim;
+    dim.addRectangle(getLocalBounds().toFloat());
+    if (!h.isEmpty()) dim.addRoundedRectangle(h.toFloat(), 8.0f);
+    dim.setUsingNonZeroWinding(false);
+    g.setColour(skin_.bg.withAlpha(0.72f));
+    g.fillPath(dim);
+    if (!h.isEmpty()) {
+        g.setColour(skin_.accent);
+        g.drawRoundedRectangle(h.toFloat(), 8.0f, 2.0f);
+    }
+    const auto b = bubble().toFloat();
+    g.setColour(skin_.group.withAlpha(1.0f));
+    g.fillRoundedRectangle(b, 8.0f);
+    g.setColour(skin_.accent.withAlpha(0.7f));
+    g.drawRoundedRectangle(b.reduced(0.5f), 8.0f, 1.2f);
+    const Step& s = steps_[at_];
+    g.setColour(skin_.accent);
+    g.setFont(font(15.0f, true));
+    g.drawText(s.title, b.reduced(14.0f, 10.0f).withHeight(22.0f), juce::Justification::centredLeft);
+    g.setColour(skin_.dim);
+    g.setFont(font(11.0f));
+    g.drawText(juce::String(static_cast<int>(at_) + 1) + " / " + juce::String(static_cast<int>(steps_.size())), b.reduced(14.0f, 10.0f).withHeight(22.0f),
+               juce::Justification::centredRight);
+    g.setColour(skin_.ink);
+    g.setFont(font(13.0f));
+    g.drawFittedText(s.text, b.reduced(14.0f, 10.0f).withTrimmedTop(26.0f).withTrimmedBottom(36.0f).toNearestInt(), juce::Justification::topLeft, 5);
+}
+
+// ================================================================================================= preset browser
+
+namespace {
+constexpr int kRecent = 40;   ///< the most presets the recent list keeps per bank
+} // namespace
+
+/** @brief A row of the list (see PresetBrowser): the play mark (held: listen), the star, the name, the group. */
+class PresetBrowser::Row final : public juce::Component {
+public:
+    /** @brief A row of @p owner. */
+    explicit Row(PresetBrowser& owner) : owner_(owner) {}
+    /** @brief Shows entry @p e (-1 none) at list row @p row. */
+    void show(int row, int e, bool selected)
+    {
+        row_ = row;
+        entry_ = e;
+        selected_ = selected;
+        repaint();
+    }
+    /** @brief The play mark, the star, the name, the group. */
+    void paint(juce::Graphics& g) override
+    {
+        if (entry_ < 0) return;
+        const Skin& skin = owner_.skin_;
+        const Entry& e = owner_.bank_.entries[static_cast<size_t>(entry_)];
+        if (selected_) {
+            g.setColour(skin.accent.withAlpha(0.16f));
+            g.fillRoundedRectangle(getLocalBounds().toFloat().reduced(1.0f), skin.radius);
+        }
+        if (owner_.bank_.preview) {   // the play mark: a triangle, lit while held
+            juce::Path tri;
+            tri.addTriangle(10.0f, 8.0f, 10.0f, static_cast<float>(getHeight()) - 8.0f, 22.0f, static_cast<float>(getHeight()) * 0.5f);
+            g.setColour(listening_ ? skin.accent : skin.dim);
+            g.fillPath(tri);
+        }
+        const bool fav = owner_.favourite(e.name);
+        juce::Path star;
+        star.addStar({ 40.0f, static_cast<float>(getHeight()) * 0.5f }, 5, 3.0f, 7.0f);
+        g.setColour(fav ? skin.family(Family::Envelope) : skin.faint);
+        if (fav) g.fillPath(star);
+        else g.strokePath(star, juce::PathStrokeType(1.2f));
+        g.setColour(e.yours ? skin.family(Family::Envelope) : skin.ink);
+        g.setFont(font(14.0f));
+        g.drawText(e.name, 56, 0, getWidth() / 2 - 56, getHeight(), juce::Justification::centredLeft);
+        g.setColour(skin.dim);
+        g.setFont(font(12.0f));
+        g.drawText(e.group + (e.note.isNotEmpty() ? "   (" + e.note + ")" : juce::String()), getWidth() / 2, 0, getWidth() / 2 - 12, getHeight(),
+                   juce::Justification::centredLeft);
+    }
+    /** @brief Listens (the play mark), stars, or chooses the row. */
+    void mouseDown(const juce::MouseEvent& e) override
+    {
+        if (entry_ < 0) return;
+        owner_.list_.selectRow(row_);
+        const Entry en = owner_.bank_.entries[static_cast<size_t>(entry_)];
+        if (e.x < 30 && owner_.bank_.preview) {
+            listening_ = true;
+            owner_.bank_.preview(en);
+            repaint();
+        } else if (e.x < 52) {
+            owner_.setFavourite(en.name, !owner_.favourite(en.name));
+            repaint();
+            if (owner_.categories_[static_cast<size_t>(owner_.category_)].kind == 1) owner_.filter();
+        }
+    }
+    /** @brief Back to the sound before the listening. */
+    void mouseUp(const juce::MouseEvent&) override
+    {
+        if (!listening_) return;
+        listening_ = false;
+        if (owner_.bank_.endPreview) owner_.bank_.endPreview();
+        repaint();
+    }
+    /** @brief Takes it. */
+    void mouseDoubleClick(const juce::MouseEvent& e) override
+    {
+        if (e.x >= 52) owner_.choose(row_);
+    }
+
+private:
+    PresetBrowser& owner_;     ///< whose
+    int row_ = -1;             ///< the list's row
+    int entry_ = -1;           ///< the entry shown
+    bool selected_ = false;    ///< chosen
+    bool listening_ = false;   ///< its play mark is held
+};
+
+/** @brief The categories' list (see PresetBrowser). */
+class PresetBrowser::Categories final : public juce::ListBoxModel {
+public:
+    /** @brief The categories of @p owner. */
+    explicit Categories(PresetBrowser& owner) : owner_(owner) {}
+    /** @brief How many. */
+    int getNumRows() override { return static_cast<int>(owner_.categories_.size()); }
+    /** @brief One: a heading for a section, indented for a group. */
+    void paintListBoxItem(int row, juce::Graphics& g, int width, int height, bool selected) override
+    {
+        if (row < 0 || row >= getNumRows()) return;
+        const Skin& skin = owner_.skin_;
+        const Category& c = owner_.categories_[static_cast<size_t>(row)];
+        if (selected) {
+            g.setColour(skin.accent.withAlpha(0.18f));
+            g.fillRoundedRectangle(juce::Rectangle<float>(0.0f, 0.0f, static_cast<float>(width), static_cast<float>(height)), skin.radius);
+        }
+        const bool heading = c.kind <= 4;
+        g.setColour(heading ? skin.ink : skin.dim);
+        g.setFont(font(heading ? 13.0f : 12.0f, heading));
+        g.drawText(c.title, c.kind == 5 ? 18 : 6, 0, width - 20, height, juce::Justification::centredLeft);
+    }
+    /** @brief Chooses it. */
+    void selectedRowsChanged(int row) override
+    {
+        if (row < 0) return;
+        owner_.category_ = row;
+        owner_.filter();
+    }
+
+private:
+    PresetBrowser& owner_;   ///< whose
+};
+
+PresetBrowser::PresetBrowser(const Skin& skin, const juce::String& app) : skin_(skin), app_(app), list_({}, this)
+{
+    search_.setFont(juce::FontOptions(16.0f));
+    search_.setTextToShowWhenEmpty("A name or a group ...", skin_.dim);
+    search_.setColour(juce::TextEditor::backgroundColourId, skin_.raised);
+    search_.setColour(juce::TextEditor::textColourId, skin_.ink);
+    search_.setColour(juce::TextEditor::outlineColourId, skin_.edge);
+    search_.addListener(this);
+    addAndMakeVisible(search_);
+    title_.setColour(juce::Label::textColourId, skin_.accent);
+    title_.setFont(juce::FontOptions(15.0f, juce::Font::bold));
+    addAndMakeVisible(title_);
+    categoryModel_ = std::make_unique<Categories>(*this);
+    categoryList_ = std::make_unique<juce::ListBox>("categories", categoryModel_.get());
+    categoryList_->setRowHeight(22);
+    categoryList_->setColour(juce::ListBox::backgroundColourId, juce::Colours::transparentBlack);
+    addAndMakeVisible(*categoryList_);
+    take_.onClick = [this] { choose(list_.getSelectedRow()); };
+    close_.onClick = [this] { close(); };
+    addAndMakeVisible(take_);
+    addAndMakeVisible(close_);
+    count_.setColour(juce::Label::textColourId, skin_.dim);
+    count_.setFont(juce::FontOptions(12.0f));
+    addAndMakeVisible(count_);
+    list_.setRowHeight(28);
+    list_.setColour(juce::ListBox::backgroundColourId, juce::Colours::transparentBlack);
+    addAndMakeVisible(list_);
+    setWantsKeyboardFocus(true);
+    setVisible(false);
+}
+
+PresetBrowser::~PresetBrowser() = default;
+
+bool PresetBrowser::favourite(const juce::String& name) const { return favourites_.contains(name); }
+
+void PresetBrowser::setFavourite(const juce::String& name, bool on)
+{
+    if (on) favourites_.addIfNotAlreadyThere(name);
+    else favourites_.removeString(name);
+    Settings::of(app_).setValue("favourites." + bank_.key, favourites_.joinIntoString("\n"));
+}
+
+void PresetBrowser::played(const juce::String& app, const juce::String& key, const juce::String& name)
+{
+    Settings& s = Settings::of(app);
+    juce::StringArray recent = juce::StringArray::fromLines(s.value("recent." + key));
+    recent.removeEmptyStrings();
+    recent.removeString(name);
+    recent.insert(0, name);
+    while (recent.size() > kRecent) recent.remove(recent.size() - 1);
+    s.setValue("recent." + key, recent.joinIntoString("\n"), false);
+}
+
+void PresetBrowser::open(Bank bank)
+{
+    bank_ = std::move(bank);
+    favourites_ = juce::StringArray::fromLines(Settings::of(app_).value("favourites." + bank_.key));
+    favourites_.removeEmptyStrings();
+    title_.setText(bank_.title, juce::dontSendNotification);
+    categories_.clear();
+    categories_.push_back({ "All", 0, {} });
+    categories_.push_back({ "Favourites", 1, {} });
+    categories_.push_back({ "Recently played", 2, {} });
+    bool yours = false;
+    for (const Entry& e : bank_.entries) yours = yours || e.yours;
+    if (yours) categories_.push_back({ "Yours", 3, {} });
+    // The sections and their groups, in the bank's order.
+    juce::String section, group;
+    for (const Entry& e : bank_.entries) {
+        if (e.yours) continue;
+        if (e.section.isNotEmpty() && e.section != section) {
+            section = e.section;
+            categories_.push_back({ section, 4, section });
+        }
+        if (e.group != group) {
+            group = e.group;
+            categories_.push_back({ group, 5, group });
+        }
+    }
+    categoryList_->updateContent();
+    category_ = 0;
+    categoryList_->selectRow(0, true, true);
+    search_.clear();
+    if (auto* p = getParentComponent()) setBounds(p->getLocalBounds());
+    filter();
+    setVisible(true);
+    toFront(true);
+    search_.grabKeyboardFocus();
+}
+
+void PresetBrowser::close()
+{
+    if (bank_.endPreview) bank_.endPreview();
+    setVisible(false);
+    if (auto* p = getParentComponent()) p->grabKeyboardFocus();
+}
+
+void PresetBrowser::filter()
+{
+    const juce::String q = search_.getText().trim().toLowerCase();
+    const Category c = categories_.empty() ? Category{} : categories_[static_cast<size_t>(category_)];
+    juce::StringArray recent;
+    if (c.kind == 2) {
+        recent = juce::StringArray::fromLines(Settings::of(app_).value("recent." + bank_.key));
+        recent.removeEmptyStrings();
+    }
+    shown_.clear();
+    for (size_t i = 0; i < bank_.entries.size(); ++i) {
+        const Entry& e = bank_.entries[i];
+        if (c.kind == 1 && !favourite(e.name)) continue;
+        if (c.kind == 2 && !recent.contains(e.name)) continue;
+        if (c.kind == 3 && !e.yours) continue;
+        if (c.kind == 4 && (e.yours || e.section != c.which)) continue;
+        if (c.kind == 5 && (e.yours || e.group != c.which)) continue;
+        if (q.isNotEmpty() && !e.name.toLowerCase().contains(q) && !e.group.toLowerCase().contains(q)) continue;
+        shown_.push_back(static_cast<int>(i));
+    }
+    if (c.kind == 2)   // the recent ones newest first
+        std::stable_sort(shown_.begin(), shown_.end(), [&](int a, int b) {
+            return recent.indexOf(bank_.entries[static_cast<size_t>(a)].name) < recent.indexOf(bank_.entries[static_cast<size_t>(b)].name);
+        });
+    list_.updateContent();
+    list_.selectRow(shown_.empty() ? -1 : 0);
+    list_.repaint();
+    count_.setText(juce::String(static_cast<int>(shown_.size())) + " presets", juce::dontSendNotification);
+}
+
+void PresetBrowser::choose(int row)
+{
+    if (row < 0 || row >= static_cast<int>(shown_.size())) return;
+    const Entry e = bank_.entries[static_cast<size_t>(shown_[static_cast<size_t>(row)])];
+    played(app_, bank_.key, e.name);
+    if (bank_.choose) bank_.choose(e);
+    close();
+}
+
+juce::Rectangle<int> PresetBrowser::panel() const
+{
+    const int w = std::min(880, getWidth() - 40), h = std::min(600, getHeight() - 80);
+    return { (getWidth() - w) / 2, 50, w, h };
+}
+
+void PresetBrowser::resized()
+{
+    auto r = panel().reduced(12);
+    auto top = r.removeFromTop(34);
+    close_.setBounds(top.removeFromRight(80).reduced(2));
+    take_.setBounds(top.removeFromRight(80).reduced(2));
+    top.removeFromRight(8);
+    title_.setBounds(top.removeFromLeft(200));
+    search_.setBounds(top);
+    r.removeFromTop(8);
+    auto left = r.removeFromLeft(210);
+    count_.setBounds(left.removeFromBottom(20));
+    categoryList_->setBounds(left);
+    r.removeFromLeft(10);
+    list_.setBounds(r);
+}
+
+void PresetBrowser::paint(juce::Graphics& g)
+{
+    g.fillAll(skin_.bg.withAlpha(0.55f));
+    const auto p = panel().toFloat();
+    g.setColour(skin_.group.withAlpha(1.0f));
+    g.fillRoundedRectangle(p, skin_.radius * 2.0f);
+    g.setColour(skin_.accent.withAlpha(0.5f));
+    g.drawRoundedRectangle(p.reduced(0.5f), skin_.radius * 2.0f, 1.2f);
+}
+
+void PresetBrowser::mouseDown(const juce::MouseEvent& e)
+{
+    if (!panel().contains(e.getPosition())) close();
+}
+
+bool PresetBrowser::keyPressed(const juce::KeyPress& key)
+{
+    if (key.isKeyCode(juce::KeyPress::escapeKey)) { close(); return true; }
+    if (key.isKeyCode(juce::KeyPress::returnKey)) { choose(list_.getSelectedRow()); return true; }
+    return false;
+}
+
+int PresetBrowser::getNumRows() { return static_cast<int>(shown_.size()); }
+
+juce::Component* PresetBrowser::refreshComponentForRow(int row, bool selected, juce::Component* existing)
+{
+    auto* r = dynamic_cast<Row*>(existing);
+    if (r == nullptr) {
+        delete existing;
+        r = new Row(*this);
+    }
+    r->show(row, row >= 0 && row < static_cast<int>(shown_.size()) ? shown_[static_cast<size_t>(row)] : -1, selected);
+    return r;
+}
+
+// ============================================================================================= modulation at the knob
+
+namespace {
+
+/** @brief One row on a knob in its menu: its source, its depth to drag, a button that removes it. */
+class ModRowItem final : public juce::PopupMenu::CustomComponent {
+public:
+    /** @brief Row @p row of the matrix @p access works on. */
+    ModRowItem(ModAccess access, const ModAccess::Row& row) : juce::PopupMenu::CustomComponent(false), access_(std::move(access)), row_(row.index)
+    {
+        name_.setText(row.name, juce::dontSendNotification);
+        name_.setColour(juce::Label::textColourId, row.colour);
+        name_.setFont(juce::FontOptions(13.0f));
+        name_.setInterceptsMouseClicks(false, false);
+        depth_.setSliderStyle(juce::Slider::LinearHorizontal);
+        depth_.setTextBoxStyle(juce::Slider::TextBoxRight, false, 52, 18);
+        depth_.setRange(-1.0, 1.0, 0.001);
+        depth_.setValue(row.depth, juce::dontSendNotification);
+        depth_.setDoubleClickReturnValue(true, 0.0);
+        depth_.setColour(juce::Slider::trackColourId, row.colour);
+        depth_.setTooltip("How far it moves the knob, of the knob's whole range (negative: the other way)");
+        depth_.onValueChange = [this] { if (access_.setDepth) access_.setDepth(row_, static_cast<float>(depth_.getValue())); };
+        depth_.onDragStart = [this] { if (access_.begin) access_.begin("Modulation depth"); };   // one step for the whole drag
+        depth_.onDragEnd = [this] { if (access_.end) access_.end(); };
+        remove_.setTooltip("Takes this row out of the matrix");
+        remove_.onClick = [this] {
+            if (access_.remove) access_.remove(row_);
+            triggerMenuItem();   // the menu closes: the row is gone
+        };
+        addAndMakeVisible(name_);
+        addAndMakeVisible(depth_);
+        addAndMakeVisible(remove_);
+    }
+    /** @brief A row's size in the menu. */
+    void getIdealSize(int& w, int& h) override
+    {
+        w = 340;
+        h = 30;
+    }
+    /** @brief The name left, the depth, the button right. */
+    void resized() override
+    {
+        auto r = getLocalBounds().reduced(6, 3);
+        remove_.setBounds(r.removeFromRight(24));
+        name_.setBounds(r.removeFromLeft(120));
+        depth_.setBounds(r.reduced(4, 0));
+    }
+
+private:
+    ModAccess access_;                  ///< the matrix
+    int row_;                           ///< which row
+    juce::Label name_;                  ///< its source
+    juce::Slider depth_;                ///< its depth
+    juce::TextButton remove_{ "x" };    ///< takes it out
+};
+
+} // namespace
+
+void ModulationAtKnob::install(ControlActions& actions, LiveRings* rings)
+{
+    actions.more = [this](juce::PopupMenu& m, int id) { addMenuItems(m, id); };
+    actions.altDrag = [this](int id, const juce::MouseEvent& e, int phase) { return altDrag(id, e, phase); };
+    if (rings != nullptr && access_.arcs) rings->setModArcs(access_.arcs);
+}
+
+void ModulationAtKnob::addMenuItems(juce::PopupMenu& m, int id)
+{
+    if (!access_.sources) return;
+    const std::vector<ModAccess::Source> sources = access_.sources(id);
+    if (sources.empty()) return;
+    m.addSeparator();
+    m.addSectionHeader("Modulation");
+    if (access_.rowsOn)
+        for (const ModAccess::Row& r : access_.rowsOn(id))
+            m.addCustomItem(0x7f000000 + r.index, std::make_unique<ModRowItem>(access_, r), nullptr, r.name);
+    juce::PopupMenu with;
+    juce::String section;
+    for (const ModAccess::Source& s : sources) {
+        if (s.section != section) {
+            section = s.section;
+            if (section.isNotEmpty()) with.addSectionHeader(section);
+        }
+        with.addItem(s.name, [this, id, src = s.id] {
+            if (access_.add && !access_.add(id, src) && access_.say) access_.say("Every row of the matrix is taken: free one first.");
+        });
+    }
+    m.addSubMenu("Modulate with", with);
+}
+
+bool ModulationAtKnob::altDrag(int id, const juce::MouseEvent& e, int phase)
+{
+    if (phase == 0) {
+        row_ = -1;
+        if (!access_.rowsOn) return false;
+        const std::vector<ModAccess::Row> rows = access_.rowsOn(id);
+        if (rows.empty()) return false;   // nothing on it: the knob turns as usual
+        row_ = rows.back().index;
+        depth0_ = rows.back().depth;
+        if (access_.begin) access_.begin("Modulation depth");   // one step for the whole drag
+        return true;
+    }
+    if (row_ < 0) return false;
+    // Up deepens, down the other way: 200 pixels the whole range.
+    const float d = juce::jlimit(-1.0f, 1.0f, depth0_ - static_cast<float>(e.getDistanceFromDragStartY()) / 200.0f);
+    if (access_.setDepth) access_.setDepth(row_, d);
+    if (access_.say) access_.say("Modulation depth " + juce::String(d, 2) + (phase == 2 ? juce::String() : juce::String("   (Alt-drag: up deeper, down the other way)")));
+    if (phase == 2) {
+        row_ = -1;
+        if (access_.end) access_.end();
+    }
     return true;
 }
 

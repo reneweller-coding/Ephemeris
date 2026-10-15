@@ -48,7 +48,7 @@ private:
  * @brief The parameters of one module instance as knobs, menus and switches: every control with the frame's right-click
  *        menu (MIDI learn, forget, default), a double click to its default, and the live ring of the moves.
  */
-class ParamPage final : public juce::Component, private juce::Timer {
+class ParamPage final : public juce::Component, public frame::Revealer, private juce::Timer {
 public:
     /**
      * @brief A page for the modules in @p groups.
@@ -65,6 +65,14 @@ public:
     void setAvailableHeight(int h) { available_ = h; }
     /** @brief The page's parameters in words, group by group (the help's topic for the tab). */
     juce::String describe() const;
+    /** @brief The instance shown (the row), 0 for a page of one. */
+    int instance() const { return instances_ > 1 ? instance_.getSelectedId() - 1 : 0; }
+    /** @brief Shows the section holding @p part (the search found it there). */
+    void reveal(juce::Component& part) override;
+    /** @brief Shows the instance whose controls hold store id @p id (a row); false when none of them does. */
+    bool bringId(int id) override;
+    /** @brief Shows preset @p menuId as chosen (the browser took it: a factory preset's index + 1, or 5001 + one of the player's). */
+    void chosen(int menuId);
 
 private:
     /** @brief Makes the controls of every group (once, in the constructor). */
@@ -76,6 +84,12 @@ private:
     EphemerisProcessor& proc_;   ///< the processor: the parameters, the undo, MIDI learn
     frame::ControlActions actions_;               ///< the controls' right-click menu
     frame::LiveRings live_;                       ///< where each knob's value plays
+    /** @brief The modulation at the knob (15.10.2026): the voice's matrix rows on its knobs, as arcs and in their menus. */
+    std::unique_ptr<frame::ModulationAtKnob> modulation_;
+    /** @brief Opens the preset browser on the page's synth (15.10.2026). */
+    frame::IconButton browse_{ frame::IconButton::Icon::Search, "Browse the presets: by name, group, favourites, recently played; hold a row's triangle to listen" };
+    juce::Label star_;   ///< "*" while the knobs have moved from the preset
+    std::vector<std::pair<int, float>> loadedKnobs_;   ///< the knobs the preset put (store id, real value): the star compares
     std::vector<std::pair<eph::Module, int>> groups_;   ///< the module instances shown, in order
     int instances_;   ///< how many instances the modules have
     juce::ComboBox instance_;   ///< the instance selector (above one instance)
@@ -292,8 +306,15 @@ public:
     ~EphemerisEditor() override;                       ///< stops the refresh timer
     void paint(juce::Graphics& g) override;            ///< the background
     void resized() override;                           ///< scales the body to the window
-    void parentHierarchyChanged() override;            ///< the standalone's title bar gets a maximise button
+    void parentHierarchyChanged() override;            ///< the standalone's title bar gets a maximise button, the window its place
     bool keyPressed(const juce::KeyPress& key) override;   ///< the frame's keys (frame::handleKey)
+    /**
+     * @brief Opens the preset browser on instance @p instance of synth @p m; @p chosen hears the menu id taken (a factory
+     *        preset's index + 1, or 5001 + one of the player's).
+     */
+    void browsePresets(eph::Module m, int instance, std::function<void(int)> chosen);
+    /** @brief Shows a line in the info line (an Alt-drag's depth). */
+    void say(const juce::String& text) { if (info_ != nullptr) info_->showText(text); }
 
 private:
     /** @brief Follows the processor: the status, the play button, the rerolls, the update link; the screenshots. */
@@ -307,6 +328,13 @@ private:
     void showHelp(bool on);                            ///< the help over the tabs (F1)
     void showSettings();                               ///< the settings menu
     ExportPage* exportPage() const;                    ///< the Export tab's page
+    void openPalette();                                ///< the command palette (Ctrl+K)
+    std::vector<frame::CommandPalette::Command> paletteCommands();   ///< what the palette can do: actions, pages, controls, presets
+    void startTour();                                  ///< the first steps, from the first
+    /** @brief The info line's words for store id @p id: its name, its value, its range, what moves it, its key. */
+    bool describeControl(int id, juce::String& name, juce::String& text);
+    /** @brief Shows the control of store id @p id (its tab, sub-tab, section, row) and lights it; false when no page has it. */
+    bool revealId(int id);
     EphemerisProcessor& proc_;   ///< the processor
     frame::LookAndFeel lnf_{ ephui::skin() };          ///< first, so it outlives every component that uses it
     juce::TooltipWindow tooltips_{ nullptr, 700 };   ///< the tooltips, after 700 ms
@@ -348,4 +376,12 @@ private:
     juce::TabbedComponent tabs_{ juce::TabbedButtonBar::TabsAtTop };   ///< the pages
     juce::String shotPath_;   ///< TOT_SHOT: where the screenshot goes, empty none
     int shotTicks_ = 0;   ///< ticks until the screenshot is taken
+    /** @brief The command palette's button (Ctrl+K). */
+    frame::IconButton search_{ frame::IconButton::Icon::Search, "Search (Ctrl+K): any control, preset or action by a few letters" };
+    std::unique_ptr<frame::InfoLine> info_;            ///< the info line at the bottom: what the control under the mouse is
+    frame::CommandPalette palette_{ ephui::skin() };   ///< the command palette, over everything while open
+    frame::PresetBrowser browser_{ ephui::skin(), "Ephemeris" };   ///< the preset browser, over everything while open
+    frame::Tour tour_{ ephui::skin() };                ///< the first steps
+    frame::WindowKeeper window_;                       ///< the standalone's window back where it was left
+    int tourTicks_ = 0;                                ///< ticks until the first start's tour (-1: considered)
 };
