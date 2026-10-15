@@ -22,7 +22,7 @@ if(CMAKE_SCRIPT_MODE_FILE AND DOCCHECK)
     # cmake -DDOCCHECK=1 -DDOXYGEN=<doxygen> -DROOT=<source dir> -DOUT=<work dir> -DNAME=<project> -P Family.cmake
     set(inputs "")
     set(globs "")
-    foreach(d Core/include Core/src Plugin Quest/src Tools/render Tools/plandump Tests)
+    foreach(d Core/include Core/src Plugin Quest/src Tools Tests)
         if(IS_DIRECTORY "${ROOT}/${d}")
             string(APPEND inputs " \"${ROOT}/${d}\"")
             list(APPEND globs "${ROOT}/${d}/*.h" "${ROOT}/${d}/*.cpp" "${ROOT}/${d}/*.cu" "${ROOT}/${d}/*.cuh")
@@ -36,9 +36,12 @@ OUTPUT_DIRECTORY = \"${OUT}\"
 INPUT = ${inputs}
 FILE_PATTERNS = *.h *.cpp *.cu *.cuh
 EXTENSION_MAPPING = cu=C++ cuh=C++
+MACRO_EXPANSION = YES
+EXPAND_ONLY_PREDEF = YES
+PREDEFINED = __global__= __device__= __host__= __forceinline__= __shared__= __constant__= \"__launch_bounds__(x)=\"
 RECURSIVE = YES
 EXCLUDE = \"${ROOT}/Tests/neonshim\" \"${ROOT}/Tests/neonbench\"
-EXCLUDE_PATTERNS = */ThirdParty/* */build/* */JuceLibraryCode/*
+EXCLUDE_PATTERNS = */ThirdParty/* */build/* */JuceLibraryCode/* */.venv/* */venv/* */site-packages/* */node_modules/* */__pycache__/*
 EXTRACT_ALL = NO
 EXTRACT_PRIVATE = YES
 EXTRACT_STATIC = YES
@@ -71,7 +74,7 @@ HAVE_DOT = NO
     # ... and every @param with its direction: [in], [out] or [in,out]
     file(GLOB_RECURSE sources ${globs})
     foreach(f ${sources})
-        if(f MATCHES "/(ThirdParty|third_party|build|neonshim|neonbench)/")
+        if(f MATCHES "/(ThirdParty|third_party|build|neonshim|neonbench|[.]venv|venv|site-packages|node_modules)/")
             continue()
         endif()
         file(STRINGS "${f}" plain REGEX "[@\\\\]param[ \t]")

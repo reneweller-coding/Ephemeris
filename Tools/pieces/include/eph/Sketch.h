@@ -21,14 +21,19 @@
 
 namespace eph {
 
-/** @brief The energy arc of the sketch at a fraction @p f of its length: 0.15 .. 1 at 0.65 .. 0.1. */
+/**
+ * @brief The energy arc of the sketch at a fraction @p f of its length: 0.15 .. 1 at 0.65 .. 0.1.
+ * @param[in] f  the place in the sketch, 0..1
+ * @return the energy
+ */
 float sketchEnergy(double f);
 
 /**
  * @brief Writes the sketch.
- * @param p       parameters (tempo, key, scale, style, voices); the rows' settings are the sketch's own
- * @param seed    seed of everything drawn
- * @param minutes length (at least four)
+ * @param[in] p        parameters (tempo, key, scale, style, voices); the rows' settings are the sketch's own
+ * @param[in] seed     seed of everything drawn
+ * @param[in] minutes  length (at least four)
+ * @return the sketch's score
  */
 Score buildSketch(const ParamStore& p, uint64_t seed, double minutes);
 

@@ -20,9 +20,10 @@ namespace eph {
 
 /**
  * @brief Writes the study.
- * @param p       parameters (tempo, key, scale, rows, voices)
- * @param seed    seed of the rack and the voices
- * @param minutes length
+ * @param[in] p        parameters (tempo, key, scale, rows, voices)
+ * @param[in] seed     seed of the rack and the voices
+ * @param[in] minutes  length
+ * @return the study's score
  */
 Score buildStudy(const ParamStore& p, uint64_t seed, double minutes);
 
