@@ -17,7 +17,8 @@ family (Totality, Ephemeris, Parhelion, Phosphene, Noctuary, Empyrean) share the
 - The pointer and reference sign at the name: `float *out`, `const Score &score`.
 - Four spaces a level, no tabs.
 - Declarations in a row and their trailing `///<` comments in columns.
-- Comments are never reflowed, and the includes keep the order they were written in.
+- Comments are never reflowed and string literals never split (scripts in `Tools` read them), and the includes
+  keep the order they were written in.
 
 The commit that brought the code into this layout is listed in `.git-blame-ignore-revs`; `git blame` passes over it
 after

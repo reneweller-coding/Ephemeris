@@ -1,8 +1,9 @@
 # The family's layout after the CGVR programming guideline (Universitaet Bremen,
 # https://cgvr.informatik.uni-bremen.de/progr/guidelines.shtml): braces on lines of their own, spaces inside
-# parentheses, the pointer star at the name, four spaces, declarations and trailing comments in columns. The deviations (120 columns among them) in docs/STYLE.md.
+# parentheses, the pointer star at the name, four spaces, declarations and trailing comments in columns. The
+# deviations (120 columns among them) in docs/STYLE.md.
 # Generated files are left alone (.clang-format-ignore); comments are never reflowed (the Doxygen blocks are laid
-# out by hand); the order of the includes is the author's.
+# out by hand) and string literals never split (tools in Tools/ read them); the order of the includes is the author's.
 ---
 Language: Cpp
 BasedOnStyle: LLVM
@@ -48,6 +49,7 @@ PPIndentWidth: 2
 NamespaceIndentation: None
 FixNamespaceComments: true
 ReflowComments: false
+BreakStringLiterals: false
 SortIncludes: Never
 IncludeBlocks: Preserve
 LineEnding: DeriveLF
