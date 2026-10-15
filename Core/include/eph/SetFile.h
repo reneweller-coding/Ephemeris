@@ -32,23 +32,23 @@ class ParamStore;
 
 /** @brief The rerolls of a piece or concert: unit name -> how often it was drawn again. */
 struct Curation {
-    std::map<std::string, int> rerolls;   ///< unit name -> reroll count
+    std::map<std::string, int> m_rerolls;   ///< unit name -> reroll count
     /** @brief The counter of @p unit (0 if never rerolled). */
-    int count(const std::string& unit) const { const auto it = rerolls.find(unit); return it == rerolls.end() ? 0 : it->second; }
+    int count(const std::string& unit) const { const auto it = m_rerolls.find(unit); return it == m_rerolls.end() ? 0 : it->second; }
     /** @brief Draws @p unit once more. */
-    void reroll(const std::string& unit) { ++rerolls[unit]; }
+    void reroll(const std::string& unit) { ++m_rerolls[unit]; }
 };
 
 /** @brief Everything a set file holds. */
 struct SetFile {
-    uint64_t seed = 1;       ///< the seed of the piece or concert
-    double minutes = 0.0;    ///< piece length (0: compose.piece_minutes)
-    double concert = 0.0;    ///< concert length (0: one piece)
-    Curation curation;       ///< the rerolls
-    std::string params;      ///< the parameters that differ from their defaults, as ParamStore text
+    uint64_t m_seed = 1;       ///< the seed of the piece or concert
+    double m_minutes = 0.0;    ///< piece length (0: compose.piece_minutes)
+    double m_concert = 0.0;    ///< concert length (0: one piece)
+    Curation m_curation;       ///< the rerolls
+    std::string m_params;      ///< the parameters that differ from their defaults, as ParamStore text
     /** 26.09.2026: the parameters hold the composer's sounds (Score::knobs) as they were played; an older set has
      *  them as offsets in its score, so its piece puts them on the knobs when it loads. */
-    bool soundsInParams = false;
+    bool m_soundsInParams = false;
 };
 
 /** @brief Writes a set; @p params' changed values are taken as they are now. */

@@ -39,24 +39,24 @@
 
 namespace eph {
 
-/** @brief The VCO models (kVcoNames). */
-enum class VcoModel : int { Analog, Moog921, Prophet5, Sem, Arp2600, Emu, Count };
-constexpr int kVcoModels = static_cast<int>(VcoModel::Count);   ///< how many VCO models there are
+/** @brief The VCO models (VcoNames). */
+enum class VcoModelE : int { ANALOG, MOOG921, PROPHET5, SEM, ARP2600, EMU, COUNT };
+constexpr int VcoModels = static_cast<int>(VcoModelE::COUNT);   ///< how many VCO models there are
 
 /** @brief A model's circuit: the ramp's bow and knee, and its drift against the voice's. */
 struct VcoProfile {
-    float bow;           ///< c of the ramp 2t - 1 + c t (1 - t) - a t^8: the core's leakage
-    float knee;          ///< a: the reset's knee
-    float driftSpread;   ///< times the Drift knob's spread
-    float driftTau;      ///< times the drift's time constants
-    float noteScatter;   ///< times how far a note lands off its pitch
-    float jitterCents;   ///< the fast wander of the pitch (a few milliseconds' correlation), cents
+    float m_bow;           ///< c of the ramp 2t - 1 + c t (1 - t) - a t^8: the core's leakage
+    float m_knee;          ///< a: the reset's knee
+    float m_driftSpread;   ///< times the Drift knob's spread
+    float m_driftTau;      ///< times the drift's time constants
+    float m_noteScatter;   ///< times how far a note lands off its pitch
+    float m_jitterCents;   ///< the fast wander of the pitch (a few milliseconds' correlation), cents
 };
 
 /** @brief The profile of model @p m (VcoModel; clamped). */
 inline const VcoProfile& vcoProfile(int m)
 {
-    static const VcoProfile k[kVcoModels] = {
+    static const VcoProfile k[VcoModels] = {
         { 0.0f, 0.0f, 1.0f, 1.0f, 1.0f, 0.0f },       // Analog: the voices' own oscillators, ideal ramps
         { 0.1f, 0.2f, 1.4f, 0.7f, 1.5f, 0.6f },       // Moog 921: a discrete reset with a soft knee; wanders, warm
         { 0.05f, 0.04f, 0.8f, 1.0f, 0.8f, 0.3f },     // Prophet-5 (SSM2030): an integrated, nearly ideal core
@@ -64,26 +64,26 @@ inline const VcoProfile& vcoProfile(int m)
         { -0.15f, 0.0f, 1.0f, 0.6f, 1.0f, 0.8f },     // ARP 2600 (4027): a fast reset, the ramp speeding up a little
         { 0.0f, 0.0f, 0.4f, 1.5f, 0.5f, 0.1f },       // E-mu modular: precise and stable
     };
-    return k[std::clamp(m, 0, kVcoModels - 1)];
+    return k[std::clamp(m, 0, VcoModels - 1)];
 }
 
 /** @brief One oscillator after a model: its phase and the residuals it owes the next sample. */
 struct VcoOsc {
-    double ph = 0.0;          ///< phase in cycles, [0, 1)
-    float pending = 0.0f;     ///< residuals of the events since the last sample, for the next
+    double m_ph = 0.0;          ///< phase in cycles, [0, 1)
+    float m_pending = 0.0f;     ///< residuals of the events since the last sample, for the next
 
     /** @brief The waveform at phase @p t: the model's ramp blended into the pulse (-1 below @p pw, +1 above). */
     static float value(const VcoProfile& p, float wave, float pw, double t)
     {
         const float x = static_cast<float>(t), x2 = x * x, x4 = x2 * x2;
-        const float ramp = 2.0f * x - 1.0f + p.bow * x * (1.0f - x) - p.knee * x4 * x4;
+        const float ramp = 2.0f * x - 1.0f + p.m_bow * x * (1.0f - x) - p.m_knee * x4 * x4;
         return ramp + wave * ((x < pw ? -1.0f : 1.0f) - ramp);
     }
     /** @brief Its slope per cycle at @p t (the pulse's is zero between its edges). */
     static float slope(const VcoProfile& p, float wave, double t)
     {
         const float x = static_cast<float>(t), x2 = x * x, x3 = x2 * x;
-        return (1.0f - wave) * (2.0f + p.bow * (1.0f - 2.0f * x) - 8.0f * p.knee * x3 * x3 * x);
+        return (1.0f - wave) * (2.0f + p.m_bow * (1.0f - 2.0f * x) - 8.0f * p.m_knee * x3 * x3 * x);
     }
 
     /**
@@ -93,11 +93,11 @@ struct VcoOsc {
      */
     float step(double dt, const VcoProfile& p, float wave, float pw, double syncAt, double* wrapAt)
     {
-        float y = value(p, wave, pw, ph) + pending;
-        pending = 0.0f;
+        float y = value(p, wave, pw, m_ph) + m_pending;
+        m_pending = 0.0f;
         if (wrapAt != nullptr) *wrapAt = -1.0;
         const float bendScale = static_cast<float>(dt);
-        double s = 0.0, t = ph;   // how much of the step has gone, and the phase there
+        double s = 0.0, t = m_ph;   // how much of the step has gone, and the phase there
         for (int guard = 0; guard < 6; ++guard) {
             // The next event in (s, 1]: the end of the cycle, the pulse's edge, the restart by sync.
             double next = 2.0;
@@ -125,11 +125,11 @@ struct VcoOsc {
             // The residuals of a step and of a bend at `next` of the way from this sample to the next one.
             const float d = static_cast<float>(next), e = 1.0f - d;
             y += jump * 0.5f * e * e + bend * e * e * e * (1.0f / 6.0f);
-            pending += -jump * 0.5f * d * d + bend * d * d * d * (1.0f / 6.0f);
+            m_pending += -jump * 0.5f * d * d + bend * d * d * d * (1.0f / 6.0f);
             s = next;
         }
-        ph = t + (1.0 - s) * dt;
-        if (ph >= 1.0) ph -= 1.0;
+        m_ph = t + (1.0 - s) * dt;
+        if (m_ph >= 1.0) m_ph -= 1.0;
         return y;
     }
 };

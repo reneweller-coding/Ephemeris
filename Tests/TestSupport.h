@@ -15,8 +15,8 @@ namespace ephtest {
 
 /** @brief Running totals of passed and failed checks. */
 struct Tally {
-    int passed = 0;   ///< checks that held
-    int failed = 0;   ///< checks that did not
+    int m_passed = 0;   ///< checks that held
+    int m_failed = 0;   ///< checks that did not
 };
 
 /** @brief The one tally of a test executable. */
@@ -30,14 +30,14 @@ inline Tally& tally() { static Tally t; return t; }
  */
 inline void check(bool ok, const char* what, const std::string& detail = std::string())
 {
-    if (ok) ++tally().passed;
-    else ++tally().failed;
+    if (ok) ++tally().m_passed;
+    else ++tally().m_failed;
     std::printf("  [%s] %s%s%s\n", ok ? " ok " : "FAIL", what, detail.empty() ? "" : "  -- ", detail.c_str());
 }
 
 /** @brief printf into a std::string. */
-template <class... A>
-inline std::string fmt(const char* f, A... args)
+template <class... AT>
+inline std::string fmt(const char* f, AT... args)
 {
     // 1024 since 20.09.2026 (round "dialogue"). At 512 this silently truncated, and measureLock built
     // its parameter string with it: everything past the first of ten mute assignments was cut off, so
@@ -69,8 +69,8 @@ inline void section(const char* name)
 /** @brief Ends the run: prints totals and returns the process exit code. */
 inline int finish()
 {
-    std::printf("\n%d passed, %d failed\n", tally().passed, tally().failed);
-    return tally().failed == 0 ? 0 : 1;
+    std::printf("\n%d passed, %d failed\n", tally().m_passed, tally().m_failed);
+    return tally().m_failed == 0 ? 0 : 1;
 }
 
 /** @brief In-place radix-2 FFT (n a power of two). */

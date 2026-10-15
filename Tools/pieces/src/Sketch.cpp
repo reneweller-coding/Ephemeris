@@ -31,34 +31,34 @@ Score buildSketch(const ParamStore& params, uint64_t seed, double minutes)
                 "row3.active=0 row3.length=12 row3.division=1/8 row3.octave=1 row3.mutation=0.3 row3.pan=0.45 row3.gate=40\n"
                 "row4.active=0 row4.length=8 row4.division=4 Bars row4.mode=Transposer row4.mutation=0.3\n");
 
-    const double bpm = p.get(p.id(Module::Compose, 0, compose::Bpm));
+    const double bpm = p.get(p.id(ModuleE::COMPOSE, 0, compose::BPM));
     Score s;
     s.clear(bpm);
-    s.seed = seed;
-    s.keyRoot = p.getInt(p.id(Module::Compose, 0, compose::Key));
-    const int bars = std::max(64, static_cast<int>(std::lround(std::max(4.0, minutes) * bpm / kBeatsPerBar)));
-    s.lengthBeats = bars * kBeatsPerBar;
-    auto at = [&](double f) { return std::floor(f * bars / 4.0 + 0.5) * 4.0 * kBeatsPerBar; };   // on four-bar lines
+    s.m_seed = seed;
+    s.m_keyRoot = p.getInt(p.id(ModuleE::COMPOSE, 0, compose::KEY));
+    const int bars = std::max(64, static_cast<int>(std::lround(std::max(4.0, minutes) * bpm / BeatsPerBar)));
+    s.m_lengthBeats = bars * BeatsPerBar;
+    auto at = [&](double f) { return std::floor(f * bars / 4.0 + 0.5) * 4.0 * BeatsPerBar; };   // on four-bar lines
 
-    s.rack.push_back({ at(0.06), 0, RackOp::Start, 0 });   // after the cosmic intro
-    s.rack.push_back({ at(0.12), 1, RackOp::Start, 0 });
-    s.rack.push_back({ at(0.20), 3, RackOp::Start, 0 });
-    s.rack.push_back({ at(0.30), 2, RackOp::Start, 0 });
-    s.rack.push_back({ at(0.85), 3, RackOp::Stop, 0 });
-    s.rack.push_back({ at(0.88), 2, RackOp::Stop, 0 });
-    s.rack.push_back({ at(0.95), 1, RackOp::Stop, 0 });
-    s.markers = { { 0.0, "Atmo" }, { at(0.06), "Einsatz" }, { at(0.12), "Aufbau" }, { at(0.20), "Transposer" }, { at(0.40), "Lead" },
+    s.m_rack.push_back({ at(0.06), 0, RackOpE::START, 0 });   // after the cosmic intro
+    s.m_rack.push_back({ at(0.12), 1, RackOpE::START, 0 });
+    s.m_rack.push_back({ at(0.20), 3, RackOpE::START, 0 });
+    s.m_rack.push_back({ at(0.30), 2, RackOpE::START, 0 });
+    s.m_rack.push_back({ at(0.85), 3, RackOpE::STOP, 0 });
+    s.m_rack.push_back({ at(0.88), 2, RackOpE::STOP, 0 });
+    s.m_rack.push_back({ at(0.95), 1, RackOpE::STOP, 0 });
+    s.m_markers = { { 0.0, "Atmo" }, { at(0.06), "Einsatz" }, { at(0.12), "Aufbau" }, { at(0.20), "Transposer" }, { at(0.40), "Lead" },
                   { at(0.62), "Hoehepunkt" }, { at(0.85), "Ausklang" } };
 
     Rack rack;
     rack.setup(p, seed);
-    rack.generate(0, RowRole::Bass);
-    rack.generate(1, RowRole::Counter);
-    rack.generate(2, RowRole::Walk);
-    rack.generate(3, RowRole::Transposer);
+    rack.generate(0, RowRoleE::BASS);
+    rack.generate(1, RowRoleE::COUNTER);
+    rack.generate(2, RowRoleE::WALK);
+    rack.generate(3, RowRoleE::TRANSPOSER);
     s.sort();
-    rack.run(s, s.lengthBeats);
-    s.rootShifts = rack.shifts();
+    rack.run(s, s.m_lengthBeats);
+    s.m_rootShifts = rack.shifts();
 
     // The drone: the root in the second octave, held through each root, from the first bar to the end.
     writeDrone(s, rack.keyRoot(), 0.0, at(0.97));
@@ -66,28 +66,28 @@ Score buildSketch(const ParamStore& params, uint64_t seed, double minutes)
     // The atmosphere: wind swells in the intro and recedes under the sequence, comes back for the coda;
     // sweeps in the intro and the coda, bleeps in the middle. Steps and slow moves of knobs that start
     // at nothing (Params.cpp: every layer off).
-    const int wind = p.id(Module::Atmos, 0, atmos::Wind), sweeps = p.id(Module::Atmos, 0, atmos::Sweeps);
-    const int bleeps = p.id(Module::Atmos, 0, atmos::Bleeps);
-    using G = GestureShape;
-    s.gestures.push_back({ wind, 0.0, at(0.05), 0.0f, 0.62f, G::MinimumJerk, 0 });
-    s.gestures.push_back({ wind, at(0.07), at(0.15) - at(0.07), 0.62f, 0.35f, G::MinimumJerk, 0 });
-    s.gestures.push_back({ wind, at(0.88), at(0.98) - at(0.88), 0.35f, 0.6f, G::MinimumJerk, 0 });
-    s.gestures.push_back({ sweeps, 0.0, 0.0, 0.0f, 0.3f, G::Step, 1 });
-    s.gestures.push_back({ sweeps, at(0.12), 0.0, 0.3f, 0.0f, G::Step, 1 });
-    s.gestures.push_back({ sweeps, at(0.88), 0.0, 0.0f, 0.3f, G::Step, 1 });
-    s.gestures.push_back({ bleeps, at(0.30), 0.0, 0.0f, 0.2f, G::Step, 1 });
-    s.gestures.push_back({ bleeps, at(0.80), 0.0, 0.2f, 0.0f, G::Step, 1 });
+    const int wind = p.id(ModuleE::ATMOS, 0, atmos::WIND), sweeps = p.id(ModuleE::ATMOS, 0, atmos::SWEEPS);
+    const int bleeps = p.id(ModuleE::ATMOS, 0, atmos::BLEEPS);
+    using GT = GestureShapeE;
+    s.m_gestures.push_back({ wind, 0.0, at(0.05), 0.0f, 0.62f, GT::MINIMUM_JERK, 0 });
+    s.m_gestures.push_back({ wind, at(0.07), at(0.15) - at(0.07), 0.62f, 0.35f, GT::MINIMUM_JERK, 0 });
+    s.m_gestures.push_back({ wind, at(0.88), at(0.98) - at(0.88), 0.35f, 0.6f, GT::MINIMUM_JERK, 0 });
+    s.m_gestures.push_back({ sweeps, 0.0, 0.0, 0.0f, 0.3f, GT::STEP, 1 });
+    s.m_gestures.push_back({ sweeps, at(0.12), 0.0, 0.3f, 0.0f, GT::STEP, 1 });
+    s.m_gestures.push_back({ sweeps, at(0.88), 0.0, 0.0f, 0.3f, GT::STEP, 1 });
+    s.m_gestures.push_back({ bleeps, at(0.30), 0.0, 0.0f, 0.2f, GT::STEP, 1 });
+    s.m_gestures.push_back({ bleeps, at(0.80), 0.0, 0.2f, 0.0f, GT::STEP, 1 });
 
     // The lead, in two passages, the second denser; it follows the transposer's roots.
     Rng leadRng;
     leadRng.seed(mixSeed(seed, 300));
     LeadPlan lp;
-    lp.keyRoot = rack.keyRoot();
-    lp.scale = rack.scale();
-    lp.shifts = rack.shifts();
-    lp.intensity = 0.35f;
+    lp.m_keyRoot = rack.keyRoot();
+    lp.m_scale = rack.scale();
+    lp.m_shifts = rack.shifts();
+    lp.m_intensity = 0.35f;
     writeLead(s, lp, at(0.40), at(0.58), leadRng);
-    lp.intensity = 0.8f;
+    lp.m_intensity = 0.8f;
     writeLead(s, lp, at(0.60), at(0.80), leadRng);
 
     // The tape keys: the choir from about a fifth of the way, the strings tape from the peak on (the
@@ -95,45 +95,45 @@ Score buildSketch(const ParamStore& params, uint64_t seed, double minutes)
     Rng padRng;
     padRng.seed(mixSeed(seed, 500));
     PadPlan pp;
-    pp.keyRoot = rack.keyRoot();
-    pp.scale = rack.scale();
-    pp.shifts = rack.shifts();
+    pp.m_keyRoot = rack.keyRoot();
+    pp.m_scale = rack.scale();
+    pp.m_shifts = rack.shifts();
     writeChords(s, pp, at(0.22), at(0.92), padRng);
-    s.gestures.push_back({ p.id(Module::Tape, 0, tape::Set), at(0.62), 0.0, 0.0f, 0.5f, GestureShape::Step, 1 });
-    s.markers.push_back({ at(0.22), "Tape Keys" });
+    s.m_gestures.push_back({ p.id(ModuleE::TAPE, 0, tape::SET), at(0.62), 0.0, 0.0f, 0.5f, GestureShapeE::STEP, 1 });
+    s.m_markers.push_back({ at(0.22), "Tape Keys" });
     // The string machine above them from the middle to the close, held through each root.
     PadPlan sp = pp;
-    sp.part = Part::Strings;
-    sp.low = 62;
-    sp.high = 81;
-    sp.restrikeSeconds = 1e6;
-    sp.choir = false;
+    sp.m_part = PartE::STRINGS;
+    sp.m_low = 62;
+    sp.m_high = 81;
+    sp.m_restrikeSeconds = 1e6;
+    sp.m_choir = false;
     writeChords(s, sp, at(0.46), at(0.88), padRng);
 
     // The hands.
-    auto knob = [&](Module m, int inst, int index, float low, float high, float rest, float peak, float weight, double from) {
+    auto knob = [&](ModuleE m, int inst, int index, float low, float high, float rest, float peak, float weight, double from) {
         HandKnob k;
-        k.param = p.id(m, inst, index);
-        k.low = low; k.high = high; k.atRest = rest; k.atPeak = peak; k.weight = weight; k.from = from;
+        k.m_param = p.id(m, inst, index);
+        k.m_low = low; k.m_high = high; k.m_atRest = rest; k.m_atPeak = peak; k.m_weight = weight; k.m_from = from;
         return k;
     };
     std::vector<HandKnob> knobs = {
-        knob(Module::Voice, 0, voice::Cutoff,    -0.35f, 0.35f, -0.22f, 0.22f, 3.0f, 0.0),
-        knob(Module::Voice, 0, voice::Decay,     -0.10f, 0.30f,  0.00f, 0.18f, 1.0f, 0.0),
-        knob(Module::Voice, 0, voice::Resonance, -0.10f, 0.30f,  0.00f, 0.20f, 1.0f, 0.0),
-        knob(Module::Voice, 1, voice::Cutoff,    -0.40f, 0.30f, -0.30f, 0.15f, 2.0f, at(0.12)),
-        knob(Module::Voice, 2, voice::Cutoff,    -0.40f, 0.30f, -0.25f, 0.15f, 1.5f, at(0.30)),
-        knob(Module::Lead, 0, lead::Cutoff,      -0.30f, 0.30f, -0.10f, 0.20f, 1.0f, at(0.40)),
-        knob(Module::Drone, 0, drone::Cutoff,    -0.20f, 0.30f, -0.10f, 0.15f, 1.0f, 0.0),
-        knob(Module::Atmos, 0, atmos::WindTone,  -0.30f, 0.30f,  0.00f, 0.10f, 0.5f, 0.0),
+        knob(ModuleE::VOICE, 0, voice::CUTOFF,    -0.35f, 0.35f, -0.22f, 0.22f, 3.0f, 0.0),
+        knob(ModuleE::VOICE, 0, voice::DECAY,     -0.10f, 0.30f,  0.00f, 0.18f, 1.0f, 0.0),
+        knob(ModuleE::VOICE, 0, voice::RESONANCE, -0.10f, 0.30f,  0.00f, 0.20f, 1.0f, 0.0),
+        knob(ModuleE::VOICE, 1, voice::CUTOFF,    -0.40f, 0.30f, -0.30f, 0.15f, 2.0f, at(0.12)),
+        knob(ModuleE::VOICE, 2, voice::CUTOFF,    -0.40f, 0.30f, -0.25f, 0.15f, 1.5f, at(0.30)),
+        knob(ModuleE::LEAD, 0, lead::CUTOFF,      -0.30f, 0.30f, -0.10f, 0.20f, 1.0f, at(0.40)),
+        knob(ModuleE::DRONE, 0, drone::CUTOFF,    -0.20f, 0.30f, -0.10f, 0.15f, 1.0f, 0.0),
+        knob(ModuleE::ATMOS, 0, atmos::WIND_TONE,  -0.30f, 0.30f,  0.00f, 0.10f, 0.5f, 0.0),
     };
-    HandKnob throwKnob = knob(Module::Echo, 0, echo::Feedback, 0.0f, 0.4f, 0.0f, 0.05f, 0.6f, at(0.10));
-    throwKnob.throws = true;
-    throwKnob.scatter = 0.15f;
+    HandKnob throwKnob = knob(ModuleE::ECHO, 0, echo::FEEDBACK, 0.0f, 0.4f, 0.0f, 0.05f, 0.6f, at(0.10));
+    throwKnob.m_throws = true;
+    throwKnob.m_scatter = 0.15f;
     knobs.push_back(throwKnob);
     Rng hands;
     hands.seed(mixSeed(seed, 400));
-    const double len = s.lengthBeats;
+    const double len = s.m_lengthBeats;
     playHands(s, knobs, HandStyle{}, [&](double b) { return sketchEnergy(b / len); }, 0.0, len, hands);
     s.sort();
     return s;

@@ -55,47 +55,47 @@ namespace frame {
 // ===================================================================================================== the skin
 
 /** @brief The families of function: the same colour means the same kind of control on every page of every generator. */
-enum class Family { Source, Filter, Envelope, Motion, Space };
+enum class FamilyE { SOURCE, FILTER, ENVELOPE, MOTION, SPACE };
 
 /** @brief An instrument's look: its palette, its picture and its logo. */
 struct Skin {
-    juce::String name;                 ///< as the title shows it
-    juce::Colour bg;                   ///< the window
-    juce::Colour panel;                ///< a page (translucent: the backdrop shows faintly through it)
-    juce::Colour group;                ///< a group box
-    juce::Colour raised;               ///< buttons, menus, the knobs' bodies
-    juce::Colour edge;                 ///< hairlines
-    juce::Colour ink;                  ///< text
-    juce::Colour dim;                  ///< names, secondary text
-    juce::Colour faint;                ///< tracks, axes, the off state
-    juce::Colour accent;               ///< the instrument's own colour: the title, the tab in front, the playhead's region
-    juce::Colour onset;                ///< the playhead, a mute
-    juce::Colour good;                 ///< a meter in range
-    juce::Colour bad;                  ///< a meter over
-    juce::Colour families[5];          ///< Source, Filter, Envelope, Motion, Space
-    juce::Colour decks[3];             ///< deck A, B, C
-    float radius = 4.0f;               ///< corners of buttons, menus and boxes
-    float tracking = 0.06f;            ///< the title's letter spacing, of its height
-    juce::String typeface;             ///< the title's typeface (empty: the panel's own)
-    bool titleBold = true;             ///< the title bold
-    bool valueInKnob = false;          ///< a knob without a text box shows its value inside (Phosphene's dense pages)
-    bool glow = false;                 ///< arcs and the title drawn with a soft glow
+    juce::String m_name;                 ///< as the title shows it
+    juce::Colour m_bg;                   ///< the window
+    juce::Colour m_panel;                ///< a page (translucent: the backdrop shows faintly through it)
+    juce::Colour m_group;                ///< a group box
+    juce::Colour m_raised;               ///< buttons, menus, the knobs' bodies
+    juce::Colour m_edge;                 ///< hairlines
+    juce::Colour m_ink;                  ///< text
+    juce::Colour m_dim;                  ///< names, secondary text
+    juce::Colour m_faint;                ///< tracks, axes, the off state
+    juce::Colour m_accent;               ///< the instrument's own colour: the title, the tab in front, the playhead's region
+    juce::Colour m_onset;                ///< the playhead, a mute
+    juce::Colour m_good;                 ///< a meter in range
+    juce::Colour m_bad;                  ///< a meter over
+    juce::Colour m_families[5];          ///< Source, Filter, Envelope, Motion, Space
+    juce::Colour m_decks[3];             ///< deck A, B, C
+    float m_radius = 4.0f;               ///< corners of buttons, menus and boxes
+    float m_tracking = 0.06f;            ///< the title's letter spacing, of its height
+    juce::String m_typeface;             ///< the title's typeface (empty: the panel's own)
+    bool m_titleBold = true;             ///< the title bold
+    bool m_valueInKnob = false;          ///< a knob without a text box shows its value inside (Phosphene's dense pages)
+    bool m_glow = false;                 ///< arcs and the title drawn with a soft glow
     /**
      * @brief The picture behind the panel, as compressed bytes (BinaryData; null: none). Bytes and not a juce::Image: a
      *        skin is a static, and an image destroyed after JUCE has shut down (a plugin's unloading) hangs the host.
      */
-    const void* backdropData = nullptr;
-    int backdropSize = 0;   ///< the size of backdropData, bytes
-    juce::Rectangle<float> crop{ 0.0f, 0.0f, 1.0f, 1.0f };   ///< the part of it used, normalised
-    float backdropTop = 0.7f;          ///< its strength behind the header
-    float backdropPage = 0.35f;        ///< behind the pages (under the translucent panel)
+    const void* m_backdropData = nullptr;
+    int m_backdropSize = 0;   ///< the size of backdropData, bytes
+    juce::Rectangle<float> m_crop{ 0.0f, 0.0f, 1.0f, 1.0f };   ///< the part of it used, normalised
+    float m_backdropTop = 0.7f;          ///< its strength behind the header
+    float m_backdropPage = 0.35f;        ///< behind the pages (under the translucent panel)
     /** @brief Draws the logo into a square. */
-    std::function<void(juce::Graphics&, juce::Rectangle<float>)> logo;
+    std::function<void(juce::Graphics&, juce::Rectangle<float>)> m_logo;
     /** @brief The backdrop's picture (from JUCE's image cache, which lives as long as JUCE does). */
-    juce::Image backdrop() const { return backdropData != nullptr ? juce::ImageCache::getFromMemory(backdropData, backdropSize) : juce::Image(); }
+    juce::Image backdrop() const { return m_backdropData != nullptr ? juce::ImageCache::getFromMemory(m_backdropData, m_backdropSize) : juce::Image(); }
 
-    juce::Colour family(Family f) const { return families[static_cast<int>(f)]; }   ///< a family's colour
-    juce::Colour deck(int d) const { return decks[juce::jlimit(0, 2, d)]; }         ///< a deck's colour
+    juce::Colour family(FamilyE f) const { return m_families[static_cast<int>(f)]; }   ///< a family's colour
+    juce::Colour deck(int d) const { return m_decks[juce::jlimit(0, 2, d)]; }         ///< a deck's colour
 };
 
 // =============================================================================================== the look and feel
@@ -108,7 +108,7 @@ class LookAndFeel : public juce::LookAndFeel_V4 {
 public:
     /** @brief A look and feel drawing with @p skin (it must outlive this object). */
     explicit LookAndFeel(const Skin& skin);
-    const Skin& skin() const { return skin_; }   ///< the skin it draws with
+    const Skin& skin() const { return m_skin; }   ///< the skin it draws with
 
     /**
      * @brief A knob: the skin's cap, its arc in the slider's fill colour from the start to the value, the value inside where
@@ -149,7 +149,7 @@ public:
     void drawTooltip(juce::Graphics&, const juce::String& text, int width, int height) override;
 
 private:
-    const Skin& skin_;   ///< the colours, fonts and shapes it draws with
+    const Skin& m_skin;   ///< the colours, fonts and shapes it draws with
 };
 
 /** @brief Draws the instrument's name in the skin's title style (letter-spaced, glowing where the skin glows). */
@@ -181,45 +181,45 @@ public:
 class IconButton final : public juce::Button {
 public:
     /** @brief The glyphs it can draw. */
-    enum class Icon {
-        Undo,         ///< an arrow turning back
-        Redo,         ///< an arrow turning on
-        Help,         ///< a question mark
-        Settings,     ///< a cog
-        ThumbUp,      ///< a raised thumb: I like this
-        ThumbDown,    ///< a lowered thumb: not this
-        Headset,      ///< a visor: the Meta Quest
-        Play,         ///< a triangle: start
-        Stop,         ///< a square: stop
-        Record,       ///< a red disc: record the output
-        Speaker,      ///< a speaker sounding: the output on (pressed, it mutes)
-        SpeakerOff,   ///< a speaker crossed out: the output muted
-        Dice,         ///< a die showing five: a new seed
-        Save,         ///< a disk: save to a file
-        Open,         ///< a folder: load from a file
-        MidiLearn,    ///< a MIDI socket: bind the next controller that moves
-        Search,       ///< a magnifier: the command palette (15.10.2026)
-        Night,        ///< a crescent: the night mode
-        Compare       ///< a frame half filled (before | after): hold to hear the preset as it was
+    enum class IconE {
+        UNDO,         ///< an arrow turning back
+        REDO,         ///< an arrow turning on
+        HELP,         ///< a question mark
+        SETTINGS,     ///< a cog
+        THUMB_UP,      ///< a raised thumb: I like this
+        THUMB_DOWN,    ///< a lowered thumb: not this
+        HEADSET,      ///< a visor: the Meta Quest
+        PLAY,         ///< a triangle: start
+        STOP,         ///< a square: stop
+        RECORD,       ///< a red disc: record the output
+        SPEAKER,      ///< a speaker sounding: the output on (pressed, it mutes)
+        SPEAKER_OFF,   ///< a speaker crossed out: the output muted
+        DICE,         ///< a die showing five: a new seed
+        SAVE,         ///< a disk: save to a file
+        OPEN,         ///< a folder: load from a file
+        MIDI_LEARN,    ///< a MIDI socket: bind the next controller that moves
+        SEARCH,       ///< a magnifier: the command palette (15.10.2026)
+        NIGHT,        ///< a crescent: the night mode
+        COMPARE       ///< a frame half filled (before | after): hold to hear the preset as it was
     };
     /** @brief A button with glyph @p icon and @p tooltip; it never takes the keyboard focus. */
-    IconButton(Icon icon, const juce::String& tooltip);
+    IconButton(IconE icon, const juce::String& tooltip);
     /** @brief Draws another glyph from now on (a play button that becomes a stop button); repaints only on a change. */
-    void setIcon(Icon icon)
+    void setIcon(IconE icon)
     {
-        if (icon == icon_) return;
-        icon_ = icon;
+        if (icon == m_icon) return;
+        m_icon = icon;
         repaint();
     }
     /** @brief Draws @p icon and says @p tooltip from now on; nothing happens when both are as they were (a timer may
      *         call it every tick). */
-    void show(Icon icon, const juce::String& tooltip)
+    void show(IconE icon, const juce::String& tooltip)
     {
         setIcon(icon);
         if (getTooltip() != tooltip) setTooltip(tooltip);
     }
     /** @brief The glyph it draws. */
-    Icon icon() const { return icon_; }
+    IconE icon() const { return m_icon; }
     /** @brief Draws the button's background as the look and feel draws a button, the glyph on it. */
     void paintButton(juce::Graphics& g, bool highlighted, bool down) override;
 
@@ -227,11 +227,11 @@ private:
     /** @brief Draws the glyphs from Play on into the square @p r, in @p ink, lines with @p stroke. */
     void paintGlyph(juce::Graphics& g, juce::Rectangle<float> r, juce::Colour ink, const juce::PathStrokeType& stroke) const;
 
-    Icon icon_;   ///< the glyph drawn
+    IconE m_icon;   ///< the glyph drawn
 };
 
 /** @brief The width of an icon button in a header row, its margins included (Play, Mute, the die ...). */
-constexpr int kIconWidth = 42;
+constexpr int IconWidth = 42;
 
 // ========================================================================================================== header
 
@@ -242,26 +242,26 @@ constexpr int kIconWidth = 42;
  *        and the tools (undo, redo, help, settings) at its right end.
  */
 struct Header {
-    juce::Rectangle<float>* logo = nullptr;   ///< where the logo is drawn (filled by layoutHeader), or null
-    juce::Component* title = nullptr;   ///< the instrument's name, drawn in the skin's title font
-    int titleWidth = 0;   ///< the width the name needs (titleWidth())
-    std::vector<std::pair<juce::Component*, int>> choices;   ///< the choosers of the first row (style, key, scale ...) with their widths
+    juce::Rectangle<float>* m_logo = nullptr;   ///< where the logo is drawn (filled by layoutHeader), or null
+    juce::Component* m_title = nullptr;   ///< the instrument's name, drawn in the skin's title font
+    int m_titleWidth = 0;   ///< the width the name needs (titleWidth())
+    std::vector<std::pair<juce::Component*, int>> m_choices;   ///< the choosers of the first row (style, key, scale ...) with their widths
     /** @brief the buttons that choose what is composed (track or mix ...) with their widths, joined (connectModes) */
-    std::vector<std::pair<juce::Component*, int>> modes;
-    juce::Component* lengthLabel = nullptr;   ///< the length's name, or null
-    juce::Component* length = nullptr;   ///< the length slider (the rest of the first row goes to it), or null
-    std::vector<std::pair<juce::Component*, int>> actions;   ///< the actions of the first row (compose, new seed ...) with their widths
-    juce::Component* play = nullptr;   ///< the play button
-    juce::Component* mute = nullptr;   ///< the mute button, or null
-    juce::Component* like = nullptr;   ///< the thumb up (the rating of what plays), or null
-    juce::Component* dislike = nullptr;   ///< the thumb down, or null
-    juce::Component* status = nullptr;   ///< the status line of the second row
-    juce::Component* curation = nullptr;   ///< what is rerolled or locked, right of the status, or null
-    juce::Component* update = nullptr;   ///< the link to a newer release, shown when there is one, or null
-    std::vector<juce::Component*> tools;   ///< left to right; a null makes a gap between groups
+    std::vector<std::pair<juce::Component*, int>> m_modes;
+    juce::Component* m_lengthLabel = nullptr;   ///< the length's name, or null
+    juce::Component* m_length = nullptr;   ///< the length slider (the rest of the first row goes to it), or null
+    std::vector<std::pair<juce::Component*, int>> m_actions;   ///< the actions of the first row (compose, new seed ...) with their widths
+    juce::Component* m_play = nullptr;   ///< the play button
+    juce::Component* m_mute = nullptr;   ///< the mute button, or null
+    juce::Component* m_like = nullptr;   ///< the thumb up (the rating of what plays), or null
+    juce::Component* m_dislike = nullptr;   ///< the thumb down, or null
+    juce::Component* m_status = nullptr;   ///< the status line of the second row
+    juce::Component* m_curation = nullptr;   ///< what is rerolled or locked, right of the status, or null
+    juce::Component* m_update = nullptr;   ///< the link to a newer release, shown when there is one, or null
+    std::vector<juce::Component*> m_tools;   ///< left to right; a null makes a gap between groups
 };
-constexpr int kHeaderRow = 34;     ///< the first row's height
-constexpr int kStatusRow = 22;     ///< the second's
+constexpr int HeaderRow = 34;     ///< the first row's height
+constexpr int StatusRow = 22;     ///< the second's
 /** @brief Lays the header out in the top of @p area (which loses the two rows and a gap). */
 void layoutHeader(juce::Rectangle<int>& area, const Header& h);
 /** @brief Makes @p modes look like one control: connected edges, lit when chosen. */
@@ -279,10 +279,10 @@ public:
     void paint(juce::Graphics& g, juce::Rectangle<int> area, int headerBottom, const Skin& skin, bool on);
 
 private:
-    juce::Image cache_;   ///< the picture scaled to the area it is drawn into
-    juce::Rectangle<int> cachedFor_;   ///< the area cache_ was made for
-    int cachedHeader_ = -1;   ///< the header's bottom cache_ was made for
-    bool cachedOn_ = false;   ///< whether the picture was on when cache_ was made
+    juce::Image m_cache;   ///< the picture scaled to the area it is drawn into
+    juce::Rectangle<int> m_cachedFor;   ///< the area m_cache was made for
+    int m_cachedHeader = -1;   ///< the header's bottom m_cache was made for
+    bool m_cachedOn = false;   ///< whether the picture was on when m_cache was made
 };
 
 // ======================================================================================================== settings
@@ -294,15 +294,15 @@ private:
 class Settings final : public juce::ChangeBroadcaster {
 public:
     /** @brief Whether the headset's controls are shown: when a headset sends its hands, always, or never (nothing listens). */
-    enum class HeadsetMode { Auto, On, Off };
+    enum class HeadsetModeE { AUTO, ON, OFF };
     /** @brief The settings of instrument @p app (one object per name, message thread). */
     static Settings& of(const juce::String& app);
     /** @brief The settings of @p app, read from its file in the user's application data (made on first use). */
     explicit Settings(const juce::String& app);
 
-    HeadsetMode headset() const;                  ///< Auto: shown when a headset sends; On: always; Off: never, nothing listens
+    HeadsetModeE headset() const;                  ///< Auto: shown when a headset sends; On: always; Off: never, nothing listens
     /** @brief Shows the headset's controls in mode @p m from now on; written at once. */
-    void setHeadset(HeadsetMode m);
+    void setHeadset(HeadsetModeE m);
     int headsetPort() const;                      ///< the UDP port the hands arrive on (9100 + the instrument's offset)
     bool backdrop() const;                        ///< the picture behind the panel
     /** @brief Shows the picture behind the panel or not; written at once. */
@@ -322,13 +322,13 @@ public:
     /** @brief The UDP port the score cues go to on this machine (9000, as the family's parameters say). */
     int cuePort() const;
     /** @brief The instrument's part in the family jam (02.10.2026, Jam.h): none, leading the others, or following one. */
-    enum class JamRole { Off, Lead, Follow };
+    enum class JamRoleE { OFF, LEAD, FOLLOW };
     /** @brief Its part in the family jam; Off by default. */
-    JamRole jamRole() const;
+    JamRoleE jamRole() const;
     /** @brief Takes part in the family jam as @p r from now on; written at once. */
-    void setJamRole(JamRole r);
+    void setJamRole(JamRoleE r);
     /** @brief The instrument's name, as given to of(). */
-    juce::String app() const { return app_; }
+    juce::String app() const { return m_app; }
     /**
      * @brief A value of the panel's own under @p key (15.10.2026: the window's state, the tour seen, the favourites and
      *        the recent presets), @p fallback when there is none.
@@ -341,29 +341,29 @@ public:
     void setValue(const juce::String& key, const juce::String& v, bool now = true);
 
 private:
-    juce::String app_;   ///< the instrument's name
-    std::unique_ptr<juce::PropertiesFile> file_;   ///< the settings file (<app>.frame in the user's application data)
+    juce::String m_app;   ///< the instrument's name
+    std::unique_ptr<juce::PropertiesFile> m_file;   ///< the settings file (<app>.frame in the user's application data)
 };
 
 /** @brief What the settings menu shows and does; empty functions leave their items out. */
 struct SettingsMenu {
-    juce::String app;   ///< the instrument's name: the menu's header and the settings it reads
-    juce::String version;   ///< the version shown in the header and in About
-    std::function<bool()> updatesOn;   ///< whether the update check is on (empty: no item)
-    std::function<void(bool)> setUpdates;   ///< switches the update check
-    std::function<bool()> canFullScreen;   ///< whether full screen is offered (the standalone only)
-    std::function<bool()> isFullScreen;   ///< whether the window fills the screen now
-    std::function<void()> toggleFullScreen;   ///< enters or leaves full screen
-    std::function<void(float)> setWindowScale;    ///< 1.0: the design size
-    std::function<juce::String()> headsetStatus;  ///< a line on what the headset receiver hears
-    juce::String headsetOffText = "Off: do not listen";   ///< what Off means for this instrument
-    std::function<void(juce::PopupMenu&)> headsetItems;   ///< more items in the headset's submenu (calibrate ...)
-    std::function<void(juce::PopupMenu&)> moreItems;      ///< the instrument's own items, before Keys and About
-    std::function<juce::String()> linkStatus;     ///< the standalone's Ableton Link: a line on the session (empty: no item)
-    std::function<juce::String()> cueStatus;      ///< the score cues' switch, with a line on them (empty: no item)
-    std::function<juce::String()> jamStatus;      ///< the family jam's roles, with a line on what is heard (empty: no item)
-    std::function<juce::String()> about;          ///< more lines for "About"
-    std::function<void()> showAbout;              ///< the instrument's own About (replaces the frame's)
+    juce::String m_app;   ///< the instrument's name: the menu's header and the settings it reads
+    juce::String m_version;   ///< the version shown in the header and in About
+    std::function<bool()> m_updatesOn;   ///< whether the update check is on (empty: no item)
+    std::function<void(bool)> m_setUpdates;   ///< switches the update check
+    std::function<bool()> m_canFullScreen;   ///< whether full screen is offered (the standalone only)
+    std::function<bool()> m_isFullScreen;   ///< whether the window fills the screen now
+    std::function<void()> m_toggleFullScreen;   ///< enters or leaves full screen
+    std::function<void(float)> m_setWindowScale;    ///< 1.0: the design size
+    std::function<juce::String()> m_headsetStatus;  ///< a line on what the headset receiver hears
+    juce::String m_headsetOffText = "Off: do not listen";   ///< what Off means for this instrument
+    std::function<void(juce::PopupMenu&)> m_headsetItems;   ///< more items in the headset's submenu (calibrate ...)
+    std::function<void(juce::PopupMenu&)> m_moreItems;      ///< the instrument's own items, before Keys and About
+    std::function<juce::String()> m_linkStatus;     ///< the standalone's Ableton Link: a line on the session (empty: no item)
+    std::function<juce::String()> m_cueStatus;      ///< the score cues' switch, with a line on them (empty: no item)
+    std::function<juce::String()> m_jamStatus;      ///< the family jam's roles, with a line on what is heard (empty: no item)
+    std::function<juce::String()> m_about;          ///< more lines for "About"
+    std::function<void()> m_showAbout;              ///< the instrument's own About (replaces the frame's)
     /** @brief Shows the menu under @p target. */
     void show(juce::Component& target) const;
 };
@@ -372,16 +372,16 @@ struct SettingsMenu {
 
 /** @brief The actions behind the keys; an empty one leaves its key to whoever wants it. */
 struct Keys {
-    std::function<void()> playStop;   ///< Space: play or stop
-    std::function<void()> undo;   ///< Ctrl+Z: undo
-    std::function<void()> redo;   ///< Ctrl+Y and Ctrl+Shift+Z: redo
-    std::function<void()> help;   ///< F1: the help
-    std::function<void()> fullScreen;   ///< F11: full screen
-    std::function<void()> escape;   ///< Esc: close the help, leave full screen
-    std::function<void()> save;   ///< Ctrl+S: save the set
-    std::function<void()> open;   ///< Ctrl+O: open a set
-    std::function<void()> exportFile;   ///< Ctrl+E: export
-    std::function<void()> palette;   ///< Ctrl+K: the command palette (15.10.2026)
+    std::function<void()> m_playStop;   ///< Space: play or stop
+    std::function<void()> m_undo;   ///< Ctrl+Z: undo
+    std::function<void()> m_redo;   ///< Ctrl+Y and Ctrl+Shift+Z: redo
+    std::function<void()> m_help;   ///< F1: the help
+    std::function<void()> m_fullScreen;   ///< F11: full screen
+    std::function<void()> m_escape;   ///< Esc: close the help, leave full screen
+    std::function<void()> m_save;   ///< Ctrl+S: save the set
+    std::function<void()> m_open;   ///< Ctrl+O: open a set
+    std::function<void()> m_exportFile;   ///< Ctrl+E: export
+    std::function<void()> m_palette;   ///< Ctrl+K: the command palette (15.10.2026)
 };
 /** @brief Handles @p key as every generator does; true if it was one of the frame's keys. */
 bool handleKey(const juce::KeyPress& key, const Keys& keys);
@@ -405,8 +405,8 @@ public:
      */
     HelpView(const juce::String& chapters, const Skin& skin);
     /** @brief Topics made each time the help opens (name, text), shown first. */
-    std::function<std::vector<std::pair<juce::String, juce::String>>()> extraTopics;
-    std::function<void()> onClose;                       ///< the close button or Esc
+    std::function<std::vector<std::pair<juce::String, juce::String>>()> m_extraTopics;
+    std::function<void()> m_onClose;                       ///< the close button or Esc
     void refresh();                                      ///< remakes the extra topics, keeps the one chosen
     /** @brief Shows topic @p index (the chapters first, then the extra topics). */
     void showTopic(int index);
@@ -419,18 +419,18 @@ public:
 
 private:
     /** @brief How many topics there are (the list box asks). */
-    int getNumRows() override { return names_.size(); }
+    int getNumRows() override { return m_names.size(); }
     /** @brief A topic's name in the list, the chosen one in the accent. */
     void paintListBoxItem(int row, juce::Graphics& g, int width, int height, bool selected) override;
     /** @brief Shows the topic chosen in the list. */
     void selectedRowsChanged(int lastRowSelected) override;
-    const Skin& skin_;   ///< the colours and fonts it draws with
-    std::vector<std::pair<juce::String, juce::String>> chapters_;   ///< the manual's chapters: title and text
-    juce::StringArray names_;   ///< the topics in the list: the chapters, then the extra topics
-    juce::StringArray texts_;   ///< the text of each topic
-    juce::ListBox list_;   ///< the list of topics
-    juce::TextEditor text_;   ///< the chosen topic's text, read only
-    juce::TextButton close_{ "Close" };   ///< closes the help (onClose)
+    const Skin& m_skin;   ///< the colours and fonts it draws with
+    std::vector<std::pair<juce::String, juce::String>> m_chapters;   ///< the manual's chapters: title and text
+    juce::StringArray m_names;   ///< the topics in the list: the chapters, then the extra topics
+    juce::StringArray m_texts;   ///< the text of each topic
+    juce::ListBox m_list;   ///< the list of topics
+    juce::TextEditor m_text;   ///< the chosen topic's text, read only
+    juce::TextButton m_close{ "Close" };   ///< closes the help (onClose)
 };
 
 // ============================================================================================================ undo
@@ -441,12 +441,12 @@ private:
  *        track's sounds when it begins): an undo must not take that back.
  */
 struct UndoStep {
-    juce::String what;                                   ///< "Cutoff", "New seed", "reroll blocks"
-    std::vector<std::tuple<int, float, float>> values;   ///< store id, before, after (real values)
+    juce::String m_what;                                   ///< "Cutoff", "New seed", "reroll blocks"
+    std::vector<std::tuple<int, float, float>> m_values;   ///< store id, before, after (real values)
     /** @brief the rest of the state before the step, as the processor writes it (seed, rerolls ...) */
-    juce::String extraBefore, extraAfter;                ///< the rest of the state, as the processor writes it
+    juce::String m_extraBefore, m_extraAfter;                ///< the rest of the state, as the processor writes it
     /** @brief Whether the step changed nothing at all (it is not recorded then). */
-    bool empty() const { return values.empty() && extraBefore == extraAfter; }
+    bool empty() const { return m_values.empty() && m_extraBefore == m_extraAfter; }
 };
 
 /**
@@ -459,34 +459,34 @@ public:
     /** @brief Opens a step named @p what with the state as it is (@p values, @p extra); nested ones join the outer. */
     void begin(const juce::String& what, std::vector<float> values, juce::String extra, bool allValues);
     /** @brief Names a value the open step may record (a knob gesture's); a step opened with allValues takes every one. */
-    void touch(int id) { if (depth_ > 0) touched_.push_back(id); }
+    void touch(int id) { if (m_depth > 0) m_touched.push_back(id); }
     /** @brief Closes a step with the state as it is now; the outermost close records it, unless nothing changed. */
     void end(const std::vector<float>& values, const juce::String& extra);
     /** @brief Whether a step is open (begin() without its end()). */
-    bool open() const { return depth_ > 0; }
+    bool open() const { return m_depth > 0; }
     /** @brief Whether there is a step to undo. */
-    bool canUndo() const { return !undo_.empty(); }
+    bool canUndo() const { return !m_undo.empty(); }
     /** @brief Whether there is an undone step to make again. */
-    bool canRedo() const { return !redo_.empty(); }
-    juce::String undoName() const { return undo_.empty() ? juce::String() : undo_.back().what; }   ///< the step undo takes back
-    juce::String redoName() const { return redo_.empty() ? juce::String() : redo_.back().what; }   ///< the step redo makes again
+    bool canRedo() const { return !m_redo.empty(); }
+    juce::String undoName() const { return m_undo.empty() ? juce::String() : m_undo.back().m_what; }   ///< the step undo takes back
+    juce::String redoName() const { return m_redo.empty() ? juce::String() : m_redo.back().m_what; }   ///< the step redo makes again
     /** @brief Takes the last step back: apply its "before" (null: nothing to undo). */
     const UndoStep* undo();
     /** @brief Makes the last undone step again: apply its "after" (null: nothing to redo). */
     const UndoStep* redo();
     /** @brief Forgets every step (a new piece loaded, a state restored). */
-    void clear() { undo_.clear(); redo_.clear(); }
+    void clear() { m_undo.clear(); m_redo.clear(); }
 
 private:
-    static constexpr size_t kSteps = 200;   ///< the most steps kept; the oldest go first
-    std::deque<UndoStep> undo_;   ///< the steps that can be undone, the newest at the back
-    std::deque<UndoStep> redo_;   ///< the undone steps that can be made again, the newest at the back
-    int depth_ = 0;   ///< how deeply begin() calls are nested (only the outermost end() records)
-    juce::String what_;   ///< the open step's name
-    juce::String extra_;   ///< the rest of the state when the step began
-    std::vector<float> before_;   ///< every value when the step began
-    std::vector<int> touched_;   ///< the store ids touch() named while the step was open
-    bool all_ = false;   ///< every value may have changed (a preset, a new seed): compare all of them at end()
+    static constexpr size_t Steps = 200;   ///< the most steps kept; the oldest go first
+    std::deque<UndoStep> m_undo;   ///< the steps that can be undone, the newest at the back
+    std::deque<UndoStep> m_redo;   ///< the undone steps that can be made again, the newest at the back
+    int m_depth = 0;   ///< how deeply begin() calls are nested (only the outermost end() records)
+    juce::String m_what;   ///< the open step's name
+    juce::String m_extra;   ///< the rest of the state when the step began
+    std::vector<float> m_before;   ///< every value when the step began
+    std::vector<int> m_touched;   ///< the store ids touch() named while the step was open
+    bool m_all = false;   ///< every value may have changed (a preset, a new seed): compare all of them at end()
 };
 
 // ======================================================================================================== sub-tabs
@@ -513,19 +513,19 @@ public:
 class SubTabs final : public juce::Component, public Revealer {
 public:
     /** @brief A row of small tabs drawn with @p skin; pages are added with add(). */
-    explicit SubTabs(const Skin& skin) : skin_(skin) {}
+    explicit SubTabs(const Skin& skin) : m_skin(skin) {}
     /** @brief A page, made the first time it is shown; @p colour marks its tab (transparent: the accent). */
     void add(const juce::String& name, std::function<std::unique_ptr<juce::Component>()> make,
              juce::Colour colour = juce::Colours::transparentBlack);
     void show(int index);                         ///< shows page @p index
     /** @brief The index of the page shown, -1 before any. */
-    int current() const { return current_; }
+    int current() const { return m_current; }
     /** @brief How many pages there are. */
-    int count() const { return static_cast<int>(pages_.size()); }
+    int count() const { return static_cast<int>(m_pages.size()); }
     /** @brief The name of page @p i. */
-    juce::String name(int i) const { return pages_[static_cast<size_t>(i)].name; }
+    juce::String name(int i) const { return m_pages[static_cast<size_t>(i)].m_name; }
     juce::Component* page() const;               ///< the page shown (null before the first)
-    std::function<void(int)> onChange;            ///< after a page was chosen
+    std::function<void(int)> m_onChange;            ///< after a page was chosen
     /** @brief The row of tabs at the top, the page shown under it. */
     void resized() override;
     /** @brief The line under the row of tabs. */
@@ -538,15 +538,15 @@ public:
 private:
     /** @brief A page: its tab and how it is made the first time it is shown. */
     struct Page {
-        juce::String name;   ///< the tab's name
-        juce::Colour colour;   ///< the tab's colour when it is in front (transparent: the accent)
-        std::function<std::unique_ptr<juce::Component>()> make;   ///< makes the page (called once, the first time it is shown)
-        std::unique_ptr<juce::Component> comp;   ///< the page, once made
-        std::unique_ptr<juce::TextButton> button;   ///< the page's tab
+        juce::String m_name;   ///< the tab's name
+        juce::Colour m_colour;   ///< the tab's colour when it is in front (transparent: the accent)
+        std::function<std::unique_ptr<juce::Component>()> m_make;   ///< makes the page (called once, the first time it is shown)
+        std::unique_ptr<juce::Component> m_comp;   ///< the page, once made
+        std::unique_ptr<juce::TextButton> m_button;   ///< the page's tab
     };
-    const Skin& skin_;   ///< the colours it draws with
-    std::vector<Page> pages_;   ///< the pages, in the order of their tabs
-    int current_ = -1;   ///< the page shown, -1 before any
+    const Skin& m_skin;   ///< the colours it draws with
+    std::vector<Page> m_pages;   ///< the pages, in the order of their tabs
+    int m_current = -1;   ///< the page shown, -1 before any
 };
 
 // ======================================================================================================= sections
@@ -560,8 +560,8 @@ bool isModulationGroup(const juce::String& title);
 
 /** @brief A page's groups as sections, each to be shown alone, and the sections' names. */
 struct SectionPlan {
-    std::vector<std::vector<int>> groups;         ///< per section the group indices, in the page's order
-    juce::StringArray names;                      ///< per section its name for the switch
+    std::vector<std::vector<int>> m_groups;         ///< per section the group indices, in the page's order
+    juce::StringArray m_names;                      ///< per section its name for the switch
 };
 
 /**
@@ -585,22 +585,22 @@ public:
     /** @brief A switch drawn with @p skin with a button per name in @p names; the first is chosen. */
     explicit SectionSwitch(const Skin& skin, const juce::StringArray& names = { "Sound", "Modulation" });
     /** @brief The section chosen. */
-    int current() const { return current_; }
+    int current() const { return m_current; }
     /** @brief How many sections there are. */
-    int count() const { return buttons_.size(); }
+    int count() const { return m_buttons.size(); }
     /** @brief The name of section @p index. */
-    juce::String name(int index) const { return buttons_[index] != nullptr ? buttons_[index]->getButtonText() : juce::String(); }
+    juce::String name(int index) const { return m_buttons[index] != nullptr ? m_buttons[index]->getButtonText() : juce::String(); }
     void setCurrent(int index);                   ///< without onChange
     void setNames(const juce::StringArray& names);   ///< new sections (the current one kept where it still exists)
-    std::function<void(int)> onChange;            ///< after a section was chosen
+    std::function<void(int)> m_onChange;            ///< after a section was chosen
     int bestWidth() const;                        ///< the width its buttons need
     /** @brief The buttons side by side, each as wide as its name needs. */
     void resized() override;
 
 private:
-    const Skin& skin_;   ///< the colours it draws with
-    juce::OwnedArray<juce::TextButton> buttons_;   ///< a button per section
-    int current_ = 0;   ///< the section chosen
+    const Skin& m_skin;   ///< the colours it draws with
+    juce::OwnedArray<juce::TextButton> m_buttons;   ///< a button per section
+    int m_current = 0;   ///< the section chosen
 };
 
 /**
@@ -624,26 +624,26 @@ juce::String pageLines(juce::Component& page, const juce::String& name);
  *        the source can move it, faint, and a dot where it moves it now -- in the source's colour.
  */
 struct ModArc {
-    float depth = 0.0f;        ///< how far it moves the knob, of the knob's whole range (-1 .. 1)
-    bool unipolar = false;     ///< the source swings 0 .. 1 (else -1 .. 1, both ways round the value)
-    float now = 0.0f;          ///< the source now (times a via source's amount)
-    juce::Colour colour;       ///< the source's colour
+    float m_depth = 0.0f;        ///< how far it moves the knob, of the knob's whole range (-1 .. 1)
+    bool m_unipolar = false;     ///< the source swings 0 .. 1 (else -1 .. 1, both ways round the value)
+    float m_now = 0.0f;          ///< the source now (times a via source's amount)
+    juce::Colour m_colour;       ///< the source's colour
 };
 
 /** @brief What a control's right-click menu does with a store id. */
 struct ControlActions {
-    std::function<void(int)> learn;               ///< binds the next MIDI controller to the id
-    std::function<int(int)> controllerFor;        ///< the controller bound to it, -1 none
-    std::function<void(int)> forget;              ///< unbinds it
-    std::function<void(int)> reset;               ///< back to its default
-    std::function<juce::String(int)> describe;    ///< a line on it (the menu's header)
+    std::function<void(int)> m_learn;               ///< binds the next MIDI controller to the id
+    std::function<int(int)> m_controllerFor;        ///< the controller bound to it, -1 none
+    std::function<void(int)> m_forget;              ///< unbinds it
+    std::function<void(int)> m_reset;               ///< back to its default
+    std::function<juce::String(int)> m_describe;    ///< a line on it (the menu's header)
     /** @brief More items for id @p id, added after the others (an instrument's own: Empyrean's modulation at the knob). */
-    std::function<void(juce::PopupMenu&, int)> more;
+    std::function<void(juce::PopupMenu&, int)> m_more;
     /**
      * @brief An Alt-drag on knob @p id (an instrument's own: Empyrean sets a modulation's depth by it): phase 0 the
      *        press (return false to let the knob turn as usual), 1 each drag, 2 the release.
      */
-    std::function<bool(int, const juce::MouseEvent&, int)> altDrag;
+    std::function<bool(int, const juce::MouseEvent&, int)> m_altDrag;
     /** @brief Shows the menu for id @p id at @p target. */
     void showMenu(juce::Component& target, int id) const;
 };
@@ -662,42 +662,42 @@ public:
     /** @brief The release: the knob's, or the Alt-drag's end. @param e the release */
     void mouseUp(const juce::MouseEvent& e) override;
     /** @brief The store id it edits. */
-    int id() const { return id_; }
+    int id() const { return m_id; }
 
 private:
-    const ControlActions* actions_;   ///< what its right-click menu does (null: no menu)
-    int id_;   ///< the store id it edits
-    bool altDragging_ = false;   ///< an Alt-drag took this press
+    const ControlActions* m_actions;   ///< what its right-click menu does (null: no menu)
+    int m_id;   ///< the store id it edits
+    bool m_altDragging = false;   ///< an Alt-drag took this press
 };
 /** @brief A menu with the right-click menu. */
 class Choice final : public juce::ComboBox {
 public:
     /** @brief A chooser whose right click offers @p actions for store id @p id. */
-    Choice(const ControlActions* actions, int id) : actions_(actions), id_(id) {}
+    Choice(const ControlActions* actions, int id) : m_actions(actions), m_id(id) {}
     /** @brief A right click shows the menu (ControlActions::showMenu); any other click opens the list. */
     void mouseDown(const juce::MouseEvent& e) override;
     /** @brief The store id it edits. */
-    int id() const { return id_; }
+    int id() const { return m_id; }
 
 private:
-    const ControlActions* actions_;   ///< what its right-click menu does (null: no menu)
-    int id_;   ///< the store id it edits
+    const ControlActions* m_actions;   ///< what its right-click menu does (null: no menu)
+    int m_id;   ///< the store id it edits
 };
 /** @brief A switch with the right-click menu. */
 class Switch final : public juce::ToggleButton {
 public:
     /** @brief A switch whose right click offers @p actions for store id @p id. */
-    Switch(const ControlActions* actions, int id) : actions_(actions), id_(id) {}
+    Switch(const ControlActions* actions, int id) : m_actions(actions), m_id(id) {}
     /** @brief A right click shows the menu (ControlActions::showMenu) and does not toggle. */
     void mouseDown(const juce::MouseEvent& e) override;
     /** @brief Toggles on a left click only (a right click's release does nothing). */
     void mouseUp(const juce::MouseEvent& e) override;
     /** @brief The store id it edits. */
-    int id() const { return id_; }
+    int id() const { return m_id; }
 
 private:
-    const ControlActions* actions_;   ///< what its right-click menu does (null: no menu)
-    int id_;   ///< the store id it edits
+    const ControlActions* m_actions;   ///< what its right-click menu does (null: no menu)
+    int m_id;   ///< the store id it edits
 };
 
 /**
@@ -711,17 +711,17 @@ public:
     ~LiveRings() override { stopTimer(); }
     void add(juce::Slider& slider, int id);       ///< follows @p slider (it must outlive this object, or call clear)
     /** @brief Follows no slider any more (a page that rebuilds its controls). */
-    void clear() { items_.clear(); }
+    void clear() { m_items.clear(); }
     /** @brief The modulations on each followed knob (ModulationAtKnob), drawn as arcs (the slider property "mods"). */
-    void setModArcs(std::function<std::vector<ModArc>(int)> arcs) { arcs_ = std::move(arcs); }
+    void setModArcs(std::function<std::vector<ModArc>(int)> arcs) { m_arcs = std::move(arcs); }
 
 private:
     /** @brief Reads what every followed knob plays at and sets its ring (the slider property "live"), and its arcs. */
     void timerCallback() override;
-    std::function<float(int)> played_;   ///< the value a store id plays at, normalised 0..1 (the processor knows)
-    std::function<std::vector<ModArc>(int)> arcs_;   ///< the modulations on a store id (empty: none drawn)
+    std::function<float(int)> m_played;   ///< the value a store id plays at, normalised 0..1 (the processor knows)
+    std::function<std::vector<ModArc>(int)> m_arcs;   ///< the modulations on a store id (empty: none drawn)
     /** @brief the followed sliders and their store ids (a slider deleted meanwhile is skipped) */
-    std::vector<std::pair<juce::Component::SafePointer<juce::Slider>, int>> items_;
+    std::vector<std::pair<juce::Component::SafePointer<juce::Slider>, int>> m_items;
 };
 
 // ========================================================================================================= console
@@ -735,10 +735,10 @@ class ChannelStrip final : public juce::Component, public juce::SettableTooltipC
 public:
     /** @brief A control of the strip: its parameter, store id, the name under it, and whether it is a send. */
     struct Control {
-        juce::RangedAudioParameter* param = nullptr;   ///< the host parameter it edits
-        int id = -1;   ///< its store id (the right-click menu)
-        juce::String label;   ///< the name under it
-        bool send = false;   ///< a send: shown only while the console shows the sends
+        juce::RangedAudioParameter* m_param = nullptr;   ///< the host parameter it edits
+        int m_id = -1;   ///< its store id (the right-click menu)
+        juce::String m_label;   ///< the name under it
+        bool m_send = false;   ///< a send: shown only while the console shows the sends
     };
     /**
      * @brief A strip drawn with @p skin: @p name and its @p colour on top, @p fader, the @p knobs above it, a meter beside
@@ -749,39 +749,39 @@ public:
     /** @brief A new reading (linear peak and RMS) covering @p seconds. */
     void meter(float peak, float rms, double seconds);
     /** @brief Shows the sends or folds them away (the console's Show sends). */
-    void showSends(bool on) { sends_ = on; resized(); }
+    void showSends(bool on) { m_sends = on; resized(); }
     void setSound(const juce::String& s);          ///< the sound it plays, under the name
     /** @brief A button under the name (a mute); the strip does not own it. */
     void setHeadButton(juce::Component* b);
     /** @brief The held peak, dB. */
-    float peakDb() const { return holdDb_; }
+    float peakDb() const { return m_holdDb; }
     /** @brief The name, the sound, the meter (RMS, the held peak) and the scale. */
     void paint(juce::Graphics&) override;
     /** @brief The head button, the knobs (the sends only when shown), the fader and the meter. */
     void resized() override;
 
 private:
-    const Skin& skin_;   ///< the colours and fonts it draws with
-    juce::String name_;   ///< the strip's name
-    juce::String sound_;   ///< the sound its source plays (setSound)
-    juce::Colour colour_;   ///< the source's family colour
-    bool sends_ = false;   ///< the sends are shown
-    std::unique_ptr<Knob> fader_;   ///< the level fader
-    std::unique_ptr<juce::SliderParameterAttachment> faderLink_;   ///< the fader on its parameter
-    std::vector<std::unique_ptr<Knob>> knobs_;   ///< the small knobs above the fader (pan, sends ...)
-    std::vector<std::unique_ptr<juce::Label>> names_;   ///< the names under the knobs
-    std::vector<std::unique_ptr<juce::SliderParameterAttachment>> links_;   ///< the knobs on their parameters
-    std::vector<bool> isSend_;   ///< per knob: whether it is a send
-    juce::Component* head_ = nullptr;   ///< the button under the name (a mute), not owned; null: none
-    juce::Rectangle<int> meterArea_;   ///< where the meter is drawn
-    float rmsDb_ = -100.0f;   ///< the RMS of the last reading, dB
-    float holdDb_ = -100.0f;   ///< the held peak, dB (falls after holdAge_)
-    double holdAge_ = 0.0;   ///< seconds since the held peak was set
+    const Skin& m_skin;   ///< the colours and fonts it draws with
+    juce::String m_name;   ///< the strip's name
+    juce::String m_sound;   ///< the sound its source plays (setSound)
+    juce::Colour m_colour;   ///< the source's family colour
+    bool m_sends = false;   ///< the sends are shown
+    std::unique_ptr<Knob> m_fader;   ///< the level fader
+    std::unique_ptr<juce::SliderParameterAttachment> m_faderLink;   ///< the fader on its parameter
+    std::vector<std::unique_ptr<Knob>> m_knobs;   ///< the small knobs above the fader (pan, sends ...)
+    std::vector<std::unique_ptr<juce::Label>> m_names;   ///< the names under the knobs
+    std::vector<std::unique_ptr<juce::SliderParameterAttachment>> m_links;   ///< the knobs on their parameters
+    std::vector<bool> m_isSend;   ///< per knob: whether it is a send
+    juce::Component* m_head = nullptr;   ///< the button under the name (a mute), not owned; null: none
+    juce::Rectangle<int> m_meterArea;   ///< where the meter is drawn
+    float m_rmsDb = -100.0f;   ///< the RMS of the last reading, dB
+    float m_holdDb = -100.0f;   ///< the held peak, dB (falls after m_holdAge)
+    double m_holdAge = 0.0;   ///< seconds since the held peak was set
 };
 
 /**
  * @brief The strips side by side, a switch that unfolds the sends of all of them; where they would be narrower than a
- *        hand can use (kMinStrip), the console scrolls sideways, as a desk's does.
+ *        hand can use (MinStrip), the console scrolls sideways, as a desk's does.
  */
 class Console final : public juce::Component {
 public:
@@ -789,42 +789,42 @@ public:
     explicit Console(const Skin& skin);
     ChannelStrip& add(std::unique_ptr<ChannelStrip> strip);   ///< appends a strip
     /** @brief How many strips there are. */
-    int size() const { return static_cast<int>(strips_.size()); }
+    int size() const { return static_cast<int>(m_strips.size()); }
     /** @brief Strip @p i. */
-    ChannelStrip& strip(int i) { return *strips_[static_cast<size_t>(i)]; }
-    /** @brief The fold button on top, the strips side by side (scrolled sideways where they are narrower than kMinStrip). */
+    ChannelStrip& strip(int i) { return *m_strips[static_cast<size_t>(i)]; }
+    /** @brief The fold button on top, the strips side by side (scrolled sideways where they are narrower than MinStrip). */
     void resized() override;
-    static constexpr int kMinStrip = 64;     ///< the narrowest strip
+    static constexpr int MinStrip = 64;     ///< the narrowest strip
 
 private:
-    const Skin& skin_;   ///< the colours it draws with
-    juce::TextButton fold_{ "Show sends" };   ///< shows or folds the sends of every strip
-    bool sends_ = false;   ///< the sends are shown
-    juce::Viewport view_;   ///< scrolls the strips sideways where the window is too narrow
-    juce::Component inner_;   ///< holds the strips inside the viewport
-    std::vector<std::unique_ptr<ChannelStrip>> strips_;   ///< the strips, left to right
+    const Skin& m_skin;   ///< the colours it draws with
+    juce::TextButton m_fold{ "Show sends" };   ///< shows or folds the sends of every strip
+    bool m_sends = false;   ///< the sends are shown
+    juce::Viewport m_view;   ///< scrolls the strips sideways where the window is too narrow
+    juce::Component m_inner;   ///< holds the strips inside the viewport
+    std::vector<std::unique_ptr<ChannelStrip>> m_strips;   ///< the strips, left to right
 };
 
 // ========================================================================================================= headset
 
 /** @brief The two hands as the Quest app sends them: height (0 low .. 1 high, 0.5 the middle), pinch, tracked. */
 struct Hands {
-    float height[2] = { 0.5f, 0.5f };   ///< left, right
-    bool pinch[2] = { false, false };   ///< left, right: the thumb and the index finger touch
-    bool tracked[2] = { false, false };   ///< left, right: the headset sees the hand
+    float m_height[2] = { 0.5f, 0.5f };   ///< left, right
+    bool m_pinch[2] = { false, false };   ///< left, right: the thumb and the index finger touch
+    bool m_tracked[2] = { false, false };   ///< left, right: the headset sees the hand
 };
 
 /** @brief What the hands did since the last poll, in the grammar every generator's Quest app shares. */
 struct HeadsetEvents {
-    bool playStop = false;              ///< a short left pinch
-    bool next = false;                  ///< both hands pinched together
-    bool action = false;                ///< a short right pinch: the genre's action
-    bool hold = false;                  ///< a right pinch held 0.6 s: its second
-    bool holdEnded = false;             ///< that held pinch opened again (a momentary second action ends)
-    bool filterMoved = false;   ///< the filter control moved since the last poll
-    bool throwMoved = false;   ///< the throw control moved since the last poll
-    float filter = 0.0f;                ///< -1 (low pass) .. 0 (open) .. 1 (high pass): the left hand's height
-    float throwAmount = 0.0f;           ///< 0 .. 1: the right hand from the middle up
+    bool m_playStop = false;              ///< a short left pinch
+    bool m_next = false;                  ///< both hands pinched together
+    bool m_action = false;                ///< a short right pinch: the genre's action
+    bool m_hold = false;                  ///< a right pinch held 0.6 s: its second
+    bool m_holdEnded = false;             ///< that held pinch opened again (a momentary second action ends)
+    bool m_filterMoved = false;   ///< the filter control moved since the last poll
+    bool m_throwMoved = false;   ///< the throw control moved since the last poll
+    float m_filter = 0.0f;                ///< -1 (low pass) .. 0 (open) .. 1 (high pass): the left hand's height
+    float m_throwAmount = 0.0f;           ///< 0 .. 1: the right hand from the middle up
 };
 
 /**
@@ -839,47 +839,47 @@ public:
     /** @brief Listens on @p port (0: not at all). Message thread. */
     void listen(int port);
     /** @brief The UDP port it listens on (0: none). */
-    int port() const { return port_; }
+    int port() const { return m_port; }
     /** @brief Whether it listens (a port, and no error opening it). */
-    bool listening() const { return port_ > 0 && error_.isEmpty(); }
+    bool listening() const { return m_port > 0 && m_error.isEmpty(); }
     /** @brief Why it does not listen, empty when it does. */
-    juce::String error() const { return error_; }
+    juce::String error() const { return m_error; }
     bool active() const;                          ///< hands arrived in the last three seconds
     /** @brief Whether hands ever arrived. */
-    bool everSeen() const { return messages_ > 0; }
+    bool everSeen() const { return m_messages > 0; }
     /** @brief The hands as they arrived last. */
-    Hands hands() const { return hands_; }
-    juce::String source() const { return source_; }   ///< who sent them last
+    Hands hands() const { return m_hands; }
+    juce::String source() const { return m_source; }   ///< who sent them last
     /** @brief How many messages arrived. */
-    juce::int64 messages() const { return messages_; }
+    juce::int64 messages() const { return m_messages; }
     /** @brief What the hands did since the last call (message thread, every frame of a timer). */
     HeadsetEvents poll();
     /** @brief A line on what it hears, for the settings and the Perform page. */
     juce::String statusText() const;
     /** @brief Whether the headset's controls should be shown under the settings' @p mode. */
-    bool shown(Settings::HeadsetMode mode) const { return mode == Settings::HeadsetMode::On || (mode == Settings::HeadsetMode::Auto && active()); }
+    bool shown(Settings::HeadsetModeE mode) const { return mode == Settings::HeadsetModeE::ON || (mode == Settings::HeadsetModeE::AUTO && active()); }
     /** @brief Feeds a message as if it had arrived (tests). */
     void inject(const Hands& h);
 
 private:
     /** @brief Reads "/hands" with six floats (heights, pinches, tracked) into the hands (inject). */
     void oscMessageReceived(const juce::OSCMessage& m) override;
-    juce::OSCReceiver receiver_;   ///< the OSC receiver on port_
-    int port_ = 0;   ///< the port listened on, 0 none
-    juce::String error_;   ///< why it does not listen (the port taken ...), empty when it does
-    juce::String source_;   ///< who sent the hands last
-    Hands hands_;   ///< the hands as they arrived last
-    juce::int64 messages_ = 0;   ///< how many messages arrived
-    double last_ = -1.0e9;                        ///< when hands last arrived (ms, Time::getMillisecondCounterHiRes)
+    juce::OSCReceiver m_receiver;   ///< the OSC receiver on m_port
+    int m_port = 0;   ///< the port listened on, 0 none
+    juce::String m_error;   ///< why it does not listen (the port taken ...), empty when it does
+    juce::String m_source;   ///< who sent the hands last
+    Hands m_hands;   ///< the hands as they arrived last
+    juce::int64 m_messages = 0;   ///< how many messages arrived
+    double m_last = -1.0e9;                        ///< when hands last arrived (ms, Time::getMillisecondCounterHiRes)
     // The grammar's state.
-    bool was_[2] = { false, false };              ///< pinching at the last poll
-    bool spoiled_[2] = { true, true };            ///< the pinch counts no more (both hands, or a hold, took it)
-    bool both_ = false;                           ///< both closed together: the next one has fired
-    double since_[2] = { 0.0, 0.0 };              ///< when each pinch began (ms)
-    bool holding_ = false;                        ///< the right pinch's hold fired and the pinch is still closed
+    bool m_was[2] = { false, false };              ///< pinching at the last poll
+    bool m_spoiled[2] = { true, true };            ///< the pinch counts no more (both hands, or a hold, took it)
+    bool m_both = false;                           ///< both closed together: the next one has fired
+    double m_since[2] = { 0.0, 0.0 };              ///< when each pinch began (ms)
+    bool m_holding = false;                        ///< the right pinch's hold fired and the pinch is still closed
     /** @brief the smoothed filter control, -1 .. 1 */
-    float filter_ = 0.0f, throw_ = 0.0f;          ///< the smoothed controls
-    double lastPoll_ = 0.0;   ///< when poll() ran last (ms; the smoothing's time step)
+    float m_filter = 0.0f, m_throw = 0.0f;          ///< the smoothed controls
+    double m_lastPoll = 0.0;   ///< when poll() ran last (ms; the smoothing's time step)
 };
 
 /** @brief The grammar as text (the help). */
@@ -905,7 +905,7 @@ uint16_t scaleMask(const juce::String& name);
 /** @brief The note of the scale (@p root 0..11, @p mask) nearest to @p pitch, a tie going down (Scale Lock). */
 int snapToScale(int pitch, int root, uint16_t mask);
 /** @brief The velocity curve names, in the order shapeVelocity() takes them. */
-inline const char* const kVelocityCurveNames[] = { "As Played", "Soft", "Hard", "Fixed" };
+inline const char* const VelocityCurveNames[] = { "As Played", "Soft", "Hard", "Fixed" };
 /** @brief A played velocity (1..127) through a curve: 0 as played, 1 soft (a light touch louder), 2 hard, 3 fixed 100. */
 int shapeVelocity(int velocity, int curve);
 
@@ -921,8 +921,8 @@ public:
     bool release(int channel, int key, int& target, int& pitch);
 
 private:
-    int16_t target_[16][128];   ///< by channel and key: the target its press went to, -2 for none held
-    int16_t pitch_[16][128];    ///< by channel and key: the pitch its press went as
+    int16_t m_target[16][128];   ///< by channel and key: the target its press went to, -2 for none held
+    int16_t m_pitch[16][128];    ///< by channel and key: the pitch its press went as
 };
 
 // ========================================================================================================== window
@@ -949,8 +949,8 @@ public:
 private:
     /** @brief The window moved or was resized: its state written (not while minimised or in full screen). */
     void componentMovedOrResized(juce::Component& c, bool moved, bool resized) override;
-    juce::Component::SafePointer<juce::ResizableWindow> window_;   ///< the standalone's window, null before attach (and in a host)
-    juce::String app_;   ///< whose settings
+    juce::Component::SafePointer<juce::ResizableWindow> m_window;   ///< the standalone's window, null before attach (and in a host)
+    juce::String m_app;   ///< whose settings
 };
 
 // ========================================================================================================== reveal
@@ -992,22 +992,22 @@ class CommandPalette final : public juce::Component, private juce::ListBoxModel,
 public:
     /** @brief One thing it can do. */
     struct Command {
-        juce::String title;          ///< what it is called
-        juce::String detail;         ///< where it is, or what it does
-        juce::String kind;           ///< "Control", "Preset", "Page", "Action", "Yours"
-        bool takesNumber = false;    ///< a number after its name is its value ("cutoff 800")
-        std::function<void(const juce::String& number)> run;   ///< what it does (the number, "" when none was typed)
+        juce::String m_title;          ///< what it is called
+        juce::String m_detail;         ///< where it is, or what it does
+        juce::String m_kind;           ///< "Control", "Preset", "Page", "Action", "Yours"
+        bool m_takesNumber = false;    ///< a number after its name is its value ("cutoff 800")
+        std::function<void(const juce::String& number)> m_run;   ///< what it does (the number, "" when none was typed)
     };
     /** @brief An empty palette drawn with @p skin; open() fills it. */
     explicit CommandPalette(const Skin& skin);
     /** @brief Opens it over its parent with @p commands, the search empty and focused. */
     void open(std::vector<Command> commands);
     /** @brief Commands made from the words typed, shown first (an instrument's own: presets by how they sound). */
-    std::function<std::vector<Command>(const juce::StringArray&)> fromWords;
+    std::function<std::vector<Command>(const juce::StringArray&)> m_fromWords;
     /** @brief Closes it. */
     void close();
     /** @brief Types into the search (the screenshot modes' way of showing it). */
-    void type(const juce::String& text) { search_.setText(text, true); }
+    void type(const juce::String& text) { m_search.setText(text, true); }
     /** @brief The dimmed window and the panel. */
     void paint(juce::Graphics& g) override;
     /** @brief The search on top, the list under it. */
@@ -1039,13 +1039,13 @@ private:
     /** @brief Up and down (and the page keys) in the search move the choice. */
     bool keyPressed(const juce::KeyPress& key, juce::Component* origin) override;
 
-    const Skin& skin_;               ///< the colours it draws with
-    std::vector<Command> all_;       ///< what it can do
-    size_t fixed_ = 0;               ///< how many of them were given to open() (the rest came from the words)
-    std::vector<int> shown_;         ///< what matches, best first
-    juce::String number_;            ///< a number typed after the words
-    juce::TextEditor search_;        ///< the search
-    juce::ListBox list_;             ///< the matches
+    const Skin& m_skin;               ///< the colours it draws with
+    std::vector<Command> m_all;       ///< what it can do
+    size_t m_fixed = 0;               ///< how many of them were given to open() (the rest came from the words)
+    std::vector<int> m_shown;         ///< what matches, best first
+    juce::String m_number;            ///< a number typed after the words
+    juce::TextEditor m_search;        ///< the search
+    juce::ListBox m_list;             ///< the matches
 };
 
 // ======================================================================================================= info line
@@ -1065,37 +1065,37 @@ public:
      * @brief The words for store id @p id: its name into @p name, the rest (its value, what moves it, a sentence) into
      *        @p text; false for an id it does not know (the tooltip is shown then).
      */
-    std::function<bool(int id, juce::String& name, juce::String& text)> describe;
+    std::function<bool(int id, juce::String& name, juce::String& text)> m_describe;
     /** @brief Tells about store id @p id without the mouse on it (the palette found it). */
     void showControl(int id);
     /** @brief Shows a line of its own (an Alt-drag's depth). */
     void showText(const juce::String& text);
     /** @brief The name in the accent, the rest dim. */
     void paint(juce::Graphics& g) override;
-    static constexpr int kHeight = 22;   ///< its height in a panel
+    static constexpr int Height = 22;   ///< its height in a panel
 
 private:
     /** @brief Follows the mouse over every component of the window (a listener of its own: the line is no parent of them). */
     struct Tracker final : public juce::MouseListener {
-        InfoLine* line = nullptr;   ///< whose
+        InfoLine* m_line = nullptr;   ///< whose
         /** @brief Over a component. */
-        void mouseMove(const juce::MouseEvent& e) override { line->over(e.eventComponent); }
+        void mouseMove(const juce::MouseEvent& e) override { m_line->over(e.eventComponent); }
         /** @brief Into a component. */
-        void mouseEnter(const juce::MouseEvent& e) override { line->over(e.eventComponent); }
+        void mouseEnter(const juce::MouseEvent& e) override { m_line->over(e.eventComponent); }
         /** @brief Turning a knob: its value follows. */
-        void mouseDrag(const juce::MouseEvent& e) override { line->over(e.eventComponent); }
+        void mouseDrag(const juce::MouseEvent& e) override { m_line->over(e.eventComponent); }
     };
     /** @brief The line for a component: a control's, or its tooltip. */
     void over(juce::Component* c);
     /** @brief The value anew while the mouse rests on a control. */
     void timerCallback() override;
 
-    const Skin& skin_;             ///< the colours it draws with
-    juce::Component& watched_;     ///< the window
-    Tracker tracker_;              ///< the mouse's follower
-    int id_ = -1;                  ///< the store id shown, -1 none
-    juce::String name_;            ///< its name (nothing for a tooltip)
-    juce::String text_;            ///< the rest of the line
+    const Skin& m_skin;             ///< the colours it draws with
+    juce::Component& m_watched;     ///< the window
+    Tracker m_tracker;              ///< the mouse's follower
+    int m_id = -1;                  ///< the store id shown, -1 none
+    juce::String m_name;            ///< its name (nothing for a tooltip)
+    juce::String m_text;            ///< the rest of the line
 };
 
 // ============================================================================================================ tour
@@ -1108,18 +1108,18 @@ class Tour final : public juce::Component {
 public:
     /** @brief One step: what is lit, and what is said about it. */
     struct Step {
-        juce::Component::SafePointer<juce::Component> target;   ///< the control lit (null: none, the bubble in the middle)
-        juce::String title;                                     ///< its name
-        juce::String text;                                      ///< what it does
+        juce::Component::SafePointer<juce::Component> m_target;   ///< the control lit (null: none, the bubble in the middle)
+        juce::String m_title;                                     ///< its name
+        juce::String m_text;                                      ///< what it does
     };
     /** @brief A tour drawn with @p skin, not yet shown. */
     explicit Tour(const Skin& skin);
     /** @brief Called when the tour ends (done or skipped). */
-    std::function<void()> onDone;
+    std::function<void()> m_onDone;
     /** @brief Begins it over its parent. */
     void start(std::vector<Step> steps);
     /** @brief Whether it is under way. */
-    bool running() const { return isVisible() && !steps_.empty(); }
+    bool running() const { return isVisible() && !m_steps.empty(); }
     /** @brief The dimmed window with the lit control and the bubble. */
     void paint(juce::Graphics& g) override;
     /** @brief The bubble's buttons. */
@@ -1135,11 +1135,11 @@ private:
     /** @brief Ends it. */
     void finish();
 
-    const Skin& skin_;                        ///< the colours it draws with
-    std::vector<Step> steps_;                 ///< the steps
-    size_t at_ = 0;                           ///< the one shown
-    juce::TextButton next_{ "Next" };         ///< on
-    juce::TextButton skip_{ "Skip" };         ///< ends it
+    const Skin& m_skin;                        ///< the colours it draws with
+    std::vector<Step> m_steps;                 ///< the steps
+    size_t m_at = 0;                           ///< the one shown
+    juce::TextButton m_next{ "Next" };         ///< on
+    juce::TextButton m_skip{ "Skip" };         ///< ends it
 };
 
 // ================================================================================================= preset browser
@@ -1154,21 +1154,21 @@ class PresetBrowser final : public juce::Component, private juce::ListBoxModel, 
 public:
     /** @brief One preset as the browser lists it. */
     struct Entry {
-        juce::String name;        ///< its name
-        juce::String group;       ///< its group
-        juce::String section;     ///< the section over its group (empty: none)
-        int index = -1;           ///< the instrument's own number for it (a bank's index, or one of the player's)
-        bool yours = false;       ///< one of the player's own
-        juce::String note;        ///< a word after the group ("for the hands")
+        juce::String m_name;        ///< its name
+        juce::String m_group;       ///< its group
+        juce::String m_section;     ///< the section over its group (empty: none)
+        int m_index = -1;           ///< the instrument's own number for it (a bank's index, or one of the player's)
+        bool m_yours = false;       ///< one of the player's own
+        juce::String m_note;        ///< a word after the group ("for the hands")
     };
     /** @brief A bank to browse and what to do with its presets. */
     struct Bank {
-        juce::String title;                                   ///< shown on top ("Bass", "Sounds")
-        juce::String key;                                     ///< the favourites' and the recent list's name in the settings
-        std::vector<Entry> entries;                           ///< its presets, in order
-        std::function<void(const Entry&)> preview;            ///< while a row's play mark is held (empty: no mark)
-        std::function<void()> endPreview;                     ///< the mark let go: back to the sound before
-        std::function<void(const Entry&)> choose;             ///< takes a preset
+        juce::String m_title;                                   ///< shown on top ("Bass", "Sounds")
+        juce::String m_key;                                     ///< the favourites' and the recent list's name in the settings
+        std::vector<Entry> m_entries;                           ///< its presets, in order
+        std::function<void(const Entry&)> m_preview;            ///< while a row's play mark is held (empty: no mark)
+        std::function<void()> m_endPreview;                     ///< the mark let go: back to the sound before
+        std::function<void(const Entry&)> m_choose;             ///< takes a preset
     };
     /** @brief A browser drawn with @p skin, keeping its lists in @p app's settings. */
     PresetBrowser(const Skin& skin, const juce::String& app);
@@ -1192,9 +1192,9 @@ public:
 private:
     /** @brief One category on the left: All, Favourites, Recent, Yours, a section or a group. */
     struct Category {
-        juce::String title;   ///< as listed
-        int kind = 0;         ///< 0 all, 1 favourites, 2 recent, 3 yours, 4 a section, 5 a group
-        juce::String which;   ///< the section's or the group's name
+        juce::String m_title;   ///< as listed
+        int m_kind = 0;         ///< 0 all, 1 favourites, 2 recent, 3 yours, 4 a section, 5 a group
+        juce::String m_which;   ///< the section's or the group's name
     };
     class Row;          ///< a row of the list: the play mark, the star, the name, the group
     class Categories;   ///< the categories' list
@@ -1222,25 +1222,25 @@ private:
     /** @brief Typing filters. */
     void textEditorTextChanged(juce::TextEditor&) override { filter(); }
     /** @brief Return in the search takes the chosen one. */
-    void textEditorReturnKeyPressed(juce::TextEditor&) override { choose(list_.getSelectedRow()); }
+    void textEditorReturnKeyPressed(juce::TextEditor&) override { choose(m_list.getSelectedRow()); }
     /** @brief Esc closes. */
     void textEditorEscapeKeyPressed(juce::TextEditor&) override { close(); }
 
-    const Skin& skin_;                                 ///< the colours it draws with
-    juce::String app_;                                 ///< whose settings
-    Bank bank_;                                        ///< the bank open
-    juce::StringArray favourites_;                     ///< its favourites (kept in the settings)
-    std::vector<int> shown_;                           ///< the entries that pass
-    std::vector<Category> categories_;                 ///< the categories
-    int category_ = 0;                                 ///< the one chosen
-    juce::TextEditor search_;                          ///< by name or group
-    juce::Label title_;                                ///< the bank's title
-    std::unique_ptr<Categories> categoryModel_;        ///< the categories' list's model (made before the list, gone after it)
-    std::unique_ptr<juce::ListBox> categoryList_;      ///< the categories' list
-    juce::TextButton take_{ "Take" };                  ///< takes the chosen one
-    juce::TextButton close_{ "Close" };                ///< closes
-    juce::Label count_;                                ///< how many pass
-    juce::ListBox list_;                               ///< the presets that pass
+    const Skin& m_skin;                                 ///< the colours it draws with
+    juce::String m_app;                                 ///< whose settings
+    Bank m_bank;                                        ///< the bank open
+    juce::StringArray m_favourites;                     ///< its favourites (kept in the settings)
+    std::vector<int> m_shown;                           ///< the entries that pass
+    std::vector<Category> m_categories;                 ///< the categories
+    int m_category = 0;                                 ///< the one chosen
+    juce::TextEditor m_search;                          ///< by name or group
+    juce::Label m_title;                                ///< the bank's title
+    std::unique_ptr<Categories> m_categoryModel;        ///< the categories' list's model (made before the list, gone after it)
+    std::unique_ptr<juce::ListBox> m_categoryList;      ///< the categories' list
+    juce::TextButton m_take{ "Take" };                  ///< takes the chosen one
+    juce::TextButton m_close{ "Close" };                ///< closes
+    juce::Label m_count;                                ///< how many pass
+    juce::ListBox m_list;                               ///< the presets that pass
 };
 
 // ============================================================================================= modulation at the knob
@@ -1253,26 +1253,26 @@ private:
 struct ModAccess {
     /** @brief A row of the matrix on a store id. */
     struct Row {
-        int index = -1;           ///< the row's number in the instrument's matrix
-        juce::String name;        ///< its source (and via source)
-        juce::Colour colour;      ///< its source's colour
-        float depth = 0.0f;       ///< its depth, of the knob's range (-1 .. 1)
+        int m_index = -1;           ///< the row's number in the instrument's matrix
+        juce::String m_name;        ///< its source (and via source)
+        juce::Colour m_colour;      ///< its source's colour
+        float m_depth = 0.0f;       ///< its depth, of the knob's range (-1 .. 1)
     };
     /** @brief A source that can be added, in a section of the "Modulate with" menu. */
     struct Source {
-        int id = 0;               ///< the instrument's number for it
-        juce::String name;        ///< its name
-        juce::String section;     ///< its section's heading
+        int m_id = 0;               ///< the instrument's number for it
+        juce::String m_name;        ///< its name
+        juce::String m_section;     ///< its section's heading
     };
-    std::function<std::vector<Row>(int id)> rowsOn;              ///< the rows on a store id
-    std::function<void(int row, float depth)> setDepth;          ///< a row's depth anew
-    std::function<void(int row)> remove;                         ///< takes a row out
-    std::function<std::vector<Source>(int id)> sources;          ///< what can modulate a store id (empty: it is no target)
-    std::function<bool(int id, int source)> add;                 ///< a new row of @p source on @p id; false when none is free
-    std::function<std::vector<ModArc>(int id)> arcs;             ///< the arcs on a store id now
-    std::function<void(const juce::String&)> say;                ///< shows a line (the info line: an Alt-drag's depth)
-    std::function<void(const juce::String&)> begin;              ///< opens one undo step (a depth dragged: one step, not one per pixel)
-    std::function<void()> end;                                   ///< closes it
+    std::function<std::vector<Row>(int id)> m_rowsOn;              ///< the rows on a store id
+    std::function<void(int row, float depth)> m_setDepth;          ///< a row's depth anew
+    std::function<void(int row)> m_remove;                         ///< takes a row out
+    std::function<std::vector<Source>(int id)> m_sources;          ///< what can modulate a store id (empty: it is no target)
+    std::function<bool(int id, int source)> m_add;                 ///< a new row of @p source on @p id; false when none is free
+    std::function<std::vector<ModArc>(int id)> m_arcs;             ///< the arcs on a store id now
+    std::function<void(const juce::String&)> m_say;                ///< shows a line (the info line: an Alt-drag's depth)
+    std::function<void(const juce::String&)> m_begin;              ///< opens one undo step (a depth dragged: one step, not one per pixel)
+    std::function<void()> m_end;                                   ///< closes it
 };
 
 namespace detail {
@@ -1288,10 +1288,10 @@ inline bool bipolarSource(const juce::String& name)
 inline juce::Colour sourceColour(const juce::String& name, const Skin& skin)
 {
     const juce::String l = name.toLowerCase();
-    if (l.contains("lfo")) return skin.family(Family::Motion);
-    if (l.contains("env")) return skin.family(Family::Envelope);
-    if (l.contains("vel") || l.contains("key") || l.contains("random") || l.contains("note")) return skin.family(Family::Source);
-    return skin.family(Family::Space);
+    if (l.contains("lfo")) return skin.family(FamilyE::MOTION);
+    if (l.contains("env")) return skin.family(FamilyE::ENVELOPE);
+    if (l.contains("vel") || l.contains("key") || l.contains("random") || l.contains("note")) return skin.family(FamilyE::SOURCE);
+    return skin.family(FamilyE::SPACE);
 }
 /** @brief A source's section in the "Modulate with" menu. */
 inline juce::String sourceSection(const juce::String& name)
@@ -1317,8 +1317,8 @@ inline juce::String sourceSection(const juce::String& name)
  * @param end   closes it
  * @param skin  the colours of the sources
  */
-template <class Store>
-ModAccess slotMatrix(Store& store, std::function<void(int, float)> set, std::function<void(const juce::String&)> begin,
+template <class StoreT>
+ModAccess slotMatrix(StoreT& store, std::function<void(int, float)> set, std::function<void(const juce::String&)> begin,
                      std::function<void()> end, const Skin& skin)
 {
     // The slots' first knobs (their sources) per module instance, found once.
@@ -1349,12 +1349,12 @@ ModAccess slotMatrix(Store& store, std::function<void(int, float)> set, std::fun
         for (int s : slots)
             if (id >= s && id <= s + 2) return -1;   // a slot's own knob
         const auto& dd = store.desc(slots.front() + 1);
-        if (dd.choices == nullptr) return -1;
-        const juce::String knob = detail::loose(store.desc(id).name);
+        if (dd.m_choices == nullptr) return -1;
+        const juce::String knob = detail::loose(store.desc(id).m_name);
         if (knob.isEmpty()) return -1;
         int best = -1, bestScore = 0;
-        for (int t = 1; t <= static_cast<int>(dd.maxValue); ++t) {
-            const juce::String tn = detail::loose(dd.choices[t]);
+        for (int t = 1; t <= static_cast<int>(dd.m_maxValue); ++t) {
+            const juce::String tn = detail::loose(dd.m_choices[t]);
             if (tn.isEmpty()) continue;
             const int score = knob == tn ? 3
                             : knob.endsWith(tn) || (tn.length() >= 4 && knob.startsWith(tn)) ? 2
@@ -1365,12 +1365,12 @@ ModAccess slotMatrix(Store& store, std::function<void(int, float)> set, std::fun
     };
     auto sourceName = [&store](int slot, int src) {
         const auto& sd = store.desc(slot);
-        return sd.choices != nullptr && src >= 0 && src <= static_cast<int>(sd.maxValue) ? juce::String(sd.choices[src]) : juce::String(src);
+        return sd.m_choices != nullptr && src >= 0 && src <= static_cast<int>(sd.m_maxValue) ? juce::String(sd.m_choices[src]) : juce::String(src);
     };
     ModAccess a;
-    a.begin = begin;
-    a.end = end;
-    a.rowsOn = [&store, slotsOf, targetOf, sourceName, &skin](int id) {
+    a.m_begin = begin;
+    a.m_end = end;
+    a.m_rowsOn = [&store, slotsOf, targetOf, sourceName, &skin](int id) {
         std::vector<ModAccess::Row> rows;
         const int t = targetOf(id);
         if (t < 1) return rows;
@@ -1382,33 +1382,33 @@ ModAccess slotMatrix(Store& store, std::function<void(int, float)> set, std::fun
         }
         return rows;
     };
-    a.setDepth = [set](int row, float d) { set(row + 2, d); };
-    a.remove = [set, begin, end](int row) {
+    a.m_setDepth = [set](int row, float d) { set(row + 2, d); };
+    a.m_remove = [set, begin, end](int row) {
         if (begin) begin("Modulation off");
         set(row, 0.0f);
         if (end) end();
     };
-    a.sources = [&store, slotsOf, targetOf](int id) {
+    a.m_sources = [&store, slotsOf, targetOf](int id) {
         std::vector<ModAccess::Source> out;
         if (targetOf(id) < 1) return out;
         const auto& sd = store.desc(slotsOf(id).front());
-        if (sd.choices == nullptr) return out;
-        for (int k = 1; k <= static_cast<int>(sd.maxValue); ++k) {
-            const juce::String n(sd.choices[k]);
+        if (sd.m_choices == nullptr) return out;
+        for (int k = 1; k <= static_cast<int>(sd.m_maxValue); ++k) {
+            const juce::String n(sd.m_choices[k]);
             out.push_back({ k, n, detail::sourceSection(n) });
         }
         std::stable_sort(out.begin(), out.end(), [](const ModAccess::Source& x, const ModAccess::Source& y) {
             static const juce::StringArray order{ "LFOs", "Envelopes", "The note", "The hand and the track" };
-            return order.indexOf(x.section) < order.indexOf(y.section);
+            return order.indexOf(x.m_section) < order.indexOf(y.m_section);
         });
         return out;
     };
-    a.add = [&store, slotsOf, targetOf, set, begin, end](int id, int source) {
+    a.m_add = [&store, slotsOf, targetOf, set, begin, end](int id, int source) {
         const int t = targetOf(id);
         if (t < 1) return false;
         for (int s : slotsOf(id))
             if (store.getInt(s) == 0) {   // the first free slot: the source on this target, a quarter of its span
-                if (begin) begin(juce::String("Modulate ") + store.desc(id).name);
+                if (begin) begin(juce::String("Modulate ") + store.desc(id).m_name);
                 set(s + 1, static_cast<float>(t));
                 set(s + 2, 0.25f);
                 set(s, static_cast<float>(source));
@@ -1417,7 +1417,7 @@ ModAccess slotMatrix(Store& store, std::function<void(int, float)> set, std::fun
             }
         return false;
     };
-    a.arcs = [&store, slotsOf, targetOf, sourceName, &skin](int id) {
+    a.m_arcs = [&store, slotsOf, targetOf, sourceName, &skin](int id) {
         std::vector<ModArc> arcs;
         const int t = targetOf(id);
         if (t < 1) return arcs;
@@ -1442,7 +1442,7 @@ ModAccess slotMatrix(Store& store, std::function<void(int, float)> set, std::fun
 class ModulationAtKnob {
 public:
     /** @brief The modulation of @p access. */
-    explicit ModulationAtKnob(ModAccess access) : access_(std::move(access)) {}
+    explicit ModulationAtKnob(ModAccess access) : m_access(std::move(access)) {}
     /** @brief Puts it into the controls' @p actions (more, altDrag) and the knobs' @p rings (the arcs). */
     void install(ControlActions& actions, LiveRings* rings);
     /** @brief The modulation items for store id @p id in a knob's menu (nothing for an id that is no target). */
@@ -1450,12 +1450,12 @@ public:
     /** @brief An Alt-drag on store id @p id (ControlActions::altDrag): phase 0 the press, 1 each drag, 2 the release. */
     bool altDrag(int id, const juce::MouseEvent& e, int phase);
     /** @brief What it works on. */
-    const ModAccess& access() const { return access_; }
+    const ModAccess& access() const { return m_access; }
 
 private:
-    ModAccess access_;     ///< the instrument's matrix
-    int row_ = -1;         ///< the row an Alt-drag sets, -1 none
-    float depth0_ = 0.0f;  ///< its depth when the drag began
+    ModAccess m_access;     ///< the instrument's matrix
+    int m_row = -1;         ///< the row an Alt-drag sets, -1 none
+    float m_depth0 = 0.0f;  ///< its depth when the drag began
 };
 
 } // namespace frame

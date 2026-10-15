@@ -15,12 +15,12 @@ namespace eph {
 
 namespace {
 
-constexpr double kPiD = 3.14159265358979323846;   ///< pi
+constexpr double PiD = 3.14159265358979323846;   ///< pi
 
 /** @brief The elliptic modulus @p k and the nome @p q of a half-band filter with transition band @p transition. */
 void transitionParams(double transition, double& k, double& q)
 {
-    k = std::tan((1.0 - transition * 2.0) * kPiD / 4.0);
+    k = std::tan((1.0 - transition * 2.0) * PiD / 4.0);
     k *= k;
     const double kksqrt = std::pow(1.0 - k * k, 0.25);
     const double e = 0.5 * (1.0 - kksqrt) / (1.0 + kksqrt);
@@ -35,7 +35,7 @@ double accNum(double q, int order, int c)
     double acc = 0.0, term = 0.0;
     int i = 0, sign = 1;
     do {
-        term = std::pow(q, i * (i + 1)) * std::sin((i * 2 + 1) * c * kPiD / order) * sign;
+        term = std::pow(q, i * (i + 1)) * std::sin((i * 2 + 1) * c * PiD / order) * sign;
         acc += term;
         sign = -sign;
         ++i;
@@ -49,7 +49,7 @@ double accDen(double q, int order, int c)
     double acc = 0.0, term = 0.0;
     int i = 1, sign = -1;
     do {
-        term = std::pow(q, i * i) * std::cos(i * 2 * c * kPiD / order) * sign;
+        term = std::pow(q, i * i) * std::cos(i * 2 * c * PiD / order) * sign;
         acc += term;
         sign = -sign;
         ++i;
@@ -70,7 +70,7 @@ HalfbandDesign designHalfband(double attenuationDb, double transition)
     if ((order & 1) == 0) ++order;
     if (order == 1) order = 3;
     int count = (order - 1) / 2;
-    if (count > kHalfbandMaxCoefs) count = kHalfbandMaxCoefs;
+    if (count > HalfbandMaxCoefs) count = HalfbandMaxCoefs;
     const int designOrder = count * 2 + 1;
     for (int i = 0; i < count; ++i) {
         const int c = i + 1;
@@ -79,9 +79,9 @@ HalfbandDesign designHalfband(double attenuationDb, double transition)
         const double ww = num / den;
         const double wwsq = ww * ww;
         const double x = std::sqrt((1.0 - wwsq * k) * (1.0 - wwsq / k)) / (1.0 + wwsq);
-        out.coef[i] = static_cast<float>((1.0 - x) / (1.0 + x));
+        out.m_coef[i] = static_cast<float>((1.0 - x) / (1.0 + x));
     }
-    out.count = count;
+    out.m_count = count;
     return out;
 }
 

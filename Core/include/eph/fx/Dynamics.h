@@ -57,9 +57,9 @@ namespace eph {
 class BusCompressor {
 public:
     /** @brief Sets the sample rate and clears the detector. */
-    void prepare(double sampleRate) { sr_ = sampleRate; reset(); }
+    void prepare(double sampleRate) { m_sr = sampleRate; reset(); }
     /** @brief Clears the detector. */
-    void reset() { y1_ = 0.0; yL_ = 0.0; }
+    void reset() { m_y1 = 0.0; m_yL = 0.0; }
     /**
      * @brief Settings.
      * @param thresholdDb threshold T
@@ -69,19 +69,19 @@ public:
      */
     void set(float thresholdDb, float ratio, float kneeDb, float attackMs, float releaseMs)
     {
-        T_ = thresholdDb;
-        R_ = std::max(1.0f, ratio);
-        W_ = std::max(0.0f, kneeDb);
-        aA_ = std::exp(-1.0 / (std::max(0.01f, attackMs) * 0.001 * sr_));
-        aR_ = std::exp(-1.0 / (std::max(0.01f, releaseMs) * 0.001 * sr_));
+        m_T = thresholdDb;
+        m_R = std::max(1.0f, ratio);
+        m_W = std::max(0.0f, kneeDb);
+        m_aA = std::exp(-1.0 / (std::max(0.01f, attackMs) * 0.001 * m_sr));
+        m_aR = std::exp(-1.0 / (std::max(0.01f, releaseMs) * 0.001 * m_sr));
     }
     /** @brief The static curve: output level for an input level, both in dB (Giannoulis eq. 4). */
     double curve(double x) const
     {
-        const double d = x - T_;
-        if (2.0 * d < -W_) return x;
-        if (W_ > 0.0f && 2.0 * std::fabs(d) <= W_) return x + (1.0 / R_ - 1.0) * (d + W_ / 2.0) * (d + W_ / 2.0) / (2.0 * W_);
-        return T_ + d / R_;
+        const double d = x - m_T;
+        if (2.0 * d < -m_W) return x;
+        if (m_W > 0.0f && 2.0 * std::fabs(d) <= m_W) return x + (1.0 / m_R - 1.0) * (d + m_W / 2.0) * (d + m_W / 2.0) / (2.0 * m_W);
+        return m_T + d / m_R;
     }
     /** @brief Processes a stereo block in place. */
     void process(float* L, float* R, int n)
@@ -90,57 +90,57 @@ public:
             const double peak = std::max(std::fabs(static_cast<double>(L[i])), std::fabs(static_cast<double>(R[i])));
             const double xG = peak > 1.0e-6 ? 20.0 * std::log10(peak) : -120.0;
             const double xL = xG - curve(xG);   // gain reduction the static curve asks for, >= 0
-            y1_ = std::max(xL, aR_ * y1_ + (1.0 - aR_) * xL);
-            yL_ = aA_ * yL_ + (1.0 - aA_) * y1_;
-            const float g = static_cast<float>(std::pow(10.0, -yL_ / 20.0));
+            m_y1 = std::max(xL, m_aR * m_y1 + (1.0 - m_aR) * xL);
+            m_yL = m_aA * m_yL + (1.0 - m_aA) * m_y1;
+            const float g = static_cast<float>(std::pow(10.0, -m_yL / 20.0));
             L[i] *= g;
             R[i] *= g;
-            reduction_ = static_cast<float>(yL_);
+            m_reduction = static_cast<float>(m_yL);
         }
     }
     /** @brief Gain reduction of the last sample, dB. */
-    float reduction() const { return reduction_; }
+    float reduction() const { return m_reduction; }
 
 private:
-    double sr_ = 48000.0;   ///< the sample rate, Hz
-    double aA_ = 0.99;   ///< the detector's attack coefficient
-    double aR_ = 0.999;   ///< the detector's release coefficient
-    double y1_ = 0.0;   ///< the detector's peak stage, dB of reduction
-    double yL_ = 0.0;   ///< its smoothed stage: the reduction applied
-    float T_ = -12.0f;   ///< the threshold, dB
-    float R_ = 2.0f;   ///< the ratio
-    float W_ = 6.0f;   ///< the knee's width, dB
-    float reduction_ = 0.0f;   ///< the reduction of the last sample, dB
+    double m_sr = 48000.0;   ///< the sample rate, Hz
+    double m_aA = 0.99;   ///< the detector's attack coefficient
+    double m_aR = 0.999;   ///< the detector's release coefficient
+    double m_y1 = 0.0;   ///< the detector's peak stage, dB of reduction
+    double m_yL = 0.0;   ///< its smoothed stage: the reduction applied
+    float m_T = -12.0f;   ///< the threshold, dB
+    float m_R = 2.0f;   ///< the ratio
+    float m_W = 6.0f;   ///< the knee's width, dB
+    float m_reduction = 0.0f;   ///< the reduction of the last sample, dB
 };
 
 /** @brief 8x interpolation for true-peak estimates: seven phases of twenty-four taps each. */
 class TruePeakInterpolator {
 public:
-    static constexpr int kPhases = 8;            ///< points per input sample; kPhases - 1 are interpolated
-    static constexpr int kTaps = 24;             ///< taps per phase
-    static constexpr int kHalf = kTaps / 2;      ///< samples of lookahead the filter needs
-    static constexpr int kHistory = kTaps;       ///< samples of input a caller has to keep for between()
+    static constexpr int Phases = 8;            ///< points per input sample; Phases - 1 are interpolated
+    static constexpr int Taps = 24;             ///< taps per phase
+    static constexpr int Half = Taps / 2;      ///< samples of lookahead the filter needs
+    static constexpr int History = Taps;       ///< samples of input a caller has to keep for between()
     /** @brief Designs the Kaiser-windowed sinc fractional-delay bank (beta 4, full band). */
     TruePeakInterpolator();
     /**
-     * @brief Largest magnitude of the kPhases - 1 interpolated points between x[0] and x[1].
-     * @param x pointer to the earlier sample; x[-(kHalf - 1)] .. x[kHalf] must be readable
+     * @brief Largest magnitude of the Phases - 1 interpolated points between x[0] and x[1].
+     * @param x pointer to the earlier sample; x[-(Half - 1)] .. x[Half] must be readable
      */
     double between(const float* x) const
     {
-        const float* p = x - kHalf + 1;
+        const float* p = x - Half + 1;
         double peak = 0.0;
-        for (int k = 0; k < kPhases - 1; ++k) {
-            // Four partial sums, not one. A single accumulator makes the inner loop a chain of kTaps
-            // dependent additions, and the whole bank is then latency-bound: with kTaps at twenty-four
+        for (int k = 0; k < Phases - 1; ++k) {
+            // Four partial sums, not one. A single accumulator makes the inner loop a chain of Taps
+            // dependent additions, and the whole bank is then latency-bound: with Taps at twenty-four
             // that alone cost 64 % of the offline render's time (measured 16.09.2026). Four independent
-            // chains of six additions each cut it to a quarter. kTaps is a multiple of four by design.
+            // chains of six additions each cut it to a quarter. Taps is a multiple of four by design.
             double s0 = 0.0, s1 = 0.0, s2 = 0.0, s3 = 0.0;
-            for (int m = 0; m < kTaps; m += 4) {
-                s0 += h_[k][m] * static_cast<double>(p[m]);
-                s1 += h_[k][m + 1] * static_cast<double>(p[m + 1]);
-                s2 += h_[k][m + 2] * static_cast<double>(p[m + 2]);
-                s3 += h_[k][m + 3] * static_cast<double>(p[m + 3]);
+            for (int m = 0; m < Taps; m += 4) {
+                s0 += m_h[k][m] * static_cast<double>(p[m]);
+                s1 += m_h[k][m + 1] * static_cast<double>(p[m + 1]);
+                s2 += m_h[k][m + 2] * static_cast<double>(p[m + 2]);
+                s3 += m_h[k][m + 3] * static_cast<double>(p[m + 3]);
             }
             peak = std::max(peak, std::fabs((s0 + s1) + (s2 + s3)));
         }
@@ -154,18 +154,18 @@ public:
      * know whether the peak clears a threshold can skip the whole bank when it does not, which is
      * exact, not an approximation -- see TruePeakLimiter::process and LoudnessMeter::process.
      */
-    double gainBound() const { return bound_; }
-    /** @brief Largest magnitude among the kTaps samples between() would read from @p x. */
+    double gainBound() const { return m_bound; }
+    /** @brief Largest magnitude among the Taps samples between() would read from @p x. */
     static float windowPeak(const float* x)
     {
-        const float* p = x - kHalf + 1;
+        const float* p = x - Half + 1;
         float a = 0.0f, b = 0.0f;
-        for (int m = 0; m < kTaps; m += 2) { a = std::max(a, std::fabs(p[m])); b = std::max(b, std::fabs(p[m + 1])); }
+        for (int m = 0; m < Taps; m += 2) { a = std::max(a, std::fabs(p[m])); b = std::max(b, std::fabs(p[m + 1])); }
         return std::max(a, b);
     }
 private:
-    double h_[kPhases - 1][kTaps] = {};   ///< the fractional-delay filters, one per interpolated phase
-    double bound_ = 1.0;   ///< gainBound()
+    double m_h[Phases - 1][Taps] = {};   ///< the fractional-delay filters, one per interpolated phase
+    double m_bound = 1.0;   ///< gainBound()
 };
 
 /** @brief Stereo lookahead true-peak limiter. */
@@ -180,37 +180,37 @@ public:
     /** @brief Processes in place. */
     void process(float* L, float* R, int n);
     /** @brief Samples of delay the limiter adds. */
-    int latency() const { return window_ - 1 + TruePeakInterpolator::kHalf; }
+    int latency() const { return m_window - 1 + TruePeakInterpolator::Half; }
     /** @brief Gain reduction of the last sample, dB (>= 0). */
-    float reduction() const { return reduction_; }
+    float reduction() const { return m_reduction; }
 
 private:
-    TruePeakInterpolator interp_;   ///< the true-peak interpolator
-    double sr_ = 48000.0;   ///< the sample rate, Hz
-    int window_ = 72;   ///< the lookahead window, samples
-    float ceiling_ = 0.891f;   ///< the ceiling, linear
-    double release_ = 0.999;   ///< the gain's per-sample recovery factor
-    // Input history for the interpolator (both channels): 2 * kTaps slots, every sample written into
-    // both halves, so the kTaps the filter needs are always contiguous (see process()).
-    std::vector<float> histL_;   ///< the interpolator's input history, left
-    std::vector<float> histR_;   ///< ... right
-    int histPos_ = 0;   ///< where the history is written
-    double prevBetween_ = 0.0;   ///< the last sample's interpolated peak (a peak between two samples counts for both)
+    TruePeakInterpolator m_interp;   ///< the true-peak interpolator
+    double m_sr = 48000.0;   ///< the sample rate, Hz
+    int m_window = 72;   ///< the lookahead window, samples
+    float m_ceiling = 0.891f;   ///< the ceiling, linear
+    double m_release = 0.999;   ///< the gain's per-sample recovery factor
+    // Input history for the interpolator (both channels): 2 * Taps slots, every sample written into
+    // both halves, so the Taps the filter needs are always contiguous (see process()).
+    std::vector<float> m_histL;   ///< the interpolator's input history, left
+    std::vector<float> m_histR;   ///< ... right
+    int m_histPos = 0;   ///< where the history is written
+    double m_prevBetween = 0.0;   ///< the last sample's interpolated peak (a peak between two samples counts for both)
     /// Required gains, the sliding-minimum deque and the moving average.
-    std::vector<double> req_;
-    std::vector<int> dq_;   ///< the sliding minimum's deque: positions of required gains
-    int dqHead_ = 0;   ///< the deque's head
-    int dqTail_ = 0;   ///< the deque's tail
-    std::vector<double> minRing_;   ///< the sliding minima of the last window
-    double minSum_ = 0.0;   ///< their sum: the moving average times the window
-    long long t_ = 0;   ///< samples processed
-    int sinceRecompute_ = 0;   ///< samples since minSum_ was summed afresh (rounding)
-    double gain_ = 1.0;   ///< the gain applied
+    std::vector<double> m_req;
+    std::vector<int> m_dq;   ///< the sliding minimum's deque: positions of required gains
+    int m_dqHead = 0;   ///< the deque's head
+    int m_dqTail = 0;   ///< the deque's tail
+    std::vector<double> m_minRing;   ///< the sliding minima of the last window
+    double m_minSum = 0.0;   ///< their sum: the moving average times the window
+    long long m_t = 0;   ///< samples processed
+    int m_sinceRecompute = 0;   ///< samples since m_minSum was summed afresh (rounding)
+    double m_gain = 1.0;   ///< the gain applied
     // The audio delay.
-    std::vector<float> delayL_;   ///< the audio delay, left
-    std::vector<float> delayR_;   ///< the audio delay, right
-    int delayPos_ = 0;   ///< where the delay is written
-    float reduction_ = 0.0f;   ///< the reduction of the last sample, dB
+    std::vector<float> m_delayL;   ///< the audio delay, left
+    std::vector<float> m_delayR;   ///< the audio delay, right
+    int m_delayPos = 0;   ///< where the delay is written
+    float m_reduction = 0.0f;   ///< the reduction of the last sample, dB
 };
 
 } // namespace eph

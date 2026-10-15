@@ -23,65 +23,65 @@ public:
     /** @brief Allocates the line for a sample rate (120 ms) and sets the default reflections. */
     void prepare(double sampleRate)
     {
-        sr_ = sampleRate;
+        m_sr = sampleRate;
         size_t len = 1;
         while (len < static_cast<size_t>(0.12 * sampleRate)) len <<= 1;
-        buf_.assign(len, 0.0f);
-        mask_ = len - 1;
-        write_ = 0;
-        for (Svf* f : { &hpL_, &hpR_, &lpL_, &lpR_ }) f->reset();
+        m_buf.assign(len, 0.0f);
+        m_mask = len - 1;
+        m_write = 0;
+        for (Svf* f : { &m_hpL, &m_hpR, &m_lpL, &m_lpR }) f->reset();
         set(35.0f, 200.0f, 8000.0f);
     }
     /** @brief The span of the reflections in ms (10 .. 80) and the return's band. */
     void set(float sizeMs, float lowCutHz, float highCutHz)
     {
-        const float sr = static_cast<float>(sr_);
+        const float sr = static_cast<float>(m_sr);
         double sum = 0.0;
-        for (int k = 0; k < kTaps; ++k) {
+        for (int k = 0; k < Taps; ++k) {
             // Two golden-ratio walks through the span: the taps of the two sides never coincide.
             const double fl = std::fmod(0.11 + 0.6180339887 * k, 1.0), fr = std::fmod(0.37 + 0.7548776662 * k, 1.0);
-            tapL_[k] = std::max(1, static_cast<int>((3.0 + (sizeMs - 3.0) * fl) * 0.001 * sr_));
-            tapR_[k] = std::max(1, static_cast<int>((3.0 + (sizeMs - 3.0) * fr) * 0.001 * sr_));
-            gain_[k] = static_cast<float>(std::pow(0.82, k)) * (k % 2 == 0 ? 1.0f : -1.0f);
-            sum += static_cast<double>(gain_[k]) * gain_[k];
+            m_tapL[k] = std::max(1, static_cast<int>((3.0 + (sizeMs - 3.0) * fl) * 0.001 * m_sr));
+            m_tapR[k] = std::max(1, static_cast<int>((3.0 + (sizeMs - 3.0) * fr) * 0.001 * m_sr));
+            m_gain[k] = static_cast<float>(std::pow(0.82, k)) * (k % 2 == 0 ? 1.0f : -1.0f);
+            sum += static_cast<double>(m_gain[k]) * m_gain[k];
         }
         const float norm = static_cast<float>(1.0 / std::sqrt(sum));
-        for (float& g : gain_) g *= norm;
-        hpL_.setQ(lowCutHz, 0.7071f, sr); hpR_.copyCoefficients(hpL_);
-        lpL_.setQ(highCutHz, 0.7071f, sr); lpR_.copyCoefficients(lpL_);
+        for (float& g : m_gain) g *= norm;
+        m_hpL.setQ(lowCutHz, 0.7071f, sr); m_hpR.copyCoefficients(m_hpL);
+        m_lpL.setQ(highCutHz, 0.7071f, sr); m_lpR.copyCoefficients(m_lpL);
     }
     /** @brief Adds the reflections of the send (@p inL, @p inR) to @p outL, @p outR. */
     void process(const float* inL, const float* inR, float* outL, float* outR, int n)
     {
         for (int i = 0; i < n; ++i) {
-            buf_[write_] = 0.5f * (inL[i] + inR[i]);
+            m_buf[m_write] = 0.5f * (inL[i] + inR[i]);
             float l = 0.0f, r = 0.0f;
-            for (int k = 0; k < kTaps; ++k) {
-                l += gain_[k] * buf_[(write_ - static_cast<size_t>(tapL_[k])) & mask_];
-                r += gain_[k] * buf_[(write_ - static_cast<size_t>(tapR_[k])) & mask_];
+            for (int k = 0; k < Taps; ++k) {
+                l += m_gain[k] * m_buf[(m_write - static_cast<size_t>(m_tapL[k])) & m_mask];
+                r += m_gain[k] * m_buf[(m_write - static_cast<size_t>(m_tapR[k])) & m_mask];
             }
-            write_ = (write_ + 1) & mask_;
+            m_write = (m_write + 1) & m_mask;
             float lo, bp, hl, hr;
-            hpL_.tick(l, lo, bp, hl);
-            hpR_.tick(r, lo, bp, hr);
-            outL[i] += lpL_.lp(hl);
-            outR[i] += lpR_.lp(hr);
+            m_hpL.tick(l, lo, bp, hl);
+            m_hpR.tick(r, lo, bp, hr);
+            outL[i] += m_lpL.lp(hl);
+            outR[i] += m_lpR.lp(hr);
         }
     }
 
 private:
-    static constexpr int kTaps = 12;   ///< taps a side
-    double sr_ = 48000.0;   ///< the sample rate, Hz
-    std::vector<float> buf_;   ///< the send in mono, a ring
-    size_t mask_ = 0;   ///< its size - 1
-    size_t write_ = 0;   ///< where the next sample goes
-    int tapL_[kTaps] = {};   ///< the left side's taps, samples
-    int tapR_[kTaps] = {};   ///< the right side's taps, samples
-    float gain_[kTaps] = {};   ///< the taps' gains (alternating, falling, normalised)
-    Svf hpL_;   ///< the return's high pass, left
-    Svf hpR_;   ///< ... right
-    Svf lpL_;   ///< the return's low pass, left
-    Svf lpR_;   ///< ... right
+    static constexpr int Taps = 12;   ///< taps a side
+    double m_sr = 48000.0;   ///< the sample rate, Hz
+    std::vector<float> m_buf;   ///< the send in mono, a ring
+    size_t m_mask = 0;   ///< its size - 1
+    size_t m_write = 0;   ///< where the next sample goes
+    int m_tapL[Taps] = {};   ///< the left side's taps, samples
+    int m_tapR[Taps] = {};   ///< the right side's taps, samples
+    float m_gain[Taps] = {};   ///< the taps' gains (alternating, falling, normalised)
+    Svf m_hpL;   ///< the return's high pass, left
+    Svf m_hpR;   ///< ... right
+    Svf m_lpL;   ///< the return's low pass, left
+    Svf m_lpR;   ///< ... right
 };
 
 /**
@@ -94,25 +94,25 @@ public:
     /** @brief Prepares the plate and the shifter for a sample rate and sets the default effect. */
     void prepare(double sampleRate)
     {
-        sr_ = sampleRate;
-        plate_.prepare(sampleRate);
-        shift_.assign(8192, 0.0f);
-        write_ = 0;
-        phase_ = 0.0;
-        window_ = std::max(256.0, 0.043 * sampleRate);
-        for (Svf* f : { &hpL_, &hpR_, &lpL_, &lpR_ }) f->reset();
-        quiet_ = 0;
+        m_sr = sampleRate;
+        m_plate.prepare(sampleRate);
+        m_shift.assign(8192, 0.0f);
+        m_write = 0;
+        m_phase = 0.0;
+        m_window = std::max(256.0, 0.043 * sampleRate);
+        for (Svf* f : { &m_hpL, &m_hpR, &m_lpL, &m_lpR }) f->reset();
+        m_quiet = 0;
         set(8.0f, 0.35f, 400.0f, 4000.0f);
     }
     /** @brief The tail in seconds, the octave's share fed back (0 .. 0.6), the return's band. */
     void set(float decaySeconds, float amount, float lowCutHz, float highCutHz)
     {
-        plate_.set(decaySeconds, 0.35f, 0.0f, 150.0f, 9000.0f);
-        idleAfter_ = static_cast<long long>(3.0 * decaySeconds * sr_);
-        amount_ = std::clamp(amount, 0.0f, 0.6f);
-        const float sr = static_cast<float>(sr_);
-        hpL_.setQ(lowCutHz, 0.7071f, sr); hpR_.copyCoefficients(hpL_);
-        lpL_.setQ(highCutHz, 0.7071f, sr); lpR_.copyCoefficients(lpL_);
+        m_plate.set(decaySeconds, 0.35f, 0.0f, 150.0f, 9000.0f);
+        m_idleAfter = static_cast<long long>(3.0 * decaySeconds * m_sr);
+        m_amount = std::clamp(amount, 0.0f, 0.6f);
+        const float sr = static_cast<float>(m_sr);
+        m_hpL.setQ(lowCutHz, 0.7071f, sr); m_hpR.copyCoefficients(m_hpL);
+        m_lpL.setQ(highCutHz, 0.7071f, sr); m_lpR.copyCoefficients(m_lpL);
     }
     /** @brief Adds the effect of the send to @p outL, @p outR (n at most 64). */
     void process(const float* inL, const float* inR, float* outL, float* outR, int n)
@@ -120,51 +120,51 @@ public:
         // Idle once nothing has come in for twice the tail: most of a piece sends nothing here.
         bool silent = true;
         for (int i = 0; i < n && silent; ++i) silent = inL[i] == 0.0f && inR[i] == 0.0f;
-        quiet_ = silent ? quiet_ + n : 0;
-        if (quiet_ > idleAfter_) return;
+        m_quiet = silent ? m_quiet + n : 0;
+        if (m_quiet > m_idleAfter) return;
         float xl[64], xr[64], yl[64] = {}, yr[64] = {};
-        const size_t mask = shift_.size() - 1;
+        const size_t mask = m_shift.size() - 1;
         for (int i = 0; i < n; ++i) {
             // The octave up: the delay shrinks by a sample a sample; two taps half a window apart, sin^2 windows.
             // The shortest delay is 64 samples, so a tap never reads what this block has not written yet.
-            phase_ -= 1.0 / window_;
-            if (phase_ < 0.0) phase_ += 1.0;
-            const double p2 = phase_ + 0.5 >= 1.0 ? phase_ - 0.5 : phase_ + 0.5;
-            const size_t d1 = 64 + static_cast<size_t>(phase_ * window_), d2 = 64 + static_cast<size_t>(p2 * window_);
-            const float w1 = sin01(0.5 * phase_), w2 = sin01(0.5 * p2);   // sin(pi p) from the table
-            const float up = w1 * w1 * shift_[(write_ - d1) & mask] + w2 * w2 * shift_[(write_ - d2) & mask];
-            xl[i] = inL[i] + amount_ * up;
-            xr[i] = inR[i] + amount_ * up;
-            write_ = (write_ + 1) & mask;
+            m_phase -= 1.0 / m_window;
+            if (m_phase < 0.0) m_phase += 1.0;
+            const double p2 = m_phase + 0.5 >= 1.0 ? m_phase - 0.5 : m_phase + 0.5;
+            const size_t d1 = 64 + static_cast<size_t>(m_phase * m_window), d2 = 64 + static_cast<size_t>(p2 * m_window);
+            const float w1 = sin01(0.5 * m_phase), w2 = sin01(0.5 * p2);   // sin(pi p) from the table
+            const float up = w1 * w1 * m_shift[(m_write - d1) & mask] + w2 * w2 * m_shift[(m_write - d2) & mask];
+            xl[i] = inL[i] + m_amount * up;
+            xr[i] = inR[i] + m_amount * up;
+            m_write = (m_write + 1) & mask;
         }
-        plate_.process(xl, xr, yl, yr, n);
+        m_plate.process(xl, xr, yl, yr, n);
         // What came out goes into the shifter's past, for the next rounds.
-        size_t w = (write_ - static_cast<size_t>(n)) & mask;
+        size_t w = (m_write - static_cast<size_t>(n)) & mask;
         for (int i = 0; i < n; ++i) {
-            shift_[w] = 0.5f * (yl[i] + yr[i]);
+            m_shift[w] = 0.5f * (yl[i] + yr[i]);
             w = (w + 1) & mask;
             float lo, bp, hl, hr;
-            hpL_.tick(yl[i], lo, bp, hl);
-            hpR_.tick(yr[i], lo, bp, hr);
-            outL[i] += lpL_.lp(hl);
-            outR[i] += lpR_.lp(hr);
+            m_hpL.tick(yl[i], lo, bp, hl);
+            m_hpR.tick(yr[i], lo, bp, hr);
+            outL[i] += m_lpL.lp(hl);
+            outR[i] += m_lpR.lp(hr);
         }
     }
 
 private:
-    double sr_ = 48000.0;   ///< the sample rate, Hz
-    double phase_ = 0.0;   ///< the shifter's phase, 0..1
-    double window_ = 2048.0;   ///< the shifter's window, samples (43 ms)
-    Plate plate_;   ///< the long plate
-    std::vector<float> shift_;   ///< the plate's output, a ring: what the octave reads
-    size_t write_ = 0;   ///< where the next sample goes
-    float amount_ = 0.35f;   ///< the octave's share fed back
-    long long quiet_ = 0;   ///< samples nothing has come in
-    long long idleAfter_ = 1000000;   ///< samples of silence after which it rests (three tails)
-    Svf hpL_;   ///< the return's high pass, left
-    Svf hpR_;   ///< ... right
-    Svf lpL_;   ///< the return's low pass, left
-    Svf lpR_;   ///< ... right
+    double m_sr = 48000.0;   ///< the sample rate, Hz
+    double m_phase = 0.0;   ///< the shifter's phase, 0..1
+    double m_window = 2048.0;   ///< the shifter's window, samples (43 ms)
+    Plate m_plate;   ///< the long plate
+    std::vector<float> m_shift;   ///< the plate's output, a ring: what the octave reads
+    size_t m_write = 0;   ///< where the next sample goes
+    float m_amount = 0.35f;   ///< the octave's share fed back
+    long long m_quiet = 0;   ///< samples nothing has come in
+    long long m_idleAfter = 1000000;   ///< samples of silence after which it rests (three tails)
+    Svf m_hpL;   ///< the return's high pass, left
+    Svf m_hpR;   ///< ... right
+    Svf m_lpL;   ///< the return's low pass, left
+    Svf m_lpR;   ///< ... right
 };
 
 /**
@@ -174,40 +174,40 @@ private:
  */
 class ResonanceTamer {
 public:
-    static constexpr int kBands = 6;   ///< the bands
+    static constexpr int Bands = 6;   ///< the bands
     /** @brief Sets the bands (350 Hz .. 4.8 kHz) and the followers (3 ms up, 60 ms down) for a sample rate. */
     void prepare(double sampleRate)
     {
-        static const float kCentre[kBands] = { 350.0f, 600.0f, 1000.0f, 1700.0f, 2900.0f, 4800.0f };
+        static const float Centre[Bands] = { 350.0f, 600.0f, 1000.0f, 1700.0f, 2900.0f, 4800.0f };
         const float sr = static_cast<float>(sampleRate);
-        for (int k = 0; k < kBands; ++k) {
-            l_[k].setQ(kCentre[k], 2.5f, sr); l_[k].reset();
-            r_[k].setQ(kCentre[k], 2.5f, sr); r_[k].reset();
-            env_[k] = 0.0f;
+        for (int k = 0; k < Bands; ++k) {
+            m_l[k].setQ(Centre[k], 2.5f, sr); m_l[k].reset();
+            m_r[k].setQ(Centre[k], 2.5f, sr); m_r[k].reset();
+            m_env[k] = 0.0f;
         }
-        attack_ = std::exp(-1.0f / (0.003f * sr));
-        release_ = std::exp(-1.0f / (0.06f * sr));
+        m_attack = std::exp(-1.0f / (0.003f * sr));
+        m_release = std::exp(-1.0f / (0.06f * sr));
     }
     /** @brief Works on @p L, @p R in place; @p depth 0 leaves them alone. */
     void process(float* L, float* R, int n, float depth)
     {
         if (depth <= 0.0f) return;
         for (int i = 0; i < n; ++i) {
-            float bl[kBands], br[kBands];
-            for (int k = 0; k < kBands; ++k) {
+            float bl[Bands], br[Bands];
+            for (int k = 0; k < Bands; ++k) {
                 float lo, hp;
-                l_[k].tick(L[i], lo, bl[k], hp);
-                r_[k].tick(R[i], lo, br[k], hp);
-                bl[k] *= l_[k].k;
-                br[k] *= r_[k].k;
+                m_l[k].tick(L[i], lo, bl[k], hp);
+                m_r[k].tick(R[i], lo, br[k], hp);
+                bl[k] *= m_l[k].m_k;
+                br[k] *= m_r[k].m_k;
                 const float x = std::max(std::fabs(bl[k]), std::fabs(br[k]));
-                env_[k] = x + (x > env_[k] ? attack_ : release_) * (env_[k] - x);
+                m_env[k] = x + (x > m_env[k] ? m_attack : m_release) * (m_env[k] - x);
             }
-            for (int k = 0; k < kBands; ++k) {
-                const float around = k == 0 ? env_[1] : (k == kBands - 1 ? env_[kBands - 2] : 0.5f * (env_[k - 1] + env_[k + 1]));
+            for (int k = 0; k < Bands; ++k) {
+                const float around = k == 0 ? m_env[1] : (k == Bands - 1 ? m_env[Bands - 2] : 0.5f * (m_env[k - 1] + m_env[k + 1]));
                 const float limit = 1.68f * around;
-                if (env_[k] <= limit || env_[k] < 1e-6f) continue;
-                const float g = std::pow(limit / env_[k], 0.667f * depth);
+                if (m_env[k] <= limit || m_env[k] < 1e-6f) continue;
+                const float g = std::pow(limit / m_env[k], 0.667f * depth);
                 L[i] += (g - 1.0f) * bl[k];
                 R[i] += (g - 1.0f) * br[k];
             }
@@ -215,11 +215,11 @@ public:
     }
 
 private:
-    Svf l_[kBands];   ///< the bands' band passes, left
-    Svf r_[kBands];   ///< ... right
-    float env_[kBands] = {};   ///< the bands' followers
-    float attack_ = 0.0f;   ///< the followers' attack coefficient
-    float release_ = 0.0f;   ///< their release coefficient
+    Svf m_l[Bands];   ///< the bands' band passes, left
+    Svf m_r[Bands];   ///< ... right
+    float m_env[Bands] = {};   ///< the bands' followers
+    float m_attack = 0.0f;   ///< the followers' attack coefficient
+    float m_release = 0.0f;   ///< their release coefficient
 };
 
 } // namespace eph

@@ -34,24 +34,24 @@
 namespace eph {
 
 /** @brief What a mark or a cue says. */
-enum class CueKind : uint8_t { Beat, Phase, Key, Conjunction };
+enum class CueKindE : uint8_t { BEAT, PHASE, KEY, CONJUNCTION };
 
 /** @brief A mark in the score: a beat and what happens there (built at load, read by the audio thread). */
 struct CueMark {
-    double beat = 0.0;          ///< where
-    CueKind kind = CueKind::Phase;   ///< what
-    int32_t a = 0;              ///< Phase: the phase; Conjunction: rows meeting
-    float b = 0.0f;             ///< Conjunction: their share of the running rows
-    char text[16] = {};         ///< Phase: the section's name; Key: the root's name
+    double m_beat = 0.0;          ///< where
+    CueKindE m_kind = CueKindE::PHASE;   ///< what
+    int32_t m_a = 0;              ///< Phase: the phase; Conjunction: rows meeting
+    float m_b = 0.0f;             ///< Conjunction: their share of the running rows
+    char m_text[16] = {};         ///< Phase: the section's name; Key: the root's name
 };
 
 /** @brief A cue with its instant: what the audio thread hands to the sender. */
 struct Cue {
-    int64_t dueNanos = 0;       ///< when the listener hears it (steady clock)
-    CueKind kind = CueKind::Beat;   ///< what
-    int32_t a = 0;              ///< Beat: the beat number; else as CueMark
-    float b = 0.0f;             ///< Beat: the tempo; else as CueMark
-    char text[16] = {};         ///< as CueMark
+    int64_t m_dueNanos = 0;       ///< when the listener hears it (steady clock)
+    CueKindE m_kind = CueKindE::BEAT;   ///< what
+    int32_t m_a = 0;              ///< Beat: the beat number; else as CueMark
+    float m_b = 0.0f;             ///< Beat: the tempo; else as CueMark
+    char m_text[16] = {};         ///< as CueMark
 };
 
 /**
@@ -67,27 +67,27 @@ public:
     /** @brief Adds a cue; false when full (the cue is dropped). */
     bool push(const Cue& c)
     {
-        const uint32_t w = write_.load(std::memory_order_relaxed);
-        if (w - read_.load(std::memory_order_acquire) >= kSize) return false;
-        slots_[w % kSize] = c;
-        write_.store(w + 1, std::memory_order_release);
+        const uint32_t w = m_write.load(std::memory_order_relaxed);
+        if (w - m_read.load(std::memory_order_acquire) >= Size) return false;
+        m_slots[w % Size] = c;
+        m_write.store(w + 1, std::memory_order_release);
         return true;
     }
     /** @brief Takes the oldest cue; false when empty. */
     bool pop(Cue& c)
     {
-        const uint32_t r = read_.load(std::memory_order_relaxed);
-        if (r == write_.load(std::memory_order_acquire)) return false;
-        c = slots_[r % kSize];
-        read_.store(r + 1, std::memory_order_release);
+        const uint32_t r = m_read.load(std::memory_order_relaxed);
+        if (r == m_write.load(std::memory_order_acquire)) return false;
+        c = m_slots[r % Size];
+        m_read.store(r + 1, std::memory_order_release);
         return true;
     }
 
 private:
-    static constexpr uint32_t kSize = 512;   ///< slots in the ring
-    std::array<Cue, kSize> slots_{};   ///< the ring
-    std::atomic<uint32_t> write_{ 0 };   ///< the next slot to write (audio thread)
-    std::atomic<uint32_t> read_{ 0 };   ///< the next slot to read (sender thread)
+    static constexpr uint32_t Size = 512;   ///< slots in the ring
+    std::array<Cue, Size> m_slots{};   ///< the ring
+    std::atomic<uint32_t> m_write{ 0 };   ///< the next slot to write (audio thread)
+    std::atomic<uint32_t> m_read{ 0 };   ///< the next slot to read (sender thread)
 };
 
 /** @brief Turns the beat range of a block into cues (audio thread: arithmetic and pushes only). */
@@ -108,10 +108,10 @@ public:
     int scan(const std::vector<CueMark>& marks, double from, double to, float bpm, int64_t nowNanos,
              int64_t leadNanos, int64_t blockNanos, CueRing& ring);
     /** @brief Forgets the position in the marks (after a jump or a new score). */
-    void reset() { cursor_ = 0; }
+    void reset() { m_cursor = 0; }
 
 private:
-    size_t cursor_ = 0;   ///< the first mark not yet sent
+    size_t m_cursor = 0;   ///< the first mark not yet sent
 };
 
 /**
@@ -136,24 +136,24 @@ public:
     /** @brief Stops the thread and closes the socket. */
     void stop();
     /** @brief Whether the thread runs. */
-    bool running() const { return running_.load(std::memory_order_acquire); }
+    bool running() const { return m_running.load(std::memory_order_acquire); }
     /** @brief The ring the audio thread fills. */
-    CueRing& ring() { return ring_; }
+    CueRing& ring() { return m_ring; }
     /** @brief Cues that could not be sent. */
-    uint64_t dropped() const { return dropped_.load(std::memory_order_relaxed); }
+    uint64_t dropped() const { return m_dropped.load(std::memory_order_relaxed); }
     /** @brief The steady clock in nanoseconds, the time base of the cues. */
     static int64_t nowNanos();
 
 private:
     /** @brief The thread: takes the cues off the ring and sends each as an OSC message when its time comes. */
     void loop();
-    CueRing ring_;   ///< the ring the audio thread fills
-    std::thread thread_;   ///< the sender thread
-    std::atomic<bool> running_{ false };   ///< the thread runs
-    std::atomic<bool> stop_{ false };   ///< the thread is asked to end
-    std::atomic<uint64_t> dropped_{ 0 };   ///< cues that could not be sent
-    intptr_t socket_ = -1;   ///< the UDP socket, -1 closed
-    uint8_t address_[16] = {};   ///< a sockaddr_in, kept opaque so this header needs no socket headers
+    CueRing m_ring;   ///< the ring the audio thread fills
+    std::thread m_thread;   ///< the sender thread
+    std::atomic<bool> m_running{ false };   ///< the thread runs
+    std::atomic<bool> m_stop{ false };   ///< the thread is asked to end
+    std::atomic<uint64_t> m_dropped{ 0 };   ///< cues that could not be sent
+    intptr_t m_socket = -1;   ///< the UDP socket, -1 closed
+    uint8_t m_address[16] = {};   ///< a sockaddr_in, kept opaque so this header needs no socket headers
 };
 
 } // namespace eph

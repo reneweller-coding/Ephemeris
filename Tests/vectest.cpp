@@ -25,7 +25,7 @@ using namespace ephtest;
 
 namespace {
 
-constexpr int W = kVecWidth;   ///< the lanes of the vector type compiled here
+constexpr int W = VecWidth;   ///< the lanes of the vector type compiled here
 
 /** @brief Deterministic test values covering signs, tiny and large magnitudes. */
 float testValue(uint32_t i)
@@ -142,71 +142,71 @@ void testVoiceKernel()
     VoiceLanes vec{}, sca{};
     const HalfbandDesign d = designHalfband(96.0, 0.1);
     vec.clearFilters();
-    for (int l = 0; l < kBankLanes; ++l) {
-        vec.ph1[l] = 0.05f * static_cast<float>(l);
-        vec.ph2[l] = 0.5f;
-        vec.drive[l] = 1.0f + 0.5f * static_cast<float>(l);
-        vec.norm[l] = 1.0f / std::sqrt(vec.drive[l]);
-        vec.dcR[l] = 0.999f;
-        vec.tbl[l] = l % 2 == 0 ? 1.0f : 0.0f;   // every other lane on its wavetable oscillators (25.09.2026)
+    for (int l = 0; l < BankLanes; ++l) {
+        vec.m_ph1[l] = 0.05f * static_cast<float>(l);
+        vec.m_ph2[l] = 0.5f;
+        vec.m_drive[l] = 1.0f + 0.5f * static_cast<float>(l);
+        vec.m_norm[l] = 1.0f / std::sqrt(vec.m_drive[l]);
+        vec.m_dcR[l] = 0.999f;
+        vec.m_tbl[l] = l % 2 == 0 ? 1.0f : 0.0f;   // every other lane on its wavetable oscillators (25.09.2026)
         // The filter models (26.09.2026): every model but the comb on some lane, with its modes and filter FM.
-        vec.fmodel[l] = static_cast<float>(l % 9);
+        vec.m_fmodel[l] = static_cast<float>(l % 9);
         const float mixes[5] = { 0.0f, 2.0f, -2.0f, 0.0f, 0.0f };   // the Xpander's lanes: a band pass
-        for (int j = 0; j < 5; ++j) vec.pm[j][l] = mixes[j];
+        for (int j = 0; j < 5; ++j) vec.m_pm[j][l] = mixes[j];
     }
     sca = vec;
-    alignas(32) float outV[kBankSpan * kBankLanes], outS[kBankSpan * kBankLanes];
-    constexpr int regs = kBankLanes / W;
+    alignas(32) float outV[BankSpan * BankLanes], outS[BankSpan * BankLanes];
+    constexpr int regs = BankLanes / W;
     int bad = 0;
     float maxAbs = 0.0f;
     for (uint32_t span = 0; span < 600; ++span) {
-        for (int i = 0; i < kBankSpan; ++i) {
-            for (int l = 0; l < kBankLanes; ++l) {
-                const int j = i * kBankLanes + l;
-                const float t = static_cast<float>(span * kBankSpan + static_cast<uint32_t>(i));
+        for (int i = 0; i < BankSpan; ++i) {
+            for (int l = 0; l < BankLanes; ++l) {
+                const int j = i * BankLanes + l;
+                const float t = static_cast<float>(span * BankSpan + static_cast<uint32_t>(i));
                 const float hz = 40.0f * static_cast<float>(l + 1) * (1.0f + 0.1f * std::sin(0.0003f * t));
-                vec.dt1[j] = hz / 96000.0f;
-                vec.dt2[j] = hz * 1.004f / 96000.0f;
-                vec.inv1[j] = 1.0f / vec.dt1[j];
-                vec.inv2[j] = 1.0f / vec.dt2[j];
-                vec.g[j] = 0.02f + 0.7f * (0.5f + 0.5f * std::sin(0.0007f * t * static_cast<float>(l + 1)));
-                vec.gain[j] = 0.5f + 0.5f * std::sin(0.001f * t);
+                vec.m_dt1[j] = hz / 96000.0f;
+                vec.m_dt2[j] = hz * 1.004f / 96000.0f;
+                vec.m_inv1[j] = 1.0f / vec.m_dt1[j];
+                vec.m_inv2[j] = 1.0f / vec.m_dt2[j];
+                vec.m_g[j] = 0.02f + 0.7f * (0.5f + 0.5f * std::sin(0.0007f * t * static_cast<float>(l + 1)));
+                vec.m_gain[j] = 0.5f + 0.5f * std::sin(0.001f * t);
                 // The knobs the modulation matrix moves, per sample (26.09.2026): slow sweeps of their own per lane.
                 const float sw = 0.5f + 0.5f * std::sin(0.0005f * t + static_cast<float>(l));
-                vec.wave[j] = l % 3 == 0 ? 0.0f : sw;
-                vec.pw[j] = 0.1f + 0.8f * sw;
-                const FilterModel fmodel = static_cast<FilterModel>(l % 9);
-                vec.k[j] = FilterVoicing::feedback(fmodel, 0.3f + 0.04f * static_cast<float>(l) * sw);
-                vec.fmk[j] = FilterVoicing::makeup(fmodel, vec.k[j]);
-                vec.fmode[j] = sw;
-                vec.ffm[j] = l % 3 == 0 ? 1.5f * sw : 0.0f;
+                vec.m_wave[j] = l % 3 == 0 ? 0.0f : sw;
+                vec.m_pw[j] = 0.1f + 0.8f * sw;
+                const FilterModelE fmodel = static_cast<FilterModelE>(l % 9);
+                vec.m_k[j] = FilterVoicing::feedback(fmodel, 0.3f + 0.04f * static_cast<float>(l) * sw);
+                vec.m_fmk[j] = FilterVoicing::makeup(fmodel, vec.m_k[j]);
+                vec.m_fmode[j] = sw;
+                vec.m_ffm[j] = l % 3 == 0 ? 1.5f * sw : 0.0f;
             }
         }
-        auto same = [](const float* a, float* b) { std::copy(a, a + kBankSpan * kBankLanes, b); };
-        same(vec.wave, sca.wave); same(vec.pw, sca.pw); same(vec.k, sca.k);
-        same(vec.fmk, sca.fmk); same(vec.fmode, sca.fmode); same(vec.ffm, sca.ffm);
-        std::copy(std::begin(vec.dt1), std::end(vec.dt1), std::begin(sca.dt1));
-        std::copy(std::begin(vec.dt2), std::end(vec.dt2), std::begin(sca.dt2));
-        std::copy(std::begin(vec.inv1), std::end(vec.inv1), std::begin(sca.inv1));
-        std::copy(std::begin(vec.inv2), std::end(vec.inv2), std::begin(sca.inv2));
-        std::copy(std::begin(vec.g), std::end(vec.g), std::begin(sca.g));
-        std::copy(std::begin(vec.gain), std::end(vec.gain), std::begin(sca.gain));
+        auto same = [](const float* a, float* b) { std::copy(a, a + BankSpan * BankLanes, b); };
+        same(vec.m_wave, sca.m_wave); same(vec.m_pw, sca.m_pw); same(vec.m_k, sca.m_k);
+        same(vec.m_fmk, sca.m_fmk); same(vec.m_fmode, sca.m_fmode); same(vec.m_ffm, sca.m_ffm);
+        std::copy(std::begin(vec.m_dt1), std::end(vec.m_dt1), std::begin(sca.m_dt1));
+        std::copy(std::begin(vec.m_dt2), std::end(vec.m_dt2), std::begin(sca.m_dt2));
+        std::copy(std::begin(vec.m_inv1), std::end(vec.m_inv1), std::begin(sca.m_inv1));
+        std::copy(std::begin(vec.m_inv2), std::end(vec.m_inv2), std::begin(sca.m_inv2));
+        std::copy(std::begin(vec.m_g), std::end(vec.m_g), std::begin(sca.m_g));
+        std::copy(std::begin(vec.m_gain), std::end(vec.m_gain), std::begin(sca.m_gain));
         // The wavetable oscillators (every other span): anything smooth will do for the comparison.
-        for (int w = 0; w < 2 * kBankSpan * kBankLanes; ++w) {
-            const float t = static_cast<float>(span * 2 * kBankSpan * kBankLanes + static_cast<uint32_t>(w));
-            vec.wt1[w] = sca.wt1[w] = 0.8f * std::sin(0.0011f * t);
-            vec.wt2[w] = sca.wt2[w] = 0.7f * std::sin(0.0013f * t + 1.0f);
+        for (int w = 0; w < 2 * BankSpan * BankLanes; ++w) {
+            const float t = static_cast<float>(span * 2 * BankSpan * BankLanes + static_cast<uint32_t>(w));
+            vec.m_wt1[w] = sca.m_wt1[w] = 0.8f * std::sin(0.0011f * t);
+            vec.m_wt2[w] = sca.m_wt2[w] = 0.7f * std::sin(0.0013f * t + 1.0f);
         }
         const bool table = span % 2 == 1;
         // Every register its own models (26.09.2026), the scalar reference its lane's.
-        unsigned regModels[kBankLanes] = {}, laneModel[kBankLanes] = {};
-        for (int l = 0; l < kBankLanes; ++l) {
-            laneModel[l] = 1u << static_cast<int>(vec.fmodel[l]);
+        unsigned regModels[BankLanes] = {}, laneModel[BankLanes] = {};
+        for (int l = 0; l < BankLanes; ++l) {
+            laneModel[l] = 1u << static_cast<int>(vec.m_fmodel[l]);
             regModels[l / W] |= laneModel[l];
         }
-        voiceKernel<VecF, regs>(vec, d, 0, kBankSpan, true, outV, table, regModels, true);
-        for (int l = 0; l < kBankLanes; ++l) voiceKernel<float, 1>(sca, d, l, kBankSpan, true, outS, table, &laneModel[l], true);
-        for (int j = 0; j < kBankSpan * kBankLanes; ++j) {
+        voiceKernel<VecF, regs>(vec, d, 0, BankSpan, true, outV, table, regModels, true);
+        for (int l = 0; l < BankLanes; ++l) voiceKernel<float, 1>(sca, d, l, BankSpan, true, outS, table, &laneModel[l], true);
+        for (int j = 0; j < BankSpan * BankLanes; ++j) {
             if (!sameBits(outV[j], outS[j])) ++bad;
             maxAbs = std::max(maxAbs, std::fabs(outS[j]));
         }
@@ -220,9 +220,9 @@ void testVoiceKernel()
 /** @brief Runs the tests; the exit code is the number of failures. */
 int main()
 {
-    std::printf("eph_vectest: path %s, %d lanes\n", kVecPathName, W);
+    std::printf("eph_vectest: path %s, %d lanes\n", VecPathName, W);
 #if defined(EPH_EXPECT_PATH)
-    check(std::strcmp(kVecPathName, EPH_EXPECT_PATH) == 0, "built for the expected path", fmt("expected %s, got %s", EPH_EXPECT_PATH, kVecPathName));
+    check(std::strcmp(VecPathName, EPH_EXPECT_PATH) == 0, "built for the expected path", fmt("expected %s, got %s", EPH_EXPECT_PATH, VecPathName));
 #endif
     testOps();
     testLadder();

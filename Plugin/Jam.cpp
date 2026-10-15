@@ -11,31 +11,31 @@ namespace frame {
 namespace {
 
 /** @brief The section kinds' names, in the order of JamSection. */
-const char* const kSectionNames[] = { "Intro", "Groove", "Build", "Drop", "Break", "Outro" };
+const char* const SectionNames[] = { "Intro", "Groove", "Build", "Drop", "Break", "Outro" };
 
 /** @brief An instrument's name of a section, and what it is in the jam. */
 struct SectionName {
-    const char* name;      ///< the instrument's name (a prefix where @c prefix is set)
-    JamSection section;    ///< the kind it is
-    float energy;          ///< its energy
-    bool drop;             ///< whether it lands as a drop
-    bool prefix;           ///< @c name is a prefix ("Block 3")
+    const char* m_name;      ///< the instrument's name (a prefix where @c prefix is set)
+    JamSectionE m_section;    ///< the kind it is
+    float m_energy;          ///< its energy
+    bool m_drop;             ///< whether it lands as a drop
+    bool m_prefix;           ///< @c name is a prefix ("Block 3")
 };
 
 /** @brief Every name the family's instruments give their sections (their Cue.h), and the jam's own. */
-const SectionName kNames[] = {
-    { "Intro", JamSection::Intro, 0.30f, false, false },      { "Groove", JamSection::Groove, 0.55f, false, false },
-    { "Build", JamSection::Build, 0.60f, false, false },      { "Drop", JamSection::Drop, 0.90f, true, false },
-    { "Break", JamSection::Break, 0.35f, false, false },      { "Outro", JamSection::Outro, 0.30f, false, false },
-    { "Block", JamSection::Groove, 0.60f, false, true },      { "Reduction", JamSection::Break, 0.35f, false, false },
-    { "Return", JamSection::Drop, 0.90f, true, false },       { "Breakdown", JamSection::Break, 0.30f, false, false },
-    { "Main drop", JamSection::Drop, 1.00f, true, false },    { "ATMOSPHERE", JamSection::Intro, 0.20f, false, false },
-    { "ENTRY", JamSection::Groove, 0.45f, false, false },     { "BUILD", JamSection::Build, 0.60f, false, false },
-    { "LEAD", JamSection::Drop, 0.75f, false, false },        { "PEAK", JamSection::Drop, 0.95f, true, false },
-    { "BREAKDOWN", JamSection::Break, 0.35f, false, false },  { "BRIDGE", JamSection::Groove, 0.50f, false, false },
-    { "CODA", JamSection::Outro, 0.30f, false, false },       { "Pdb", JamSection::Build, 0.70f, false, false },
-    { "PDB", JamSection::Build, 0.70f, false, false },
-    { "Cut", JamSection::Break, 0.25f, false, false },
+const SectionName Names[] = {
+    { "Intro", JamSectionE::INTRO, 0.30f, false, false },      { "Groove", JamSectionE::GROOVE, 0.55f, false, false },
+    { "Build", JamSectionE::BUILD, 0.60f, false, false },      { "Drop", JamSectionE::DROP, 0.90f, true, false },
+    { "Break", JamSectionE::BREAK, 0.35f, false, false },      { "Outro", JamSectionE::OUTRO, 0.30f, false, false },
+    { "Block", JamSectionE::GROOVE, 0.60f, false, true },      { "Reduction", JamSectionE::BREAK, 0.35f, false, false },
+    { "Return", JamSectionE::DROP, 0.90f, true, false },       { "Breakdown", JamSectionE::BREAK, 0.30f, false, false },
+    { "Main drop", JamSectionE::DROP, 1.00f, true, false },    { "ATMOSPHERE", JamSectionE::INTRO, 0.20f, false, false },
+    { "ENTRY", JamSectionE::GROOVE, 0.45f, false, false },     { "BUILD", JamSectionE::BUILD, 0.60f, false, false },
+    { "LEAD", JamSectionE::DROP, 0.75f, false, false },        { "PEAK", JamSectionE::DROP, 0.95f, true, false },
+    { "BREAKDOWN", JamSectionE::BREAK, 0.35f, false, false },  { "BRIDGE", JamSectionE::GROOVE, 0.50f, false, false },
+    { "CODA", JamSectionE::OUTRO, 0.30f, false, false },       { "Pdb", JamSectionE::BUILD, 0.70f, false, false },
+    { "PDB", JamSectionE::BUILD, 0.70f, false, false },
+    { "Cut", JamSectionE::BREAK, 0.25f, false, false },
 };
 
 /** @brief Appends an OSC string to @p b: the text, its terminator, nulls to the next multiple of four. */
@@ -90,27 +90,27 @@ bool getFloat(const char* d, int size, int& pos, float& v)
     return true;
 }
 
-constexpr int64_t kLeaderTimeoutMs = 4000;   ///< a leader not heard for this long is gone: the follower plays its own way
+constexpr int64_t LeaderTimeoutMs = 4000;   ///< a leader not heard for this long is gone: the follower plays its own way
 
 } // namespace
 
-const char* jamSectionName(JamSection s) { return kSectionNames[static_cast<int>(s) % 6]; }
+const char* jamSectionName(JamSectionE s) { return SectionNames[static_cast<int>(s) % 6]; }
 
-JamSection jamSectionOf(const char* name, float& energy, bool& drop)
+JamSectionE jamSectionOf(const char* name, float& energy, bool& drop)
 {
-    for (const SectionName& n : kNames)
-        if (n.prefix ? std::strncmp(name, n.name, std::strlen(n.name)) == 0 : std::strcmp(name, n.name) == 0) {
-            energy = n.energy;
-            drop = n.drop;
-            return n.section;
+    for (const SectionName& n : Names)
+        if (n.m_prefix ? std::strncmp(name, n.m_name, std::strlen(n.m_name)) == 0 : std::strcmp(name, n.m_name) == 0) {
+            energy = n.m_energy;
+            drop = n.m_drop;
+            return n.m_section;
         }
     energy = 0.5f;
     drop = false;
-    return JamSection::Groove;
+    return JamSectionE::GROOVE;
 }
 
 JamBus::JamBus(const juce::String& app)
-    : juce::Thread(app + " jam"), app_(app), id_(juce::String::toHexString(juce::Random::getSystemRandom().nextInt()))
+    : juce::Thread(app + " jam"), m_app(app), m_id(juce::String::toHexString(juce::Random::getSystemRandom().nextInt()))
 {
 }
 
@@ -119,57 +119,57 @@ JamBus::~JamBus()
     stopThread(2000);
 }
 
-void JamBus::setRole(Settings::JamRole r)
+void JamBus::setRole(Settings::JamRoleE r)
 {
     const int want = static_cast<int>(r);
-    if (want == role_.load(std::memory_order_relaxed)) return;
+    if (want == m_role.load(std::memory_order_relaxed)) return;
     stopThread(2000);
-    role_.store(want, std::memory_order_relaxed);
-    leaderRoot_.store(-1, std::memory_order_relaxed);
-    leaderSeenMs_.store(0, std::memory_order_relaxed);
+    m_role.store(want, std::memory_order_relaxed);
+    m_leaderRoot.store(-1, std::memory_order_relaxed);
+    m_leaderSeenMs.store(0, std::memory_order_relaxed);
     {
-        const juce::ScopedLock g(lock_);
-        leaderName_ = leaderId_ = leaderMode_ = {};
-        peers_.clear();
+        const juce::ScopedLock g(m_lock);
+        m_leaderName = m_leaderId = m_leaderMode = {};
+        m_peers.clear();
     }
-    if (r != Settings::JamRole::Off) startThread();
+    if (r != Settings::JamRoleE::OFF) startThread();
 }
 
 bool JamBus::open()
 {
-    socket_ = std::make_unique<juce::DatagramSocket>(false);
-    socket_->setEnablePortReuse(true);   // every instrument on this machine listens on the same port
-    if (!socket_->bindToPort(kPort) || !socket_->joinMulticast(kGroup)) {
-        socket_.reset();
+    m_socket = std::make_unique<juce::DatagramSocket>(false);
+    m_socket->setEnablePortReuse(true);   // every instrument on this machine listens on the same port
+    if (!m_socket->bindToPort(Port) || !m_socket->joinMulticast(Group)) {
+        m_socket.reset();
         return false;
     }
-    socket_->setMulticastLoopbackEnabled(true);   // and the others on this machine hear it too
+    m_socket->setMulticastLoopbackEnabled(true);   // and the others on this machine hear it too
     return true;
 }
 
 void JamBus::send(const juce::MemoryBlock& bytes)
 {
-    if (socket_ != nullptr) socket_->write(kGroup, kPort, bytes.getData(), static_cast<int>(bytes.getSize()));
+    if (m_socket != nullptr) m_socket->write(Group, Port, bytes.getData(), static_cast<int>(bytes.getSize()));
 }
 
-void JamBus::postSection(JamSection s, float energy, bool drop, int64_t bar)
+void JamBus::postSection(JamSectionE s, float energy, bool drop, int64_t bar)
 {
     Out o;
-    o.kind = 0;
-    o.section = static_cast<uint8_t>(s);
-    o.energy = energy;
-    o.drop = drop;
-    o.bar = bar;
-    out_.push(o);
+    o.m_kind = 0;
+    o.m_section = static_cast<uint8_t>(s);
+    o.m_energy = energy;
+    o.m_drop = drop;
+    o.m_bar = bar;
+    m_out.push(o);
 }
 
 void JamBus::postKey(int root, const char* mode)
 {
     Out o;
-    o.kind = 1;
-    o.root = static_cast<int8_t>(((root % 12) + 12) % 12);
-    std::strncpy(o.mode, mode != nullptr ? mode : "", sizeof(o.mode) - 1);
-    out_.push(o);
+    o.m_kind = 1;
+    o.m_root = static_cast<int8_t>(((root % 12) + 12) % 12);
+    std::strncpy(o.m_mode, mode != nullptr ? mode : "", sizeof(o.m_mode) - 1);
+    m_out.push(o);
 }
 
 void JamBus::run()
@@ -179,23 +179,23 @@ void JamBus::run()
     char buf[1024];
     while (!threadShouldExit()) {
         const int64_t now = juce::Time::currentTimeMillis();
-        const bool leading = role() == Settings::JamRole::Lead;
+        const bool leading = role() == Settings::JamRoleE::LEAD;
         // What the audio thread posted: a leader sends it, anyone else lets it go.
         Out o;
-        while (out_.pop(o)) {
+        while (m_out.pop(o)) {
             if (!leading) continue;
             juce::MemoryOutputStream b;
-            if (o.kind == 1) {
+            if (o.m_kind == 1) {
                 putString(b, "/family/key"); putString(b, ",sis");
-                putString(b, id_.toRawUTF8()); putInt(b, o.root); putString(b, o.mode);
-                lastKeyRoot_ = o.root;
-                std::memcpy(lastKeyMode_, o.mode, sizeof(lastKeyMode_));
+                putString(b, m_id.toRawUTF8()); putInt(b, o.m_root); putString(b, o.m_mode);
+                m_lastKeyRoot = o.m_root;
+                std::memcpy(m_lastKeyMode, o.m_mode, sizeof(m_lastKeyMode));
             } else {
                 putString(b, "/family/section"); putString(b, ",ssfii");
-                putString(b, id_.toRawUTF8()); putString(b, kSectionNames[o.section % 6]); putFloat(b, o.energy);
-                putInt(b, o.drop ? 1 : 0); putInt(b, static_cast<int32_t>(o.bar));
-                lastSection_ = o;
-                haveSection_ = true;
+                putString(b, m_id.toRawUTF8()); putString(b, SectionNames[o.m_section % 6]); putFloat(b, o.m_energy);
+                putInt(b, o.m_drop ? 1 : 0); putInt(b, static_cast<int32_t>(o.m_bar));
+                m_lastSection = o;
+                m_haveSection = true;
             }
             send(b.getMemoryBlock());
         }
@@ -203,35 +203,35 @@ void JamBus::run()
             lastHello = now;
             juce::MemoryOutputStream b;
             putString(b, "/family/hello"); putString(b, ",ssi");
-            putString(b, app_.toRawUTF8()); putString(b, id_.toRawUTF8()); putInt(b, role_.load(std::memory_order_relaxed));
+            putString(b, m_app.toRawUTF8()); putString(b, m_id.toRawUTF8()); putInt(b, m_role.load(std::memory_order_relaxed));
             send(b.getMemoryBlock());
         }
         if (leading && now - lastRepeat >= 2000) {   // the key and the section once more, for a follower who joins late
             lastRepeat = now;
-            if (lastKeyRoot_ >= 0) {
+            if (m_lastKeyRoot >= 0) {
                 juce::MemoryOutputStream b;
                 putString(b, "/family/key"); putString(b, ",sis");
-                putString(b, id_.toRawUTF8()); putInt(b, lastKeyRoot_); putString(b, lastKeyMode_);
+                putString(b, m_id.toRawUTF8()); putInt(b, m_lastKeyRoot); putString(b, m_lastKeyMode);
                 send(b.getMemoryBlock());
             }
-            if (haveSection_) {
+            if (m_haveSection) {
                 juce::MemoryOutputStream b;
                 putString(b, "/family/section"); putString(b, ",ssfii");
-                putString(b, id_.toRawUTF8()); putString(b, kSectionNames[lastSection_.section % 6]);
-                putFloat(b, lastSection_.energy); putInt(b, 0); putInt(b, -1);   // the state, not a new drop: at once
+                putString(b, m_id.toRawUTF8()); putString(b, SectionNames[m_lastSection.m_section % 6]);
+                putFloat(b, m_lastSection.m_energy); putInt(b, 0); putInt(b, -1);   // the state, not a new drop: at once
                 send(b.getMemoryBlock());
             }
         }
-        if (socket_ != nullptr && socket_->waitUntilReady(true, 20) == 1) {
+        if (m_socket != nullptr && m_socket->waitUntilReady(true, 20) == 1) {
             juce::String from;
             int port = 0;
-            const int n = socket_->read(buf, sizeof(buf), false, from, port);
+            const int n = m_socket->read(buf, sizeof(buf), false, from, port);
             if (n > 0) receive(buf, n);
-        } else if (socket_ == nullptr) {
+        } else if (m_socket == nullptr) {
             wait(20);
         }
     }
-    socket_.reset();
+    m_socket.reset();
 }
 
 void JamBus::receive(const char* d, int size)
@@ -245,30 +245,30 @@ void JamBus::receive(const char* d, int size)
         char app[32];
         int32_t role = 0;
         if (!getString(d, size, pos, app, sizeof(app)) || !getString(d, size, pos, id, sizeof(id)) || !getInt(d, size, pos, role)) return;
-        if (id_ == id) return;   // our own, back over the loopback
-        const juce::ScopedLock g(lock_);
-        peers_[juce::String(id)] = { role, now };
-        if (role == static_cast<int>(Settings::JamRole::Lead) && (leaderId_.isEmpty() || leaderId_ == id || leaderGone(now))) {
-            leaderId_ = id;
-            leaderName_ = app;
-            leaderSeenMs_.store(now, std::memory_order_relaxed);
+        if (m_id == id) return;   // our own, back over the loopback
+        const juce::ScopedLock g(m_lock);
+        m_peers[juce::String(id)] = { role, now };
+        if (role == static_cast<int>(Settings::JamRoleE::LEAD) && (m_leaderId.isEmpty() || m_leaderId == id || leaderGone(now))) {
+            m_leaderId = id;
+            m_leaderName = app;
+            m_leaderSeenMs.store(now, std::memory_order_relaxed);
         }
         return;
     }
-    if (role() != Settings::JamRole::Follow) return;   // keys and sections are for followers
+    if (role() != Settings::JamRoleE::FOLLOW) return;   // keys and sections are for followers
     if (std::strcmp(address, "/family/key") == 0 && std::strcmp(tags, ",sis") == 0) {
         int32_t root = -1;
         char mode[32];
         if (!getString(d, size, pos, id, sizeof(id)) || !getInt(d, size, pos, root) || !getString(d, size, pos, mode, sizeof(mode))) return;
-        if (id_ == id) return;
+        if (m_id == id) return;
         {
-            const juce::ScopedLock g(lock_);
-            if (leaderId_.isNotEmpty() && leaderId_ != id && !leaderGone(now)) return;   // one leader at a time
-            leaderId_ = id;
-            leaderMode_ = mode;
+            const juce::ScopedLock g(m_lock);
+            if (m_leaderId.isNotEmpty() && m_leaderId != id && !leaderGone(now)) return;   // one leader at a time
+            m_leaderId = id;
+            m_leaderMode = mode;
         }
-        leaderRoot_.store(((root % 12) + 12) % 12, std::memory_order_relaxed);
-        leaderSeenMs_.store(now, std::memory_order_relaxed);
+        m_leaderRoot.store(((root % 12) + 12) % 12, std::memory_order_relaxed);
+        m_leaderSeenMs.store(now, std::memory_order_relaxed);
         return;
     }
     if (std::strcmp(address, "/family/section") == 0 && std::strcmp(tags, ",ssfii") == 0) {
@@ -278,83 +278,83 @@ void JamBus::receive(const char* d, int size)
         if (!getString(d, size, pos, id, sizeof(id)) || !getString(d, size, pos, kind, sizeof(kind)) || !getFloat(d, size, pos, energy)
             || !getInt(d, size, pos, drop) || !getInt(d, size, pos, bar))
             return;
-        if (id_ == id) return;
+        if (m_id == id) return;
         {
-            const juce::ScopedLock g(lock_);
-            if (leaderId_.isNotEmpty() && leaderId_ != id && !leaderGone(now)) return;
-            leaderId_ = id;
+            const juce::ScopedLock g(m_lock);
+            if (m_leaderId.isNotEmpty() && m_leaderId != id && !leaderGone(now)) return;
+            m_leaderId = id;
         }
         float e = 0.5f;
         bool dr = false;
         In in;
-        in.section = static_cast<uint8_t>(jamSectionOf(kind, e, dr));
-        in.energy = juce::jlimit(0.0f, 1.0f, energy);
-        in.drop = drop != 0;
-        in.bar = bar;
-        in_.push(in);
-        leaderSeenMs_.store(now, std::memory_order_relaxed);
+        in.m_section = static_cast<uint8_t>(jamSectionOf(kind, e, dr));
+        in.m_energy = juce::jlimit(0.0f, 1.0f, energy);
+        in.m_drop = drop != 0;
+        in.m_bar = bar;
+        m_in.push(in);
+        m_leaderSeenMs.store(now, std::memory_order_relaxed);
     }
 }
 
 bool JamBus::leaderGone(int64_t now) const
 {
-    return now - leaderSeenMs_.load(std::memory_order_relaxed) >= kLeaderTimeoutMs;
+    return now - m_leaderSeenMs.load(std::memory_order_relaxed) >= LeaderTimeoutMs;
 }
 
 JamState JamBus::stateAt(double sharedBeat)
 {
-    if (role() != Settings::JamRole::Follow) return {};
+    if (role() != Settings::JamRoleE::FOLLOW) return {};
     In in;
-    while (in_.pop(in)) {
-        if (pendingCount_ < static_cast<int>(pending_.size())) pending_[static_cast<size_t>(pendingCount_++)] = in;
-        else pending_[pending_.size() - 1] = in;   // a flood: the newest wins
+    while (m_in.pop(in)) {
+        if (m_pendingCount < static_cast<int>(m_pending.size())) m_pending[static_cast<size_t>(m_pendingCount++)] = in;
+        else m_pending[m_pending.size() - 1] = in;   // a flood: the newest wins
     }
     const int64_t bar = sharedBeat >= 0.0 ? static_cast<int64_t>(std::floor(sharedBeat / 4.0 + 1.0e-6)) : -1;
     // Whatever is due -- its bar has come, or it has none, or there is no shared timeline -- in the order it came.
     int keep = 0;
-    for (int i = 0; i < pendingCount_; ++i) {
-        const In& p = pending_[static_cast<size_t>(i)];
-        if (p.bar < 0 || bar < 0 || p.bar <= bar) {
-            const auto s = static_cast<JamSection>(p.section);
-            state_.energy = p.energy;
-            if (s == JamSection::Break) state_.rhythmOut = true;
-            else if (p.drop || s == JamSection::Drop || s == JamSection::Groove || s == JamSection::Build) state_.rhythmOut = false;
+    for (int i = 0; i < m_pendingCount; ++i) {
+        const In& p = m_pending[static_cast<size_t>(i)];
+        if (p.m_bar < 0 || bar < 0 || p.m_bar <= bar) {
+            const auto s = static_cast<JamSectionE>(p.m_section);
+            m_state.m_energy = p.m_energy;
+            if (s == JamSectionE::BREAK) m_state.m_rhythmOut = true;
+            else if (p.m_drop || s == JamSectionE::DROP || s == JamSectionE::GROOVE || s == JamSectionE::BUILD) m_state.m_rhythmOut = false;
         } else {
-            pending_[static_cast<size_t>(keep++)] = p;
+            m_pending[static_cast<size_t>(keep++)] = p;
         }
     }
-    pendingCount_ = keep;
-    const bool alive = juce::Time::currentTimeMillis() - leaderSeenMs_.load(std::memory_order_relaxed) < kLeaderTimeoutMs;
-    if (!alive) state_ = {};   // the leader is gone: the follower plays its own way again
-    else state_.root = leaderRoot_.load(std::memory_order_relaxed);
-    return state_;
+    m_pendingCount = keep;
+    const bool alive = juce::Time::currentTimeMillis() - m_leaderSeenMs.load(std::memory_order_relaxed) < LeaderTimeoutMs;
+    if (!alive) m_state = {};   // the leader is gone: the follower plays its own way again
+    else m_state.m_root = m_leaderRoot.load(std::memory_order_relaxed);
+    return m_state;
 }
 
 juce::String JamBus::leaderMode() const
 {
-    const juce::ScopedLock g(lock_);
-    return leaderMode_;
+    const juce::ScopedLock g(m_lock);
+    return m_leaderMode;
 }
 
 juce::String JamBus::status() const
 {
-    const Settings::JamRole r = role();
-    if (r == Settings::JamRole::Off) return "off";
-    const juce::ScopedLock g(lock_);
+    const Settings::JamRoleE r = role();
+    if (r == Settings::JamRoleE::OFF) return "off";
+    const juce::ScopedLock g(m_lock);
     const int64_t now = juce::Time::currentTimeMillis();
     int followers = 0, others = 0;
-    for (const auto& p : peers_)
-        if (now - p.second.second < kLeaderTimeoutMs) {
+    for (const auto& p : m_peers)
+        if (now - p.second.second < LeaderTimeoutMs) {
             ++others;
-            if (p.second.first == static_cast<int>(Settings::JamRole::Follow)) ++followers;
+            if (p.second.first == static_cast<int>(Settings::JamRoleE::FOLLOW)) ++followers;
         }
-    if (r == Settings::JamRole::Lead)
+    if (r == Settings::JamRoleE::LEAD)
         return others == 0 ? juce::String("leading; nobody else heard") : "leading; " + juce::String(followers) + " following";
-    const bool alive = now - leaderSeenMs_.load(std::memory_order_relaxed) < kLeaderTimeoutMs;
+    const bool alive = now - m_leaderSeenMs.load(std::memory_order_relaxed) < LeaderTimeoutMs;
     if (!alive) return others == 0 ? juce::String("following; nobody heard") : juce::String("following; no leader heard");
-    const int root = leaderRoot_.load(std::memory_order_relaxed);
-    static const char* const kRoots[] = { "C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B" };
-    return "following " + leaderName_ + (root >= 0 ? " (" + juce::String(kRoots[root]) + " " + leaderMode_ + ")" : juce::String());
+    const int root = m_leaderRoot.load(std::memory_order_relaxed);
+    static const char* const Roots[] = { "C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B" };
+    return "following " + m_leaderName + (root >= 0 ? " (" + juce::String(Roots[root]) + " " + m_leaderMode + ")" : juce::String());
 }
 
 } // namespace frame

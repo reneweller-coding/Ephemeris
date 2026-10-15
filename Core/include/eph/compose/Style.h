@@ -23,48 +23,48 @@ namespace eph {
 
 /** @brief One style profile. */
 struct StyleProfile {
-    const char* name;                    ///< the profile's name, as in compose.style
-    float bpmLow;                        ///< lowest tempo
-    float bpmHigh;                       ///< highest tempo
-    float minutesLow;                    ///< shortest piece in a concert
-    float minutesHigh;                   ///< longest piece in a concert
-    int phasesLow;                       ///< fewest sequence phases per piece
-    int phasesHigh;                      ///< most sequence phases per piece
-    float introShare;                    ///< share of the piece in the atmosphere before the first phase
-    float codaShare;                     ///< share of the piece in the coda after the last phase
-    float newTempoChance;                ///< a later phase in a tempo of its own
-    float newKeyChance;                  ///< a later phase in a key of its own
-    int peakRows;                        ///< note rows sounding at the peak (bass included)
-    std::vector<int> counterLengths;     ///< lengths the counter rows are drawn from (in their division)
-    float mutation;                      ///< mutation chance per cycle of the note rows
-    RowDivision transposerDivision;      ///< how slowly the roots move
-    int transposerLength;                ///< steps of the transposer row
-    float tapeChance;                    ///< chance that a piece has the tape keys
-    float stringsChance;                 ///< chance of the string machine
-    float leadChance;                    ///< chance of a lead section in a phase
-    float bleepChance;                   ///< chance of the atmosphere's bleeps
-    float drumsChance;                   ///< chance of drums
-    TapeSet tape;                        ///< the tape set of the tape keys
-    float leadIntensity;                 ///< density of the lead's phrases
-    HandStyle hands;                     ///< timing of the hands
-    float darkness;                      ///< offset of the voices' cutoffs at rest (negative: darker)
-    float hallSeconds;                   ///< decay of the hall
-    float levelDb;                       ///< master offset towards the profile's measured loudness
-    float grainChance = 0.0f;            ///< chance of the atmosphere's granular cloud in a piece (25.09.2026)
-    float peakLufs = -12.0f;             ///< what a piece's loudest part should measure (26.09.2026, Leveler.h)
+    const char* m_name;                    ///< the profile's name, as in compose.style
+    float m_bpmLow;                        ///< lowest tempo
+    float m_bpmHigh;                       ///< highest tempo
+    float m_minutesLow;                    ///< shortest piece in a concert
+    float m_minutesHigh;                   ///< longest piece in a concert
+    int m_phasesLow;                       ///< fewest sequence phases per piece
+    int m_phasesHigh;                      ///< most sequence phases per piece
+    float m_introShare;                    ///< share of the piece in the atmosphere before the first phase
+    float m_codaShare;                     ///< share of the piece in the coda after the last phase
+    float m_newTempoChance;                ///< a later phase in a tempo of its own
+    float m_newKeyChance;                  ///< a later phase in a key of its own
+    int m_peakRows;                        ///< note rows sounding at the peak (bass included)
+    std::vector<int> m_counterLengths;     ///< lengths the counter rows are drawn from (in their division)
+    float m_mutation;                      ///< mutation chance per cycle of the note rows
+    RowDivisionE m_transposerDivision;      ///< how slowly the roots move
+    int m_transposerLength;                ///< steps of the transposer row
+    float m_tapeChance;                    ///< chance that a piece has the tape keys
+    float m_stringsChance;                 ///< chance of the string machine
+    float m_leadChance;                    ///< chance of a lead section in a phase
+    float m_bleepChance;                   ///< chance of the atmosphere's bleeps
+    float m_drumsChance;                   ///< chance of drums
+    TapeSetE m_tape;                        ///< the tape set of the tape keys
+    float m_leadIntensity;                 ///< density of the lead's phrases
+    HandStyle m_hands;                     ///< timing of the hands
+    float m_darkness;                      ///< offset of the voices' cutoffs at rest (negative: darker)
+    float m_hallSeconds;                   ///< decay of the hall
+    float m_levelDb;                       ///< master offset towards the profile's measured loudness
+    float m_grainChance = 0.0f;            ///< chance of the atmosphere's granular cloud in a piece (25.09.2026)
+    float m_peakLufs = -12.0f;             ///< what a piece's loudest part should measure (26.09.2026, Leveler.h)
     // The night sets (25.09.2026, composeNightSet): a piece that overlaps its neighbours as a DJ mixes two tracks.
-    int introBars = 0;                   ///< the atmosphere before the first phase in bars (0: introShare)
-    int entryBars = 0;                   ///< the first phase's entry (the bass alone) in bars (0: its share)
-    int codaBars = 0;                    ///< the coda in bars (0: codaShare)
-    bool djOutro = false;                ///< the coda an outro to mix out of: the rows play on into it (below)
-    int bassHandover = 0;                ///< bars into the outro where the next piece's bass comes in: the counter rows
+    int m_introBars = 0;                   ///< the atmosphere before the first phase in bars (0: introShare)
+    int m_entryBars = 0;                   ///< the first phase's entry (the bass alone) in bars (0: its share)
+    int m_codaBars = 0;                    ///< the coda in bars (0: codaShare)
+    bool m_djOutro = false;                ///< the coda an outro to mix out of: the rows play on into it (below)
+    int m_bassHandover = 0;                ///< bars into the outro where the next piece's bass comes in: the counter rows
                                          ///< stop there, the bass gives up its lows and recedes (0: halfway)
-    int mainHandover = 0;                ///< bars into the outro where the next piece's main sequence comes in: this
+    int m_mainHandover = 0;                ///< bars into the outro where the next piece's main sequence comes in: this
                                          ///< one's recedes from there to the end (0: at the bass's handover)
 };
 
 /** @brief The profile of a style. */
-const StyleProfile& styleProfile(Style style);
+const StyleProfile& styleProfile(StyleE style);
 
 /**
  * @brief A profile between @p a and @p b (compose.morph_to, a concert that wanders from one style to another):

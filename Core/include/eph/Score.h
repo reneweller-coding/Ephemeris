@@ -26,95 +26,95 @@
 namespace eph {
 
 /** @brief The parts of the score, one MIDI track each (PLAN 7). Appended to, never reordered. */
-enum class Part : int { Row1 = 0, Row2, Row3, Row4, Row5, Row6, Row7, Row8,
-                        Lead, TapeKeys, Strings, Pad, Drone, Atmos, Drums, Count };
-constexpr int kNumParts = static_cast<int>(Part::Count);   ///< number of parts
-extern const char* const kPartNames[kNumParts];            ///< "row1" .. "row8", "lead", "tape", ...
+enum class PartE : int { ROW1 = 0, ROW2, ROW3, ROW4, ROW5, ROW6, ROW7, ROW8,
+                        LEAD, TAPE_KEYS, STRINGS, PAD, DRONE, ATMOS, DRUMS, COUNT };
+constexpr int NumParts = static_cast<int>(PartE::COUNT);   ///< number of parts
+extern const char* const PartNames[NumParts];            ///< "row1" .. "row8", "lead", "tape", ...
 /** @brief The part of row @p r (0-based). */
-constexpr Part rowPart(int r) { return static_cast<Part>(static_cast<int>(Part::Row1) + r); }
+constexpr PartE rowPart(int r) { return static_cast<PartE>(static_cast<int>(PartE::ROW1) + r); }
 
 /** @brief One note. */
 struct NoteEvent {
-    double beat = 0.0;        ///< onset in beats
-    double length = 0.25;     ///< duration in beats
-    Part part = Part::Row1;   ///< which part plays it
-    int pitch = 60;           ///< MIDI note number
-    float velocity = 0.8f;    ///< 0..1
-    bool accent = false;      ///< accented step (filter envelope and level up)
-    bool slide = false;       ///< glide into the next note
-    float bright = 0.0f;      ///< the modulation sequencer's step: octaves on the filter's cutoff for this note (25.09.2026)
-    float decay = 0.0f;       ///< the second lane's step: the filter envelope's decay times 2^decay for this note
+    double m_beat = 0.0;        ///< onset in beats
+    double m_length = 0.25;     ///< duration in beats
+    PartE m_part = PartE::ROW1;   ///< which part plays it
+    int m_pitch = 60;           ///< MIDI note number
+    float m_velocity = 0.8f;    ///< 0..1
+    bool m_accent = false;      ///< accented step (filter envelope and level up)
+    bool m_slide = false;       ///< glide into the next note
+    float m_bright = 0.0f;      ///< the modulation sequencer's step: octaves on the filter's cutoff for this note (25.09.2026)
+    float m_decay = 0.0f;       ///< the second lane's step: the filter envelope's decay times 2^decay for this note
 };
 
 /** @brief How a gesture moves between its two values. */
-enum class GestureShape : uint8_t {
-    MinimumJerk,   ///< the smooth S of a human reach: 10t^3 - 15t^4 + 6t^5 (Flash and Hogan 1985)
-    Linear,        ///< constant speed
-    EaseIn,        ///< slow start, t^2 -- a knob that is grabbed, then turned
-    EaseOut,       ///< fast start, 1 - (1 - t)^2 -- a throw that settles
-    Step,          ///< jumps to the end value at the start (a switch, a quick grab)
+enum class GestureShapeE : uint8_t {
+    MINIMUM_JERK,   ///< the smooth S of a human reach: 10t^3 - 15t^4 + 6t^5 (Flash and Hogan 1985)
+    LINEAR,        ///< constant speed
+    EASE_IN,        ///< slow start, t^2 -- a knob that is grabbed, then turned
+    EASE_OUT,       ///< fast start, 1 - (1 - t)^2 -- a throw that settles
+    STEP,          ///< jumps to the end value at the start (a switch, a quick grab)
 };
 
 /** @brief One movement of one knob. */
 struct Gesture {
-    int param = -1;             ///< parameter id (Params.h) the hand moves
-    double beat = 0.0;          ///< start in beats
-    double length = 16.0;       ///< duration in beats (0 behaves like Step)
-    float from = 0.0f;          ///< offset at the start, in the knob's normalised range (-1..1)
-    float to = 0.0f;            ///< offset at the end
-    GestureShape shape = GestureShape::MinimumJerk;   ///< the path between the two
-    uint8_t hand = 0;           ///< which of the player's two hands (PLAN 6.4: never more than two at once)
+    int m_param = -1;             ///< parameter id (Params.h) the hand moves
+    double m_beat = 0.0;          ///< start in beats
+    double m_length = 16.0;       ///< duration in beats (0 behaves like Step)
+    float m_from = 0.0f;          ///< offset at the start, in the knob's normalised range (-1..1)
+    float m_to = 0.0f;            ///< offset at the end
+    GestureShapeE m_shape = GestureShapeE::MINIMUM_JERK;   ///< the path between the two
+    uint8_t m_hand = 0;           ///< which of the player's two hands (PLAN 6.4: never more than two at once)
 };
 
 /** @brief Position 0..1 along a shape at normalised time @p t (clamped to 0..1). */
-double gestureShape(GestureShape shape, double t);
+double gestureShape(GestureShapeE shape, double t);
 /** @brief Offset of one gesture at @p beat: @p from before it, its curve during it, @p to after it. */
 float gestureValue(const Gesture& g, double beat);
 
 /** @brief What a rack event does to its row. */
-enum class RackOp : uint8_t {
-    Start,        ///< the row begins (value unused)
-    Stop,         ///< the row stops
-    Transpose,    ///< transposition in semitones becomes @p value
-    SetLength,    ///< the row's length becomes @p value steps
-    Mutate,       ///< step @p value changes (the new content is in the notes that follow)
-    Key,          ///< the whole rack moves to a new key, @p value semitones from the piece's (row unused; Phase 4)
-    Chord,        ///< the row's steps move by @p value scale degrees (the bass wandering under the sequence; -1: all rows)
-    Scale,        ///< the rack plays in scale @p value (compose.scale order) from here: a parallel change of mode
-    Ratchet,      ///< @p value steps of the row, drawn anew, split into two to four triggers (0: none)
-    Thin,         ///< @p value more steps of the row fall silent: the sequence loses its pieces
-    Division,     ///< the row's division becomes @p value (RowDivision) on its next step: the pulse doubled or halved
-    Fill,         ///< @p value of the row's thinned steps sound again (a row that came in with rests fills up)
+enum class RackOpE : uint8_t {
+    START,        ///< the row begins (value unused)
+    STOP,         ///< the row stops
+    TRANSPOSE,    ///< transposition in semitones becomes @p value
+    SET_LENGTH,    ///< the row's length becomes @p value steps
+    MUTATE,       ///< step @p value changes (the new content is in the notes that follow)
+    KEY,          ///< the whole rack moves to a new key, @p value semitones from the piece's (row unused; Phase 4)
+    CHORD,        ///< the row's steps move by @p value scale degrees (the bass wandering under the sequence; -1: all rows)
+    SCALE,        ///< the rack plays in scale @p value (compose.scale order) from here: a parallel change of mode
+    RATCHET,      ///< @p value steps of the row, drawn anew, split into two to four triggers (0: none)
+    THIN,         ///< @p value more steps of the row fall silent: the sequence loses its pieces
+    DIVISION,     ///< the row's division becomes @p value (RowDivision) on its next step: the pulse doubled or halved
+    FILL,         ///< @p value of the row's thinned steps sound again (a row that came in with rests fills up)
     // The variations of the style guide's 4.3 (25.09.2026, the variation planner):
-    Gate,         ///< @p value steps of the row switch: a sounding one falls silent or a silent one sounds (half keep sounding)
-    OctaveStep,   ///< @p value sounding steps move an octave (up mostly; back where they were moved)
-    Direction,    ///< the row's direction becomes @p value (RowDirection) from its next step
-    Theme,        ///< the row goes back to its pattern as drawn: what gates, octaves and mutations changed is undone
+    GATE,         ///< @p value steps of the row switch: a sounding one falls silent or a silent one sounds (half keep sounding)
+    OCTAVE_STEP,   ///< @p value sounding steps move an octave (up mostly; back where they were moved)
+    DIRECTION,    ///< the row's direction becomes @p value (RowDirection) from its next step
+    THEME,        ///< the row goes back to its pattern as drawn: what gates, octaves and mutations changed is undone
 };
 
 /** @brief One change to the rack. */
 struct RackEvent {
-    double beat = 0.0;          ///< when, in beats
-    int row = 0;                ///< which row (0-based)
-    RackOp op = RackOp::Start;  ///< what happens
-    int value = 0;              ///< the operation's argument
+    double m_beat = 0.0;          ///< when, in beats
+    int m_row = 0;                ///< which row (0-based)
+    RackOpE m_op = RackOpE::START;  ///< what happens
+    int m_value = 0;              ///< the operation's argument
 };
 
 /** @brief A sequencer row's shape as composed, from a beat on: what a display needs to draw it (the orrery). */
 struct RowShape {
-    double from = 0.0;        ///< the beat it holds from (each piece of a concert brings its own)
-    int row = 0;              ///< which row (0-based)
-    int length = 16;          ///< steps per cycle
-    double divBeats = 0.25;   ///< beats per step
-    bool transposer = false;  ///< the transposer row
+    double m_from = 0.0;        ///< the beat it holds from (each piece of a concert brings its own)
+    int m_row = 0;              ///< which row (0-based)
+    int m_length = 16;          ///< steps per cycle
+    double m_divBeats = 0.25;   ///< beats per step
+    bool m_transposer = false;  ///< the transposer row
 };
 
 /** @brief A factory preset the composer chose for a synth, from a beat on (Presets.h; compose.pick_sounds): what a page shows. */
 struct SoundPick {
-    double beat = 0.0;   ///< from where it holds (each piece of a concert brings its own)
-    int module = 0;      ///< the synth's Module, as an int
-    int instance = 0;    ///< which instance (the row, for the voices)
-    int preset = -1;     ///< its index in factoryPresets(module)
+    double m_beat = 0.0;   ///< from where it holds (each piece of a concert brings its own)
+    int m_module = 0;      ///< the synth's Module, as an int
+    int m_instance = 0;    ///< which instance (the row, for the voices)
+    int m_preset = -1;     ///< its index in factoryPresets(module)
 };
 
 /**
@@ -124,12 +124,12 @@ struct SoundPick {
  *        shows it, and a hand that turns the knob turns it from there.
  */
 struct KnobSet {
-    double beat = 0.0;    ///< from where it holds (each piece of a concert brings its own)
-    int param = -1;       ///< the parameter
-    float value = 0.0f;   ///< its value
-    int module = 0;       ///< the synth it belongs to (Module, as an int): a program change is per synth
-    int instance = 0;     ///< ... and its instance (the row, for the voices)
-    int kind = 0;         ///< 0 a sound (a preset's knob), 1 a setting of the mix (a fader, a pan, a send ...)
+    double m_beat = 0.0;    ///< from where it holds (each piece of a concert brings its own)
+    int m_param = -1;       ///< the parameter
+    float m_value = 0.0f;   ///< its value
+    int m_module = 0;       ///< the synth it belongs to (Module, as an int): a program change is per synth
+    int m_instance = 0;     ///< ... and its instance (the row, for the voices)
+    int m_kind = 0;         ///< 0 a sound (a preset's knob), 1 a setting of the mix (a fader, a pan, a send ...)
 };
 
 /**
@@ -137,16 +137,16 @@ struct KnobSet {
  *        should measure, and the correction found for it -- the master gain from the piece's start on.
  */
 struct LevelMark {
-    double beat = 0.0;          ///< the piece's start
-    double peakBeat = 0.0;      ///< where its loudest part begins (its peak)
-    float targetLufs = -12.0f;  ///< what that part should measure (the style's)
-    float trimDb = 0.0f;        ///< the correction (levelScore); 0 until measured
+    double m_beat = 0.0;          ///< the piece's start
+    double m_peakBeat = 0.0;      ///< where its loudest part begins (its peak)
+    float m_targetLufs = -12.0f;  ///< what that part should measure (the style's)
+    float m_trimDb = 0.0f;        ///< the correction (levelScore); 0 until measured
 };
 
 /** @brief A named position: a phase of a piece, the start of a piece. */
 struct Marker {
-    double beat = 0.0;   ///< position in beats
-    std::string text;    ///< name, e.g. "Atmo", "Build", "Piece 2"
+    double m_beat = 0.0;   ///< position in beats
+    std::string m_text;    ///< name, e.g. "Atmo", "Build", "Piece 2"
 };
 
 /** @brief The root offset in force at @p beat in a list of (beat, semitones) changes (0 before the first). */
@@ -154,24 +154,24 @@ int rootShiftAt(const std::vector<std::pair<double, int>>& shifts, double beat);
 
 /** @brief A score of one piece or a whole concert. */
 struct Score {
-    TempoMap tempo;                    ///< the tempo map; every other time is in beats
-    uint64_t seed = 1;                 ///< the seed the score was composed from; the voices' drift derives from it
-    int keyRoot = 9;                   ///< pitch class of the key (A = 9), for the MIDI key signature
-    double lengthBeats = 0.0;          ///< where the score ends
-    std::vector<NoteEvent> notes;      ///< notes, sorted by beat after sort()
-    std::vector<Gesture> gestures;     ///< gestures, sorted by beat after sort()
-    std::vector<RackEvent> rack;       ///< rack events, sorted by beat after sort()
-    std::vector<Marker> markers;       ///< markers, sorted by beat after sort()
-    std::vector<RowShape> rowShapes;   ///< the rows as composed (Composer), in beat order; nothing plays from it
-    std::vector<SoundPick> sounds;     ///< the composer's presets, in beat order: what the pages show
-    std::vector<KnobSet> knobs;        ///< the knobs the composer sets to its presets, in beat order (Engine::load, updateCell)
-    std::vector<LevelMark> levels;     ///< every piece's loudness mark, in beat order (Leveler.h)
+    TempoMap m_tempo;                    ///< the tempo map; every other time is in beats
+    uint64_t m_seed = 1;                 ///< the seed the score was composed from; the voices' drift derives from it
+    int m_keyRoot = 9;                   ///< pitch class of the key (A = 9), for the MIDI key signature
+    double m_lengthBeats = 0.0;          ///< where the score ends
+    std::vector<NoteEvent> m_notes;      ///< notes, sorted by beat after sort()
+    std::vector<Gesture> m_gestures;     ///< gestures, sorted by beat after sort()
+    std::vector<RackEvent> m_rack;       ///< rack events, sorted by beat after sort()
+    std::vector<Marker> m_markers;       ///< markers, sorted by beat after sort()
+    std::vector<RowShape> m_rowShapes;   ///< the rows as composed (Composer), in beat order; nothing plays from it
+    std::vector<SoundPick> m_sounds;     ///< the composer's presets, in beat order: what the pages show
+    std::vector<KnobSet> m_knobs;        ///< the knobs the composer sets to its presets, in beat order (Engine::load, updateCell)
+    std::vector<LevelMark> m_levels;     ///< every piece's loudness mark, in beat order (Leveler.h)
     /** The transposer's roots over time as (beat, semitones), written by whoever ran the rack; the
      *  atmosphere's bleeps and anything else that must be in the rows' root read it. */
-    std::vector<std::pair<double, int>> rootShifts;
+    std::vector<std::pair<double, int>> m_rootShifts;
     /** The scale (compose.scale order) over time as (beat, scale), written by whoever ran the rack (Rack::scales):
      *  a parallel change of mode (RackOp::Scale) shows here. Empty: compose.scale throughout. */
-    std::vector<std::pair<double, int>> scaleShifts;
+    std::vector<std::pair<double, int>> m_scaleShifts;
 
     /** @brief Sorts every list by beat (stable, so equal beats keep the order they were written in). */
     void sort();
@@ -186,9 +186,9 @@ struct Score {
      */
     float gestureOffset(int param, double beat) const;
     /** @brief The transposer's root offset at @p beat (rootShifts). */
-    int rootAt(double beat) const { return rootShiftAt(rootShifts, beat); }
+    int rootAt(double beat) const { return rootShiftAt(m_rootShifts, beat); }
     /** @brief The scale at @p beat (scaleShifts), @p fallback where the score has none. */
-    int scaleAt(double beat, int fallback) const { return scaleShifts.empty() ? fallback : rootShiftAt(scaleShifts, beat); }
+    int scaleAt(double beat, int fallback) const { return m_scaleShifts.empty() ? fallback : rootShiftAt(m_scaleShifts, beat); }
 };
 
 } // namespace eph

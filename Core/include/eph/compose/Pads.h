@@ -9,7 +9,7 @@
  * new tone, so common tones stay (3.9) -- the rule a player's hand follows on a keyboard without thinking.
  *
  * A tape keyboard cannot hold a chord longer than its tapes: the writer re-strikes before the tape
- * ends (`restrikeSeconds`, less than kTapeSeconds) and at every change of root, and staggers the keys of
+ * ends (`restrikeSeconds`, less than TapeSeconds) and at every change of root, and staggers the keys of
  * a chord by a few milliseconds, as ten fingers do.
  */
 #pragma once
@@ -22,17 +22,17 @@ namespace eph {
 
 /** @brief Where and how chords are written. */
 struct PadPlan {
-    Part part = Part::TapeKeys;     ///< which part plays them
-    int keyRoot = 9;                ///< pitch class of the key
-    int scale = 0;                  ///< compose.scale order
-    int low = 50;                   ///< lowest note of the register (MIDI)
-    int high = 74;                  ///< highest note
-    double restrikeSeconds = 7.0;   ///< longest a chord is held before it is struck again
-    bool choir = true;              ///< a choir's plain triads (the tape keys) rather than the whole vocabulary
-    bool openFifth = false;         ///< only the open fifth on the tonic: how a piece ends (3.3)
-    std::vector<std::pair<double, int>> shifts;   ///< the transposer's roots over time
-    std::vector<std::pair<double, int>> chords;   ///< the chord track's degrees over time (empty: the tonic)
-    std::vector<std::pair<double, int>> scales;   ///< the scale over time (Score::scaleShifts; empty: @p scale)
+    PartE m_part = PartE::TAPE_KEYS;     ///< which part plays them
+    int m_keyRoot = 9;                ///< pitch class of the key
+    int m_scale = 0;                  ///< compose.scale order
+    int m_low = 50;                   ///< lowest note of the register (MIDI)
+    int m_high = 74;                  ///< highest note
+    double m_restrikeSeconds = 7.0;   ///< longest a chord is held before it is struck again
+    bool m_choir = true;              ///< a choir's plain triads (the tape keys) rather than the whole vocabulary
+    bool m_openFifth = false;         ///< only the open fifth on the tonic: how a piece ends (3.3)
+    std::vector<std::pair<double, int>> m_shifts;   ///< the transposer's roots over time
+    std::vector<std::pair<double, int>> m_chords;   ///< the chord track's degrees over time (empty: the tonic)
+    std::vector<std::pair<double, int>> m_scales;   ///< the scale over time (Score::scaleShifts; empty: @p scale)
 };
 
 /**

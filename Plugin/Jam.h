@@ -36,10 +36,10 @@
 namespace frame {
 
 /** @brief The kinds of section the jam knows (the score cues' table in KaleidoscopeEnhanced, without its two extras). */
-enum class JamSection : uint8_t { Intro, Groove, Build, Drop, Break, Outro };
+enum class JamSectionE : uint8_t { INTRO, GROOVE, BUILD, DROP, BREAK, OUTRO };
 
 /** @brief A section kind's name on the wire ("Intro" ... "Outro"). @param s the kind */
-const char* jamSectionName(JamSection s);
+const char* jamSectionName(JamSectionE s);
 
 /**
  * @brief Maps an instrument's own name of a section to the jam's table: Totality's blocks ("Block 3", "Reduction",
@@ -50,20 +50,20 @@ const char* jamSectionName(JamSection s);
  * @param drop   receives whether it lands as a drop
  * @return its kind
  */
-JamSection jamSectionOf(const char* name, float& energy, bool& drop);
+JamSectionE jamSectionOf(const char* name, float& energy, bool& drop);
 
 /** @brief What a follower plays to at one moment: the leader's root, the energy of its section, whether it is in a break. */
 struct JamState {
-    int root = -1;           ///< the leader's root (pitch class 0..11); -1: no leader heard
-    float energy = 0.5f;     ///< the energy of the leader's section (0.5 when there is none)
-    bool rhythmOut = false;  ///< the leader is in a break: the follower thins out
+    int m_root = -1;           ///< the leader's root (pitch class 0..11); -1: no leader heard
+    float m_energy = 0.5f;     ///< the energy of the leader's section (0.5 when there is none)
+    bool m_rhythmOut = false;  ///< the leader is in a break: the follower thins out
 };
 
 /** @brief The jam's socket, its thread, and the state of the leader a follower hears. */
 class JamBus : private juce::Thread {
 public:
-    static constexpr const char* kGroup = "239.255.77.77";   ///< the multicast group
-    static constexpr int kPort = 9177;                        ///< its port
+    static constexpr const char* Group = "239.255.77.77";   ///< the multicast group
+    static constexpr int Port = 9177;                        ///< its port
 
     /** @brief A bus for instrument @p app; it opens nothing until a role is set. */
     explicit JamBus(const juce::String& app);
@@ -71,9 +71,9 @@ public:
     ~JamBus() override;
 
     /** @brief Message thread: the role from the settings; Off closes the socket and forgets the leader. */
-    void setRole(Settings::JamRole r);
+    void setRole(Settings::JamRoleE r);
     /** @brief The role set last. */
-    Settings::JamRole role() const { return static_cast<Settings::JamRole>(role_.load(std::memory_order_relaxed)); }
+    Settings::JamRoleE role() const { return static_cast<Settings::JamRoleE>(m_role.load(std::memory_order_relaxed)); }
 
     // ---- leading: the audio thread posts, the bus's thread sends
     /**
@@ -83,7 +83,7 @@ public:
      * @param drop   whether it lands as a drop
      * @param bar    the shared bar it begins on (-1: now)
      */
-    void postSection(JamSection s, float energy, bool drop, int64_t bar);
+    void postSection(JamSectionE s, float energy, bool drop, int64_t bar);
     /**
      * @brief Audio thread: this instrument's key from now on.
      * @param root its root (pitch class 0..11)
@@ -101,50 +101,50 @@ public:
     /** @brief Message thread: the leader's mode as it said it last ("" when none), for the key it composes next. */
     juce::String leaderMode() const;
     /** @brief The leader's root as it said it last (pitch class), or -1 while none is heard. */
-    int leaderRoot() const { return leaderGone(juce::Time::currentTimeMillis()) ? -1 : leaderRoot_.load(std::memory_order_relaxed); }
+    int leaderRoot() const { return leaderGone(juce::Time::currentTimeMillis()) ? -1 : m_leaderRoot.load(std::memory_order_relaxed); }
     /** @brief Message thread: the line the settings menu shows (who leads, who follows, what is heard). */
     juce::String status() const;
 
 private:
     /** @brief One posted message on its way to the socket. */
     struct Out {
-        uint8_t kind = 0;        ///< 0 section, 1 key
-        uint8_t section = 0;     ///< JamSection, for a section
-        bool drop = false;       ///< for a section: whether it lands as a drop
-        int8_t root = -1;        ///< for a key: its root
-        float energy = 0.5f;     ///< for a section: its energy
-        int64_t bar = -1;        ///< for a section: its shared bar
-        char mode[24] = {};      ///< for a key: its mode
+        uint8_t m_kind = 0;        ///< 0 section, 1 key
+        uint8_t m_section = 0;     ///< JamSection, for a section
+        bool m_drop = false;       ///< for a section: whether it lands as a drop
+        int8_t m_root = -1;        ///< for a key: its root
+        float m_energy = 0.5f;     ///< for a section: its energy
+        int64_t m_bar = -1;        ///< for a section: its shared bar
+        char m_mode[24] = {};      ///< for a key: its mode
     };
     /** @brief One section heard from the leader, waiting for its bar. */
     struct In {
-        uint8_t section = 0;     ///< JamSection
-        bool drop = false;       ///< whether it lands as a drop
-        float energy = 0.5f;     ///< its energy
-        int64_t bar = -1;        ///< its shared bar; -1: at once
+        uint8_t m_section = 0;     ///< JamSection
+        bool m_drop = false;       ///< whether it lands as a drop
+        float m_energy = 0.5f;     ///< its energy
+        int64_t m_bar = -1;        ///< its shared bar; -1: at once
     };
     /** @brief A wait-free ring for one writer and one reader. @tparam T what it carries @tparam N its capacity (a power of two) */
     template <class T, int N>
     struct Ring {
-        std::array<T, N> items{};               ///< the slots
-        std::atomic<uint32_t> head { 0 };       ///< the next slot to write (the writer's)
-        std::atomic<uint32_t> tail { 0 };       ///< the next slot to read (the reader's)
+        std::array<T, N> m_items{};               ///< the slots
+        std::atomic<uint32_t> m_head { 0 };       ///< the next slot to write (the writer's)
+        std::atomic<uint32_t> m_tail { 0 };       ///< the next slot to read (the reader's)
         /** @brief Writes @p t; false when full. */
         bool push(const T& t)
         {
-            const uint32_t h = head.load(std::memory_order_relaxed);
-            if (h - tail.load(std::memory_order_acquire) >= static_cast<uint32_t>(N)) return false;
-            items[h % N] = t;
-            head.store(h + 1, std::memory_order_release);
+            const uint32_t h = m_head.load(std::memory_order_relaxed);
+            if (h - m_tail.load(std::memory_order_acquire) >= static_cast<uint32_t>(N)) return false;
+            m_items[h % N] = t;
+            m_head.store(h + 1, std::memory_order_release);
             return true;
         }
         /** @brief Reads into @p t; false when empty. */
         bool pop(T& t)
         {
-            const uint32_t tl = tail.load(std::memory_order_relaxed);
-            if (tl == head.load(std::memory_order_acquire)) return false;
-            t = items[tl % N];
-            tail.store(tl + 1, std::memory_order_release);
+            const uint32_t tl = m_tail.load(std::memory_order_relaxed);
+            if (tl == m_head.load(std::memory_order_acquire)) return false;
+            t = m_items[tl % N];
+            m_tail.store(tl + 1, std::memory_order_release);
             return true;
         }
     };
@@ -160,26 +160,26 @@ private:
     /** @brief Whether the leader has not been heard for a while at @p now (ms): another may take its place. */
     bool leaderGone(int64_t now) const;
 
-    juce::String app_;                                   ///< the instrument's name
-    juce::String id_;                                    ///< this instance, among others of the same name
-    std::atomic<int> role_ { 0 };                        ///< Settings::JamRole
-    std::unique_ptr<juce::DatagramSocket> socket_;       ///< the bus's thread's
-    Ring<Out, 64> out_;                                  ///< audio thread -> bus thread
-    Ring<In, 64> in_;                                    ///< bus thread -> audio thread
-    std::array<In, 16> pending_{};                       ///< audio thread: sections waiting for their bar
-    int pendingCount_ = 0;                               ///< audio thread: how many of pending_ are used
-    JamState state_;                                     ///< audio thread: the state as it stands
-    std::atomic<int> leaderRoot_ { -1 };                 ///< bus thread -> audio thread: the leader's root
-    std::atomic<int64_t> leaderSeenMs_ { 0 };            ///< when the leader was last heard (Time::currentTimeMillis)
-    int lastKeyRoot_ = -1;                               ///< bus thread: the key a leader sent last, sent again every 2 s
-    char lastKeyMode_[24] = {};                          ///< bus thread: its mode
-    Out lastSection_;                                    ///< bus thread: the section a leader sent last, sent again every 2 s
-    bool haveSection_ = false;                           ///< bus thread: whether lastSection_ is one
-    mutable juce::CriticalSection lock_;                 ///< guards the strings below (bus thread and message thread)
-    juce::String leaderName_;                            ///< the leading instrument's name, as its hello said
-    juce::String leaderId_;                              ///< its instance
-    juce::String leaderMode_;                            ///< its mode
-    std::map<juce::String, std::pair<int, int64_t>> peers_;   ///< instance -> (role, last heard): for the status line
+    juce::String m_app;                                   ///< the instrument's name
+    juce::String m_id;                                    ///< this instance, among others of the same name
+    std::atomic<int> m_role { 0 };                        ///< Settings::JamRole
+    std::unique_ptr<juce::DatagramSocket> m_socket;       ///< the bus's thread's
+    Ring<Out, 64> m_out;                                  ///< audio thread -> bus thread
+    Ring<In, 64> m_in;                                    ///< bus thread -> audio thread
+    std::array<In, 16> m_pending{};                       ///< audio thread: sections waiting for their bar
+    int m_pendingCount = 0;                               ///< audio thread: how many of m_pending are used
+    JamState m_state;                                     ///< audio thread: the state as it stands
+    std::atomic<int> m_leaderRoot { -1 };                 ///< bus thread -> audio thread: the leader's root
+    std::atomic<int64_t> m_leaderSeenMs { 0 };            ///< when the leader was last heard (Time::currentTimeMillis)
+    int m_lastKeyRoot = -1;                               ///< bus thread: the key a leader sent last, sent again every 2 s
+    char m_lastKeyMode[24] = {};                          ///< bus thread: its mode
+    Out m_lastSection;                                    ///< bus thread: the section a leader sent last, sent again every 2 s
+    bool m_haveSection = false;                           ///< bus thread: whether m_lastSection is one
+    mutable juce::CriticalSection m_lock;                 ///< guards the strings below (bus thread and message thread)
+    juce::String m_leaderName;                            ///< the leading instrument's name, as its hello said
+    juce::String m_leaderId;                              ///< its instance
+    juce::String m_leaderMode;                            ///< its mode
+    std::map<juce::String, std::pair<int, int64_t>> m_peers;   ///< instance -> (role, last heard): for the status line
 };
 
 } // namespace frame

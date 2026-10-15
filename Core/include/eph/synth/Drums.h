@@ -24,9 +24,9 @@ namespace eph {
 
 /** @brief Settings for the following samples. */
 struct DrumSettings {
-    float kickHz = 50.0f;      ///< where the kick's pitch ends
-    float decay = 1.0f;        ///< scales every decay
-    float tone = 0.5f;         ///< 0 dark .. 1 bright (hats, snare noise)
+    float m_kickHz = 50.0f;      ///< where the kick's pitch ends
+    float m_decay = 1.0f;        ///< scales every decay
+    float m_tone = 0.5f;         ///< 0 dark .. 1 bright (hats, snare noise)
 };
 
 /** @brief The kit; stereo out. */
@@ -42,25 +42,25 @@ public:
 
 private:
     /** @brief The kit's instruments. */
-    enum Inst { Kick, Snare, Closed, Open, TomLow, TomHigh, Rim, Shaker, kInsts };
+    enum InstE { KICK, SNARE, CLOSED, OPEN, TOM_LOW, TOM_HIGH, RIM, SHAKER, INSTS };
     /** @brief One instrument sounding. */
     struct Voice {
-        double age = 1e9;          ///< seconds since the hit
-        float velocity = 0.0f;   ///< its velocity, 0..1
-        double phase = 0.0;   ///< its tone's phase
-        double phase2 = 0.0;   ///< its second tone's phase
-        float hz = 100.0f;   ///< its pitch, Hz
-        Svf bp;   ///< its noise's band pass
+        double m_age = 1e9;          ///< seconds since the hit
+        float m_velocity = 0.0f;   ///< its velocity, 0..1
+        double m_phase = 0.0;   ///< its tone's phase
+        double m_phase2 = 0.0;   ///< its second tone's phase
+        float m_hz = 100.0f;   ///< its pitch, Hz
+        Svf m_bp;   ///< its noise's band pass
     };
     /** @brief White noise, -1 .. 1. */
-    float noise() { return rng_.bipolar(); }
-    double sr_ = 48000.0;   ///< the sample rate, Hz
-    DrumSettings s_;   ///< the settings
-    Voice v_[kInsts];   ///< the instruments
-    double metal_[6] = {};         ///< the hats' six square phases
-    Svf hatBp_;   ///< the hats' band pass
-    Svf hatHp_;   ///< the hats' high pass
-    Rng rng_;   ///< the noise's stream
+    float noise() { return m_rng.bipolar(); }
+    double m_sr = 48000.0;   ///< the sample rate, Hz
+    DrumSettings m_s;   ///< the settings
+    Voice m_v[INSTS];   ///< the instruments
+    double m_metal[6] = {};         ///< the hats' six square phases
+    Svf m_hatBp;   ///< the hats' band pass
+    Svf m_hatHp;   ///< the hats' high pass
+    Rng m_rng;   ///< the noise's stream
 };
 
 } // namespace eph

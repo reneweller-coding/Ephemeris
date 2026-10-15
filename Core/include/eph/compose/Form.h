@@ -29,31 +29,31 @@
 namespace eph {
 
 /** @brief What a section is. */
-enum class SectionType : uint8_t { Atmo, Entry, Build, Lead, Peak, Breakdown, Bridge, Coda };
+enum class SectionTypeE : uint8_t { ATMO, ENTRY, BUILD, LEAD, PEAK, BREAKDOWN, BRIDGE, CODA };
 /** @brief German names for the markers ("Atmo", "Einsatz", "Aufbau", ...). */
-const char* sectionName(SectionType t);
+const char* sectionName(SectionTypeE t);
 
 /** @brief One section. */
 struct Section {
-    SectionType type = SectionType::Atmo;   ///< what the section is
-    int phase = 0;            ///< the sequence phase it belongs to (the Atmo to the first, a Bridge to the next)
-    int index = 0;            ///< the n-th of its type in the phase (Build 0, 1, 2)
-    double beat = 0.0;        ///< start
-    double length = 16.0;     ///< beats
-    float e0 = 0.0f;          ///< energy at the start, 0..1
-    float e1 = 0.0f;          ///< energy at the end
+    SectionTypeE m_type = SectionTypeE::ATMO;   ///< what the section is
+    int m_phase = 0;            ///< the sequence phase it belongs to (the Atmo to the first, a Bridge to the next)
+    int m_index = 0;            ///< the n-th of its type in the phase (Build 0, 1, 2)
+    double m_beat = 0.0;        ///< start
+    double m_length = 16.0;     ///< beats
+    float m_e0 = 0.0f;          ///< energy at the start, 0..1
+    float m_e1 = 0.0f;          ///< energy at the end
 };
 
 /** @brief The form of one piece. */
 struct PieceForm {
-    std::vector<Section> sections;   ///< the sections, in order, without gaps
-    std::vector<double> phaseBpm;   ///< tempo of each phase
-    std::vector<int> phaseKey;      ///< semitones of each phase's key from the piece's
-    double lengthBeats = 0.0;       ///< the piece's length
+    std::vector<Section> m_sections;   ///< the sections, in order, without gaps
+    std::vector<double> m_phaseBpm;   ///< tempo of each phase
+    std::vector<int> m_phaseKey;      ///< semitones of each phase's key from the piece's
+    double m_lengthBeats = 0.0;       ///< the piece's length
     /** @brief The energy at @p beat, interpolated inside its section. */
     float energy(double beat) const;
     /** @brief The first section of @p type in @p phase, or null. */
-    const Section* find(SectionType type, int phase) const;
+    const Section* find(SectionTypeE type, int phase) const;
 };
 
 /**

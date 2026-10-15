@@ -15,47 +15,47 @@
 namespace eph {
 
 namespace {
-constexpr int kControl = 16;    ///< samples between two control updates
-constexpr int kDrift = 512;     ///< samples between two steps of the drift
+constexpr int ControlStep = 16;    ///< samples between two control updates
+constexpr int Drift = 512;     ///< samples between two steps of the drift
 
 /**
  * @brief One sample of the keys' filter lanes of model @p m (not the comb), a register at a time: the arithmetic of
  *        FilterLane::tick lane by lane, so the sound is the same to the bit; the makeup is the caller's.
  */
-template <class V, int N>
-void runLanes(FilterModel m, float (*fv)[N], float (*fs)[N], const float* x, const float* g, const float* k, const float* mode, float* y)
+template <class VT, int N>
+void runLanes(FilterModelE m, float (*fv)[N], float (*fs)[N], const float* x, const float* g, const float* k, const float* mode, float* y)
 {
-    constexpr int W = laneWidth<V>();
+    constexpr int W = laneWidth<VT>();
     for (int o = 0; o < N; o += W) {
-        V v[4], s[4];
-        for (int j = 0; j < 4; ++j) { v[j] = loadLanes<V>(fv[j] + o); s[j] = loadLanes<V>(fs[j] + o); }
-        const V xs = loadLanes<V>(x + o), gg = loadLanes<V>(g + o), kk = loadLanes<V>(k + o);
-        V out = lanes<V>(0.0f);
+        VT v[4], s[4];
+        for (int j = 0; j < 4; ++j) { v[j] = loadLanes<VT>(fv[j] + o); s[j] = loadLanes<VT>(fs[j] + o); }
+        const VT xs = loadLanes<VT>(x + o), gg = loadLanes<VT>(g + o), kk = loadLanes<VT>(k + o);
+        VT out = lanes<VT>(0.0f);
         switch (m) {
-        case FilterModel::Moog: out = ladderMoog<V>(v, s, xs, gg, kk); break;
-        case FilterModel::Prophet: case FilterModel::Juno:
-            out = otaCascade<V>(v, s, xs, gg, kk, FilterVoicing::otaDrive(m), FilterVoicing::otaRes(m));
+        case FilterModelE::MOOG: out = ladderMoog<VT>(v, s, xs, gg, kk); break;
+        case FilterModelE::PROPHET: case FilterModelE::JUNO:
+            out = otaCascade<VT>(v, s, xs, gg, kk, FilterVoicing::otaDrive(m), FilterVoicing::otaRes(m));
             break;
-        case FilterModel::Xpander: {
-            otaCascade<V>(v, s, xs, gg, kk, FilterVoicing::otaDrive(m), FilterVoicing::otaRes(m));
+        case FilterModelE::XPANDER: {
+            otaCascade<VT>(v, s, xs, gg, kk, FilterVoicing::otaDrive(m), FilterVoicing::otaRes(m));
             const float r = FilterVoicing::otaRes(m);
-            const V a0 = xs - kk * ftanh<V>(lanes<V>(r) * v[3]) / lanes<V>(r);
+            const VT a0 = xs - kk * ftanh<VT>(lanes<VT>(r) * v[3]) / lanes<VT>(r);
             alignas(32) float w[5][W];   // the pole mix of every lane's mode
             for (int l = 0; l < W; ++l) {
                 const float* p = poleMix(mode[o + l]);
                 for (int j = 0; j < 5; ++j) w[j][l] = p[j];
             }
-            out = loadLanes<V>(w[0]) * a0 + loadLanes<V>(w[1]) * v[0] + loadLanes<V>(w[2]) * v[1] + loadLanes<V>(w[3]) * v[2] + loadLanes<V>(w[4]) * v[3];
+            out = loadLanes<VT>(w[0]) * a0 + loadLanes<VT>(w[1]) * v[0] + loadLanes<VT>(w[2]) * v[1] + loadLanes<VT>(w[3]) * v[2] + loadLanes<VT>(w[4]) * v[3];
             break;
         }
-        case FilterModel::Sem: case FilterModel::Wasp:
-            out = svfNonlinear<V>(v, s, xs, gg, kk, FilterVoicing::svfRange(m), FilterVoicing::svfAsym(m), loadLanes<V>(mode + o));
+        case FilterModelE::SEM: case FilterModelE::WASP:
+            out = svfNonlinear<VT>(v, s, xs, gg, kk, FilterVoicing::svfRange(m), FilterVoicing::svfAsym(m), loadLanes<VT>(mode + o));
             break;
-        case FilterModel::Polivoks:
-            out = svfNonlinear<V>(v, s, xs, gg, kk, FilterVoicing::svfRange(m), 0.0f, loadLanes<V>(mode + o), true);
+        case FilterModelE::POLIVOKS:
+            out = svfNonlinear<VT>(v, s, xs, gg, kk, FilterVoicing::svfRange(m), 0.0f, loadLanes<VT>(mode + o), true);
             break;
-        case FilterModel::Diode: out = diodeLadder<V>(v, s, xs, gg * lanes<V>(0.70710678f), kk); break;
-        case FilterModel::Korg35: out = korg35<V>(v, s, xs, gg, kk); break;
+        case FilterModelE::DIODE: out = diodeLadder<VT>(v, s, xs, gg * lanes<VT>(0.70710678f), kk); break;
+        case FilterModelE::KORG35: out = korg35<VT>(v, s, xs, gg, kk); break;
         default: break;
         }
         vstore(y + o, out);
@@ -66,247 +66,247 @@ void runLanes(FilterModel m, float (*fv)[N], float (*fs)[N], const float* x, con
 
 void PolySynth::clearLanes(int key)
 {
-    for (int j = 0; j < 4; ++j) fv_[j][2 * key] = fv_[j][2 * key + 1] = fs_[j][2 * key] = fs_[j][2 * key + 1] = 0.0f;
+    for (int j = 0; j < 4; ++j) m_fv[j][2 * key] = m_fv[j][2 * key + 1] = m_fs[j][2 * key] = m_fs[j][2 * key + 1] = 0.0f;
 }
 
 void PolySynth::prepare(double sampleRate, uint64_t seed)
 {
-    sr_ = sampleRate;
+    m_sr = sampleRate;
     prepareWavetables();
-    rng_.seed(seed);
-    for (int i = 0; i < kKeys; ++i) {
-        keys_[i] = Key{};
-        keys_[i].rng.seed(mixSeed(seed, 100 + static_cast<uint64_t>(i)));
-        for (FilterLane& f : keys_[i].filt) f.allocate(2048);   // the comb's lines (24 Hz at 48 kHz)
-        keys_[i].mod.prepare(sampleRate, mixSeed(seed, 200 + static_cast<uint64_t>(i)));
-        keys_[i].mod.set(s_.mod);
+    m_rng.seed(seed);
+    for (int i = 0; i < Keys; ++i) {
+        m_keys[i] = Key{};
+        m_keys[i].m_rng.seed(mixSeed(seed, 100 + static_cast<uint64_t>(i)));
+        for (FilterLane& f : m_keys[i].m_filt) f.allocate(2048);   // the comb's lines (24 Hz at 48 kHz)
+        m_keys[i].m_mod.prepare(sampleRate, mixSeed(seed, 200 + static_cast<uint64_t>(i)));
+        m_keys[i].m_mod.set(m_s.m_mod);
     }
-    times_.setSampleRate(sampleRate);
-    ftimes_.setSampleRate(sampleRate);
-    for (int i = 0; i < kKeys; ++i) clearLanes(i);
+    m_times.setSampleRate(sampleRate);
+    m_ftimes.setSampleRate(sampleRate);
+    for (int i = 0; i < Keys; ++i) clearLanes(i);
     size_t len = 1;
     while (len < static_cast<size_t>(0.05 * sampleRate)) len <<= 1;
-    line_.assign(len, 0.0f);
-    mask_ = len - 1;
-    write_ = 0;
-    order_ = 0;
-    scanPhase_ = chorusPhase_ = 0.0;
-    ring_ = 0.0f;
-    count_ = 0;
-    set(s_);
+    m_line.assign(len, 0.0f);
+    m_mask = len - 1;
+    m_write = 0;
+    m_order = 0;
+    m_scanPhase = m_chorusPhase = 0.0;
+    m_ring = 0.0f;
+    m_count = 0;
+    set(m_s);
 }
 
 void PolySynth::set(const PolySettings& s)
 {
     // A new filter model starts from rest.
-    if (s.filter != s_.filter) {
-        for (Key& k : keys_) for (FilterLane& f : k.filt) f.clear();
-        for (int i = 0; i < kKeys; ++i) clearLanes(i);
+    if (s.m_filter != m_s.m_filter) {
+        for (Key& k : m_keys) for (FilterLane& f : k.m_filt) f.clear();
+        for (int i = 0; i < Keys; ++i) clearLanes(i);
     }
-    const bool modMoved = std::memcmp(&s.mod, &s_.mod, sizeof(ModSettings)) != 0;
-    s_ = s;
-    table_ = &wavetable(s.table);
-    times_.setTimes(std::max(0.005f, s.attackS), s.ampDecayS, std::clamp(s.ampSustain, 0.0f, 1.0f), std::max(0.05f, s.releaseS));
-    ftimes_.setTimes(s.filtAttackS, s.filtDecayS, std::clamp(s.filtSustain, 0.0f, 1.0f), s.filtReleaseS);
-    for (Key& k : keys_) {
-        k.env.copyTimes(times_);
-        k.fenv.copyTimes(ftimes_);
-        if (modMoved) k.mod.set(s.mod);
+    const bool modMoved = std::memcmp(&s.m_mod, &m_s.m_mod, sizeof(ModSettings)) != 0;
+    m_s = s;
+    m_table = &wavetable(s.m_table);
+    m_times.setTimes(std::max(0.005f, s.m_attackS), s.m_ampDecayS, std::clamp(s.m_ampSustain, 0.0f, 1.0f), std::max(0.05f, s.m_releaseS));
+    m_ftimes.setTimes(s.m_filtAttackS, s.m_filtDecayS, std::clamp(s.m_filtSustain, 0.0f, 1.0f), s.m_filtReleaseS);
+    for (Key& k : m_keys) {
+        k.m_env.copyTimes(m_times);
+        k.m_fenv.copyTimes(m_ftimes);
+        if (modMoved) k.m_mod.set(s.m_mod);
     }
 }
 
 void PolySynth::retune(Key& k)
 {
     for (int o = 0; o < 2; ++o) {
-        double cents = (o == 0 ? -0.5 : 0.5) * static_cast<double>(s_.detuneCents) + static_cast<double>(k.drift[o]);
-        if (k.mod.active() && k.mod.targets(ModDest::Pitch)) cents += 100.0 * static_cast<double>(k.mo[static_cast<int>(ModDest::Pitch)]);
-        const double hz = midiToHz(static_cast<double>(k.pitch) + cents / 100.0);
-        k.inc[o] = hz / sr_;
-        k.level[o] = cycleLevelFor(hz, sr_, k.level[o]);
+        double cents = (o == 0 ? -0.5 : 0.5) * static_cast<double>(m_s.m_detuneCents) + static_cast<double>(k.m_drift[o]);
+        if (k.m_mod.active() && k.m_mod.targets(ModDestE::PITCH)) cents += 100.0 * static_cast<double>(k.m_mo[static_cast<int>(ModDestE::PITCH)]);
+        const double hz = midiToHz(static_cast<double>(k.m_pitch) + cents / 100.0);
+        k.m_inc[o] = hz / m_sr;
+        k.m_level[o] = cycleLevelFor(hz, m_sr, k.m_level[o]);
     }
 }
 
 void PolySynth::noteOn(int pitch, float velocity, int id)
 {
     Key* k = nullptr;
-    for (Key& c : keys_) if (!c.on) { k = &c; break; }
+    for (Key& c : m_keys) if (!c.m_on) { k = &c; break; }
     if (k == nullptr) {
-        k = &keys_[0];
-        for (Key& c : keys_) if (c.order < k->order) k = &c;
+        k = &m_keys[0];
+        for (Key& c : m_keys) if (c.m_order < k->m_order) k = &c;
     }
-    const bool fresh = !k->on;
-    k->on = true;
-    k->held = true;
-    k->pitch = pitch;
-    k->id = id;
-    k->velocity = velocity;
-    k->order = ++order_;
+    const bool fresh = !k->m_on;
+    k->m_on = true;
+    k->m_held = true;
+    k->m_pitch = pitch;
+    k->m_id = id;
+    k->m_velocity = velocity;
+    k->m_order = ++m_order;
     if (fresh) {
         // Free-running oscillators: a new key starts wherever, so a chord is never phase-locked.
-        k->phase[0] = rng_.uniform();
-        k->phase[1] = rng_.uniform();
-        k->drift[0] = s_.driftCents * rng_.bipolar();
-        k->drift[1] = s_.driftCents * rng_.bipolar();
-        k->filt[0].clear();
-        k->filt[1].clear();
-        clearLanes(static_cast<int>(k - keys_));
-        k->level[0] = k->level[1] = -1;
+        k->m_phase[0] = m_rng.uniform();
+        k->m_phase[1] = m_rng.uniform();
+        k->m_drift[0] = m_s.m_driftCents * m_rng.bipolar();
+        k->m_drift[1] = m_s.m_driftCents * m_rng.bipolar();
+        k->m_filt[0].clear();
+        k->m_filt[1].clear();
+        clearLanes(static_cast<int>(k - m_keys));
+        k->m_level[0] = k->m_level[1] = -1;
     }
-    k->scanOffset = rng_.uniform();
-    k->env.copyTimes(times_);
-    k->env.noteOn();
-    k->fenv.copyTimes(ftimes_);
-    k->fenv.noteOn();
-    k->mod.noteOn(count_, beatAt(count_));
+    k->m_scanOffset = m_rng.uniform();
+    k->m_env.copyTimes(m_times);
+    k->m_env.noteOn();
+    k->m_fenv.copyTimes(m_ftimes);
+    k->m_fenv.noteOn();
+    k->m_mod.noteOn(m_count, beatAt(m_count));
     retune(*k);
 }
 
 void PolySynth::noteOff(int id)
 {
-    for (Key& k : keys_)
-        if (k.on && k.held && k.id == id) { k.held = false; k.env.noteOff(); k.fenv.noteOff(); k.mod.noteOff(); }
+    for (Key& k : m_keys)
+        if (k.m_on && k.m_held && k.m_id == id) { k.m_held = false; k.m_env.noteOff(); k.m_fenv.noteOff(); k.m_mod.noteOff(); }
 }
 
 void PolySynth::silence()
 {
-    for (Key& k : keys_) { k.on = false; k.held = false; k.env.kill(); k.fenv.kill(); k.mod.kill(); }
-    std::fill(line_.begin(), line_.end(), 0.0f);
-    ring_ = 0.0f;
+    for (Key& k : m_keys) { k.m_on = false; k.m_held = false; k.m_env.kill(); k.m_fenv.kill(); k.m_mod.kill(); }
+    std::fill(m_line.begin(), m_line.end(), 0.0f);
+    m_ring = 0.0f;
 }
 
 bool PolySynth::active() const
 {
-    for (const Key& k : keys_) if (k.on) return true;
-    return ring_ > 1e-5f;
+    for (const Key& k : m_keys) if (k.m_on) return true;
+    return m_ring > 1e-5f;
 }
 
 void PolySynth::process(float* L, float* R, int n)
 {
-    const double scanStep = static_cast<double>(s_.scanHz) * kControl / sr_;
-    const double chorusInc = 0.45 / sr_;
-    const float spread = std::clamp(s_.spread, 0.0f, 1.0f), cross = 1.0f - spread;
-    const float chorus = std::clamp(s_.chorus, 0.0f, 1.0f);
-    const float base = static_cast<float>(0.007 * sr_), depth = static_cast<float>(0.0025 * sr_) * chorus;
+    const double scanStep = static_cast<double>(m_s.m_scanHz) * ControlStep / m_sr;
+    const double chorusInc = 0.45 / m_sr;
+    const float spread = std::clamp(m_s.m_spread, 0.0f, 1.0f), cross = 1.0f - spread;
+    const float chorus = std::clamp(m_s.m_chorus, 0.0f, 1.0f);
+    const float base = static_cast<float>(0.007 * m_sr), depth = static_cast<float>(0.0025 * m_sr) * chorus;
     const float wet = 0.7f * chorus, norm = 1.0f / (1.0f + 0.5f * chorus);
     const float keyGain = 0.3f / (1.0f + cross);
-    const bool hasTable = table_ != nullptr && !table_->empty();
-    const FilterModel model = static_cast<FilterModel>(std::clamp(s_.filter, 0, kFilterModels - 1));
-    const float fk = FilterVoicing::feedback(model, std::clamp(s_.resonance, 0.0f, 1.0f));
+    const bool hasTable = m_table != nullptr && !m_table->empty();
+    const FilterModelE model = static_cast<FilterModelE>(std::clamp(m_s.m_filter, 0, FilterModels - 1));
+    const float fk = FilterVoicing::feedback(model, std::clamp(m_s.m_resonance, 0.0f, 1.0f));
     for (int i = 0; i < n; ++i) {
-        const int64_t t = count_ + i;
-        const bool control = t % kControl == 0, drift = t % kDrift == 0;
+        const int64_t t = m_count + i;
+        const bool control = t % ControlStep == 0, drift = t % Drift == 0;
         if (control) {
-            scanPhase_ += scanStep;
-            if (scanPhase_ >= 1.0) scanPhase_ -= 1.0;
+            m_scanPhase += scanStep;
+            if (m_scanPhase >= 1.0) m_scanPhase -= 1.0;
         }
         float l = 0.0f, r = 0.0f;
         // The filters' inputs and knobs per lane (runLanes after the keys): a key that sounds sets its two.
-        alignas(32) float xin[kLanes], gl[kLanes], kl[kLanes], ml[kLanes], yl[kLanes];
-        bool live[kKeys] = {}, moved[kKeys] = {};
-        for (int ki = 0; ki < kKeys; ++ki) {
+        alignas(32) float xin[Lanes], gl[Lanes], kl[Lanes], ml[Lanes], yl[Lanes];
+        bool live[Keys] = {}, moved[Keys] = {};
+        for (int ki = 0; ki < Keys; ++ki) {
             xin[2 * ki] = xin[2 * ki + 1] = 0.0f;
-            gl[2 * ki] = gl[2 * ki + 1] = keys_[ki].g;
+            gl[2 * ki] = gl[2 * ki + 1] = m_keys[ki].m_g;
             kl[2 * ki] = kl[2 * ki + 1] = fk;
-            ml[2 * ki] = ml[2 * ki + 1] = s_.filterMode;
+            ml[2 * ki] = ml[2 * ki + 1] = m_s.m_filterMode;
         }
-        for (int ki = 0; ki < kKeys; ++ki) {
-            Key& k = keys_[ki];
-            if (!k.on) continue;
-            if (drift && s_.driftCents > 0.0f) {
-                for (float& d : k.drift) d += 0.3f * (s_.driftCents * k.rng.bipolar() - d);
+        for (int ki = 0; ki < Keys; ++ki) {
+            Key& k = m_keys[ki];
+            if (!k.m_on) continue;
+            if (drift && m_s.m_driftCents > 0.0f) {
+                for (float& d : k.m_drift) d += 0.3f * (m_s.m_driftCents * k.m_rng.bipolar() - d);
                 retune(k);
             }
-            const bool linked = s_.filtLink != 0;
-            const bool mod = k.mod.active();
+            const bool linked = m_s.m_filtLink != 0;
+            const bool mod = k.m_mod.active();
             if (control) {
-                const float fe = linked ? k.env.level() : k.fenv.level();
+                const float fe = linked ? k.m_env.level() : k.m_fenv.level();
                 if (mod) {
                     // The key's matrix at this control step (Modulation.h).
-                    float ext[kModSources] = {};
-                    ext[static_cast<int>(ModSource::FilterEnv)] = fe;
-                    ext[static_cast<int>(ModSource::Velocity)] = k.velocity;
-                    k.mod.evaluate(t, beatAt(t), ext, k.mo);
-                    if (k.mod.targets(ModDest::Pitch)) retune(k);
-                    k.fk = FilterVoicing::feedback(model, std::clamp(s_.resonance + k.mod.offset(k.mo, ModDest::Resonance), 0.0f, 1.0f));
-                    k.mode = std::clamp(s_.filterMode + k.mod.offset(k.mo, ModDest::FilterMode), 0.0f, 1.0f);
-                    k.lv = std::clamp(1.0f + k.mod.offset(k.mo, ModDest::Level), 0.0f, 2.0f);
-                    const float p = std::clamp(k.mod.offset(k.mo, ModDest::Pan), -1.0f, 1.0f);
-                    k.panL = std::min(1.0f, 1.0f - p);
-                    k.panR = std::min(1.0f, 1.0f + p);
+                    float ext[ModSources] = {};
+                    ext[static_cast<int>(ModSourceE::FILTER_ENV)] = fe;
+                    ext[static_cast<int>(ModSourceE::VELOCITY)] = k.m_velocity;
+                    k.m_mod.evaluate(t, beatAt(t), ext, k.m_mo);
+                    if (k.m_mod.targets(ModDestE::PITCH)) retune(k);
+                    k.m_fk = FilterVoicing::feedback(model, std::clamp(m_s.m_resonance + k.m_mod.offset(k.m_mo, ModDestE::RESONANCE), 0.0f, 1.0f));
+                    k.m_mode = std::clamp(m_s.m_filterMode + k.m_mod.offset(k.m_mo, ModDestE::FILTER_MODE), 0.0f, 1.0f);
+                    k.m_lv = std::clamp(1.0f + k.m_mod.offset(k.m_mo, ModDestE::LEVEL), 0.0f, 2.0f);
+                    const float p = std::clamp(k.m_mod.offset(k.m_mo, ModDestE::PAN), -1.0f, 1.0f);
+                    k.m_panL = std::min(1.0f, 1.0f - p);
+                    k.m_panR = std::min(1.0f, 1.0f + p);
                 }
-                const float scan = 0.5f * s_.scan * static_cast<float>(std::sin(6.283185307179586 * (scanPhase_ + k.scanOffset)));
-                float pos = s_.position + scan;
-                if (mod && k.mod.targets(ModDest::TablePos)) pos += k.mo[static_cast<int>(ModDest::TablePos)];
-                k.position = std::clamp(pos, 0.0f, 1.0f);
-                float envOct = s_.envOctaves * fe;
-                if (s_.envVelocity > 0.0f) envOct *= 1.0f - s_.envVelocity + s_.envVelocity * k.velocity;
-                float octs = 0.5f * static_cast<float>(k.pitch - 60) / 12.0f + envOct;
-                if (mod && k.mod.targets(ModDest::Cutoff)) octs += k.mo[static_cast<int>(ModDest::Cutoff)];
-                const float fc = std::min(s_.cutoffHz * std::exp2(octs), static_cast<float>(0.45 * sr_));
-                k.g = std::tan(3.14159265f * fc / static_cast<float>(sr_));
+                const float scan = 0.5f * m_s.m_scan * static_cast<float>(std::sin(6.283185307179586 * (m_scanPhase + k.m_scanOffset)));
+                float pos = m_s.m_position + scan;
+                if (mod && k.m_mod.targets(ModDestE::TABLE_POS)) pos += k.m_mo[static_cast<int>(ModDestE::TABLE_POS)];
+                k.m_position = std::clamp(pos, 0.0f, 1.0f);
+                float envOct = m_s.m_envOctaves * fe;
+                if (m_s.m_envVelocity > 0.0f) envOct *= 1.0f - m_s.m_envVelocity + m_s.m_envVelocity * k.m_velocity;
+                float octs = 0.5f * static_cast<float>(k.m_pitch - 60) / 12.0f + envOct;
+                if (mod && k.m_mod.targets(ModDestE::CUTOFF)) octs += k.m_mo[static_cast<int>(ModDestE::CUTOFF)];
+                const float fc = std::min(m_s.m_cutoffHz * std::exp2(octs), static_cast<float>(0.45 * m_sr));
+                k.m_g = std::tan(3.14159265f * fc / static_cast<float>(m_sr));
             }
-            const float env = k.env.process();
-            if (!linked) k.fenv.process();
-            k.mod.tick();
-            if (!k.env.isActive()) { k.on = false; continue; }
-            const float a = hasTable ? table_->at(k.level[0], k.position, k.phase[0]) : 0.0f;
-            const float b = hasTable ? table_->at(k.level[1], k.position, k.phase[1]) : 0.0f;
+            const float env = k.m_env.process();
+            if (!linked) k.m_fenv.process();
+            k.m_mod.tick();
+            if (!k.m_env.isActive()) { k.m_on = false; continue; }
+            const float a = hasTable ? m_table->at(k.m_level[0], k.m_position, k.m_phase[0]) : 0.0f;
+            const float b = hasTable ? m_table->at(k.m_level[1], k.m_position, k.m_phase[1]) : 0.0f;
             for (int o = 0; o < 2; ++o) {
-                k.phase[o] += k.inc[o];
-                if (k.phase[o] >= 1.0) k.phase[o] -= 1.0;
+                k.m_phase[o] += k.m_inc[o];
+                if (k.m_phase[o] >= 1.0) k.m_phase[o] -= 1.0;
             }
-            float amp = env * k.velocity * keyGain;
+            float amp = env * k.m_velocity * keyGain;
             live[ki] = true;
             moved[ki] = mod;
-            gl[2 * ki] = gl[2 * ki + 1] = k.g;
+            gl[2 * ki] = gl[2 * ki + 1] = k.m_g;
             if (mod) {
                 // What the matrix moves: resonance, mode and level per key, and the key's place between the sides.
-                amp *= k.lv;
-                kl[2 * ki] = kl[2 * ki + 1] = k.mod.targets(ModDest::Resonance) ? k.fk : fk;
-                ml[2 * ki] = ml[2 * ki + 1] = k.mod.targets(ModDest::FilterMode) ? k.mode : s_.filterMode;
+                amp *= k.m_lv;
+                kl[2 * ki] = kl[2 * ki + 1] = k.m_mod.targets(ModDestE::RESONANCE) ? k.m_fk : fk;
+                ml[2 * ki] = ml[2 * ki + 1] = k.m_mod.targets(ModDestE::FILTER_MODE) ? k.m_mode : m_s.m_filterMode;
             }
             xin[2 * ki] = (a + cross * b) * amp;
             xin[2 * ki + 1] = (cross * a + b) * amp;
         }
         // The filters: every key's two in lanes, the comb key by key (its lines); then the keys summed in their order.
-        if (model == FilterModel::Comb) {
-            for (int ki = 0; ki < kKeys; ++ki) {
+        if (model == FilterModelE::COMB) {
+            for (int ki = 0; ki < Keys; ++ki) {
                 if (!live[ki]) continue;
-                yl[2 * ki] = keys_[ki].filt[0].tick(model, xin[2 * ki], gl[2 * ki], kl[2 * ki], ml[2 * ki]);
-                yl[2 * ki + 1] = keys_[ki].filt[1].tick(model, xin[2 * ki + 1], gl[2 * ki + 1], kl[2 * ki + 1], ml[2 * ki + 1]);
+                yl[2 * ki] = m_keys[ki].m_filt[0].tick(model, xin[2 * ki], gl[2 * ki], kl[2 * ki], ml[2 * ki]);
+                yl[2 * ki + 1] = m_keys[ki].m_filt[1].tick(model, xin[2 * ki + 1], gl[2 * ki + 1], kl[2 * ki + 1], ml[2 * ki + 1]);
             }
         } else {
-            runLanes<VecF, kLanes>(model, fv_, fs_, xin, gl, kl, ml, yl);
-            for (int c = 0; c < kLanes; ++c) yl[c] *= FilterVoicing::makeup(model, kl[c]);
+            runLanes<VecF, Lanes>(model, m_fv, m_fs, xin, gl, kl, ml, yl);
+            for (int c = 0; c < Lanes; ++c) yl[c] *= FilterVoicing::makeup(model, kl[c]);
         }
-        for (int ki = 0; ki < kKeys; ++ki) {
+        for (int ki = 0; ki < Keys; ++ki) {
             if (!live[ki]) continue;
             if (!moved[ki]) {
                 l += yl[2 * ki];
                 r += yl[2 * ki + 1];
             } else {
-                l += keys_[ki].panL * yl[2 * ki];
-                r += keys_[ki].panR * yl[2 * ki + 1];
+                l += m_keys[ki].m_panL * yl[2 * ki];
+                r += m_keys[ki].m_panR * yl[2 * ki + 1];
             }
         }
         // The ensemble: one line, read on either side with the sweep turned against itself.
-        line_[write_] = 0.5f * (l + r);
-        const float sw = depth * static_cast<float>(std::sin(6.283185307179586 * chorusPhase_));
-        chorusPhase_ += chorusInc;
-        if (chorusPhase_ >= 1.0) chorusPhase_ -= 1.0;
+        m_line[m_write] = 0.5f * (l + r);
+        const float sw = depth * static_cast<float>(std::sin(6.283185307179586 * m_chorusPhase));
+        m_chorusPhase += chorusInc;
+        if (m_chorusPhase >= 1.0) m_chorusPhase -= 1.0;
         auto tap = [&](float d) {
-            const float pos = static_cast<float>(write_ + mask_ + 1) - d;   // one line length on: never negative
+            const float pos = static_cast<float>(m_write + m_mask + 1) - d;   // one line length on: never negative
             const size_t i0 = static_cast<size_t>(pos);
             const float frac = pos - static_cast<float>(i0);
-            return line_[i0 & mask_] + frac * (line_[(i0 + 1) & mask_] - line_[i0 & mask_]);
+            return m_line[i0 & m_mask] + frac * (m_line[(i0 + 1) & m_mask] - m_line[i0 & m_mask]);
         };
         const float outL = (l + wet * tap(base + sw)) * norm, outR = (r + wet * tap(base - sw)) * norm;
-        write_ = (write_ + 1) & mask_;
+        m_write = (m_write + 1) & m_mask;
         L[i] = outL;
         R[i] = outR;
-        ring_ = std::max(ring_ * 0.9999f, std::max(std::fabs(outL), std::fabs(outR)));
+        m_ring = std::max(m_ring * 0.9999f, std::max(std::fabs(outL), std::fabs(outR)));
     }
-    count_ += n;
+    m_count += n;
 }
 
 } // namespace eph

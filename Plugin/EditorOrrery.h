@@ -29,13 +29,13 @@ public:
 private:
     /** @brief One row at one beat. */
     struct RowState {
-        bool known = false;     ///< the score has a shape for it
-        bool running = false;   ///< it plays
-        bool transposer = false;   ///< it is the transposer
-        int length = 16;        ///< steps per cycle
-        double divBeats = 0.25; ///< beats per step
-        double start = 0.0;     ///< the beat it last started at
-        double cycle = 0.0;     ///< position in its cycle, 0..1
+        bool m_known = false;     ///< the score has a shape for it
+        bool m_running = false;   ///< it plays
+        bool m_transposer = false;   ///< it is the transposer
+        int m_length = 16;        ///< steps per cycle
+        double m_divBeats = 0.25; ///< beats per step
+        double m_start = 0.0;     ///< the beat it last started at
+        double m_cycle = 0.0;     ///< position in its cycle, 0..1
     };
     /** @brief Follows the piece: the rows at the playhead. */
     void timerCallback() override;
@@ -44,9 +44,9 @@ private:
     /** @brief The next beat after @p beat at which every running row of @p rows is on its first step, or -1. */
     static double nextConjunction(const std::vector<RowState>& rows, double beat);
 
-    EphemerisProcessor& proc_;   ///< where the score and the playhead come from
-    eph::Score score_;           ///< a copy of the score the engine plays
-    int version_ = -1;           ///< which one (EphemerisProcessor::scoreVersion)
+    EphemerisProcessor& m_proc;   ///< where the score and the playhead come from
+    eph::Score m_score;           ///< a copy of the score the engine plays
+    int m_version = -1;           ///< which one (EphemerisProcessor::scoreVersion)
 };
 
 /** @brief The rack tab: the orrery on the left, the rows' parameters on the right. */
@@ -58,7 +58,7 @@ public:
     void resized() override;       ///< a square for the orrery, the rest for the parameters
 
 private:
-    OrreryView orrery_;                    ///< the orbits
-    std::unique_ptr<ParamPage> params_;    ///< the rows' parameters
-    juce::Viewport view_;                  ///< ... scrolling where they need more height
+    OrreryView m_orrery;                    ///< the orbits
+    std::unique_ptr<ParamPage> m_params;    ///< the rows' parameters
+    juce::Viewport m_view;                  ///< ... scrolling where they need more height
 };

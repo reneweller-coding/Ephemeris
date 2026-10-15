@@ -111,20 +111,20 @@ def main():
         q = np.round(fr / peak * 32000.0).astype(np.int16) if peak > 0 else np.zeros_like(fr, dtype=np.int16)
         vals = q.flatten().tolist()
         lines.append('/// %s: %s' % (name, base))
-        lines.append('const int16_t kT%d[] = {' % t)
+        lines.append('const int16_t T%d[] = {' % t)
         for i in range(0, len(vals), 32):
             lines.append('    ' + ','.join(str(v) for v in vals[i:i + 32]) + ',')
         lines.append('};')
-        entries.append('    { "%s", %d, kT%d },' % (name, len(fr), t))
+        entries.append('    { "%s", %d, T%d },' % (name, len(fr), t))
     lines += ['', '} // namespace', '',
               '/// The sampled tables: name, frames, samples.',
-              'const SampledTable kSampledTables[kSampledTableCount] = {'] + entries + ['};', '',
-              'static_assert(sizeof(kSampledTables) / sizeof(kSampledTables[0]) == %d, "the count in Wavetable.h");' % len(tables), '',
+              'const SampledTable SampledTables[SampledTableCount] = {'] + entries + ['};', '',
+              'static_assert(sizeof(SampledTables) / sizeof(SampledTables[0]) == %d, "the count in Wavetable.h");' % len(tables), '',
               '// The names as literals, so the parameter tables may point at them before any constructor has run.',
-              'const char* const kWavetableNames[kWavetableCount] = {',
+              'const char* const WavetableNames[WavetableCount] = {',
               '    "Classic", "PWM", "Sync", "Formant", "Vocal", "Organ", "Glass", "Metal",'] +              ['    "%s",' % name for name, _, _, _ in tables] + [VCO_NAMES, '};', '',
               '// The same with "Analog" first: the choice of the row voices (voice.table; 0 plays the analog oscillators).',
-              'const char* const kVoiceTableNames[kWavetableCount + 1] = {',
+              'const char* const VoiceTableNames[WavetableCount + 1] = {',
               '    "Analog", "Classic", "PWM", "Sync", "Formant", "Vocal", "Organ", "Glass", "Metal",'] +              ['    "%s",' % name for name, _, _, _ in tables] + [VCO_NAMES, '};',
               '', '} // namespace eph', '']
     open(OUT, 'w', encoding='utf-8', newline='\n').write('\n'.join(lines))

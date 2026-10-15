@@ -24,267 +24,267 @@ bool changed(T& last, const T& now, bool valid)
 } // namespace
 
 namespace {
-constexpr int kCell = 32;   ///< the parameter raster in samples
+constexpr int Cell = 32;   ///< the parameter raster in samples
 }
 
 void Engine::prepare(double sampleRate, int maxBlock)
 {
-    sampleRate_ = sampleRate > 0.0 ? sampleRate : 48000.0;
-    maxBlock_ = std::max(1, maxBlock);
-    sample_ = 0;
+    m_sampleRate = sampleRate > 0.0 ? sampleRate : 48000.0;
+    m_maxBlock = std::max(1, maxBlock);
+    m_sample = 0;
 }
 
 void Engine::load(const Score& score, bool sounds)
 {
-    score_ = score;
-    score_.sort();
-    cueMarks_ = cueMarksOf(score_);
-    lateDb_ = 0.0f;
-    sample_ = 0;
-    evCursor_ = 0;
+    m_score = score;
+    m_score.sort();
+    m_cueMarks = cueMarksOf(m_score);
+    m_lateDb = 0.0f;
+    m_sample = 0;
+    m_evCursor = 0;
     // The composer's sounds at the start (Score::knobs): on the knobs now, or already there (the caller's word).
-    knobCursor_ = 0;
-    soundGroup_ = -1.0;
+    m_knobCursor = 0;
+    m_soundGroup = -1.0;
     if (sounds) {
         applyKnobs(0.0);
     } else {
-        while (knobCursor_ < score_.knobs.size() && score_.knobs[knobCursor_].beat <= 1e-9) ++knobCursor_;
-        if (knobCursor_ > 0) soundGroup_ = 0.0;
+        while (m_knobCursor < m_score.m_knobs.size() && m_score.m_knobs[m_knobCursor].m_beat <= 1e-9) ++m_knobCursor;
+        if (m_knobCursor > 0) m_soundGroup = 0.0;
     }
 
     // Notes onto the sample grid. A note whose predecessor on the same source slides into it is legato:
     // the voice glides instead of retriggering.
-    events_.clear();
+    m_events.clear();
     int id = 0;
-    bool slideInto[kSources] = {};
-    for (const NoteEvent& n : score_.notes) {
-        int src = static_cast<int>(n.part) - static_cast<int>(Part::Row1);
-        switch (n.part) {
-        case Part::Lead:     src = kSrcLead; break;
-        case Part::Drone:    src = kSrcDrone; break;
-        case Part::TapeKeys: src = kSrcTape; break;
-        case Part::Strings:  src = kSrcStrings; break;
-        case Part::Pad:      src = kSrcPoly; break;
-        case Part::Drums:    src = kSrcDrums; break;
-        default: if (src < 0 || src >= kRows) continue;
+    bool slideInto[SOURCES] = {};
+    for (const NoteEvent& n : m_score.m_notes) {
+        int src = static_cast<int>(n.m_part) - static_cast<int>(PartE::ROW1);
+        switch (n.m_part) {
+        case PartE::LEAD:     src = SRC_LEAD; break;
+        case PartE::DRONE:    src = SRC_DRONE; break;
+        case PartE::TAPE_KEYS: src = SRC_TAPE; break;
+        case PartE::STRINGS:  src = SRC_STRINGS; break;
+        case PartE::PAD:      src = SRC_POLY; break;
+        case PartE::DRUMS:    src = SRC_DRUMS; break;
+        default: if (src < 0 || src >= Rows) continue;
         }
-        const int64_t on = std::llround(score_.tempo.secondsAt(n.beat) * sampleRate_);
-        const int64_t off = std::max(on + 1, static_cast<int64_t>(std::llround(score_.tempo.secondsAt(n.beat + n.length) * sampleRate_)));
+        const int64_t on = std::llround(m_score.m_tempo.secondsAt(n.m_beat) * m_sampleRate);
+        const int64_t off = std::max(on + 1, static_cast<int64_t>(std::llround(m_score.m_tempo.secondsAt(n.m_beat + n.m_length) * m_sampleRate)));
         ++id;
-        events_.push_back({ on, 1, static_cast<uint8_t>(src), n.accent, slideInto[src], n.pitch, n.velocity, id, n.bright, n.decay });
-        events_.push_back({ off, 0, static_cast<uint8_t>(src), false, false, n.pitch, 0.0f, id });
-        slideInto[src] = n.slide;
+        m_events.push_back({ on, 1, static_cast<uint8_t>(src), n.m_accent, slideInto[src], n.m_pitch, n.m_velocity, id, n.m_bright, n.m_decay });
+        m_events.push_back({ off, 0, static_cast<uint8_t>(src), false, false, n.m_pitch, 0.0f, id });
+        slideInto[src] = n.m_slide;
     }
-    std::stable_sort(events_.begin(), events_.end(), [](const Ev& a, const Ev& b) {
-        return a.sample != b.sample ? a.sample < b.sample : a.on < b.on;
+    std::stable_sort(m_events.begin(), m_events.end(), [](const Ev& a, const Ev& b) {
+        return a.m_sample != b.m_sample ? a.m_sample < b.m_sample : a.m_on < b.m_on;
     });
-    offAt_.assign(static_cast<size_t>(id) + 1, 0);
-    tapPitch_.assign(offAt_.size(), 0xFF);
-    for (const Ev& e : events_) if (!e.on) offAt_[static_cast<size_t>(e.id)] = e.sample;
+    m_offAt.assign(static_cast<size_t>(id) + 1, 0);
+    m_tapPitch.assign(m_offAt.size(), 0xFF);
+    for (const Ev& e : m_events) if (!e.m_on) m_offAt[static_cast<size_t>(e.m_id)] = e.m_sample;
 
     // Gestures grouped by the knob they move.
-    tracks_.clear();
-    trackOf_.assign(static_cast<size_t>(params_.count()), -1);
-    playedCache_.assign(static_cast<size_t>(params_.count()), { std::numeric_limits<float>::quiet_NaN(), 0.0f, 0.0f });
-    cache_.valid = false;
-    for (const Gesture& g : score_.gestures) {
-        if (g.param < 0 || g.param >= params_.count()) continue;
-        int& t = trackOf_[static_cast<size_t>(g.param)];
-        if (t < 0) { t = static_cast<int>(tracks_.size()); tracks_.push_back({ g.param, {}, 0, 0.0f }); }
-        tracks_[static_cast<size_t>(t)].gestures.push_back(g);
+    m_tracks.clear();
+    m_trackOf.assign(static_cast<size_t>(m_params.count()), -1);
+    m_playedCache.assign(static_cast<size_t>(m_params.count()), { std::numeric_limits<float>::quiet_NaN(), 0.0f, 0.0f });
+    m_cache.m_valid = false;
+    for (const Gesture& g : m_score.m_gestures) {
+        if (g.m_param < 0 || g.m_param >= m_params.count()) continue;
+        int& t = m_trackOf[static_cast<size_t>(g.m_param)];
+        if (t < 0) { t = static_cast<int>(m_tracks.size()); m_tracks.push_back({ g.m_param, {}, 0, 0.0f }); }
+        m_tracks[static_cast<size_t>(t)].m_gestures.push_back(g);
     }
-    for (Track& t : tracks_) t.cursor = t.gestures.size();
+    for (Track& t : m_tracks) t.m_cursor = t.m_gestures.size();
 
     // Every source and room from its own seed branch.
-    uint64_t voiceSeeds[kModVoices];
-    for (int r = 0; r < kModVoices; ++r) voiceSeeds[r] = mixSeed(score_.seed, 100 + static_cast<uint64_t>(r));
-    static_assert(kModVoices == kBankVoices, "the voice bank holds the rows, the lead and the drone");
-    voices_.prepare(sampleRate_, voiceSeeds);
-    echo_.prepare(sampleRate_, 2.5, mixSeed(score_.seed, 200));
-    bbd_.prepare(sampleRate_, 2.5, mixSeed(score_.seed, 210));
-    echo2_.prepare(sampleRate_, 2.5, mixSeed(score_.seed, 220));
+    uint64_t voiceSeeds[ModVoices];
+    for (int r = 0; r < ModVoices; ++r) voiceSeeds[r] = mixSeed(m_score.m_seed, 100 + static_cast<uint64_t>(r));
+    static_assert(ModVoices == BankVoices, "the voice bank holds the rows, the lead and the drone");
+    m_voices.prepare(m_sampleRate, voiceSeeds);
+    m_echo.prepare(m_sampleRate, 2.5, mixSeed(m_score.m_seed, 200));
+    m_bbd.prepare(m_sampleRate, 2.5, mixSeed(m_score.m_seed, 210));
+    m_echo2.prepare(m_sampleRate, 2.5, mixSeed(m_score.m_seed, 220));
     {
-        const float sr = static_cast<float>(sampleRate_);
-        dcL_.setQ(20.0f, 0.70710678f, sr);
-        dcR_.copyCoefficients(dcL_);
-        sideHp_.setQ(100.0f, 0.70710678f, sr);
-        sideHp300_.setQ(300.0f, 0.70710678f, sr);
-        dcL_.reset(); dcR_.reset(); sideHp_.reset(); sideHp300_.reset();
-        energyMid_ = energyLow_ = energyHigh_ = 0.0f;
-        energyCoef_ = 1.0f - std::exp(-1.0f / (0.3f * sr));
-        envAttack_ = std::exp(-1.0f / (0.005f * sr));
-        envRelease_ = std::exp(-1.0f / (0.25f * sr));
-        duckEnv_ = 0.0f;
-        for (Strip& st : strips_) {
-            st.hpL.reset(); st.hpR.reset(); st.lpL.reset(); st.lpR.reset();
+        const float sr = static_cast<float>(m_sampleRate);
+        m_dcL.setQ(20.0f, 0.70710678f, sr);
+        m_dcR.copyCoefficients(m_dcL);
+        m_sideHp.setQ(100.0f, 0.70710678f, sr);
+        m_sideHp300.setQ(300.0f, 0.70710678f, sr);
+        m_dcL.reset(); m_dcR.reset(); m_sideHp.reset(); m_sideHp300.reset();
+        m_energyMid = m_energyLow = m_energyHigh = 0.0f;
+        m_energyCoef = 1.0f - std::exp(-1.0f / (0.3f * sr));
+        m_envAttack = std::exp(-1.0f / (0.005f * sr));
+        m_envRelease = std::exp(-1.0f / (0.25f * sr));
+        m_duckEnv = 0.0f;
+        for (Strip& st : m_strips) {
+            st.m_hpL.reset(); st.m_hpR.reset(); st.m_lpL.reset(); st.m_lpR.reset();
             for (int c = 0; c < 2; ++c) {
-                st.splitLo[c].setQ(300.0f, 0.70710678f, sr); st.splitLo[c].reset();
-                st.splitHi[c].setQ(5000.0f, 0.70710678f, sr); st.splitHi[c].reset();
+                st.m_splitLo[c].setQ(300.0f, 0.70710678f, sr); st.m_splitLo[c].reset();
+                st.m_splitHi[c].setQ(5000.0f, 0.70710678f, sr); st.m_splitHi[c].reset();
             }
         }
-        subL_.setQ(80.0f, 0.70710678f, sr); subR_.copyCoefficients(subL_); subL_.reset(); subR_.reset();
+        m_subL.setQ(80.0f, 0.70710678f, sr); m_subR.copyCoefficients(m_subL); m_subL.reset(); m_subR.reset();
         for (int k = 0; k < 2; ++k) {
-            subSplitL_[k].setQ(80.0f, 0.70710678f, sr); subSplitL_[k].reset();
-            subSplitR_[k].setQ(80.0f, 0.70710678f, sr); subSplitR_[k].reset();
-            subHpL_[k].setQ(80.0f, 0.70710678f, sr); subHpL_[k].reset();
-            subHpR_[k].setQ(80.0f, 0.70710678f, sr); subHpR_[k].reset();
+            m_subSplitL[k].setQ(80.0f, 0.70710678f, sr); m_subSplitL[k].reset();
+            m_subSplitR[k].setQ(80.0f, 0.70710678f, sr); m_subSplitR[k].reset();
+            m_subHpL[k].setQ(80.0f, 0.70710678f, sr); m_subHpL[k].reset();
+            m_subHpR[k].setQ(80.0f, 0.70710678f, sr); m_subHpR[k].reset();
         }
-        subEnv_ = 0.0f;
-        subAttack_ = std::exp(-1.0f / (0.001f * sr));
-        subRelease_ = std::exp(-1.0f / (0.1f * sr));
-        clipPrev_[0] = clipPrev_[1] = 0.0f;
-        punchFastA_ = std::exp(-1.0f / (0.001f * sr)); punchFastR_ = std::exp(-1.0f / (0.02f * sr));
-        punchSlowA_ = std::exp(-1.0f / (0.02f * sr)); punchSlowR_ = std::exp(-1.0f / (0.2f * sr));
-        for (Strip& st : strips_) st.envFast = st.envSlow = 0.0f;
-        for (int k = 0; k < 4; ++k) apL_[k] = apR_[k] = 0.0f;
+        m_subEnv = 0.0f;
+        m_subAttack = std::exp(-1.0f / (0.001f * sr));
+        m_subRelease = std::exp(-1.0f / (0.1f * sr));
+        m_clipPrev[0] = m_clipPrev[1] = 0.0f;
+        m_punchFastA = std::exp(-1.0f / (0.001f * sr)); m_punchFastR = std::exp(-1.0f / (0.02f * sr));
+        m_punchSlowA = std::exp(-1.0f / (0.02f * sr)); m_punchSlowR = std::exp(-1.0f / (0.2f * sr));
+        for (Strip& st : m_strips) st.m_envFast = st.m_envSlow = 0.0f;
+        for (int k = 0; k < 4; ++k) m_apL[k] = m_apR[k] = 0.0f;
         // The spread's all-passes turn their phase at corners spread over the band, different on each side:
         // a = (tan(pi f / fs) - 1) / (tan(pi f / fs) + 1).
         {
-            static const float kFL[4] = { 250.0f, 700.0f, 1800.0f, 4500.0f }, kFR[4] = { 350.0f, 1000.0f, 2600.0f, 6500.0f };
+            static const float FL[4] = { 250.0f, 700.0f, 1800.0f, 4500.0f }, FR[4] = { 350.0f, 1000.0f, 2600.0f, 6500.0f };
             for (int k = 0; k < 4; ++k) {
-                const float tl = std::tan(3.14159265f * kFL[k] / sr), tr = std::tan(3.14159265f * kFR[k] / sr);
-                apCoefL_[k] = (tl - 1.0f) / (tl + 1.0f);
-                apCoefR_[k] = (tr - 1.0f) / (tr + 1.0f);
+                const float tl = std::tan(3.14159265f * FL[k] / sr), tr = std::tan(3.14159265f * FR[k] / sr);
+                m_apCoefL[k] = (tl - 1.0f) / (tl + 1.0f);
+                m_apCoefR[k] = (tr - 1.0f) / (tr + 1.0f);
             }
         }
-        padEnv_ = 0.0f;
+        m_padEnv = 0.0f;
     }
-    reverb_.prepare(sampleRate_);
-    plate_.prepare(sampleRate_);
-    blend_.prepare(sampleRate_);
-    early_.prepare(sampleRate_);
-    shimmer_.prepare(sampleRate_);
+    m_reverb.prepare(m_sampleRate);
+    m_plate.prepare(m_sampleRate);
+    m_blend.prepare(m_sampleRate);
+    m_early.prepare(m_sampleRate);
+    m_shimmer.prepare(m_sampleRate);
     {
         // The six bands (350 Hz .. 4.8 kHz, about three quarters of an octave apart).
-        static const float kCentre[kBands] = { 350.0f, 600.0f, 1000.0f, 1700.0f, 2900.0f, 4800.0f };
-        const float sr = static_cast<float>(sampleRate_);
-        for (int k = 0; k < kBands; ++k) {
-            for (Svf* f : { &rowSide_[k], &padSide_[k] }) { f->setQ(kCentre[k], 1.2f, sr); f->reset(); }
-            for (Strip& st : strips_) for (int c = 0; c < 2; ++c) { st.band[c][k].setQ(kCentre[k], 2.0f, sr); st.band[c][k].reset(); }
-            rowBandEnv_[k] = padBandEnv_[k] = 0.0f;
+        static const float Centre[Bands] = { 350.0f, 600.0f, 1000.0f, 1700.0f, 2900.0f, 4800.0f };
+        const float sr = static_cast<float>(m_sampleRate);
+        for (int k = 0; k < Bands; ++k) {
+            for (Svf* f : { &m_rowSide[k], &m_padSide[k] }) { f->setQ(Centre[k], 1.2f, sr); f->reset(); }
+            for (Strip& st : m_strips) for (int c = 0; c < 2; ++c) { st.m_band[c][k].setQ(Centre[k], 2.0f, sr); st.m_band[c][k].reset(); }
+            m_rowBandEnv[k] = m_padBandEnv[k] = 0.0f;
         }
-        tamer_.prepare(sampleRate_);
+        m_tamer.prepare(m_sampleRate);
     }
-    tape_.prepare(sampleRate_, mixSeed(score_.seed, 500));
-    tape_.setSingers(tapeSingers_);
-    atmos_.prepare(sampleRate_, mixSeed(score_.seed, 600));
-    strings_.prepare(sampleRate_, mixSeed(score_.seed, 700));
-    poly_.prepare(sampleRate_, mixSeed(score_.seed, 900));
-    drums_.prepare(sampleRate_, mixSeed(score_.seed, 800));
-    spring_.prepare(sampleRate_);
-    comp_.prepare(sampleRate_);
-    limiter_.prepare(sampleRate_);
-    for (Strip& s : strips_) s.running = false;
+    m_tape.prepare(m_sampleRate, mixSeed(m_score.m_seed, 500));
+    m_tape.setSingers(m_tapeSingers);
+    m_atmos.prepare(m_sampleRate, mixSeed(m_score.m_seed, 600));
+    m_strings.prepare(m_sampleRate, mixSeed(m_score.m_seed, 700));
+    m_poly.prepare(m_sampleRate, mixSeed(m_score.m_seed, 900));
+    m_drums.prepare(m_sampleRate, mixSeed(m_score.m_seed, 800));
+    m_spring.prepare(m_sampleRate);
+    m_comp.prepare(m_sampleRate);
+    m_limiter.prepare(m_sampleRate);
+    for (Strip& s : m_strips) s.m_running = false;
     updateCell();
 }
 
 float Engine::played(int id) const
 {
-    const float knob = params_.get(id);
-    const int t = id >= 0 && id < static_cast<int>(trackOf_.size()) ? trackOf_[static_cast<size_t>(id)] : -1;
+    const float knob = m_params.get(id);
+    const int t = id >= 0 && id < static_cast<int>(m_trackOf.size()) ? m_trackOf[static_cast<size_t>(id)] : -1;
     if (t < 0) return knob;
-    const float off = tracks_[static_cast<size_t>(t)].offset;
+    const float off = m_tracks[static_cast<size_t>(t)].m_offset;
     if (off == 0.0f) return knob;
     // The same knob and offset as last time give the same value: compared bit for bit.
-    std::array<float, 3>& c = playedCache_[static_cast<size_t>(id)];
+    std::array<float, 3>& c = m_playedCache[static_cast<size_t>(id)];
     if (std::bit_cast<uint32_t>(c[0]) == std::bit_cast<uint32_t>(knob) && std::bit_cast<uint32_t>(c[1]) == std::bit_cast<uint32_t>(off))
         return c[2];
-    const float norm = std::clamp(params_.toNormalised(id, knob) + off, 0.0f, 1.0f);
-    c = { knob, off, params_.fromNormalised(id, norm) };
+    const float norm = std::clamp(m_params.toNormalised(id, knob) + off, 0.0f, 1.0f);
+    c = { knob, off, m_params.fromNormalised(id, norm) };
     return c[2];
 }
 
 float Engine::playedNow(int id) const
 {
-    const float knob = params_.get(id);
-    const int t = id >= 0 && id < static_cast<int>(trackOf_.size()) ? trackOf_[static_cast<size_t>(id)] : -1;
+    const float knob = m_params.get(id);
+    const int t = id >= 0 && id < static_cast<int>(m_trackOf.size()) ? m_trackOf[static_cast<size_t>(id)] : -1;
     if (t < 0) return knob;
-    const float off = tracks_[static_cast<size_t>(t)].offset;
+    const float off = m_tracks[static_cast<size_t>(t)].m_offset;
     if (off == 0.0f) return knob;
-    return params_.fromNormalised(id, std::clamp(params_.toNormalised(id, knob) + off, 0.0f, 1.0f));
+    return m_params.fromNormalised(id, std::clamp(m_params.toNormalised(id, knob) + off, 0.0f, 1.0f));
 }
 
-VoiceSettings Engine::voiceSettings(Module m, int instance, bool vibrato) const
+VoiceSettings Engine::voiceSettings(ModuleE m, int instance, bool vibrato) const
 {
     // The voice table and the lead's share their first thirteen entries (Params.h), so one reader does.
-    auto v = [&](int index) { return played(params_.id(m, instance, index)); };
+    auto v = [&](int index) { return played(m_params.id(m, instance, index)); };
     VoiceSettings s;
-    s.wave = v(voice::Wave);
-    s.detuneCents = v(voice::Detune);
-    s.pulseWidth = v(voice::PulseWidth);
-    s.driftCents = v(voice::Drift);
-    s.driveDb = v(voice::Drive);
-    s.cutoffHz = v(voice::Cutoff);
+    s.m_wave = v(voice::WAVE);
+    s.m_detuneCents = v(voice::DETUNE);
+    s.m_pulseWidth = v(voice::PULSE_WIDTH);
+    s.m_driftCents = v(voice::DRIFT);
+    s.m_driveDb = v(voice::DRIVE);
+    s.m_cutoffHz = v(voice::CUTOFF);
     // The performer's hand on the rows' filters (perform.filter), in octaves; nothing at 0.
-    if (m == Module::Voice) {
-        const float grab = played(params_.id(Module::Perform, 0, perform::Filter));
-        if (grab != 0.0f) s.cutoffHz *= std::exp2(grab);
-        else if (std::fabs(jamOctaves_) > 0.01f) s.cutoffHz *= std::exp2(jamOctaves_);   // the family jam's energy
+    if (m == ModuleE::VOICE) {
+        const float grab = played(m_params.id(ModuleE::PERFORM, 0, perform::FILTER));
+        if (grab != 0.0f) s.m_cutoffHz *= std::exp2(grab);
+        else if (std::fabs(m_jamOctaves) > 0.01f) s.m_cutoffHz *= std::exp2(m_jamOctaves);   // the family jam's energy
     }
-    s.resonance = v(voice::Resonance);
-    s.envOctaves = v(voice::EnvAmount);
-    s.decayMs = v(voice::Decay);
-    s.keyTrack = v(voice::KeyTrack);
-    s.accent = v(voice::Accent);
-    s.releaseMs = v(voice::AmpDecay);
-    s.glideMs = v(voice::Glide);
-    if (m == Module::Voice) {
+    s.m_resonance = v(voice::RESONANCE);
+    s.m_envOctaves = v(voice::ENV_AMOUNT);
+    s.m_decayMs = v(voice::DECAY);
+    s.m_keyTrack = v(voice::KEY_TRACK);
+    s.m_accent = v(voice::ACCENT);
+    s.m_releaseMs = v(voice::AMP_DECAY);
+    s.m_glideMs = v(voice::GLIDE);
+    if (m == ModuleE::VOICE) {
         // The rows' wavetables (the lead's and the drone's tables have other knobs from here on).
-        s.table = static_cast<int>(std::lround(v(voice::Table)));
-        s.tablePos = v(voice::TablePos);
-        s.tableMod = v(voice::TableMod);
+        s.m_table = static_cast<int>(std::lround(v(voice::TABLE)));
+        s.m_tablePos = v(voice::TABLE_POS);
+        s.m_tableMod = v(voice::TABLE_MOD);
     }
     // The filter model and its knobs (26.09.2026, Filters.h): the rows' and the lead's and drone's tables each have them.
-    const bool isVoice = m == Module::Voice;
-    s.filter = static_cast<int>(std::lround(v(isVoice ? voice::Filter : lead::Filter)));
-    s.filterMode = v(isVoice ? voice::FilterMode : lead::FilterMode);
-    s.filterFm = v(isVoice ? voice::FilterFm : lead::FilterFm);
+    const bool isVoice = m == ModuleE::VOICE;
+    s.m_filter = static_cast<int>(std::lround(v(isVoice ? voice::FILTER : lead::FILTER)));
+    s.m_filterMode = v(isVoice ? voice::FILTER_MODE : lead::FILTER_MODE);
+    s.m_filterFm = v(isVoice ? voice::FILTER_FM : lead::FILTER_FM);
     // The envelopes in full and the modulation (26.09.2026, Modulation.h): no hand moves these knobs, but the composer's
     // sounds (compose.pick_sounds) set them as offsets like every other knob.
-    auto raw = [&](int vi, int li) { return played(params_.id(m, instance, isVoice ? vi : li)); };
+    auto raw = [&](int vi, int li) { return played(m_params.id(m, instance, isVoice ? vi : li)); };
     auto choice = [&](int vi, int li) { return static_cast<int>(std::lround(raw(vi, li))); };
-    s.ampAttackMs = raw(voice::AmpAttack, lead::AmpAttack);
-    s.ampDecayMs = raw(voice::AmpDecay2, lead::AmpDecay2);
-    s.ampSustain = raw(voice::AmpSustain, lead::AmpSustain);
-    s.filtAttackMs = raw(voice::FiltAttack, lead::FiltAttack);
-    s.filtSustain = raw(voice::FiltSustain, lead::FiltSustain);
-    s.filtReleaseMs = raw(voice::FiltRelease, lead::FiltRelease);
-    s.filtLink = choice(voice::FiltLink, lead::FiltLink);
-    s.envVelocity = raw(voice::EnvVelocity, lead::EnvVelocity);
-    s.mod = modSettings(m, instance, isVoice ? voice::ModAttack : lead::ModAttack, 1.0f, isVoice ? voice::Lfo1Rate : lead::Lfo1Rate,
-                        kLfos, isVoice ? voice::Mod1Src : lead::Mod1Src, kModSlots, false);
+    s.m_ampAttackMs = raw(voice::AMP_ATTACK, lead::AMP_ATTACK);
+    s.m_ampDecayMs = raw(voice::AMP_DECAY2, lead::AMP_DECAY2);
+    s.m_ampSustain = raw(voice::AMP_SUSTAIN, lead::AMP_SUSTAIN);
+    s.m_filtAttackMs = raw(voice::FILT_ATTACK, lead::FILT_ATTACK);
+    s.m_filtSustain = raw(voice::FILT_SUSTAIN, lead::FILT_SUSTAIN);
+    s.m_filtReleaseMs = raw(voice::FILT_RELEASE, lead::FILT_RELEASE);
+    s.m_filtLink = choice(voice::FILT_LINK, lead::FILT_LINK);
+    s.m_envVelocity = raw(voice::ENV_VELOCITY, lead::ENV_VELOCITY);
+    s.m_mod = modSettings(m, instance, isVoice ? voice::MOD_ATTACK : lead::MOD_ATTACK, 1.0f, isVoice ? voice::LFO1_RATE : lead::LFO1_RATE,
+                        Lfos, isVoice ? voice::MOD1_SRC : lead::MOD1_SRC, ModSlots, false);
     // The classic VCOs (26.09.2026, Vco.h).
-    s.vco = choice(voice::Vco, lead::Vco);
-    s.sync = choice(voice::Sync, lead::Sync);
-    s.osc2Semis = raw(voice::Osc2Pitch, lead::Osc2Pitch);
-    s.crossMod = raw(voice::CrossMod, lead::CrossMod);
+    s.m_vco = choice(voice::VCO, lead::VCO);
+    s.m_sync = choice(voice::SYNC, lead::SYNC);
+    s.m_osc2Semis = raw(voice::OSC2_PITCH, lead::OSC2_PITCH);
+    s.m_crossMod = raw(voice::CROSS_MOD, lead::CROSS_MOD);
     if (vibrato) {
-        s.vibratoCents = v(lead::Vibrato);
-        s.vibratoHz = v(lead::VibratoRate);
+        s.m_vibratoCents = v(lead::VIBRATO);
+        s.m_vibratoHz = v(lead::VIBRATO_RATE);
     }
     return s;
 }
 
-ModSettings Engine::modSettings(Module m, int instance, int env, float envToMs, int lfo, int lfos, int slot, int slots, bool shortMatrix) const
+ModSettings Engine::modSettings(ModuleE m, int instance, int env, float envToMs, int lfo, int lfos, int slot, int slots, bool shortMatrix) const
 {
     // Every synth lays these out alike: the envelope's four times, then five knobs per LFO, then three per slot.
-    auto raw = [&](int index) { return played(params_.id(m, instance, index)); };
+    auto raw = [&](int index) { return played(m_params.id(m, instance, index)); };
     auto choice = [&](int index) { return static_cast<int>(std::lround(raw(index))); };
     ModSettings s;
     if (env >= 0) {
-        s.attackMs = raw(env) * envToMs;
-        s.decayMs = raw(env + 1) * envToMs;
-        s.sustain = raw(env + 2);
-        s.releaseMs = raw(env + 3) * envToMs;
+        s.m_attackMs = raw(env) * envToMs;
+        s.m_decayMs = raw(env + 1) * envToMs;
+        s.m_sustain = raw(env + 2);
+        s.m_releaseMs = raw(env + 3) * envToMs;
     }
-    for (int l = 0; l < std::min(lfos, kLfos); ++l) {
+    for (int l = 0; l < std::min(lfos, Lfos); ++l) {
         const int o = lfo + 5 * l;
-        s.lfo[l] = { raw(o), choice(o + 1), choice(o + 2), choice(o + 3), raw(o + 4) };
+        s.m_lfo[l] = { raw(o), choice(o + 1), choice(o + 2), choice(o + 3), raw(o + 4) };
     }
-    for (int k = 0; k < std::min(slots, kModSlots); ++k) {
+    for (int k = 0; k < std::min(slots, ModSlots); ++k) {
         const int o = slot + 3 * k;
         const int dst = choice(o + 1);
-        s.slot[k] = { choice(o), shortMatrix ? shortModDest(dst) : dst, raw(o + 2) };
+        s.m_slot[k] = { choice(o), shortMatrix ? shortModDest(dst) : dst, raw(o + 2) };
     }
     return s;
 }
@@ -292,44 +292,44 @@ ModSettings Engine::modSettings(Module m, int instance, int env, float envToMs, 
 void Engine::setStrip(int s, float levelDb, float pan, float echo, float reverb, float width, float echo2, float distance)
 {
     const float in[7] = { levelDb, pan, echo, reverb, width, echo2, distance };
-    if (!changed(cache_.strip[s], in, cache_.valid)) return;
-    Strip& st = strips_[s];
+    if (!changed(m_cache.m_strip[s], in, m_cache.m_valid)) return;
+    Strip& st = m_strips[s];
     // The distance macro (the addon's 2): level, highs and the hall's share move together, so nothing is near in
     // its level and far in the hall. From a table at 0, 0.3, 0.6 and 1: 0, -4, -10, -24 dB; open, 10, 5, 2.5 kHz;
     // the hall send up by 0, 0.2, 0.6, 1.
     {
-        static const float kD[4] = { 0.0f, 0.3f, 0.6f, 1.0f }, kLevel[4] = { 0.0f, -4.0f, -10.0f, -24.0f };
-        static const float kLp[4] = { 20000.0f, 10000.0f, 5000.0f, 2500.0f }, kSend[4] = { 0.0f, 0.2f, 0.6f, 1.0f };
+        static const float D[4] = { 0.0f, 0.3f, 0.6f, 1.0f }, Level[4] = { 0.0f, -4.0f, -10.0f, -24.0f };
+        static const float Lp[4] = { 20000.0f, 10000.0f, 5000.0f, 2500.0f }, Send[4] = { 0.0f, 0.2f, 0.6f, 1.0f };
         const float d = std::clamp(distance, 0.0f, 1.0f);
         int k = 0;
-        while (k < 2 && d > kD[k + 1]) ++k;
-        const float t = (d - kD[k]) / (kD[k + 1] - kD[k]);
-        levelDb += kLevel[k] + t * (kLevel[k + 1] - kLevel[k]);
-        reverb = std::min(1.0f, reverb + kSend[k] + t * (kSend[k + 1] - kSend[k]));
-        st.lpHz = d > 0.001f ? kLp[k] * std::pow(kLp[k + 1] / kLp[k], t) : 0.0f;
-        if (st.lpHz > 0.0f) {
-            st.lpL.setQ(st.lpHz, 0.70710678f, static_cast<float>(sampleRate_));
-            st.lpR.copyCoefficients(st.lpL);
+        while (k < 2 && d > D[k + 1]) ++k;
+        const float t = (d - D[k]) / (D[k + 1] - D[k]);
+        levelDb += Level[k] + t * (Level[k + 1] - Level[k]);
+        reverb = std::min(1.0f, reverb + Send[k] + t * (Send[k + 1] - Send[k]));
+        st.m_lpHz = d > 0.001f ? Lp[k] * std::pow(Lp[k + 1] / Lp[k], t) : 0.0f;
+        if (st.m_lpHz > 0.0f) {
+            st.m_lpL.setQ(st.m_lpHz, 0.70710678f, static_cast<float>(m_sampleRate));
+            st.m_lpR.copyCoefficients(st.m_lpL);
         }
     }
     const float level = dbToGain(levelDb);
-    const float a = (std::clamp(pan, -1.0f, 1.0f) + 1.0f) * 0.25f * kPi;
-    st.gainL = level * std::cos(a) * width;
-    st.gainR = level * std::sin(a) * width;
-    st.echo = echo;
-    st.reverb = reverb;
-    st.echo2 = echo2;
+    const float a = (std::clamp(pan, -1.0f, 1.0f) + 1.0f) * 0.25f * Pi;
+    st.m_gainL = level * std::cos(a) * width;
+    st.m_gainR = level * std::sin(a) * width;
+    st.m_echo = echo;
+    st.m_reverb = reverb;
+    st.m_echo2 = echo2;
 }
 
 void Engine::setLowCut(int s, float hz)
 {
-    if (cache_.valid && cache_.lowCut[s] == hz) return;
-    cache_.lowCut[s] = hz;
-    Strip& st = strips_[s];
-    st.lowCut = hz;
+    if (m_cache.m_valid && m_cache.m_lowCut[s] == hz) return;
+    m_cache.m_lowCut[s] = hz;
+    Strip& st = m_strips[s];
+    st.m_lowCut = hz;
     if (hz > 0.0f) {
-        st.hpL.setQ(hz, 0.70710678f, static_cast<float>(sampleRate_));
-        st.hpR.copyCoefficients(st.hpL);
+        st.m_hpL.setQ(hz, 0.70710678f, static_cast<float>(m_sampleRate));
+        st.m_hpR.copyCoefficients(st.m_hpL);
     }
 }
 
@@ -337,11 +337,11 @@ float Engine::trimAt(double beat) const
 {
     // From a piece's start, gliding over eight bars from the one before it: a concert's pieces meet at their own levels.
     float trim = 0.0f;
-    for (size_t i = 0; i < score_.levels.size(); ++i) {
-        const LevelMark& m = score_.levels[i];
-        if (m.beat > beat + 1e-9) break;
-        const float before = i > 0 ? score_.levels[i - 1].trimDb : m.trimDb;
-        trim = before + (m.trimDb - before) * static_cast<float>(std::clamp((beat - m.beat) / (8.0 * kBeatsPerBar), 0.0, 1.0));
+    for (size_t i = 0; i < m_score.m_levels.size(); ++i) {
+        const LevelMark& m = m_score.m_levels[i];
+        if (m.m_beat > beat + 1e-9) break;
+        const float before = i > 0 ? m_score.m_levels[i - 1].m_trimDb : m.m_trimDb;
+        trim = before + (m.m_trimDb - before) * static_cast<float>(std::clamp((beat - m.m_beat) / (8.0 * BeatsPerBar), 0.0, 1.0));
     }
     return trim;
 }
@@ -349,372 +349,372 @@ float Engine::trimAt(double beat) const
 void Engine::setLevelTrims(const std::vector<float>& trims)
 {
     const double now = beat();
-    const float was = trimAt(now) + lateDb_;
-    for (size_t i = 0; i < score_.levels.size() && i < trims.size(); ++i) score_.levels[i].trimDb = trims[i];
-    lateDb_ = was - trimAt(now);
+    const float was = trimAt(now) + m_lateDb;
+    for (size_t i = 0; i < m_score.m_levels.size() && i < trims.size(); ++i) m_score.m_levels[i].m_trimDb = trims[i];
+    m_lateDb = was - trimAt(now);
 }
 
 void Engine::updateCell()
 {
     // Gesture offsets at this cell's beat.
-    const double beat = score_.tempo.beatAt(seconds());
+    const double beat = m_score.m_tempo.beatAt(seconds());
     // A concert's next piece brings its sounds: the composer's knob settings on the knobs, where it begins.
-    if (knobCursor_ < score_.knobs.size() && score_.knobs[knobCursor_].beat <= beat + 1e-9) applyKnobs(beat);
-    auto knob = [&](Module m, int index) { return played(params_.id(m, 0, index)); };
+    if (m_knobCursor < m_score.m_knobs.size() && m_score.m_knobs[m_knobCursor].m_beat <= beat + 1e-9) applyKnobs(beat);
+    auto knob = [&](ModuleE m, int index) { return played(m_params.id(m, 0, index)); };
     // Hold (perform.hold): the hands let go, every gesture stands where it is until they take the knobs again.
-    const bool hold = knob(Module::Perform, perform::Hold) >= 0.5f;
-    for (Track& t : tracks_) {
+    const bool hold = knob(ModuleE::PERFORM, perform::HOLD) >= 0.5f;
+    for (Track& t : m_tracks) {
         if (hold) break;
         // Positions only move forward, so the cursor only moves forward: the latest gesture that has
         // started is the one that counts (Score::gestureOffset), gestures.size() while none has.
-        const size_t none = t.gestures.size();
-        size_t c = t.cursor;
+        const size_t none = t.m_gestures.size();
+        size_t c = t.m_cursor;
         size_t next = c == none ? 0 : c + 1;
-        while (next < none && t.gestures[next].beat <= beat) c = next++;
-        t.cursor = c;
-        t.offset = c == none ? 0.0f : gestureValue(t.gestures[c], beat);
+        while (next < none && t.m_gestures[next].m_beat <= beat) c = next++;
+        t.m_cursor = c;
+        t.m_offset = c == none ? 0.0f : gestureValue(t.m_gestures[c], beat);
     }
-    transpose_ = static_cast<int>(std::lround(knob(Module::Perform, perform::Transpose))) + jamTranspose_;
+    m_transpose = static_cast<int>(std::lround(knob(ModuleE::PERFORM, perform::TRANSPOSE))) + m_jamTranspose;
     // The family jam (02.10.2026): the leader's energy on the rows' filters -- open at full energy, an octave and a half
     // down at 0.3 --, gliding over half a second.
     {
-        const float target = jamEnergy_ >= 0.0f ? (std::clamp(jamEnergy_, 0.0f, 1.0f) - 1.0f) * 2.0f : 0.0f;
-        jamOctaves_ += (target - jamOctaves_) * (1.0f - std::exp(-static_cast<float>(kCell) / (0.5f * static_cast<float>(sampleRate_))));
+        const float target = m_jamEnergy >= 0.0f ? (std::clamp(m_jamEnergy, 0.0f, 1.0f) - 1.0f) * 2.0f : 0.0f;
+        m_jamOctaves += (target - m_jamOctaves) * (1.0f - std::exp(-static_cast<float>(Cell) / (0.5f * static_cast<float>(m_sampleRate))));
     }
     // The keyboard (live play only, 01.10.2026): what it plays, whether that replaces the composer's notes, whether the
     // composer plays at all.
-    keyTarget_ = live_ ? params_.getInt(params_.id(Module::Perform, 0, perform::KeyboardPart)) : perform::keys::Off;
-    keyReplace_ = !live_ || params_.getInt(params_.id(Module::Perform, 0, perform::KeyboardMode)) == 0;
-    composerOff_ = live_ && !params_.getBool(params_.id(Module::Perform, 0, perform::Composer));
+    m_keyTarget = m_live ? m_params.getInt(m_params.id(ModuleE::PERFORM, 0, perform::KEYBOARD_PART)) : perform::keys::OFF;
+    m_keyReplace = !m_live || m_params.getInt(m_params.id(ModuleE::PERFORM, 0, perform::KEYBOARD_MODE)) == 0;
+    m_composerOff = m_live && !m_params.getBool(m_params.id(ModuleE::PERFORM, 0, perform::COMPOSER));
 
     // The modular voices: the rows (their strips on the row module), the lead and the drone; the clock for the synths'
     // synced LFOs.
-    const double beatsPerSample = score_.tempo.bpmAt(beat) / (60.0 * sampleRate_);
-    voices_.setClock(beat, beatsPerSample);
-    poly_.setClock(beat, beatsPerSample);
-    tape_.setClock(beat, beatsPerSample);
-    strings_.setClock(beat, beatsPerSample);
-    for (int r = 0; r < kModVoices; ++r) {
-        const bool row = r < kRows;
-        const Module m = row ? Module::Voice : (r == kSrcLead ? Module::Lead : Module::Drone);
+    const double beatsPerSample = m_score.m_tempo.bpmAt(beat) / (60.0 * m_sampleRate);
+    m_voices.setClock(beat, beatsPerSample);
+    m_poly.setClock(beat, beatsPerSample);
+    m_tape.setClock(beat, beatsPerSample);
+    m_strings.setClock(beat, beatsPerSample);
+    for (int r = 0; r < ModVoices; ++r) {
+        const bool row = r < Rows;
+        const ModuleE m = row ? ModuleE::VOICE : (r == SRC_LEAD ? ModuleE::LEAD : ModuleE::DRONE);
         const int inst = row ? r : 0;
         VoiceSettings vs = voiceSettings(m, inst, !row);
         if (row) {
             // The filter sweep (25.09.2026): the Berlin School's slow opening and closing of a sequence, a sine on the
             // cutoff with a period of its own per row (39 .. 79 s, irrational against the bars and each other), on
             // the piece's clock, over whatever the hands do; master.motion scales it with the other slow movements.
-            static const double kPeriod[kRows] = { 53.1, 41.7, 67.3, 38.9, 79.1, 47.9, 61.3, 71.7 };
-            const float depth = played(params_.id(Module::Row, r, row::Sweep)) * knob(Module::Master, master::Motion);
-            if (depth > 0.0f) vs.cutoffHz *= std::exp2(depth * static_cast<float>(std::sin(6.283185307179586 * seconds() / kPeriod[r] + r)));
+            static const double Period[Rows] = { 53.1, 41.7, 67.3, 38.9, 79.1, 47.9, 61.3, 71.7 };
+            const float depth = played(m_params.id(ModuleE::ROW, r, row::SWEEP)) * knob(ModuleE::MASTER, master::MOTION);
+            if (depth > 0.0f) vs.m_cutoffHz *= std::exp2(depth * static_cast<float>(std::sin(6.283185307179586 * seconds() / Period[r] + r)));
         }
-        if (changed(cache_.voice[r], vs, cache_.valid)) voices_.set(r, vs);
-        strips_[r].running = voices_.active(r) || voices_.held(r);
+        if (changed(m_cache.m_voice[r], vs, m_cache.m_valid)) m_voices.set(r, vs);
+        m_strips[r].m_running = m_voices.active(r) || m_voices.held(r);
         auto s = [&](int rowIndex, int leadIndex) {
-            return row ? played(params_.id(Module::Row, r, rowIndex)) : played(params_.id(m, 0, leadIndex));
+            return row ? played(m_params.id(ModuleE::ROW, r, rowIndex)) : played(m_params.id(m, 0, leadIndex));
         };
-        float pan = s(row::Pan, lead::Pan);
-        if (const float pm = voices_.panMod(r); pm != 0.0f) pan += pm;   // the voice's matrix (Modulation.h)
+        float pan = s(row::PAN, lead::PAN);
+        if (const float pm = m_voices.panMod(r); pm != 0.0f) pan += pm;   // the voice's matrix (Modulation.h)
         if (!row) {
             // The drone (or the lead) wanders slowly across the stereo field: lead.auto_pan, a sine of 0.05 Hz on the
             // piece's clock (the style guide's 7.3).
-            const float depth = played(params_.id(m, 0, lead::AutoPan));
+            const float depth = played(m_params.id(m, 0, lead::AUTO_PAN));
             if (depth > 0.0f) pan += depth * static_cast<float>(std::sin(2.0 * 3.14159265358979 * 0.05 * seconds()));
         }
-        setStrip(r, s(row::Level, lead::Level), pan, s(row::EchoSend, lead::EchoSend), s(row::ReverbSend, lead::ReverbSend), 1.0f,
-                 row ? played(params_.id(Module::Row, r, row::Echo2Send)) : 0.0f, s(row::Distance, lead::Distance));
-        setLowCut(r, s(row::LowCut, lead::LowCut));
-        strips_[r].blend = s(row::BlendSend, lead::BlendSend);
-        strips_[r].early = s(row::EarlySend, lead::EarlySend);
-        strips_[r].shimmer = row ? 0.0f : played(params_.id(m, 0, lead::ShimmerSend));
-        strips_[r].punch = row ? played(params_.id(Module::Row, r, row::Punch)) : 0.0f;
+        setStrip(r, s(row::LEVEL, lead::LEVEL), pan, s(row::ECHO_SEND, lead::ECHO_SEND), s(row::REVERB_SEND, lead::REVERB_SEND), 1.0f,
+                 row ? played(m_params.id(ModuleE::ROW, r, row::ECHO2_SEND)) : 0.0f, s(row::DISTANCE, lead::DISTANCE));
+        setLowCut(r, s(row::LOW_CUT, lead::LOW_CUT));
+        m_strips[r].m_blend = s(row::BLEND_SEND, lead::BLEND_SEND);
+        m_strips[r].m_early = s(row::EARLY_SEND, lead::EARLY_SEND);
+        m_strips[r].m_shimmer = row ? 0.0f : played(m_params.id(m, 0, lead::SHIMMER_SEND));
+        m_strips[r].m_punch = row ? played(m_params.id(ModuleE::ROW, r, row::PUNCH)) : 0.0f;
     }
 
     // The slow movements (the addon's 7): micro (under 2 s, a few tenths of a dB on the pads' levels) and meso
     // (13 to 41 s: the pads' hall sends, the strings' tone, the echo's feedback, the atmosphere's level), with
     // irrational periods that never lock into the sequence's 8- and 16-bar cycles; foreground and background never
     // breathe together. On the piece's clock, so the same everywhere; master.motion scales them (0 still).
-    const float motion = knob(Module::Master, master::Motion);
+    const float motion = knob(ModuleE::MASTER, master::MOTION);
     const double clock = seconds();
     auto wave = [&](double period) { return motion * static_cast<float>(std::sin(6.283185307179586 * clock / period)); };
     // The tape keys, the string machine, the drums, the atmosphere.
     TapeSettings ts;
-    ts.set = static_cast<TapeSet>(std::clamp(static_cast<int>(std::lround(knob(Module::Tape, tape::Set))), 0, 2));
-    ts.vowel = knob(Module::Tape, tape::Vowel);
-    ts.wowCents = knob(Module::Tape, tape::Wow);
-    ts.flutterCents = knob(Module::Tape, tape::Flutter);
-    ts.sagCents = knob(Module::Tape, tape::Sag);
-    ts.toneHz = knob(Module::Tape, tape::Tone);
-    ts.age = knob(Module::Tape, tape::Age);
+    ts.m_set = static_cast<TapeSetE>(std::clamp(static_cast<int>(std::lround(knob(ModuleE::TAPE, tape::SET))), 0, 2));
+    ts.m_vowel = knob(ModuleE::TAPE, tape::VOWEL);
+    ts.m_wowCents = knob(ModuleE::TAPE, tape::WOW);
+    ts.m_flutterCents = knob(ModuleE::TAPE, tape::FLUTTER);
+    ts.m_sagCents = knob(ModuleE::TAPE, tape::SAG);
+    ts.m_toneHz = knob(ModuleE::TAPE, tape::TONE);
+    ts.m_age = knob(ModuleE::TAPE, tape::AGE);
     {
         // The player's envelope and the keyboard's modulation (26.09.2026).
-        auto raw = [&](int index) { return played(params_.id(Module::Tape, 0, index)); };
-        ts.swellMs = raw(tape::AmpAttack);
-        ts.decayMs = raw(tape::AmpDecay);
-        ts.sustain = raw(tape::AmpSustain);
-        ts.releaseMs = raw(tape::AmpRelease);
-        ts.mod = modSettings(Module::Tape, 0, -1, 1.0f, tape::Lfo1Rate, 2, tape::Mod1Src, 4, true);
+        auto raw = [&](int index) { return played(m_params.id(ModuleE::TAPE, 0, index)); };
+        ts.m_swellMs = raw(tape::AMP_ATTACK);
+        ts.m_decayMs = raw(tape::AMP_DECAY);
+        ts.m_sustain = raw(tape::AMP_SUSTAIN);
+        ts.m_releaseMs = raw(tape::AMP_RELEASE);
+        ts.m_mod = modSettings(ModuleE::TAPE, 0, -1, 1.0f, tape::LFO1_RATE, 2, tape::MOD1_SRC, 4, true);
     }
-    if (changed(cache_.tape, ts, cache_.valid)) tape_.set(ts);
-    strips_[kSrcTape].running = tape_.active();
-    float tapePan = knob(Module::Tape, tape::Pan);
-    if (const float pm = tape_.panMod(); pm != 0.0f) tapePan += pm;
-    setStrip(kSrcTape, knob(Module::Tape, tape::Level) + 0.3f * wave(1.37) + 0.2f * wave(0.83), tapePan,
-             knob(Module::Tape, tape::EchoSend), std::clamp(knob(Module::Tape, tape::ReverbSend) + 0.08f * wave(13.7), 0.0f, 1.0f),
-             1.0f, 0.0f, knob(Module::Tape, tape::Distance));
-    tapeSpread_ = knob(Module::Tape, tape::Spread);
-    strips_[kSrcTape].blend = knob(Module::Tape, tape::BlendSend);
-    strips_[kSrcTape].early = knob(Module::Tape, tape::EarlySend);
-    strips_[kSrcTape].shimmer = knob(Module::Tape, tape::ShimmerSend);
-    setLowCut(kSrcTape, knob(Module::Tape, tape::LowCut));
+    if (changed(m_cache.m_tape, ts, m_cache.m_valid)) m_tape.set(ts);
+    m_strips[SRC_TAPE].m_running = m_tape.active();
+    float tapePan = knob(ModuleE::TAPE, tape::PAN);
+    if (const float pm = m_tape.panMod(); pm != 0.0f) tapePan += pm;
+    setStrip(SRC_TAPE, knob(ModuleE::TAPE, tape::LEVEL) + 0.3f * wave(1.37) + 0.2f * wave(0.83), tapePan,
+             knob(ModuleE::TAPE, tape::ECHO_SEND), std::clamp(knob(ModuleE::TAPE, tape::REVERB_SEND) + 0.08f * wave(13.7), 0.0f, 1.0f),
+             1.0f, 0.0f, knob(ModuleE::TAPE, tape::DISTANCE));
+    m_tapeSpread = knob(ModuleE::TAPE, tape::SPREAD);
+    m_strips[SRC_TAPE].m_blend = knob(ModuleE::TAPE, tape::BLEND_SEND);
+    m_strips[SRC_TAPE].m_early = knob(ModuleE::TAPE, tape::EARLY_SEND);
+    m_strips[SRC_TAPE].m_shimmer = knob(ModuleE::TAPE, tape::SHIMMER_SEND);
+    setLowCut(SRC_TAPE, knob(ModuleE::TAPE, tape::LOW_CUT));
 
     StringSettings ss;
-    ss.attackS = knob(Module::Strings, strings::Attack);
-    ss.releaseS = knob(Module::Strings, strings::Release);
-    ss.feet = knob(Module::Strings, strings::Feet);
-    ss.toneHz = knob(Module::Strings, strings::Tone) * std::pow(2.0f, 0.5f * wave(17.3));
-    ss.ensemble = knob(Module::Strings, strings::Ensemble);
-    ss.registration = knob(Module::Strings, strings::Registration);
-    ss.animate = knob(Module::Strings, strings::Animate);
-    ss.animateHz = knob(Module::Strings, strings::AnimateRate);
-    ss.ensembleType = static_cast<int>(std::lround(knob(Module::Strings, strings::EnsembleType)));
-    ss.phaser = knob(Module::Strings, strings::Phaser);
-    ss.decayS = knob(Module::Strings, strings::AmpDecay);
-    ss.sustain = knob(Module::Strings, strings::AmpSustain);
-    ss.mod = modSettings(Module::Strings, 0, -1, 1.0f, strings::Lfo1Rate, 2, strings::Mod1Src, 4, true);
-    if (changed(cache_.strings, ss, cache_.valid)) strings_.set(ss);
-    strips_[kSrcStrings].running = strings_.active();
-    float stringsPan = knob(Module::Strings, strings::Pan);
-    if (const float pm = strings_.panMod(); pm != 0.0f) stringsPan += pm;
+    ss.m_attackS = knob(ModuleE::STRINGS, strings::ATTACK);
+    ss.m_releaseS = knob(ModuleE::STRINGS, strings::RELEASE);
+    ss.m_feet = knob(ModuleE::STRINGS, strings::FEET);
+    ss.m_toneHz = knob(ModuleE::STRINGS, strings::TONE) * std::pow(2.0f, 0.5f * wave(17.3));
+    ss.m_ensemble = knob(ModuleE::STRINGS, strings::ENSEMBLE);
+    ss.m_registration = knob(ModuleE::STRINGS, strings::REGISTRATION);
+    ss.m_animate = knob(ModuleE::STRINGS, strings::ANIMATE);
+    ss.m_animateHz = knob(ModuleE::STRINGS, strings::ANIMATE_RATE);
+    ss.m_ensembleType = static_cast<int>(std::lround(knob(ModuleE::STRINGS, strings::ENSEMBLE_TYPE)));
+    ss.m_phaser = knob(ModuleE::STRINGS, strings::PHASER);
+    ss.m_decayS = knob(ModuleE::STRINGS, strings::AMP_DECAY);
+    ss.m_sustain = knob(ModuleE::STRINGS, strings::AMP_SUSTAIN);
+    ss.m_mod = modSettings(ModuleE::STRINGS, 0, -1, 1.0f, strings::LFO1_RATE, 2, strings::MOD1_SRC, 4, true);
+    if (changed(m_cache.m_strings, ss, m_cache.m_valid)) m_strings.set(ss);
+    m_strips[SRC_STRINGS].m_running = m_strings.active();
+    float stringsPan = knob(ModuleE::STRINGS, strings::PAN);
+    if (const float pm = m_strings.panMod(); pm != 0.0f) stringsPan += pm;
     // The ensemble spreads the machine over both sides; the pan law's 3 dB come back with sqrt 2.
-    setStrip(kSrcStrings, knob(Module::Strings, strings::Level) + 0.3f * wave(1.61) + 0.2f * wave(0.97), stringsPan,
-             knob(Module::Strings, strings::EchoSend), std::clamp(knob(Module::Strings, strings::ReverbSend) + 0.08f * wave(21.1), 0.0f, 1.0f),
-             1.41421356f, 0.0f, knob(Module::Strings, strings::Distance));
-    setLowCut(kSrcStrings, knob(Module::Strings, strings::LowCut));
-    strips_[kSrcStrings].blend = knob(Module::Strings, strings::BlendSend);
-    strips_[kSrcStrings].early = knob(Module::Strings, strings::EarlySend);
-    strips_[kSrcStrings].shimmer = knob(Module::Strings, strings::ShimmerSend);
+    setStrip(SRC_STRINGS, knob(ModuleE::STRINGS, strings::LEVEL) + 0.3f * wave(1.61) + 0.2f * wave(0.97), stringsPan,
+             knob(ModuleE::STRINGS, strings::ECHO_SEND), std::clamp(knob(ModuleE::STRINGS, strings::REVERB_SEND) + 0.08f * wave(21.1), 0.0f, 1.0f),
+             1.41421356f, 0.0f, knob(ModuleE::STRINGS, strings::DISTANCE));
+    setLowCut(SRC_STRINGS, knob(ModuleE::STRINGS, strings::LOW_CUT));
+    m_strips[SRC_STRINGS].m_blend = knob(ModuleE::STRINGS, strings::BLEND_SEND);
+    m_strips[SRC_STRINGS].m_early = knob(ModuleE::STRINGS, strings::EARLY_SEND);
+    m_strips[SRC_STRINGS].m_shimmer = knob(ModuleE::STRINGS, strings::SHIMMER_SEND);
 
     PolySettings ps;
-    ps.table = static_cast<int>(std::lround(knob(Module::Poly, poly::Table)));
-    ps.position = knob(Module::Poly, poly::Position);
-    ps.scan = knob(Module::Poly, poly::Scan);
-    ps.scanHz = knob(Module::Poly, poly::ScanRate);
-    ps.detuneCents = knob(Module::Poly, poly::Detune);
-    ps.spread = knob(Module::Poly, poly::Spread);
-    ps.driftCents = knob(Module::Poly, poly::Drift);
-    ps.cutoffHz = knob(Module::Poly, poly::Cutoff) * std::pow(2.0f, 0.4f * wave(19.7));
-    ps.resonance = knob(Module::Poly, poly::Resonance);
-    ps.envOctaves = knob(Module::Poly, poly::EnvAmount);
-    ps.attackS = knob(Module::Poly, poly::Attack);
-    ps.releaseS = knob(Module::Poly, poly::Release);
-    ps.chorus = knob(Module::Poly, poly::Chorus);
-    ps.filter = static_cast<int>(std::lround(knob(Module::Poly, poly::Filter)));
-    ps.filterMode = knob(Module::Poly, poly::FilterMode);
+    ps.m_table = static_cast<int>(std::lround(knob(ModuleE::POLY, poly::TABLE)));
+    ps.m_position = knob(ModuleE::POLY, poly::POSITION);
+    ps.m_scan = knob(ModuleE::POLY, poly::SCAN);
+    ps.m_scanHz = knob(ModuleE::POLY, poly::SCAN_RATE);
+    ps.m_detuneCents = knob(ModuleE::POLY, poly::DETUNE);
+    ps.m_spread = knob(ModuleE::POLY, poly::SPREAD);
+    ps.m_driftCents = knob(ModuleE::POLY, poly::DRIFT);
+    ps.m_cutoffHz = knob(ModuleE::POLY, poly::CUTOFF) * std::pow(2.0f, 0.4f * wave(19.7));
+    ps.m_resonance = knob(ModuleE::POLY, poly::RESONANCE);
+    ps.m_envOctaves = knob(ModuleE::POLY, poly::ENV_AMOUNT);
+    ps.m_attackS = knob(ModuleE::POLY, poly::ATTACK);
+    ps.m_releaseS = knob(ModuleE::POLY, poly::RELEASE);
+    ps.m_chorus = knob(ModuleE::POLY, poly::CHORUS);
+    ps.m_filter = static_cast<int>(std::lround(knob(ModuleE::POLY, poly::FILTER)));
+    ps.m_filterMode = knob(ModuleE::POLY, poly::FILTER_MODE);
     {
         // The envelopes in full and every key's modulation (26.09.2026); the pad's times in seconds.
-        auto raw = [&](int index) { return played(params_.id(Module::Poly, 0, index)); };
-        ps.ampDecayS = raw(poly::AmpDecay);
-        ps.ampSustain = raw(poly::AmpSustain);
-        ps.filtLink = static_cast<int>(std::lround(raw(poly::FiltLink)));
-        ps.filtAttackS = raw(poly::FiltAttack);
-        ps.filtDecayS = raw(poly::FiltDecay);
-        ps.filtSustain = raw(poly::FiltSustain);
-        ps.filtReleaseS = raw(poly::FiltRelease);
-        ps.envVelocity = raw(poly::EnvVelocity);
-        ps.mod = modSettings(Module::Poly, 0, poly::ModAttack, 1000.0f, poly::Lfo1Rate, kLfos, poly::Mod1Src, kModSlots, false);
+        auto raw = [&](int index) { return played(m_params.id(ModuleE::POLY, 0, index)); };
+        ps.m_ampDecayS = raw(poly::AMP_DECAY);
+        ps.m_ampSustain = raw(poly::AMP_SUSTAIN);
+        ps.m_filtLink = static_cast<int>(std::lround(raw(poly::FILT_LINK)));
+        ps.m_filtAttackS = raw(poly::FILT_ATTACK);
+        ps.m_filtDecayS = raw(poly::FILT_DECAY);
+        ps.m_filtSustain = raw(poly::FILT_SUSTAIN);
+        ps.m_filtReleaseS = raw(poly::FILT_RELEASE);
+        ps.m_envVelocity = raw(poly::ENV_VELOCITY);
+        ps.m_mod = modSettings(ModuleE::POLY, 0, poly::MOD_ATTACK, 1000.0f, poly::LFO1_RATE, Lfos, poly::MOD1_SRC, ModSlots, false);
     }
-    if (changed(cache_.poly, ps, cache_.valid)) poly_.set(ps);
-    strips_[kSrcPoly].running = poly_.active();
-    setStrip(kSrcPoly, knob(Module::Poly, poly::Level) + 0.3f * wave(1.37) + 0.2f * wave(1.13), knob(Module::Poly, poly::Pan),
-             knob(Module::Poly, poly::EchoSend), std::clamp(knob(Module::Poly, poly::ReverbSend) + 0.08f * wave(23.3), 0.0f, 1.0f),
-             1.41421356f, 0.0f, knob(Module::Poly, poly::Distance));
-    setLowCut(kSrcPoly, knob(Module::Poly, poly::LowCut));
-    strips_[kSrcPoly].blend = knob(Module::Poly, poly::BlendSend);
-    strips_[kSrcPoly].early = knob(Module::Poly, poly::EarlySend);
-    strips_[kSrcPoly].shimmer = knob(Module::Poly, poly::ShimmerSend);
+    if (changed(m_cache.m_poly, ps, m_cache.m_valid)) m_poly.set(ps);
+    m_strips[SRC_POLY].m_running = m_poly.active();
+    setStrip(SRC_POLY, knob(ModuleE::POLY, poly::LEVEL) + 0.3f * wave(1.37) + 0.2f * wave(1.13), knob(ModuleE::POLY, poly::PAN),
+             knob(ModuleE::POLY, poly::ECHO_SEND), std::clamp(knob(ModuleE::POLY, poly::REVERB_SEND) + 0.08f * wave(23.3), 0.0f, 1.0f),
+             1.41421356f, 0.0f, knob(ModuleE::POLY, poly::DISTANCE));
+    setLowCut(SRC_POLY, knob(ModuleE::POLY, poly::LOW_CUT));
+    m_strips[SRC_POLY].m_blend = knob(ModuleE::POLY, poly::BLEND_SEND);
+    m_strips[SRC_POLY].m_early = knob(ModuleE::POLY, poly::EARLY_SEND);
+    m_strips[SRC_POLY].m_shimmer = knob(ModuleE::POLY, poly::SHIMMER_SEND);
 
     DrumSettings ds;
-    ds.kickHz = knob(Module::Drums, drums::KickHz);
-    ds.decay = knob(Module::Drums, drums::Decay);
-    ds.tone = knob(Module::Drums, drums::Tone);
-    if (changed(cache_.drums, ds, cache_.valid)) drums_.set(ds);
+    ds.m_kickHz = knob(ModuleE::DRUMS, drums::KICK_HZ);
+    ds.m_decay = knob(ModuleE::DRUMS, drums::DECAY);
+    ds.m_tone = knob(ModuleE::DRUMS, drums::TONE);
+    if (changed(m_cache.m_drums, ds, m_cache.m_valid)) m_drums.set(ds);
     {
         // The kit pans its instruments itself (Drums.h): the strip only sets the level.
-        Strip& d = strips_[kSrcDrums];
-        d.running = drums_.active();
-        d.gainL = d.gainR = dbToGain(knob(Module::Drums, drums::Level));
-        d.echo = knob(Module::Drums, drums::EchoSend);
-        d.reverb = knob(Module::Drums, drums::ReverbSend);
+        Strip& d = m_strips[SRC_DRUMS];
+        d.m_running = m_drums.active();
+        d.m_gainL = d.m_gainR = dbToGain(knob(ModuleE::DRUMS, drums::LEVEL));
+        d.m_echo = knob(ModuleE::DRUMS, drums::ECHO_SEND);
+        d.m_reverb = knob(ModuleE::DRUMS, drums::REVERB_SEND);
     }
-    setLowCut(kSrcDrums, knob(Module::Drums, drums::LowCut));
-    strips_[kSrcDrums].blend = knob(Module::Drums, drums::BlendSend);
-    strips_[kSrcDrums].early = knob(Module::Drums, drums::EarlySend);
-    strips_[kSrcAtmos].shimmer = knob(Module::Atmos, atmos::ShimmerSend);
-    setLowCut(kSrcAtmos, knob(Module::Atmos, atmos::LowCut));
+    setLowCut(SRC_DRUMS, knob(ModuleE::DRUMS, drums::LOW_CUT));
+    m_strips[SRC_DRUMS].m_blend = knob(ModuleE::DRUMS, drums::BLEND_SEND);
+    m_strips[SRC_DRUMS].m_early = knob(ModuleE::DRUMS, drums::EARLY_SEND);
+    m_strips[SRC_ATMOS].m_shimmer = knob(ModuleE::ATMOS, atmos::SHIMMER_SEND);
+    setLowCut(SRC_ATMOS, knob(ModuleE::ATMOS, atmos::LOW_CUT));
 
     auto gain = [](float db) { return db <= -59.9f ? 0.0f : dbToGain(db); };
     AtmosSettings as;
-    as.windGain = gain(knob(Module::Atmos, atmos::Wind));
-    as.windHz = knob(Module::Atmos, atmos::WindTone);
-    as.sweepsPerMinute = knob(Module::Atmos, atmos::Sweeps);
-    as.sweepGain = gain(knob(Module::Atmos, atmos::SweepLevel));
-    as.bleepsPerMinute = knob(Module::Atmos, atmos::Bleeps);
-    as.bleepGain = gain(knob(Module::Atmos, atmos::BleepLevel));
-    as.grainGain = gain(knob(Module::Atmos, atmos::Grains));
-    as.grainsPerSecond = knob(Module::Atmos, atmos::GrainDensity);
+    as.m_windGain = gain(knob(ModuleE::ATMOS, atmos::WIND));
+    as.m_windHz = knob(ModuleE::ATMOS, atmos::WIND_TONE);
+    as.m_sweepsPerMinute = knob(ModuleE::ATMOS, atmos::SWEEPS);
+    as.m_sweepGain = gain(knob(ModuleE::ATMOS, atmos::SWEEP_LEVEL));
+    as.m_bleepsPerMinute = knob(ModuleE::ATMOS, atmos::BLEEPS);
+    as.m_bleepGain = gain(knob(ModuleE::ATMOS, atmos::BLEEP_LEVEL));
+    as.m_grainGain = gain(knob(ModuleE::ATMOS, atmos::GRAINS));
+    as.m_grainsPerSecond = knob(ModuleE::ATMOS, atmos::GRAIN_DENSITY);
     // The bleeps take their notes from the root the rows are in.
-    as.rootPc = pitchClass(score_.keyRoot + score_.rootAt(beat));
-    as.scale = params_.getInt(params_.id(Module::Compose, 0, compose::Scale));
-    if (changed(cache_.atmos, as, cache_.valid)) atmos_.set(as);
+    as.m_rootPc = pitchClass(m_score.m_keyRoot + m_score.rootAt(beat));
+    as.m_scale = m_params.getInt(m_params.id(ModuleE::COMPOSE, 0, compose::SCALE));
+    if (changed(m_cache.m_atmos, as, m_cache.m_valid)) m_atmos.set(as);
     {
         // Stereo already: the strip only sets the level; the echo takes the bleeps (renderSpan).
-        Strip& at = strips_[kSrcAtmos];
-        at.running = atmos_.active();
-        at.gainL = at.gainR = dbToGain(knob(Module::Atmos, atmos::Level) + 3.0f * wave(41.3));   // a far layer swells by 6 dB
-        at.echo = knob(Module::Atmos, atmos::EchoSend);
-        at.reverb = knob(Module::Atmos, atmos::ReverbSend);
+        Strip& at = m_strips[SRC_ATMOS];
+        at.m_running = m_atmos.active();
+        at.m_gainL = at.m_gainR = dbToGain(knob(ModuleE::ATMOS, atmos::LEVEL) + 3.0f * wave(41.3));   // a far layer swells by 6 dB
+        at.m_echo = knob(ModuleE::ATMOS, atmos::ECHO_SEND);
+        at.m_reverb = knob(ModuleE::ATMOS, atmos::REVERB_SEND);
     }
 
     // The echo throw (perform.throw): every send up, and the echo's feedback with them (below).
-    const float throwAmount = knob(Module::Perform, perform::Throw);
-    echoThrow_ = 0.8f * throwAmount;
+    const float throwAmount = knob(ModuleE::PERFORM, perform::THROW);
+    m_echoThrow = 0.8f * throwAmount;
 
     // The rooms and the master.
     EchoSettings es;
-    const double bpm = score_.tempo.bpmAt(beat);
-    es.delaySeconds = echoTimeBeats(static_cast<EchoTime>(static_cast<int>(knob(Module::Echo, echo::Time)))) * 60.0 / bpm;
-    es.feedback = knob(Module::Echo, echo::Feedback) + 0.04f * wave(29.9);
-    if (throwAmount > 0.0f) es.feedback += (0.9f - es.feedback) * throwAmount;
-    es.toneHz = knob(Module::Echo, echo::Tone);
-    es.wowMs = knob(Module::Echo, echo::Wow);
-    es.flutterMs = knob(Module::Echo, echo::Flutter);
-    es.driveDb = knob(Module::Echo, echo::Drive);
-    es.pingPong = knob(Module::Echo, echo::PingPong) >= 0.5f;
-    es.lowCutHz = knob(Module::Echo, echo::LowCut);
-    bbdOn_ = knob(Module::Echo, echo::Type) >= 0.5f;
-    const EchoSettings& le = cache_.echo;
-    if (!cache_.valid || cache_.echoType != static_cast<int>(bbdOn_) || le.delaySeconds != es.delaySeconds || le.feedback != es.feedback
-        || le.toneHz != es.toneHz || le.wowMs != es.wowMs || le.flutterMs != es.flutterMs || le.driveDb != es.driveDb || le.pingPong != es.pingPong
-        || le.lowCutHz != es.lowCutHz) {
-        cache_.echo = es;
-        cache_.echoType = static_cast<int>(bbdOn_);
-        if (bbdOn_) bbd_.set(es); else echo_.set(es);
+    const double bpm = m_score.m_tempo.bpmAt(beat);
+    es.m_delaySeconds = echoTimeBeats(static_cast<EchoTimeE>(static_cast<int>(knob(ModuleE::ECHO, echo::TIME)))) * 60.0 / bpm;
+    es.m_feedback = knob(ModuleE::ECHO, echo::FEEDBACK) + 0.04f * wave(29.9);
+    if (throwAmount > 0.0f) es.m_feedback += (0.9f - es.m_feedback) * throwAmount;
+    es.m_toneHz = knob(ModuleE::ECHO, echo::TONE);
+    es.m_wowMs = knob(ModuleE::ECHO, echo::WOW);
+    es.m_flutterMs = knob(ModuleE::ECHO, echo::FLUTTER);
+    es.m_driveDb = knob(ModuleE::ECHO, echo::DRIVE);
+    es.m_pingPong = knob(ModuleE::ECHO, echo::PING_PONG) >= 0.5f;
+    es.m_lowCutHz = knob(ModuleE::ECHO, echo::LOW_CUT);
+    m_bbdOn = knob(ModuleE::ECHO, echo::TYPE) >= 0.5f;
+    const EchoSettings& le = m_cache.m_echo;
+    if (!m_cache.m_valid || m_cache.m_echoType != static_cast<int>(m_bbdOn) || le.m_delaySeconds != es.m_delaySeconds || le.m_feedback != es.m_feedback
+        || le.m_toneHz != es.m_toneHz || le.m_wowMs != es.m_wowMs || le.m_flutterMs != es.m_flutterMs || le.m_driveDb != es.m_driveDb || le.m_pingPong != es.m_pingPong
+        || le.m_lowCutHz != es.m_lowCutHz) {
+        m_cache.m_echo = es;
+        m_cache.m_echoType = static_cast<int>(m_bbdOn);
+        if (m_bbdOn) m_bbd.set(es); else m_echo.set(es);
     }
-    echoReturn_ = dbToGain(knob(Module::Echo, echo::Return));
+    m_echoReturn = dbToGain(knob(ModuleE::ECHO, echo::RETURN));
     // The second echo: clean, a little wow, its own time and return.
     EchoSettings e2;
-    e2.delaySeconds = echoTimeBeats(static_cast<EchoTime>(static_cast<int>(knob(Module::Echo2, echo2::Time)))) * 60.0 / bpm;
-    e2.feedback = knob(Module::Echo2, echo2::Feedback);
-    e2.toneHz = knob(Module::Echo2, echo2::Tone);
-    e2.wowMs = 0.1f;      // clean: no timing smear on the counter rows (the production guide's 8.1)
-    e2.flutterMs = 0.01f;
-    e2.driveDb = 2.0f;
-    e2.pingPong = knob(Module::Echo2, echo2::PingPong) >= 0.5f;
-    e2.lowCutHz = knob(Module::Echo2, echo2::LowCut);
-    const EchoSettings& l2 = cache_.echo2;
-    if (!cache_.valid || l2.delaySeconds != e2.delaySeconds || l2.feedback != e2.feedback || l2.toneHz != e2.toneHz
-        || l2.pingPong != e2.pingPong || l2.lowCutHz != e2.lowCutHz) {
-        cache_.echo2 = e2;
-        echo2_.set(e2);
+    e2.m_delaySeconds = echoTimeBeats(static_cast<EchoTimeE>(static_cast<int>(knob(ModuleE::ECHO2, echo2::TIME)))) * 60.0 / bpm;
+    e2.m_feedback = knob(ModuleE::ECHO2, echo2::FEEDBACK);
+    e2.m_toneHz = knob(ModuleE::ECHO2, echo2::TONE);
+    e2.m_wowMs = 0.1f;      // clean: no timing smear on the counter rows (the production guide's 8.1)
+    e2.m_flutterMs = 0.01f;
+    e2.m_driveDb = 2.0f;
+    e2.m_pingPong = knob(ModuleE::ECHO2, echo2::PING_PONG) >= 0.5f;
+    e2.m_lowCutHz = knob(ModuleE::ECHO2, echo2::LOW_CUT);
+    const EchoSettings& l2 = m_cache.m_echo2;
+    if (!m_cache.m_valid || l2.m_delaySeconds != e2.m_delaySeconds || l2.m_feedback != e2.m_feedback || l2.m_toneHz != e2.m_toneHz
+        || l2.m_pingPong != e2.m_pingPong || l2.m_lowCutHz != e2.m_lowCutHz) {
+        m_cache.m_echo2 = e2;
+        m_echo2.set(e2);
     }
-    echo2Return_ = dbToGain(knob(Module::Echo2, echo2::Return));
-    echoDuckDb_ = knob(Module::Echo, echo::Duck);
-    hallDuckDb_ = knob(Module::Reverb, reverb::Duck);
-    width_ = dbToGain(knob(Module::Master, master::Width));
-    mono_ = knob(Module::Master, master::Mono) >= 0.5f;
-    subSolo_ = knob(Module::Master, master::SubSolo) >= 0.5f;
-    const float cascade = knob(Module::Master, master::Cascade);
-    if (cascade != cascadeDb_ || !cache_.valid) {
+    m_echo2Return = dbToGain(knob(ModuleE::ECHO2, echo2::RETURN));
+    m_echoDuckDb = knob(ModuleE::ECHO, echo::DUCK);
+    m_hallDuckDb = knob(ModuleE::REVERB, reverb::DUCK);
+    m_width = dbToGain(knob(ModuleE::MASTER, master::WIDTH));
+    m_mono = knob(ModuleE::MASTER, master::MONO) >= 0.5f;
+    m_subSolo = knob(ModuleE::MASTER, master::SUB_SOLO) >= 0.5f;
+    const float cascade = knob(ModuleE::MASTER, master::CASCADE);
+    if (cascade != m_cascadeDb || !m_cache.m_valid) {
         // The duck's gains from its amount, once per change: 256 steps are finer than anyone hears (at most 0.02 dB).
-        cascadeDb_ = cascade;
-        for (int k = 0; k < 256; ++k) duckTable_[k] = dbToGain(-cascadeDb_ * static_cast<float>(k) / 255.0f);
+        m_cascadeDb = cascade;
+        for (int k = 0; k < 256; ++k) m_duckTable[k] = dbToGain(-m_cascadeDb * static_cast<float>(k) / 255.0f);
     }
-    plateOn_ = knob(Module::Reverb, reverb::Type) >= 0.5f;
-    const float hall[7] = { knob(Module::Reverb, reverb::Size), knob(Module::Reverb, reverb::Decay), knob(Module::Reverb, reverb::Damping),
-                            knob(Module::Reverb, reverb::PreDelay) * 0.001f * static_cast<float>(sampleRate_),
-                            knob(Module::Reverb, reverb::LowCut), knob(Module::Reverb, reverb::HighCut), plateOn_ ? 1.0f : 0.0f };
-    if (changed(cache_.reverb, hall, cache_.valid)) {
-        if (plateOn_) plate_.set(hall[1], hall[2], hall[3], hall[4], hall[5]);
-        else reverb_.set(hall[0], hall[1], hall[2], hall[3], hall[4], hall[5]);
+    m_plateOn = knob(ModuleE::REVERB, reverb::TYPE) >= 0.5f;
+    const float hall[7] = { knob(ModuleE::REVERB, reverb::SIZE), knob(ModuleE::REVERB, reverb::DECAY), knob(ModuleE::REVERB, reverb::DAMPING),
+                            knob(ModuleE::REVERB, reverb::PRE_DELAY) * 0.001f * static_cast<float>(m_sampleRate),
+                            knob(ModuleE::REVERB, reverb::LOW_CUT), knob(ModuleE::REVERB, reverb::HIGH_CUT), m_plateOn ? 1.0f : 0.0f };
+    if (changed(m_cache.m_reverb, hall, m_cache.m_valid)) {
+        if (m_plateOn) m_plate.set(hall[1], hall[2], hall[3], hall[4], hall[5]);
+        else m_reverb.set(hall[0], hall[1], hall[2], hall[3], hall[4], hall[5]);
     }
-    reverbReturn_ = dbToGain(knob(Module::Reverb, reverb::Return));
-    const float blendSet[5] = { knob(Module::Blend, blend::Decay), knob(Module::Blend, blend::Damping),
-                                knob(Module::Blend, blend::PreDelay) * 0.001f * static_cast<float>(sampleRate_),
-                                knob(Module::Blend, blend::LowCut), knob(Module::Blend, blend::HighCut) };
-    if (changed(cache_.blend, blendSet, cache_.valid)) blend_.set(blendSet[0], blendSet[1], blendSet[2], blendSet[3], blendSet[4]);
-    blendReturn_ = dbToGain(knob(Module::Blend, blend::Return));
-    blendIntoHall_ = knob(Module::Blend, blend::IntoHall);
-    const float earlySet[3] = { knob(Module::Early, early::Size), knob(Module::Early, early::LowCut), knob(Module::Early, early::HighCut) };
-    if (changed(cache_.early, earlySet, cache_.valid)) early_.set(earlySet[0], earlySet[1], earlySet[2]);
-    earlyReturn_ = dbToGain(knob(Module::Early, early::Return));
-    const float shimSet[4] = { knob(Module::Shimmer, shimmer::Decay), knob(Module::Shimmer, shimmer::Amount),
-                               knob(Module::Shimmer, shimmer::LowCut), knob(Module::Shimmer, shimmer::HighCut) };
-    if (changed(cache_.shimmer, shimSet, cache_.valid)) shimmer_.set(shimSet[0], shimSet[1], shimSet[2], shimSet[3]);
-    shimmerReturn_ = dbToGain(knob(Module::Shimmer, shimmer::Return));
-    tame_ = knob(Module::Master, master::Tame);
-    clipDb_ = knob(Module::Master, master::Clip);
-    clipCeiling_ = dbToGain(knob(Module::Master, master::Ceiling));
-    subCeiling_ = dbToGain(knob(Module::Master, master::SubCeiling));
-    const float springs[2] = { knob(Module::Spring, spring::Decay), knob(Module::Spring, spring::Tone) };
-    if (changed(cache_.spring, springs, cache_.valid)) spring_.set(springs[0], springs[1]);
-    springReturn_ = gain(knob(Module::Spring, spring::Return));
+    m_reverbReturn = dbToGain(knob(ModuleE::REVERB, reverb::RETURN));
+    const float blendSet[5] = { knob(ModuleE::BLEND, blend::DECAY), knob(ModuleE::BLEND, blend::DAMPING),
+                                knob(ModuleE::BLEND, blend::PRE_DELAY) * 0.001f * static_cast<float>(m_sampleRate),
+                                knob(ModuleE::BLEND, blend::LOW_CUT), knob(ModuleE::BLEND, blend::HIGH_CUT) };
+    if (changed(m_cache.m_blend, blendSet, m_cache.m_valid)) m_blend.set(blendSet[0], blendSet[1], blendSet[2], blendSet[3], blendSet[4]);
+    m_blendReturn = dbToGain(knob(ModuleE::BLEND, blend::RETURN));
+    m_blendIntoHall = knob(ModuleE::BLEND, blend::INTO_HALL);
+    const float earlySet[3] = { knob(ModuleE::EARLY, early::SIZE), knob(ModuleE::EARLY, early::LOW_CUT), knob(ModuleE::EARLY, early::HIGH_CUT) };
+    if (changed(m_cache.m_early, earlySet, m_cache.m_valid)) m_early.set(earlySet[0], earlySet[1], earlySet[2]);
+    m_earlyReturn = dbToGain(knob(ModuleE::EARLY, early::RETURN));
+    const float shimSet[4] = { knob(ModuleE::SHIMMER, shimmer::DECAY), knob(ModuleE::SHIMMER, shimmer::AMOUNT),
+                               knob(ModuleE::SHIMMER, shimmer::LOW_CUT), knob(ModuleE::SHIMMER, shimmer::HIGH_CUT) };
+    if (changed(m_cache.m_shimmer, shimSet, m_cache.m_valid)) m_shimmer.set(shimSet[0], shimSet[1], shimSet[2], shimSet[3]);
+    m_shimmerReturn = dbToGain(knob(ModuleE::SHIMMER, shimmer::RETURN));
+    m_tame = knob(ModuleE::MASTER, master::TAME);
+    m_clipDb = knob(ModuleE::MASTER, master::CLIP);
+    m_clipCeiling = dbToGain(knob(ModuleE::MASTER, master::CEILING));
+    m_subCeiling = dbToGain(knob(ModuleE::MASTER, master::SUB_CEILING));
+    const float springs[2] = { knob(ModuleE::SPRING, spring::DECAY), knob(ModuleE::SPRING, spring::TONE) };
+    if (changed(m_cache.m_spring, springs, m_cache.m_valid)) m_spring.set(springs[0], springs[1]);
+    m_springReturn = gain(knob(ModuleE::SPRING, spring::RETURN));
     // The piece's loudness correction (Score::levels, Leveler.h), and what is left of one that came late.
-    const float trim = trimAt(beat) + lateDb_;
-    if (lateDb_ != 0.0f) {
-        lateDb_ *= static_cast<float>(std::exp(-kCell / (1.5 * sampleRate_)));
-        if (std::fabs(lateDb_) < 1.0e-3f) lateDb_ = 0.0f;
+    const float trim = trimAt(beat) + m_lateDb;
+    if (m_lateDb != 0.0f) {
+        m_lateDb *= static_cast<float>(std::exp(-Cell / (1.5 * m_sampleRate)));
+        if (std::fabs(m_lateDb) < 1.0e-3f) m_lateDb = 0.0f;
     }
-    master_ = dbToGain(knob(Module::Master, master::Level) + trim);
-    const float compress = knob(Module::Master, master::Compress), ceiling = knob(Module::Master, master::Ceiling);
-    if (changed(cache_.compress, compress, cache_.valid)) comp_.set(-16.0f, 1.0f + 0.5f * compress, 6.0f, 30.0f, 300.0f);
-    if (changed(cache_.ceiling, ceiling, cache_.valid)) limiter_.set(ceiling, 150.0f);
-    cache_.valid = true;
+    m_master = dbToGain(knob(ModuleE::MASTER, master::LEVEL) + trim);
+    const float compress = knob(ModuleE::MASTER, master::COMPRESS), ceiling = knob(ModuleE::MASTER, master::CEILING);
+    if (changed(m_cache.m_compress, compress, m_cache.m_valid)) m_comp.set(-16.0f, 1.0f + 0.5f * compress, 6.0f, 30.0f, 300.0f);
+    if (changed(m_cache.m_ceiling, ceiling, m_cache.m_valid)) m_limiter.set(ceiling, 150.0f);
+    m_cache.m_valid = true;
 }
 
 const char* Engine::channelName(int c)
 {
-    static_assert(kChannels == kSources, "a meter per source");
-    static const char* const names[kChannels] = { "Row 1", "Row 2", "Row 3", "Row 4", "Row 5", "Row 6", "Row 7", "Row 8",
+    static_assert(Channels == SOURCES, "a meter per source");
+    static const char* const names[Channels] = { "Row 1", "Row 2", "Row 3", "Row 4", "Row 5", "Row 6", "Row 7", "Row 8",
                                                   "Lead", "Drone", "Tape Keys", "Strings", "Poly", "Drums", "Atmosphere" };
-    return c >= 0 && c < kChannels ? names[c] : "";
+    return c >= 0 && c < Channels ? names[c] : "";
 }
 
 int Engine::takeMeters(float* peak, double* sumSq)
 {
-    for (int c = 0; c < kChannels; ++c) {
-        peak[c] = meterPeak_[c];
-        sumSq[c] = meterSum_[c];
-        meterPeak_[c] = 0.0f;
-        meterSum_[c] = 0.0;
+    for (int c = 0; c < Channels; ++c) {
+        peak[c] = m_meterPeak[c];
+        sumSq[c] = m_meterSum[c];
+        m_meterPeak[c] = 0.0f;
+        m_meterSum[c] = 0.0;
     }
-    const int n = meterCount_;
-    meterCount_ = 0;
+    const int n = m_meterCount;
+    m_meterCount = 0;
     return n;
 }
 
 void Engine::mix(int source, const float* xl, const float* xr, int n, const Buses& b, bool echoSend, const float* midGain)
 {
-    Strip& strip = strips_[source];
+    Strip& strip = m_strips[source];
     const bool mono = xl == xr;
     // The strip's low cut first (the production guide's 4.2): every role keeps out of the bands below its own.
-    float fl[kCell], fr[kCell];
-    if (strip.lowCut > 0.0f) {
+    float fl[Cell], fr[Cell];
+    if (strip.m_lowCut > 0.0f) {
         float lo, bo, hp;
-        for (int i = 0; i < n; ++i) { strip.hpL.tick(xl[i], lo, bo, hp); fl[i] = hp; }
+        for (int i = 0; i < n; ++i) { strip.m_hpL.tick(xl[i], lo, bo, hp); fl[i] = hp; }
         if (xr == xl) std::copy(fl, fl + n, fr);
-        else for (int i = 0; i < n; ++i) { strip.hpR.tick(xr[i], lo, bo, hp); fr[i] = hp; }
+        else for (int i = 0; i < n; ++i) { strip.m_hpR.tick(xr[i], lo, bo, hp); fr[i] = hp; }
         xl = fl;
         xr = fr;
     }
     // The punch (the production guide's 7.5): a fast and a slow follower; where the fast runs ahead -- an attack --
     // the gain rises by up to 6 dB, the sustain stays. Rows only, and only where it is set.
-    if (strip.punch > 0.0f) {
-        const float k = strip.punch;
+    if (strip.m_punch > 0.0f) {
+        const float k = strip.m_punch;
         for (int i = 0; i < n; ++i) {
             const float x = std::max(std::fabs(xl[i]), std::fabs(xr[i]));
-            strip.envFast = x + (x > strip.envFast ? punchFastA_ : punchFastR_) * (strip.envFast - x);
-            strip.envSlow = x + (x > strip.envSlow ? punchSlowA_ : punchSlowR_) * (strip.envSlow - x);
-            const float ratio = strip.envSlow > 1e-6f ? strip.envFast / strip.envSlow : 1.0f;
+            strip.m_envFast = x + (x > strip.m_envFast ? m_punchFastA : m_punchFastR) * (strip.m_envFast - x);
+            strip.m_envSlow = x + (x > strip.m_envSlow ? m_punchSlowA : m_punchSlowR) * (strip.m_envSlow - x);
+            const float ratio = strip.m_envSlow > 1e-6f ? strip.m_envFast / strip.m_envSlow : 1.0f;
             const float g = std::clamp(1.0f + k * (ratio - 1.0f), 1.0f, 2.0f);
             fl[i] = xl[i] * g;
             fr[i] = xr[i] * g;
@@ -723,15 +723,15 @@ void Engine::mix(int source, const float* xl, const float* xr, int n, const Buse
         xr = fr;
     }
     // The distance's high loss (the addon's 2).
-    if (strip.lpHz > 0.0f) {
-        for (int i = 0; i < n; ++i) fl[i] = strip.lpL.lp(xl[i]);
+    if (strip.m_lpHz > 0.0f) {
+        for (int i = 0; i < n; ++i) fl[i] = strip.m_lpL.lp(xl[i]);
         if (mono) std::copy(fl, fl + n, fr);
-        else for (int i = 0; i < n; ++i) fr[i] = strip.lpR.lp(xr[i]);
+        else for (int i = 0; i < n; ++i) fr[i] = strip.m_lpR.lp(xr[i]);
         xl = fl;
         xr = fr;
     }
     // The cascaded, spectral duck (the addon's 4): six bands between 350 Hz and 4.8 kHz, each stepping back by its own
-    // gain (midGain holds kBands rows of kCell): only where the side chain has energy; the body and the air stay.
+    // gain (midGain holds Bands rows of Cell): only where the side chain has energy; the body and the air stay.
     if (midGain != nullptr) {
         float* out[2] = { fl, fr };
         const float* in[2] = { xl, xr };
@@ -739,10 +739,10 @@ void Engine::mix(int source, const float* xl, const float* xr, int n, const Buse
             for (int i = 0; i < n; ++i) {
                 const float x = in[c][i];
                 float y = x;
-                for (int k = 0; k < kBands; ++k) {
+                for (int k = 0; k < Bands; ++k) {
                     float lo, bp, hp;
-                    strip.band[c][k].tick(x, lo, bp, hp);
-                    y += (midGain[k * kCell + i] - 1.0f) * bp * strip.band[c][k].k;
+                    strip.m_band[c][k].tick(x, lo, bp, hp);
+                    y += (midGain[k * Cell + i] - 1.0f) * bp * strip.m_band[c][k].m_k;
                 }
                 out[c][i] = y;
             }
@@ -751,49 +751,49 @@ void Engine::mix(int source, const float* xl, const float* xr, int n, const Buse
         xl = fl;
         xr = fr;
     }
-    const float echo = strip.echo + echoThrow_;   // the throw on top of the send (exactly the send without it)
+    const float echo = strip.m_echo + m_echoThrow;   // the throw on top of the send (exactly the send without it)
     for (int i = 0; i < n; ++i) {
-        const float l = xl[i] * strip.gainL, r = xr[i] * strip.gainR;
+        const float l = xl[i] * strip.m_gainL, r = xr[i] * strip.m_gainR;
         // The rows go onto their own bus (the resonance suppressor works on it, renderSpan); the rest into the mix.
-        if (source >= kRows) { b.L[i] += l; b.R[i] += r; }
-        if (echoSend) { b.echoL[i] += l * echo; b.echoR[i] += r * echo; }
-        b.hallL[i] += l * strip.reverb;
-        b.hallR[i] += r * strip.reverb;
-        b.echo2L[i] += l * strip.echo2;
-        b.echo2R[i] += r * strip.echo2;
-        if (source < kRows) { b.rowsL[i] += l; b.rowsR[i] += r; }
-        if (source == kSrcStrings || source == kSrcTape || source == kSrcPoly) { b.padsL[i] += l; b.padsR[i] += r; }
-        b.blendL[i] += l * strip.blend;
-        b.blendR[i] += r * strip.blend;
-        b.earlyL[i] += l * strip.early;
-        b.earlyR[i] += r * strip.early;
-        b.shimL[i] += l * strip.shimmer;
-        b.shimR[i] += r * strip.shimmer;
+        if (source >= Rows) { b.m_L[i] += l; b.m_R[i] += r; }
+        if (echoSend) { b.m_echoL[i] += l * echo; b.m_echoR[i] += r * echo; }
+        b.m_hallL[i] += l * strip.m_reverb;
+        b.m_hallR[i] += r * strip.m_reverb;
+        b.m_echo2L[i] += l * strip.m_echo2;
+        b.m_echo2R[i] += r * strip.m_echo2;
+        if (source < Rows) { b.m_rowsL[i] += l; b.m_rowsR[i] += r; }
+        if (source == SRC_STRINGS || source == SRC_TAPE || source == SRC_POLY) { b.m_padsL[i] += l; b.m_padsR[i] += r; }
+        b.m_blendL[i] += l * strip.m_blend;
+        b.m_blendR[i] += r * strip.m_blend;
+        b.m_earlyL[i] += l * strip.m_early;
+        b.m_earlyR[i] += r * strip.m_early;
+        b.m_shimL[i] += l * strip.m_shimmer;
+        b.m_shimR[i] += r * strip.m_shimmer;
     }
-    if (metering_) {
+    if (m_metering) {
         // What the strip put into the mix, read again: the sums above are not touched.
-        float peak = meterPeak_[source];
-        double sum = meterSum_[source];
+        float peak = m_meterPeak[source];
+        double sum = m_meterSum[source];
         for (int i = 0; i < n; ++i) {
-            const float l = xl[i] * strip.gainL, r = xr[i] * strip.gainR;
+            const float l = xl[i] * strip.m_gainL, r = xr[i] * strip.m_gainR;
             peak = std::max(peak, std::max(std::fabs(l), std::fabs(r)));
             sum += 0.5 * (static_cast<double>(l) * l + static_cast<double>(r) * r);
         }
-        meterPeak_[source] = peak;
-        meterSum_[source] = sum;
+        m_meterPeak[source] = peak;
+        m_meterSum[source] = sum;
     }
-    if (stemL_ != nullptr) {
-        float* sl = stemL_[source] + spanAt_;
-        float* sr = stemR_[source] + spanAt_;
-        for (int i = 0; i < n; ++i) { sl[i] = xl[i] * strip.gainL; sr[i] = xr[i] * strip.gainR; }
+    if (m_stemL != nullptr) {
+        float* sl = m_stemL[source] + m_spanAt;
+        float* sr = m_stemR[source] + m_spanAt;
+        for (int i = 0; i < n; ++i) { sl[i] = xl[i] * strip.m_gainL; sr[i] = xr[i] * strip.m_gainR; }
     }
 }
 
 void Engine::renderSpan(float* L, float* R, int n)
 {
-    float bufL[kCell], bufR[kCell], echoL[kCell], echoR[kCell], hallInL[kCell], hallInR[kCell], echo2L[kCell], echo2R[kCell];
-    float rowsL[kCell] = {}, rowsR[kCell] = {}, padsL[kCell] = {}, padsR[kCell] = {}, blendInL[kCell] = {}, blendInR[kCell] = {};
-    float earlyInL[kCell] = {}, earlyInR[kCell] = {}, shimInL[kCell] = {}, shimInR[kCell] = {};
+    float bufL[Cell], bufR[Cell], echoL[Cell], echoR[Cell], hallInL[Cell], hallInR[Cell], echo2L[Cell], echo2R[Cell];
+    float rowsL[Cell] = {}, rowsR[Cell] = {}, padsL[Cell] = {}, padsR[Cell] = {}, blendInL[Cell] = {}, blendInR[Cell] = {};
+    float earlyInL[Cell] = {}, earlyInR[Cell] = {}, shimInL[Cell] = {}, shimInR[Cell] = {};
     std::fill(L, L + n, 0.0f);
     std::fill(R, R + n, 0.0f);
     std::fill(echoL, echoL + n, 0.0f);
@@ -804,14 +804,14 @@ void Engine::renderSpan(float* L, float* R, int n)
     std::fill(echo2R, echo2R + n, 0.0f);
     const Buses b{ L, R, echoL, echoR, hallInL, hallInR, echo2L, echo2R, rowsL, rowsR, padsL, padsR, blendInL, blendInR,
                    earlyInL, earlyInR, shimInL, shimInR };
-    if (metering_) meterCount_ += n;
+    if (m_metering) m_meterCount += n;
 
     // The sources, each through its strip, in a fixed order (the order of the sums is part of the result).
-    bool run[kModVoices];
-    for (int r = 0; r < kModVoices; ++r) run[r] = strips_[r].running;
-    voices_.process(run, n);
-    for (int r = 0; r < kModVoices; ++r)
-        if (run[r]) mix(r, voices_.output(r), voices_.output(r), n, b);
+    bool run[ModVoices];
+    for (int r = 0; r < ModVoices; ++r) run[r] = m_strips[r].m_running;
+    m_voices.process(run, n);
+    for (int r = 0; r < ModVoices; ++r)
+        if (run[r]) mix(r, m_voices.output(r), m_voices.output(r), n, b);
     // The rows' envelope, sample by sample (so the result does not depend on how a block is cut into spans): it ducks
     // the rooms' returns (the production guide's 5.2, 5.4) and, in their middle band, the pads (the addon's 4). From
     // -30 dBFS on, fully at -12.
@@ -819,103 +819,103 @@ void Engine::renderSpan(float* L, float* R, int n)
     // (3 ms up, 60 ms down) against its neighbours'; a band more than 4.5 dB over them is pulled back 3:1 (master.tame scales
     // the ratio), so a filter's resonance that sweeps through does not stick out; then into the mix.
     {
-        float tl[kCell], tr[kCell];
+        float tl[Cell], tr[Cell];
         std::copy(rowsL, rowsL + n, tl);
         std::copy(rowsR, rowsR + n, tr);
-        tamer_.process(tl, tr, n, tame_);
+        m_tamer.process(tl, tr, n, m_tame);
         for (int i = 0; i < n; ++i) { L[i] += tl[i]; R[i] += tr[i]; }
     }
-    float duckAmount[kCell], rowGain[kBands * kCell], padGain[kBands * kCell];
+    float duckAmount[Cell], rowGain[Bands * Cell], padGain[Bands * Cell];
     for (int i = 0; i < n; ++i) {
         const float x = std::max(std::fabs(rowsL[i]), std::fabs(rowsR[i]));
-        duckEnv_ = x + (x > duckEnv_ ? envAttack_ : envRelease_) * (duckEnv_ - x);
-        duckAmount[i] = std::clamp((duckEnv_ - 0.0316f) / (0.2512f - 0.0316f), 0.0f, 1.0f);
+        m_duckEnv = x + (x > m_duckEnv ? m_envAttack : m_envRelease) * (m_duckEnv - x);
+        duckAmount[i] = std::clamp((m_duckEnv - 0.0316f) / (0.2512f - 0.0316f), 0.0f, 1.0f);
         // The side chain in the six bands: each band of the pads steps back where the rows have energy in it.
         const float mono = 0.5f * (rowsL[i] + rowsR[i]);
-        for (int k = 0; k < kBands; ++k) {
+        for (int k = 0; k < Bands; ++k) {
             float lo, bp, hp;
-            rowSide_[k].tick(mono, lo, bp, hp);
-            const float bx = std::fabs(bp * rowSide_[k].k);
-            rowBandEnv_[k] = bx + (bx > rowBandEnv_[k] ? envAttack_ : envRelease_) * (rowBandEnv_[k] - bx);
-            rowGain[k * kCell + i] = duckTable_[static_cast<int>(255.0f * std::clamp((rowBandEnv_[k] - 0.01f) / (0.08f - 0.01f), 0.0f, 1.0f))];
+            m_rowSide[k].tick(mono, lo, bp, hp);
+            const float bx = std::fabs(bp * m_rowSide[k].m_k);
+            m_rowBandEnv[k] = bx + (bx > m_rowBandEnv[k] ? m_envAttack : m_envRelease) * (m_rowBandEnv[k] - bx);
+            rowGain[k * Cell + i] = m_duckTable[static_cast<int>(255.0f * std::clamp((m_rowBandEnv[k] - 0.01f) / (0.08f - 0.01f), 0.0f, 1.0f))];
         }
     }
-    if (strips_[kSrcDrums].running) {
-        drums_.process(bufL, bufR, n);
-        mix(kSrcDrums, bufL, bufR, n, b);
+    if (m_strips[SRC_DRUMS].m_running) {
+        m_drums.process(bufL, bufR, n);
+        mix(SRC_DRUMS, bufL, bufR, n, b);
     }
-    if (strips_[kSrcStrings].running) {
-        strings_.process(bufL, bufR, n);
-        mix(kSrcStrings, bufL, bufR, n, b, true, rowGain);
+    if (m_strips[SRC_STRINGS].m_running) {
+        m_strings.process(bufL, bufR, n);
+        mix(SRC_STRINGS, bufL, bufR, n, b, true, rowGain);
     }
-    if (strips_[kSrcPoly].running) {
-        poly_.process(bufL, bufR, n);
-        mix(kSrcPoly, bufL, bufR, n, b, true, rowGain);
+    if (m_strips[SRC_POLY].m_running) {
+        m_poly.process(bufL, bufR, n);
+        mix(SRC_POLY, bufL, bufR, n, b, true, rowGain);
     }
-    if (strips_[kSrcTape].running) {
-        tape_.process(bufL, n);
-        if (tapeSpread_ > 0.0f) {
+    if (m_strips[SRC_TAPE].m_running) {
+        m_tape.process(bufL, n);
+        if (m_tapeSpread > 0.0f) {
             // The mono keyboard widened by allpass decorrelation (the addon's 6): the side is the direct sound through
             // a chain of eight first-order all-passes whose phase turns at corners spread over the band, so left and
             // right differ in phase, not in colour. Their sum is the direct sound alone: nothing changes in mono.
             // The correlation is about (1 - g^2) / (1 + g^2): 0.34 at the default 0.7, never under 0.
-            const float g = std::clamp(tapeSpread_, 0.0f, 1.0f), norm = 1.0f / std::sqrt(1.0f + g * g);
+            const float g = std::clamp(m_tapeSpread, 0.0f, 1.0f), norm = 1.0f / std::sqrt(1.0f + g * g);
             for (int i = 0; i < n; ++i) {
                 float a = bufL[i];
                 for (int s = 0; s < 4; ++s) {
-                    const float ya = apCoefL_[s] * a + apL_[s]; apL_[s] = a - apCoefL_[s] * ya; a = ya;
-                    const float yb = apCoefR_[s] * a + apR_[s]; apR_[s] = a - apCoefR_[s] * yb; a = yb;
+                    const float ya = m_apCoefL[s] * a + m_apL[s]; m_apL[s] = a - m_apCoefL[s] * ya; a = ya;
+                    const float yb = m_apCoefR[s] * a + m_apR[s]; m_apR[s] = a - m_apCoefR[s] * yb; a = yb;
                 }
                 bufR[i] = norm * (bufL[i] - g * a);
                 bufL[i] = norm * (bufL[i] + g * a);
             }
-            mix(kSrcTape, bufL, bufR, n, b, true, rowGain);
+            mix(SRC_TAPE, bufL, bufR, n, b, true, rowGain);
         } else {
-            mix(kSrcTape, bufL, bufL, n, b, true, rowGain);
+            mix(SRC_TAPE, bufL, bufL, n, b, true, rowGain);
         }
     }
     // The pads' envelope ducks the atmosphere's middle band in turn.
     for (int i = 0; i < n; ++i) {
         const float x = std::max(std::fabs(padsL[i]), std::fabs(padsR[i]));
-        padEnv_ = x + (x > padEnv_ ? envAttack_ : envRelease_) * (padEnv_ - x);
+        m_padEnv = x + (x > m_padEnv ? m_envAttack : m_envRelease) * (m_padEnv - x);
         const float mono = 0.5f * (padsL[i] + padsR[i]);
-        for (int k = 0; k < kBands; ++k) {
+        for (int k = 0; k < Bands; ++k) {
             float lo, bp, hp;
-            padSide_[k].tick(mono, lo, bp, hp);
-            const float y = std::fabs(bp * padSide_[k].k);
-            padBandEnv_[k] = y + (y > padBandEnv_[k] ? envAttack_ : envRelease_) * (padBandEnv_[k] - y);
-            padGain[k * kCell + i] = duckTable_[static_cast<int>(255.0f * std::clamp((padBandEnv_[k] - 0.01f) / (0.08f - 0.01f), 0.0f, 1.0f))];
+            m_padSide[k].tick(mono, lo, bp, hp);
+            const float y = std::fabs(bp * m_padSide[k].m_k);
+            m_padBandEnv[k] = y + (y > m_padBandEnv[k] ? m_envAttack : m_envRelease) * (m_padBandEnv[k] - y);
+            padGain[k * Cell + i] = m_duckTable[static_cast<int>(255.0f * std::clamp((m_padBandEnv[k] - 0.01f) / (0.08f - 0.01f), 0.0f, 1.0f))];
         }
     }
-    if (strips_[kSrcAtmos].running) {
+    if (m_strips[SRC_ATMOS].m_running) {
         // The whole atmosphere goes to the mix and the hall, only its bleeps to the echo.
-        float bleepL[kCell] = {}, bleepR[kCell] = {};
+        float bleepL[Cell] = {}, bleepR[Cell] = {};
         std::fill(bufL, bufL + n, 0.0f);
         std::fill(bufR, bufR + n, 0.0f);
-        atmos_.process(bufL, bufR, bleepL, bleepR, n);
-        const Strip& at = strips_[kSrcAtmos];
-        mix(kSrcAtmos, bufL, bufR, n, b, false, padGain);
+        m_atmos.process(bufL, bufR, bleepL, bleepR, n);
+        const Strip& at = m_strips[SRC_ATMOS];
+        mix(SRC_ATMOS, bufL, bufR, n, b, false, padGain);
         for (int i = 0; i < n; ++i) {
-            echoL[i] += bleepL[i] * at.gainL * (0.5f + at.echo + echoThrow_);
-            echoR[i] += bleepR[i] * at.gainR * (0.5f + at.echo + echoThrow_);
+            echoL[i] += bleepL[i] * at.m_gainL * (0.5f + at.m_echo + m_echoThrow);
+            echoR[i] += bleepR[i] * at.m_gainR * (0.5f + at.m_echo + m_echoThrow);
         }
     }
 
     // The tape echo, its springs, the hall, the master.
-    float wetL[kCell] = {}, wetR[kCell] = {}, sprL[kCell] = {}, sprR[kCell] = {}, hallL[kCell], hallR[kCell];
-    if (bbdOn_) bbd_.process(echoL, echoR, wetL, wetR, n);
-    else echo_.process(echoL, echoR, wetL, wetR, n);
+    float wetL[Cell] = {}, wetR[Cell] = {}, sprL[Cell] = {}, sprR[Cell] = {}, hallL[Cell], hallR[Cell];
+    if (m_bbdOn) m_bbd.process(echoL, echoR, wetL, wetR, n);
+    else m_echo.process(echoL, echoR, wetL, wetR, n);
     // The springs take the echo's send, as in a tape echo with springs built in; they return beside it.
-    spring_.process(echoL, echoR, sprL, sprR, n);
+    m_spring.process(echoL, echoR, sprL, sprR, n);
     for (int i = 0; i < n; ++i) {
-        wetL[i] += sprL[i] * springReturn_ / std::max(echoReturn_, 1e-6f);
-        wetR[i] += sprR[i] * springReturn_ / std::max(echoReturn_, 1e-6f);
+        wetL[i] += sprL[i] * m_springReturn / std::max(m_echoReturn, 1e-6f);
+        wetR[i] += sprR[i] * m_springReturn / std::max(m_echoReturn, 1e-6f);
     }
     // The rooms' returns ducked by the rows (duckAmount above): the tails grow in the gaps, step back under the notes.
-    const float echoK = -echoDuckDb_ * 0.11512925f, hallK = -hallDuckDb_ * 0.11512925f;   // ln 10 / 20
+    const float echoK = -m_echoDuckDb * 0.11512925f, hallK = -m_hallDuckDb * 0.11512925f;   // ln 10 / 20
     // The second echo, beside the first.
-    float wet2L[kCell] = {}, wet2R[kCell] = {};
-    echo2_.process(echo2L, echo2R, wet2L, wet2R, n);
+    float wet2L[Cell] = {}, wet2R[Cell] = {};
+    m_echo2.process(echo2L, echo2R, wet2L, wet2R, n);
     // Both echoes' repeats at about 70 % of the base, not hard left and right (the production guide's 5.4): the
     // middle keeps a share of each repeat, so the ping-pong stays audible in mono.
     for (int i = 0; i < n; ++i) {
@@ -927,59 +927,59 @@ void Engine::renderSpan(float* L, float* R, int n)
     }
     // The echoes' repeats go into the hall too, as they do on a desk where the echo returns to a channel.
     for (int i = 0; i < n; ++i) {
-        hallInL[i] += wetL[i] * echoReturn_ * 0.5f + wet2L[i] * echo2Return_ * 0.5f;
-        hallInR[i] += wetR[i] * echoReturn_ * 0.5f + wet2R[i] * echo2Return_ * 0.5f;
+        hallInL[i] += wetL[i] * m_echoReturn * 0.5f + wet2L[i] * m_echo2Return * 0.5f;
+        hallInR[i] += wetR[i] * m_echoReturn * 0.5f + wet2R[i] * m_echo2Return * 0.5f;
     }
     // The blend room (the addon's serial far space): a short plate; a share of its return goes on into the hall, so the
     // far room sounds like the near one going on, not like a second place.
-    float blendL[kCell] = {}, blendR[kCell] = {}, earlyL[kCell] = {}, earlyR[kCell] = {}, shimL[kCell] = {}, shimR[kCell] = {};
-    blend_.process(blendInL, blendInR, blendL, blendR, n);
-    early_.process(earlyInL, earlyInR, earlyL, earlyR, n);
-    shimmer_.process(shimInL, shimInR, shimL, shimR, n);
+    float blendL[Cell] = {}, blendR[Cell] = {}, earlyL[Cell] = {}, earlyR[Cell] = {}, shimL[Cell] = {}, shimR[Cell] = {};
+    m_blend.process(blendInL, blendInR, blendL, blendR, n);
+    m_early.process(earlyInL, earlyInR, earlyL, earlyR, n);
+    m_shimmer.process(shimInL, shimInR, shimL, shimR, n);
     for (int i = 0; i < n; ++i) {
-        hallInL[i] += blendL[i] * blendReturn_ * blendIntoHall_;
-        hallInR[i] += blendR[i] * blendReturn_ * blendIntoHall_;
+        hallInL[i] += blendL[i] * m_blendReturn * m_blendIntoHall;
+        hallInR[i] += blendR[i] * m_blendReturn * m_blendIntoHall;
     }
-    if (plateOn_) {
+    if (m_plateOn) {
         std::fill(hallL, hallL + n, 0.0f);
         std::fill(hallR, hallR + n, 0.0f);
-        plate_.process(hallInL, hallInR, hallL, hallR, n);
+        m_plate.process(hallInL, hallInR, hallL, hallR, n);
     } else {
-        reverb_.process(hallInL, hallInR, hallL, hallR, n);
+        m_reverb.process(hallInL, hallInR, hallL, hallR, n);
     }
     for (int i = 0; i < n; ++i) {
         const float eg = std::exp(echoK * duckAmount[i]), hg = std::exp(hallK * duckAmount[i]);
-        const float rl = (wetL[i] * echoReturn_ + wet2L[i] * echo2Return_) * eg
-                       + (hallL[i] * reverbReturn_ + blendL[i] * blendReturn_ + earlyL[i] * earlyReturn_) * hg + shimL[i] * shimmerReturn_;
-        const float rr = (wetR[i] * echoReturn_ + wet2R[i] * echo2Return_) * eg
-                       + (hallR[i] * reverbReturn_ + blendR[i] * blendReturn_ + earlyR[i] * earlyReturn_) * hg + shimR[i] * shimmerReturn_;
-        if (stemL_ != nullptr) {
-            stemL_[kChannels][spanAt_ + i] = rl;
-            stemR_[kChannels][spanAt_ + i] = rr;
+        const float rl = (wetL[i] * m_echoReturn + wet2L[i] * m_echo2Return) * eg
+                       + (hallL[i] * m_reverbReturn + blendL[i] * m_blendReturn + earlyL[i] * m_earlyReturn) * hg + shimL[i] * m_shimmerReturn;
+        const float rr = (wetR[i] * m_echoReturn + wet2R[i] * m_echo2Return) * eg
+                       + (hallR[i] * m_reverbReturn + blendR[i] * m_blendReturn + earlyR[i] * m_earlyReturn) * hg + shimR[i] * m_shimmerReturn;
+        if (m_stemL != nullptr) {
+            m_stemL[Channels][m_spanAt + i] = rl;
+            m_stemR[Channels][m_spanAt + i] = rr;
         }
-        L[i] = (L[i] + rl) * master_;
-        R[i] = (R[i] + rr) * master_;
+        L[i] = (L[i] + rl) * m_master;
+        R[i] = (R[i] + rr) * m_master;
     }
     // The mix bus (the production guide's 3.3, 6.3, 6.4): a 20 Hz high pass for DC and subsonics; the side through a
     // 12 dB/octave high pass at 100 Hz (mono beneath), plus the widening by master.width on what lies above 300 Hz --
     // both Butterworth, so no bass leaks into the widening.
     for (int i = 0; i < n; ++i) {
         float lo, bo, hl, hr;
-        dcL_.tick(L[i], lo, bo, hl);
-        dcR_.tick(R[i], lo, bo, hr);
+        m_dcL.tick(L[i], lo, bo, hl);
+        m_dcR.tick(R[i], lo, bo, hr);
         const float m = 0.5f * (hl + hr), s = 0.5f * (hl - hr);
         float sl, sb, sh, l3, b3, high;
-        sideHp_.tick(s, sl, sb, sh);
-        sideHp300_.tick(s, l3, b3, high);
+        m_sideHp.tick(s, sl, sb, sh);
+        m_sideHp300.tick(s, l3, b3, high);
         // The side never over the mid (6.5): the widening stops where the side's energy would come within 3 dB of
         // the mid's (energies over about 300 ms), so decorrelated spaces are not pushed into negative correlation.
-        energyMid_ += energyCoef_ * (m * m - energyMid_);
-        energyLow_ += energyCoef_ * (sh * sh - energyLow_);
-        energyHigh_ += energyCoef_ * (high * high - energyHigh_);
-        float g = width_;
+        m_energyMid += m_energyCoef * (m * m - m_energyMid);
+        m_energyLow += m_energyCoef * (sh * sh - m_energyLow);
+        m_energyHigh += m_energyCoef * (high * high - m_energyHigh);
+        float g = m_width;
         if (g > 1.0f) {
-            const float room = 0.5f * energyMid_ - energyLow_;
-            const float most = room > 0.0f && energyHigh_ > 1e-12f ? std::sqrt(1.0f + room / energyHigh_) : 1.0f;
+            const float room = 0.5f * m_energyMid - m_energyLow;
+            const float most = room > 0.0f && m_energyHigh > 1e-12f ? std::sqrt(1.0f + room / m_energyHigh) : 1.0f;
             g = std::clamp(most, 1.0f, g);
         }
         const float side = sh + (g - 1.0f) * high;
@@ -991,23 +991,23 @@ void Engine::renderSpan(float* L, float* R, int n)
     // is flat, and only the low one is held under its ceiling.
     for (int i = 0; i < n; ++i) {
         float lo, bp, hp, hl[2], hr[2];
-        subHpL_[0].tick(L[i], lo, bp, hl[0]); subHpL_[1].tick(hl[0], lo, bp, hl[1]);
-        subHpR_[0].tick(R[i], lo, bp, hr[0]); subHpR_[1].tick(hr[0], lo, bp, hr[1]);
-        const float lowL = subSplitL_[1].lp(subSplitL_[0].lp(L[i])), lowR = subSplitR_[1].lp(subSplitR_[0].lp(R[i]));
+        m_subHpL[0].tick(L[i], lo, bp, hl[0]); m_subHpL[1].tick(hl[0], lo, bp, hl[1]);
+        m_subHpR[0].tick(R[i], lo, bp, hr[0]); m_subHpR[1].tick(hr[0], lo, bp, hr[1]);
+        const float lowL = m_subSplitL[1].lp(m_subSplitL[0].lp(L[i])), lowR = m_subSplitR[1].lp(m_subSplitR[0].lp(R[i]));
         const float x = std::max(std::fabs(lowL), std::fabs(lowR));
-        subEnv_ = x + (x > subEnv_ ? subAttack_ : subRelease_) * (subEnv_ - x);
-        const float g = subEnv_ > subCeiling_ ? subCeiling_ / subEnv_ : 1.0f;
+        m_subEnv = x + (x > m_subEnv ? m_subAttack : m_subRelease) * (m_subEnv - x);
+        const float g = m_subEnv > m_subCeiling ? m_subCeiling / m_subEnv : 1.0f;
         L[i] = hl[1] + g * lowL;
         R[i] = hr[1] + g * lowR;
         (void)hp;
     }
-    comp_.process(L, R, n);
-    // The soft clipper (the production guide's 7.4): peaks above the limiter's ceiling are rounded into at most clipDb_
+    m_comp.process(L, R, n);
+    // The soft clipper (the production guide's 7.4): peaks above the limiter's ceiling are rounded into at most m_clipDb
     // above it, so short ratchet and percussion peaks do not make the limiter work; first-order antiderivative
     // anti-aliasing (the difference quotient of the curve's integral) keeps the harmonics it makes from folding back.
-    if (clipDb_ > 0.01f) {
-        const float t = clipCeiling_;
-        const float kk = t * (dbToGain(clipDb_) - 1.0f);
+    if (m_clipDb > 0.01f) {
+        const float t = m_clipCeiling;
+        const float kk = t * (dbToGain(m_clipDb) - 1.0f);
         auto curve = [&](float x) {
             const float a = std::fabs(x);
             return a <= t ? x : std::copysign(t + kk * std::tanh((a - t) / kk), x);
@@ -1022,7 +1022,7 @@ void Engine::renderSpan(float* L, float* R, int n)
         };
         float* ch[2] = { L, R };
         for (int c = 0; c < 2; ++c) {
-            float prev = clipPrev_[c];
+            float prev = m_clipPrev[c];
             for (int i = 0; i < n; ++i) {
                 const float x = ch[c][i];
                 const float d = x - prev;
@@ -1032,27 +1032,27 @@ void Engine::renderSpan(float* L, float* R, int n)
                 prev = x;
                 ch[c][i] = y;
             }
-            clipPrev_[c] = prev;
+            m_clipPrev[c] = prev;
         }
     }
-    if (limiterOn_) limiter_.process(L, R, n);
+    if (m_limiterOn) m_limiter.process(L, R, n);
     // Listening: the sub alone (an 80 Hz low pass, the addon's 5), and mono.
-    if (subSolo_)
-        for (int i = 0; i < n; ++i) { L[i] = subL_.lp(L[i]); R[i] = subR_.lp(R[i]); }
-    if (mono_)
+    if (m_subSolo)
+        for (int i = 0; i < n; ++i) { L[i] = m_subL.lp(L[i]); R[i] = m_subR.lp(R[i]); }
+    if (m_mono)
         for (int i = 0; i < n; ++i) L[i] = R[i] = 0.5f * (L[i] + R[i]);
 }
 
 void Engine::applyKnobs(double beat)
 {
     bool any = false;
-    while (knobCursor_ < score_.knobs.size() && score_.knobs[knobCursor_].beat <= beat + 1e-9) {
-        const KnobSet& k = score_.knobs[knobCursor_++];
-        if (k.param >= 0 && k.param < params_.count()) params_.set(k.param, k.value);
-        soundGroup_ = k.beat;
+    while (m_knobCursor < m_score.m_knobs.size() && m_score.m_knobs[m_knobCursor].m_beat <= beat + 1e-9) {
+        const KnobSet& k = m_score.m_knobs[m_knobCursor++];
+        if (k.m_param >= 0 && k.m_param < m_params.count()) m_params.set(k.m_param, k.m_value);
+        m_soundGroup = k.m_beat;
         any = true;
     }
-    if (any) soundsVersion_.fetch_add(1, std::memory_order_relaxed);
+    if (any) m_soundsVersion.fetch_add(1, std::memory_order_relaxed);
 }
 
 void Engine::seek(double beat)
@@ -1061,198 +1061,198 @@ void Engine::seek(double beat)
     // piece leaves the knobs as the player has them.
     {
         double group = -1.0;
-        for (const KnobSet& k : score_.knobs) if (k.beat <= beat + 1e-9) group = k.beat;
-        if (group != soundGroup_) {
-            knobCursor_ = 0;
+        for (const KnobSet& k : m_score.m_knobs) if (k.m_beat <= beat + 1e-9) group = k.m_beat;
+        if (group != m_soundGroup) {
+            m_knobCursor = 0;
             applyKnobs(beat);
         }
-        knobCursor_ = static_cast<size_t>(std::upper_bound(score_.knobs.begin(), score_.knobs.end(), beat + 1e-9,
-            [](double b, const KnobSet& k) { return b < k.beat; }) - score_.knobs.begin());
+        m_knobCursor = static_cast<size_t>(std::upper_bound(m_score.m_knobs.begin(), m_score.m_knobs.end(), beat + 1e-9,
+            [](double b, const KnobSet& k) { return b < k.m_beat; }) - m_score.m_knobs.begin());
     }
-    sample_ = std::llround(score_.tempo.secondsAt(std::max(0.0, beat)) * sampleRate_);
-    evCursor_ = static_cast<size_t>(std::lower_bound(events_.begin(), events_.end(), sample_,
-        [](const Ev& e, int64_t s) { return e.sample < s; }) - events_.begin());
-    voices_.reset();
-    for (Strip& s : strips_) s.running = false;
-    tape_.reset();
-    strings_.silence();
-    poly_.silence();
-    drums_.prepare(sampleRate_, mixSeed(score_.seed, 800));
-    cache_.valid = false;   // the components were reset: every setter runs again
-    for (Track& t : tracks_) t.cursor = t.gestures.size();
-    cellDirty_ = true;
+    m_sample = std::llround(m_score.m_tempo.secondsAt(std::max(0.0, beat)) * m_sampleRate);
+    m_evCursor = static_cast<size_t>(std::lower_bound(m_events.begin(), m_events.end(), m_sample,
+        [](const Ev& e, int64_t s) { return e.m_sample < s; }) - m_events.begin());
+    m_voices.reset();
+    for (Strip& s : m_strips) s.m_running = false;
+    m_tape.reset();
+    m_strings.silence();
+    m_poly.silence();
+    m_drums.prepare(m_sampleRate, mixSeed(m_score.m_seed, 800));
+    m_cache.m_valid = false;   // the components were reset: every setter runs again
+    for (Track& t : m_tracks) t.m_cursor = t.m_gestures.size();
+    m_cellDirty = true;
     // The notes that sound on across the jump start again where it lands (26.09.2026): the drone held since the phase
     // began, the pads, a long note of the lead -- as a player would find the keys still down. The drums' hits are gone.
     updateCell();
-    cellDirty_ = false;
-    for (size_t i = 0; i < evCursor_; ++i) {
-        const Ev& e = events_[i];
-        if (e.on && e.source != kSrcDrums && offAt_[static_cast<size_t>(e.id)] > sample_) dispatch(e);
+    m_cellDirty = false;
+    for (size_t i = 0; i < m_evCursor; ++i) {
+        const Ev& e = m_events[i];
+        if (e.m_on && e.m_source != SRC_DRUMS && m_offAt[static_cast<size_t>(e.m_id)] > m_sample) dispatch(e);
     }
 }
 
 void Engine::dispatch(const Ev& e)
 {
-    if (e.on && !liveEvent_ && silenced(e.source)) return;   // the keyboard's or nobody's (01.10.2026)
-    if (e.on && !liveEvent_ && jamDrumsOut_ && e.source == kSrcDrums) return;   // the family jam: the leader's break
+    if (e.m_on && !m_liveEvent && silenced(e.m_source)) return;   // the keyboard's or nobody's (01.10.2026)
+    if (e.m_on && !m_liveEvent && m_jamDrumsOut && e.m_source == SRC_DRUMS) return;   // the family jam: the leader's break
     // MIDI out (02.10.2026): the composer's notes as they are played, transposed as they are heard; an off goes out
     // with the pitch its on had, and only when that on went out.
-    if (noteTap_ != nullptr && !liveEvent_ && static_cast<size_t>(e.id) < tapPitch_.size()) {
-        uint8_t& sent = tapPitch_[static_cast<size_t>(e.id)];
-        if (e.on) {
-            sent = static_cast<uint8_t>(e.source == kSrcDrums ? e.pitch : std::clamp(e.pitch + transpose_, 0, 127));
-            noteTap_->add(e.sample, static_cast<int>(partOf(e.source)), sent, e.velocity, true, -1);
+    if (m_noteTap != nullptr && !m_liveEvent && static_cast<size_t>(e.m_id) < m_tapPitch.size()) {
+        uint8_t& sent = m_tapPitch[static_cast<size_t>(e.m_id)];
+        if (e.m_on) {
+            sent = static_cast<uint8_t>(e.m_source == SRC_DRUMS ? e.m_pitch : std::clamp(e.m_pitch + m_transpose, 0, 127));
+            m_noteTap->add(e.m_sample, static_cast<int>(partOf(e.m_source)), sent, e.m_velocity, true, -1);
         } else if (sent != 0xFF) {
-            noteTap_->add(e.sample, static_cast<int>(partOf(e.source)), sent, 0.0f, false, -1);
+            m_noteTap->add(e.m_sample, static_cast<int>(partOf(e.m_source)), sent, 0.0f, false, -1);
             sent = 0xFF;
         }
     }
-    switch (e.source) {
-    case kSrcDrums:
-        if (e.on) {
+    switch (e.m_source) {
+    case SRC_DRUMS:
+        if (e.m_on) {
             // The toms are tuned to the root of the moment, the high one a fifth above.
-            const float low = static_cast<float>(midiToHz(43 + pitchClass(score_.keyRoot + score_.rootAt(beat()) - 7)));
-            drums_.hit(e.pitch, e.velocity, e.pitch == 48 || e.pitch == 47 || e.pitch == 50 ? low * 1.5f : low);
+            const float low = static_cast<float>(midiToHz(43 + pitchClass(m_score.m_keyRoot + m_score.rootAt(beat()) - 7)));
+            m_drums.hit(e.m_pitch, e.m_velocity, e.m_pitch == 48 || e.m_pitch == 47 || e.m_pitch == 50 ? low * 1.5f : low);
         }
         break;
-    case kSrcStrings:
-        if (e.on) strings_.noteOn(std::clamp(e.pitch + transpose_, 0, 127), e.velocity, e.id); else strings_.noteOff(e.id);
+    case SRC_STRINGS:
+        if (e.m_on) m_strings.noteOn(std::clamp(e.m_pitch + m_transpose, 0, 127), e.m_velocity, e.m_id); else m_strings.noteOff(e.m_id);
         break;
-    case kSrcPoly:
-        if (e.on) poly_.noteOn(std::clamp(e.pitch + transpose_, 0, 127), e.velocity, e.id); else poly_.noteOff(e.id);
+    case SRC_POLY:
+        if (e.m_on) m_poly.noteOn(std::clamp(e.m_pitch + m_transpose, 0, 127), e.m_velocity, e.m_id); else m_poly.noteOff(e.m_id);
         break;
-    case kSrcTape:
-        if (e.on) tape_.noteOn(std::clamp(e.pitch + transpose_, 0, 127), e.velocity, e.id); else tape_.noteOff(e.id);
+    case SRC_TAPE:
+        if (e.m_on) m_tape.noteOn(std::clamp(e.m_pitch + m_transpose, 0, 127), e.m_velocity, e.m_id); else m_tape.noteOff(e.m_id);
         break;
     default:
-        if (e.on) voices_.noteOn(e.source, std::clamp(e.pitch + transpose_, 0, 127), e.velocity, e.accent, e.legato, e.id, e.bright, e.decay);
-        else voices_.noteOff(e.source, e.id);
+        if (e.m_on) m_voices.noteOn(e.m_source, std::clamp(e.m_pitch + m_transpose, 0, 127), e.m_velocity, e.m_accent, e.m_legato, e.m_id, e.m_bright, e.m_decay);
+        else m_voices.noteOff(e.m_source, e.m_id);
         break;
     }
-    if (e.on) strips_[e.source].running = true;
+    if (e.m_on) m_strips[e.m_source].m_running = true;
 }
 
 bool Engine::process(float* L, float* R, int n)
 {
-    if (stemL_ != nullptr)
-        for (int c = 0; c <= kChannels; ++c) { std::fill(stemL_[c], stemL_[c] + n, 0.0f); std::fill(stemR_[c], stemR_[c] + n, 0.0f); }
+    if (m_stemL != nullptr)
+        for (int c = 0; c <= Channels; ++c) { std::fill(m_stemL[c], m_stemL[c] + n, 0.0f); std::fill(m_stemR[c], m_stemR[c] + n, 0.0f); }
     int done = 0;
     while (done < n) {
-        if ((sample_ % kCell) == 0 || cellDirty_) { updateCell(); cellDirty_ = false; }
+        if ((m_sample % Cell) == 0 || m_cellDirty) { updateCell(); m_cellDirty = false; }
         // Every event due at this sample, offs before ons; then the keys played on a MIDI keyboard (queueLive).
-        while (evCursor_ < events_.size() && events_[evCursor_].sample <= sample_) dispatch(events_[evCursor_++]);
-        while (liveCursor_ < liveCount_ && liveQueue_[liveCursor_].at <= sample_) playLive(liveQueue_[liveCursor_++]);
-        int64_t end = std::min<int64_t>(sample_ + (n - done), (sample_ / kCell + 1) * kCell);
-        if (evCursor_ < events_.size()) end = std::min(end, events_[evCursor_].sample);
-        if (liveCursor_ < liveCount_) end = std::min(end, liveQueue_[liveCursor_].at);
-        const int len = static_cast<int>(end - sample_);
-        spanAt_ = done;
+        while (m_evCursor < m_events.size() && m_events[m_evCursor].m_sample <= m_sample) dispatch(m_events[m_evCursor++]);
+        while (m_liveCursor < m_liveCount && m_liveQueue[m_liveCursor].m_at <= m_sample) playLive(m_liveQueue[m_liveCursor++]);
+        int64_t end = std::min<int64_t>(m_sample + (n - done), (m_sample / Cell + 1) * Cell);
+        if (m_evCursor < m_events.size()) end = std::min(end, m_events[m_evCursor].m_sample);
+        if (m_liveCursor < m_liveCount) end = std::min(end, m_liveQueue[m_liveCursor].m_at);
+        const int len = static_cast<int>(end - m_sample);
+        m_spanAt = done;
         renderSpan(L + done, R + done, len);
-        sample_ += len;
+        m_sample += len;
         done += len;
     }
-    while (liveCursor_ < liveCount_) playLive(liveQueue_[liveCursor_++]);   // a key past the block's end: now
-    liveCount_ = liveCursor_ = 0;
+    while (m_liveCursor < m_liveCount) playLive(m_liveQueue[m_liveCursor++]);   // a key past the block's end: now
+    m_liveCount = m_liveCursor = 0;
     return seconds() < lengthSeconds();
 }
 
 int Engine::sourceOf(int target)
 {
     switch (target) {
-    case perform::keys::Lead: return kSrcLead;
-    case perform::keys::Drone: return kSrcDrone;
-    case perform::keys::Poly: return kSrcPoly;
-    case perform::keys::TapeKeys: return kSrcTape;
-    case perform::keys::Strings: return kSrcStrings;
-    case perform::keys::Drums: return kSrcDrums;
-    default: return target >= perform::keys::Row1 && target <= perform::keys::Row8 ? target - perform::keys::Row1 : -1;
+    case perform::keys::LEAD: return SRC_LEAD;
+    case perform::keys::DRONE: return SRC_DRONE;
+    case perform::keys::POLY: return SRC_POLY;
+    case perform::keys::TAPE_KEYS: return SRC_TAPE;
+    case perform::keys::STRINGS: return SRC_STRINGS;
+    case perform::keys::DRUMS: return SRC_DRUMS;
+    default: return target >= perform::keys::ROW1 && target <= perform::keys::ROW8 ? target - perform::keys::ROW1 : -1;
     }
 }
 
 int Engine::targetOf(int source)
 {
-    for (int t = perform::keys::Lead; t < perform::keys::ByChannel; ++t)
+    for (int t = perform::keys::LEAD; t < perform::keys::BY_CHANNEL; ++t)
         if (sourceOf(t) == source) return t;
-    return perform::keys::Off;
+    return perform::keys::OFF;
 }
 
-Part Engine::partOf(int source)
+PartE Engine::partOf(int source)
 {
     switch (source) {
-    case kSrcLead: return Part::Lead;
-    case kSrcDrone: return Part::Drone;
-    case kSrcTape: return Part::TapeKeys;
-    case kSrcStrings: return Part::Strings;
-    case kSrcPoly: return Part::Pad;
-    case kSrcDrums: return Part::Drums;
-    case kSrcAtmos: return Part::Atmos;
+    case SRC_LEAD: return PartE::LEAD;
+    case SRC_DRONE: return PartE::DRONE;
+    case SRC_TAPE: return PartE::TAPE_KEYS;
+    case SRC_STRINGS: return PartE::STRINGS;
+    case SRC_POLY: return PartE::PAD;
+    case SRC_DRUMS: return PartE::DRUMS;
+    case SRC_ATMOS: return PartE::ATMOS;
     default: return rowPart(source);
     }
 }
 
 bool Engine::silenced(int source) const
 {
-    if (composerOff_) return true;
-    if (keyTarget_ == perform::keys::Off || !keyReplace_) return false;
+    if (m_composerOff) return true;
+    if (m_keyTarget == perform::keys::OFF || !m_keyReplace) return false;
     const int t = targetOf(source);
-    if (t == perform::keys::Off) return false;
+    if (t == perform::keys::OFF) return false;
     // By channel, a voice is the player's from its first played key on (until liveAllOff).
-    if (keyTarget_ == perform::keys::ByChannel) return ((keyPlayed_ >> t) & 1u) != 0;
-    return keyTarget_ == t;
+    if (m_keyTarget == perform::keys::BY_CHANNEL) return ((m_keyPlayed >> t) & 1u) != 0;
+    return m_keyTarget == t;
 }
 
 int Engine::keyboardTarget(int channel) const
 {
-    const int part = params_.getInt(params_.id(Module::Perform, 0, perform::KeyboardPart));
-    if (part != perform::keys::ByChannel) return std::clamp(part, 0, static_cast<int>(perform::keys::ByChannel) - 1);
+    const int part = m_params.getInt(m_params.id(ModuleE::PERFORM, 0, perform::KEYBOARD_PART));
+    if (part != perform::keys::BY_CHANNEL) return std::clamp(part, 0, static_cast<int>(perform::keys::BY_CHANNEL) - 1);
     // By channel: 1 .. 8 the rows, 9 the lead, 10 the drums (General MIDI's), 11 the drone, 12 the poly synth, 13 the tape
     // keys, 14 the strings.
-    if (channel >= 0 && channel < kRows) return perform::keys::Row1 + channel;
-    static const int kChannel[6] = { perform::keys::Lead, perform::keys::Drums, perform::keys::Drone, perform::keys::Poly,
-                                     perform::keys::TapeKeys, perform::keys::Strings };
-    return channel >= kRows && channel < kRows + 6 ? kChannel[channel - kRows] : perform::keys::Off;
+    if (channel >= 0 && channel < Rows) return perform::keys::ROW1 + channel;
+    static const int Channel[6] = { perform::keys::LEAD, perform::keys::DRUMS, perform::keys::DRONE, perform::keys::POLY,
+                                     perform::keys::TAPE_KEYS, perform::keys::STRINGS };
+    return channel >= Rows && channel < Rows + 6 ? Channel[channel - Rows] : perform::keys::OFF;
 }
 
 void Engine::queueLive(int offset, int pitch, int velocity, int channel, bool on, int target)
 {
-    if (!live_ || pitch < 0 || pitch > 127 || liveCount_ >= kLiveQueue) return;
+    if (!m_live || pitch < 0 || pitch > 127 || m_liveCount >= LiveQueue) return;
     LiveKey k;
-    k.at = sample_ + std::max(0, offset);
-    k.pitch = pitch;
-    k.velocity = static_cast<float>(std::clamp(velocity, 1, 127)) / 127.0f;
-    k.target = on ? (target > perform::keys::Off ? target : keyboardTarget(channel)) : liveTarget_[pitch] - 1;   // the split names one
-    k.on = on;
-    if (k.target <= perform::keys::Off) return;
-    liveQueue_[liveCount_++] = k;
+    k.m_at = m_sample + std::max(0, offset);
+    k.m_pitch = pitch;
+    k.m_velocity = static_cast<float>(std::clamp(velocity, 1, 127)) / 127.0f;
+    k.m_target = on ? (target > perform::keys::OFF ? target : keyboardTarget(channel)) : m_liveTarget[pitch] - 1;   // the split names one
+    k.m_on = on;
+    if (k.m_target <= perform::keys::OFF) return;
+    m_liveQueue[m_liveCount++] = k;
 }
 
 void Engine::playLive(const LiveKey& k)
 {
-    const int source = sourceOf(k.target);
+    const int source = sourceOf(k.m_target);
     if (source < 0) return;
-    if (k.on && liveTarget_[k.pitch] != 0) playLive(LiveKey{ k.at, k.pitch, 0.0f, liveTarget_[k.pitch] - 1, false });
+    if (k.m_on && m_liveTarget[k.m_pitch] != 0) playLive(LiveKey{ k.m_at, k.m_pitch, 0.0f, m_liveTarget[k.m_pitch] - 1, false });
     Ev e{};
-    e.sample = sample_;
-    e.on = k.on ? 1 : 0;
-    e.source = static_cast<uint8_t>(source);
-    e.accent = k.velocity > 0.86f;
+    e.m_sample = m_sample;
+    e.m_on = k.m_on ? 1 : 0;
+    e.m_source = static_cast<uint8_t>(source);
+    e.m_accent = k.m_velocity > 0.86f;
     // Untransposed: dispatch() adds the transposition the composer's notes get.
-    e.pitch = source == kSrcDrums ? k.pitch : k.pitch - transpose_;
-    e.velocity = k.velocity;
-    e.id = 0x40000000 + k.pitch;   // a key's own id: its release finds its note
-    liveEvent_ = true;
+    e.m_pitch = source == SRC_DRUMS ? k.m_pitch : k.m_pitch - m_transpose;
+    e.m_velocity = k.m_velocity;
+    e.m_id = 0x40000000 + k.m_pitch;   // a key's own id: its release finds its note
+    m_liveEvent = true;
     dispatch(e);
-    liveEvent_ = false;
-    liveTarget_[k.pitch] = k.on ? static_cast<uint8_t>(k.target + 1) : 0;
-    if (k.on) keyPlayed_ |= 1u << k.target;
+    m_liveEvent = false;
+    m_liveTarget[k.m_pitch] = k.m_on ? static_cast<uint8_t>(k.m_target + 1) : 0;
+    if (k.m_on) m_keyPlayed |= 1u << k.m_target;
 }
 
 void Engine::liveAllOff()
 {
-    liveCount_ = liveCursor_ = 0;
+    m_liveCount = m_liveCursor = 0;
     for (int k = 0; k < 128; ++k)
-        if (liveTarget_[k] != 0) playLive(LiveKey{ sample_, k, 0.0f, liveTarget_[k] - 1, false });
-    keyPlayed_ = 0;
+        if (m_liveTarget[k] != 0) playLive(LiveKey{ m_sample, k, 0.0f, m_liveTarget[k] - 1, false });
+    m_keyPlayed = 0;
 }
 
 } // namespace eph

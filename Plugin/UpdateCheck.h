@@ -28,8 +28,8 @@ private:
     void run() override;
     /** @brief Starts the thread if the check is on and a day has passed since the last question. */
     void askIfDue();
-    std::unique_ptr<juce::PropertiesFile> settings_;   ///< the check's own settings file
-    mutable juce::CriticalSection lock_;   ///< guards newer_ and page_
-    juce::String newer_;   ///< a newer version found, empty if none
-    juce::String page_;   ///< its release page
+    std::unique_ptr<juce::PropertiesFile> m_settings;   ///< the check's own settings file
+    mutable juce::CriticalSection m_lock;   ///< guards m_newer and m_page
+    juce::String m_newer;   ///< a newer version found, empty if none
+    juce::String m_page;   ///< its release page
 };

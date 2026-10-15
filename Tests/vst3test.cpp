@@ -41,18 +41,18 @@ public:
     juce::Optional<PositionInfo> getPosition() const override
     {
         PositionInfo info;
-        info.setBpm(bpm);
-        info.setPpqPosition(ppq);
-        info.setTimeInSamples(static_cast<juce::int64>(samples));
-        info.setTimeInSeconds(samples / sampleRate);
+        info.setBpm(m_bpm);
+        info.setPpqPosition(m_ppq);
+        info.setTimeInSamples(static_cast<juce::int64>(m_samples));
+        info.setTimeInSeconds(m_samples / m_sampleRate);
         info.setIsPlaying(true);
         return info;
     }
-    void advance(int n) { samples += n; ppq += n * bpm / (60.0 * sampleRate); }   ///< moves on by @p n samples
-    double bpm = 120.0;   ///< the tempo
-    double ppq = 0.0;   ///< the position, quarter notes
-    double sampleRate = 48000.0;   ///< the sample rate, Hz
-    double samples = 0.0;   ///< the position, samples
+    void advance(int n) { m_samples += n; m_ppq += n * m_bpm / (60.0 * m_sampleRate); }   ///< moves on by @p n samples
+    double m_bpm = 120.0;   ///< the tempo
+    double m_ppq = 0.0;   ///< the position, quarter notes
+    double m_sampleRate = 48000.0;   ///< the sample rate, Hz
+    double m_samples = 0.0;   ///< the position, samples
 };
 
 /** @brief Plays @p seconds of blocks, running the message loop between them; returns the peak. */
@@ -61,7 +61,7 @@ double play(juce::AudioPluginInstance& p, TestPlayHead& head, double seconds, in
     juce::AudioBuffer<float> buf(2, block);
     juce::MidiBuffer midi;
     double peak = 0.0;
-    const int blocks = static_cast<int>(seconds * head.sampleRate / block);
+    const int blocks = static_cast<int>(seconds * head.m_sampleRate / block);
     for (int i = 0; i < blocks; ++i) {
         if (i % 16 == 0) juce::MessageManager::getInstance()->runDispatchLoopUntil(5);
         buf.clear();
@@ -128,9 +128,9 @@ int main(int argc, char** argv)
     check(instance->getTotalNumInputChannels() == 0 && instance->getTotalNumOutputChannels() == 2,
           "the instance has no inputs and a stereo output");
     TestPlayHead head;
-    head.bpm = 97.0;     // not a tempo a style draws: the piece has to take the host's
-    head.ppq = 256.0;    // past the atmosphere at the start, where the rows play
-    head.samples = head.ppq * 60.0 / head.bpm * 48000.0;
+    head.m_bpm = 97.0;     // not a tempo a style draws: the piece has to take the host's
+    head.m_ppq = 256.0;    // past the atmosphere at the start, where the rows play
+    head.m_samples = head.m_ppq * 60.0 / head.m_bpm * 48000.0;
     instance->setPlayHead(&head);
     // The first piece is composed on the composer thread and loaded by the message thread: give it time.
     bool finite = true;
@@ -141,7 +141,7 @@ int main(int argc, char** argv)
     check(peak > 0.05, "it sounds when the host transport runs (peak " + juce::String(peak, 3) + ")");
     check(peak <= 1.01, "and it never leaves the ceiling (peak " + juce::String(peak, 3) + ")");
     // A new host tempo: the score is loaded again at it, on the message thread, and the piece goes on.
-    head.bpm = 131.0;
+    head.m_bpm = 131.0;
     const double afterTempo = play(*instance, head, 4.0, 256, &finite);
     check(finite && afterTempo > 0.05, "a new host tempo, and it plays on (peak " + juce::String(afterTempo, 3) + ")");
     // The performer's MIDI (PluginProcessor.h): a key transposes by its distance from middle C, controller
@@ -170,8 +170,8 @@ int main(int argc, char** argv)
         instance->processBlock(buf, midi);
     }
     // A jump of the host's playhead.
-    head.ppq = 512.0;
-    head.samples = head.ppq * 60.0 / head.bpm * 48000.0;
+    head.m_ppq = 512.0;
+    head.m_samples = head.m_ppq * 60.0 / head.m_bpm * 48000.0;
     const double afterJump = play(*instance, head, 4.0, 256, &finite);
     check(finite && afterJump > 0.05, "a jump of the playhead, and it plays on (peak " + juce::String(afterJump, 3) + ")");
 
@@ -233,8 +233,8 @@ int main(int argc, char** argv)
             instance->setPlayConfigDetails(0, 2, sr, 128);
             instance->prepareToPlay(sr, 128);
             TestPlayHead h;
-            h.sampleRate = sr;
-            h.ppq = 300.0;
+            h.m_sampleRate = sr;
+            h.m_ppq = 300.0;
             instance->setPlayHead(&h);
             bool ok = true;
             double pk = 0.0;
@@ -249,7 +249,7 @@ int main(int argc, char** argv)
             second->setPlayConfigDetails(0, 2, 48000.0, 256);
             second->prepareToPlay(48000.0, 256);
             TestPlayHead head2;
-            head2.ppq = 256.0;
+            head2.m_ppq = 256.0;
             second->setPlayHead(&head2);
             double peak2 = 0.0;
             for (int tries = 0; tries < 30 && peak2 <= 0.05; ++tries) peak2 = play(*second, head2, 1.0, 256);
@@ -272,7 +272,7 @@ int main(int argc, char** argv)
         check(instance->setBusesLayout(layout), "the host can switch every stem's output on");
         instance->prepareToPlay(48000.0, 256);
         TestPlayHead h;   // the rates' section left the instance without a transport
-        h.ppq = 300.0;
+        h.m_ppq = 300.0;
         instance->setPlayHead(&h);
         const int channels = instance->getTotalNumOutputChannels();
         juce::AudioBuffer<float> buf(channels, 256);

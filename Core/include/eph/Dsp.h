@@ -21,8 +21,8 @@
 
 namespace eph {
 
-constexpr float kPi    = 3.14159265358979f;   ///< pi as float
-constexpr float kTwoPi = 6.28318530717959f;   ///< 2 pi as float
+constexpr float Pi    = 3.14159265358979f;   ///< pi as float
+constexpr float TwoPi = 6.28318530717959f;   ///< 2 pi as float
 
 /** @brief Clamps @p v into [@p lo, @p hi]. */
 template <class T> inline T clampv(T v, T lo, T hi) { return v < lo ? lo : (v > hi ? hi : v); }
@@ -44,12 +44,12 @@ inline double midiToHz(double note) { return 440.0 * std::pow(2.0, (note - 69.0)
  * every module without the modules disturbing each other's sequences.
  */
 struct Rng {
-    uint64_t s = 0x9E3779B97F4A7C15ull;   ///< state, never zero
+    uint64_t m_s = 0x9E3779B97F4A7C15ull;   ///< state, never zero
 
     /** @brief Seeds the generator; any value including 0 is valid. */
-    void seed(uint64_t v) { s = v * 0x9E3779B97F4A7C15ull + 0xD1B54A32D192ED03ull; if (s == 0) s = 1; next(); next(); }
+    void seed(uint64_t v) { m_s = v * 0x9E3779B97F4A7C15ull + 0xD1B54A32D192ED03ull; if (m_s == 0) m_s = 1; next(); next(); }
     /** @brief Next raw 64-bit value. */
-    uint64_t next() { s ^= s << 13; s ^= s >> 7; s ^= s << 17; return s; }
+    uint64_t next() { m_s ^= m_s << 13; m_s ^= m_s >> 7; m_s ^= m_s << 17; return m_s; }
     /** @brief Uniform float in [0, 1). */
     float uniform() { return static_cast<float>((next() >> 40) * (1.0 / 16777216.0)); }
     /** @brief Uniform float in [-1, 1). */
@@ -87,8 +87,8 @@ inline uint64_t mixSeed(uint64_t a, uint64_t b)
  */
 struct SineTable {
     static constexpr int N = 4096;   ///< table length
-    float v[N + 2];                  ///< sin(2 pi i / N), with two guard entries
-    SineTable() { for (int i = 0; i <= N + 1; ++i) v[i] = std::sin(kTwoPi * static_cast<float>(i) / static_cast<float>(N)); }
+    float m_v[N + 2];                  ///< sin(2 pi i / N), with two guard entries
+    SineTable() { for (int i = 0; i <= N + 1; ++i) m_v[i] = std::sin(TwoPi * static_cast<float>(i) / static_cast<float>(N)); }
 };
 
 /** @brief The one shared sine table. */
@@ -109,7 +109,7 @@ inline float sin01(double phase01)
         if (static_cast<unsigned>(i) > static_cast<unsigned>(SineTable::N)) return 0.0f;
     }
     const float f = static_cast<float>(x - i);
-    const float* t = sineTable().v;
+    const float* t = sineTable().m_v;
     return t[i] + f * (t[i + 1] - t[i]);
 }
 
@@ -122,10 +122,10 @@ inline float sin01(double phase01)
 class Envelope {
 public:
     /** @brief Envelope stage. */
-    enum class Stage { Idle, Attack, Decay, Sustain, Release };
+    enum class StageE { IDLE, ATTACK, DECAY, SUSTAIN, RELEASE };
 
     /** @brief Sets the sample rate the times refer to. */
-    void setSampleRate(double sr) { sr_ = sr; }
+    void setSampleRate(double sr) { m_sr = sr; }
     /**
      * @brief Sets the segment times.
      * @param attackS  seconds from 0 to 1
@@ -135,15 +135,15 @@ public:
      */
     void setTimes(float attackS, float decayS, float sustain, float releaseS)
     {
-        aCoef_ = coef(attackS, 1.466f);
-        dCoef_ = coef(decayS, 3.0f);
-        rCoef_ = coef(releaseS, 5.0f);
-        sus_   = sustain;
+        m_aCoef = coef(attackS, 1.466f);
+        m_dCoef = coef(decayS, 3.0f);
+        m_rCoef = coef(releaseS, 5.0f);
+        m_sus   = sustain;
     }
     /** @brief Takes over another envelope's segment times (the same sample rate assumed): setTimes without the exp. */
-    void copyTimes(const Envelope& o) { aCoef_ = o.aCoef_; dCoef_ = o.dCoef_; rCoef_ = o.rCoef_; sus_ = o.sus_; }
+    void copyTimes(const Envelope& o) { m_aCoef = o.m_aCoef; m_dCoef = o.m_dCoef; m_rCoef = o.m_rCoef; m_sus = o.m_sus; }
     /** @brief Starts the attack from the current level (no reset to zero, so no click). */
-    void noteOn()  { stage_ = Stage::Attack; }
+    void noteOn()  { m_stage = StageE::ATTACK; }
     /**
      * @brief Advances an attack that has just begun by a fraction of a sample, in closed form.
      *
@@ -152,43 +152,43 @@ public:
      */
     void advanceAttack(double samples)
     {
-        if (stage_ != Stage::Attack || samples <= 0.0) return;
-        level_ = static_cast<float>(1.3 - (1.3 - level_) * std::pow(1.0 - static_cast<double>(aCoef_), samples));
-        if (level_ >= 1.0f) { level_ = 1.0f; stage_ = Stage::Decay; }
+        if (m_stage != StageE::ATTACK || samples <= 0.0) return;
+        m_level = static_cast<float>(1.3 - (1.3 - m_level) * std::pow(1.0 - static_cast<double>(m_aCoef), samples));
+        if (m_level >= 1.0f) { m_level = 1.0f; m_stage = StageE::DECAY; }
     }
     /** @brief Enters the release unless idle. */
-    void noteOff() { if (stage_ != Stage::Idle) stage_ = Stage::Release; }
+    void noteOff() { if (m_stage != StageE::IDLE) m_stage = StageE::RELEASE; }
     /** @brief Silences immediately. */
-    void kill()    { stage_ = Stage::Idle; level_ = 0.0f; }
-    bool  isActive() const    { return stage_ != Stage::Idle; }        ///< not idle
-    bool  isReleasing() const { return stage_ == Stage::Release; }     ///< in release
-    float level() const       { return level_; }                       ///< current level
-    Stage stage() const       { return stage_; }                       ///< current stage
+    void kill()    { m_stage = StageE::IDLE; m_level = 0.0f; }
+    bool  isActive() const    { return m_stage != StageE::IDLE; }        ///< not idle
+    bool  isReleasing() const { return m_stage == StageE::RELEASE; }     ///< in release
+    float level() const       { return m_level; }                       ///< current level
+    StageE stage() const       { return m_stage; }                       ///< current stage
 
     /** @brief Advances one sample and returns the level. */
     float process()
     {
-        switch (stage_) {
-        case Stage::Attack:
-            level_ += (1.3f - level_) * aCoef_;
-            if (level_ >= 1.0f) { level_ = 1.0f; stage_ = Stage::Decay; }
+        switch (m_stage) {
+        case StageE::ATTACK:
+            m_level += (1.3f - m_level) * m_aCoef;
+            if (m_level >= 1.0f) { m_level = 1.0f; m_stage = StageE::DECAY; }
             break;
-        case Stage::Decay:
-            level_ += (sus_ - level_) * dCoef_;
-            if (std::fabs(level_ - sus_) < 1e-4f) { level_ = sus_; stage_ = Stage::Sustain; }
-            if (sus_ < 1e-4f && level_ < 1e-4f) { level_ = 0.0f; stage_ = Stage::Idle; }
+        case StageE::DECAY:
+            m_level += (m_sus - m_level) * m_dCoef;
+            if (std::fabs(m_level - m_sus) < 1e-4f) { m_level = m_sus; m_stage = StageE::SUSTAIN; }
+            if (m_sus < 1e-4f && m_level < 1e-4f) { m_level = 0.0f; m_stage = StageE::IDLE; }
             break;
-        case Stage::Sustain:
-            level_ = sus_;
-            if (sus_ < 1e-4f) { level_ = 0.0f; stage_ = Stage::Idle; }
+        case StageE::SUSTAIN:
+            m_level = m_sus;
+            if (m_sus < 1e-4f) { m_level = 0.0f; m_stage = StageE::IDLE; }
             break;
-        case Stage::Release:
-            level_ -= level_ * rCoef_;
-            if (level_ < 1e-4f) { level_ = 0.0f; stage_ = Stage::Idle; }
+        case StageE::RELEASE:
+            m_level -= m_level * m_rCoef;
+            if (m_level < 1e-4f) { m_level = 0.0f; m_stage = StageE::IDLE; }
             break;
         default: break;
         }
-        return level_;
+        return m_level;
     }
 
 private:
@@ -196,15 +196,15 @@ private:
     float coef(float seconds, float k) const
     {
         const float tau = std::max(seconds, 0.0005f) / k;
-        return 1.0f - std::exp(-1.0f / (tau * static_cast<float>(sr_)));
+        return 1.0f - std::exp(-1.0f / (tau * static_cast<float>(m_sr)));
     }
-    double sr_ = 48000.0;   ///< the sample rate, Hz
-    float aCoef_ = 0.01f;   ///< the attack's coefficient
-    float dCoef_ = 0.001f;   ///< the decay's coefficient
-    float rCoef_ = 0.0005f;   ///< the release's coefficient
-    float sus_ = 1.0f;   ///< the sustain level
-    float level_ = 0.0f;   ///< the level as it stands
-    Stage stage_ = Stage::Idle;   ///< where it is
+    double m_sr = 48000.0;   ///< the sample rate, Hz
+    float m_aCoef = 0.01f;   ///< the attack's coefficient
+    float m_dCoef = 0.001f;   ///< the decay's coefficient
+    float m_rCoef = 0.0005f;   ///< the release's coefficient
+    float m_sus = 1.0f;   ///< the sustain level
+    float m_level = 0.0f;   ///< the level as it stands
+    StageE m_stage = StageE::IDLE;   ///< where it is
 };
 
 /**
@@ -213,82 +213,82 @@ private:
  * Zero-delay feedback, stable under per-sample coefficient changes, all three outputs at once.
  */
 struct Svf {
-    float ic1 = 0;     ///< first integrator state
-    float ic2 = 0;     ///< second integrator state
-    float a1 = 0;      ///< coefficient 1 / (1 + g (g + k))
-    float a2 = 0;      ///< coefficient g a1
-    float a3 = 0;      ///< coefficient g a2
-    float k = 1.0f;    ///< damping (2 = no resonance)
+    float m_ic1 = 0;     ///< first integrator state
+    float m_ic2 = 0;     ///< second integrator state
+    float m_a1 = 0;      ///< coefficient 1 / (1 + g (g + k))
+    float m_a2 = 0;      ///< coefficient g a1
+    float m_a3 = 0;      ///< coefficient g a2
+    float m_k = 1.0f;    ///< damping (2 = no resonance)
 
     /** @brief Cutoff and a 0..1 resonance (maps to damping 2 .. 0.1). */
     void set(float cutoffHz, float resonance, float sr) { setK(cutoffHz, 2.0f - 1.9f * clampv(resonance, 0.0f, 1.0f), sr); }
     /** @brief Cutoff and quality factor. */
     void setQ(float cutoffHz, float q, float sr) { setK(cutoffHz, 1.0f / std::max(q, 0.05f), sr); }
     /** @brief Takes another filter's coefficients, keeping this filter's state. */
-    void copyCoefficients(const Svf& o) { a1 = o.a1; a2 = o.a2; a3 = o.a3; k = o.k; }
+    void copyCoefficients(const Svf& o) { m_a1 = o.m_a1; m_a2 = o.m_a2; m_a3 = o.m_a3; m_k = o.m_k; }
     /** @brief Cutoff and damping directly. */
     void setK(float cutoffHz, float damping, float sr)
     {
         const float fc = clampv(cutoffHz, 10.0f, sr * 0.45f);
-        setG(std::tan(kPi * fc / sr), damping);
+        setG(std::tan(Pi * fc / sr), damping);
     }
     /** @brief Prewarped gain g = tan(pi fc / fs) and damping directly. */
     void setG(float g, float damping)
     {
-        k = damping;
-        a1 = 1.0f / (1.0f + g * (g + k));
-        a2 = g * a1;
-        a3 = g * a2;
+        m_k = damping;
+        m_a1 = 1.0f / (1.0f + g * (g + m_k));
+        m_a2 = g * m_a1;
+        m_a3 = g * m_a2;
     }
     /** @brief One sample, all outputs. The band pass has unity gain at the cutoff after scaling by k. */
     inline void tick(float in, float& lp, float& bp, float& hp)
     {
-        const float v3 = in - ic2;
-        const float v1 = a1 * ic1 + a2 * v3;
-        const float v2 = ic2 + a2 * ic1 + a3 * v3;
-        ic1 = 2.0f * v1 - ic1;
-        ic2 = 2.0f * v2 - ic2;
-        lp = v2; bp = v1; hp = in - k * v1 - v2;
+        const float v3 = in - m_ic2;
+        const float v1 = m_a1 * m_ic1 + m_a2 * v3;
+        const float v2 = m_ic2 + m_a2 * m_ic1 + m_a3 * v3;
+        m_ic1 = 2.0f * v1 - m_ic1;
+        m_ic2 = 2.0f * v2 - m_ic2;
+        lp = v2; bp = v1; hp = in - m_k * v1 - v2;
     }
     /** @brief One sample, low-pass output only. */
     inline float lp(float in)
     {
-        const float v3 = in - ic2;
-        const float v1 = a1 * ic1 + a2 * v3;
-        const float v2 = ic2 + a2 * ic1 + a3 * v3;
-        ic1 = 2.0f * v1 - ic1;
-        ic2 = 2.0f * v2 - ic2;
+        const float v3 = in - m_ic2;
+        const float v1 = m_a1 * m_ic1 + m_a2 * v3;
+        const float v2 = m_ic2 + m_a2 * m_ic1 + m_a3 * v3;
+        m_ic1 = 2.0f * v1 - m_ic1;
+        m_ic2 = 2.0f * v2 - m_ic2;
         return v2;
     }
     /** @brief Clears the states. */
-    void reset() { ic1 = ic2 = 0.0f; }
+    void reset() { m_ic1 = m_ic2 = 0.0f; }
 };
 
 /** @brief One-pole exponential smoother. */
 struct Smoother {
-    float value = 0;        ///< current value
-    float coef = 0.001f;    ///< per-sample coefficient
+    float m_value = 0;        ///< current value
+    float m_coef = 0.001f;    ///< per-sample coefficient
     /** @brief Time constant in seconds. */
-    void setTime(float seconds, double sr) { coef = 1.0f - std::exp(-1.0f / (std::max(seconds, 1e-4f) * static_cast<float>(sr))); }
+    void setTime(float seconds, double sr) { m_coef = 1.0f - std::exp(-1.0f / (std::max(seconds, 1e-4f) * static_cast<float>(sr))); }
     /** @brief One step towards @p target. */
-    inline float next(float target) { value += (target - value) * coef; return value; }
+    inline float next(float target) { m_value += (target - m_value) * m_coef; return m_value; }
     /** @brief Jumps to @p v. */
-    void snap(float v) { value = v; }
+    void snap(float v) { m_value = v; }
 };
 
 /**
  * @brief One-pole DC blocker, y[n] = x[n] - x[n-1] + R y[n-1].
  */
 struct DcBlocker {
-    float x1 = 0.0f;     ///< previous input
-    float y1 = 0.0f;     ///< previous output
-    float r = 0.9995f;   ///< pole radius
+    float m_x1 = 0.0f;     ///< previous input
+    float m_y1 = 0.0f;     ///< previous output
+    float m_r = 0.9995f;   ///< pole radius
     /** @brief Sets the corner frequency. */
-    void prepare(double sr, float hz = 5.0f) { r = 1.0f - static_cast<float>(kTwoPi * hz / sr); reset(); }
+    void prepare(double sr, float hz = 5.0f) { m_r = 1.0f - static_cast<float>(TwoPi * hz / sr); reset(); }
     /** @brief One sample. */
-    inline float process(float x) { const float y = x - x1 + r * y1; x1 = x; y1 = y; return y; }
+    inline float process(float x) { const float y = x - m_x1 + m_r * m_y1; m_x1 = x; m_y1 = y; return y; }
     /** @brief Clears the states. */
-    void reset() { x1 = y1 = 0.0f; }
+    void reset() { m_x1 = m_y1 = 0.0f; }
 };
 
 /**
@@ -320,21 +320,21 @@ struct DcBlocker {
  * times as much in the passband.
  */
 struct BandLimit {
-    Svf a;   ///< first Butterworth section (damping 2 cos(pi/8))
-    Svf b;   ///< second Butterworth section (damping 2 cos(3 pi/8))
+    Svf m_a;   ///< first Butterworth section (damping 2 cos(pi/8))
+    Svf m_b;   ///< second Butterworth section (damping 2 cos(3 pi/8))
 
     /** @brief Sets the corner; it never goes above 0.4 fs, so a low sample rate degrades gracefully. */
     void prepare(double sr, float cornerHz = 18000.0f)
     {
         const float fc = clampv(cornerHz, 1000.0f, static_cast<float>(0.4 * sr));
-        a.setK(fc, 1.8477590f, static_cast<float>(sr));   // 2 cos(pi/8)
-        b.setK(fc, 0.7653669f, static_cast<float>(sr));   // 2 cos(3 pi/8)
+        m_a.setK(fc, 1.8477590f, static_cast<float>(sr));   // 2 cos(pi/8)
+        m_b.setK(fc, 0.7653669f, static_cast<float>(sr));   // 2 cos(3 pi/8)
         reset();
     }
     /** @brief One sample. */
-    inline float process(float x) { return b.lp(a.lp(x)); }
+    inline float process(float x) { return m_b.lp(m_a.lp(x)); }
     /** @brief Clears the states. */
-    void reset() { a.reset(); b.reset(); }
+    void reset() { m_a.reset(); m_b.reset(); }
 };
 
 /**
@@ -351,29 +351,29 @@ public:
     DenormalGuard()
     {
 #if defined(_M_X64) || defined(__x86_64__)
-        saved_ = _mm_getcsr();
-        _mm_setcsr(saved_ | 0x8040u);   // FZ (bit 15) and DAZ (bit 6)
+        m_saved = _mm_getcsr();
+        _mm_setcsr(m_saved | 0x8040u);   // FZ (bit 15) and DAZ (bit 6)
 #elif defined(__aarch64__)
         // FPCR read and written directly rather than through fenv_t: the field that holds it has no
         // portable name (glibc calls it __fpcr, bionic's arm64 fenv_t calls it __control), and the
         // two system-register instructions are what fesetenv would end up doing anyway.
-        saved_ = readFpcr();
-        writeFpcr(saved_ | (1ull << 24));   // FZ: flush-to-zero for NEON and scalar alike
+        m_saved = readFpcr();
+        writeFpcr(m_saved | (1ull << 24));   // FZ: flush-to-zero for NEON and scalar alike
 #endif
     }
     ~DenormalGuard()
     {
 #if defined(_M_X64) || defined(__x86_64__)
-        _mm_setcsr(saved_);
+        _mm_setcsr(m_saved);
 #elif defined(__aarch64__)
-        writeFpcr(saved_);
+        writeFpcr(m_saved);
 #endif
     }
     DenormalGuard(const DenormalGuard&) = delete;
     DenormalGuard& operator=(const DenormalGuard&) = delete;
 private:
 #if defined(_M_X64) || defined(__x86_64__)
-    unsigned int saved_ = 0;
+    unsigned int m_saved = 0;
 #elif defined(__aarch64__)
     /** @brief The floating-point control register. */
     static unsigned long long readFpcr()
@@ -384,7 +384,7 @@ private:
     }
     /** @brief Writes the floating-point control register. */
     static void writeFpcr(unsigned long long v) { __asm__ __volatile__("msr fpcr, %0" : : "r"(v)); }
-    unsigned long long saved_ = 0;
+    unsigned long long m_saved = 0;
 #endif
 };
 

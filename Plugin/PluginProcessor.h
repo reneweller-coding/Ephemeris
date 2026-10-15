@@ -60,14 +60,14 @@ public:
     bool isBoolean() const override;   ///< a Toggle is boolean
     juce::String getText(float normalisedValue, int maximumStringLength) const override;   ///< the value as the panel shows it
     float getValueForText(const juce::String& text) const override;   ///< parses a choice name, On/Off or a number
-    const juce::NormalisableRange<float>& getNormalisableRange() const override { return range_; }   ///< the store's own mapping
-    int paramId() const { return id_; }   ///< the id in the store
+    const juce::NormalisableRange<float>& getNormalisableRange() const override { return m_range; }   ///< the store's own mapping
+    int paramId() const { return m_id; }   ///< the id in the store
 
 private:
-    eph::ParamStore& store_;   ///< the store it reads and writes
-    int id_;   ///< the id in the store
-    juce::String name_;   ///< the display name
-    juce::NormalisableRange<float> range_;   ///< the store's mapping between the real and the normalised value
+    eph::ParamStore& m_store;   ///< the store it reads and writes
+    int m_id;   ///< the id in the store
+    juce::String m_name;   ///< the display name
+    juce::NormalisableRange<float> m_range;   ///< the store's mapping between the real and the normalised value
 };
 
 /** @brief The Ephemeris processor. */
@@ -81,7 +81,7 @@ public:
     void compose();                                  ///< compose with the current settings, seed and rerolls
     void newSeed();                                  ///< a fresh seed, no rerolls, then compose
     void reroll(const juce::String& unit);           ///< draw one unit again, then compose
-    bool isComposing() const { return composing_.load(); }   ///< whether the composer thread is at work
+    bool isComposing() const { return m_composing.load(); }   ///< whether the composer thread is at work
     /** @brief What the knobs ask Compose for: 0 a piece, 1 a concert, 2 a night set (compose.concert_minutes, night_set). */
     int chosenKind() const;
     /**
@@ -90,31 +90,31 @@ public:
      *        is not that already.
      */
     void chooseKind(int kind);
-    int playingKind() const { return playingKind_.load(); }   ///< what plays: 0 a piece, 1 a concert, 2 a night set
+    int playingKind() const { return m_playingKind.load(); }   ///< what plays: 0 a piece, 1 a concert, 2 a night set
     /** @brief Sets store id @p id to the real value @p value as a hand on the panel does (one gesture, the host told). */
     void setFromUi(int id, float value);
-    uint64_t seed() const { std::lock_guard<std::mutex> g(lock_); return seed_; }   ///< the seed of what plays
+    uint64_t seed() const { std::lock_guard<std::mutex> g(m_lock); return m_seed; }   ///< the seed of what plays
     double concertMinutes() const;                   ///< compose.concert_minutes
     juce::String curationText() const;               ///< the rerolls, for the panel
 
     // Transport (the standalone's; a host drives its own).
-    void setPlaying(bool on) { playing_ = on; }      ///< play or stop (the standalone's transport)
-    bool isPlaying() const { return playing_.load(); }   ///< whether the standalone plays
+    void setPlaying(bool on) { m_playing = on; }      ///< play or stop (the standalone's transport)
+    bool isPlaying() const { return m_playing.load(); }   ///< whether the standalone plays
     /** @brief The standalone's Ableton Link, as the settings menu says it: off, alone, or how many apps are with it. */
     juce::String linkStatus() const;
     /** @brief The family jam, as the settings menu says it (Jam.h): off, leading, or whom it follows. */
-    juce::String jamStatus() const { return jam_.status(); }
-    void seekTo(double beat) { seekRequest_ = beat; }    ///< jump to @p beat at the next block
-    double positionBeats() const { return position_.load(); }   ///< where the audio thread is, in beats
+    juce::String jamStatus() const { return m_jam.status(); }
+    void seekTo(double beat) { m_seekRequest = beat; }    ///< jump to @p beat at the next block
+    double positionBeats() const { return m_position.load(); }   ///< where the audio thread is, in beats
     /** @brief Counts the scores the engine has loaded: a display compares it to know when to copy again. */
-    int scoreVersion() const { return scoreVersion_.load(); }
+    int scoreVersion() const { return m_scoreVersion.load(); }
     /** @brief A copy of the score the engine plays (message thread; for the orrery). */
-    void copyScore(eph::Score& out) const { std::lock_guard<std::mutex> g(lock_); out = current_; }
+    void copyScore(eph::Score& out) const { std::lock_guard<std::mutex> g(m_lock); out = m_current; }
     /**
      * @brief The factory preset the composer chose for instance @p instance of synth @p m where the piece now plays
      *        (Score::sounds, compose.pick_sounds): its index in eph::factoryPresets(m), -1 if none.
      */
-    int composedPreset(eph::Module m, int instance) const;
+    int composedPreset(eph::ModuleE m, int instance) const;
     /** @brief A copy of the markers and the length, for the arrange view. */
     void arrangement(std::vector<eph::Marker>& markers, double& lengthBeats, double& seconds) const;
 
@@ -132,7 +132,7 @@ public:
      * @brief The test mode (EPH_SEED, EPH_PLAY = seconds, EPH_RECORD = a WAV file): a fixed seed, play at once,
      *        record what the audio thread renders; recordingDone() when the seconds are full.
      */
-    bool recordingDone() const { return recordTarget_ > 0 && recordPos_.load() >= recordTarget_; }
+    bool recordingDone() const { return m_recordTarget > 0 && m_recordPos.load() >= m_recordTarget; }
     void writeRecording();                            ///< writes the recording (message thread)
     /**
      * @brief The channel meters since the last call (message thread): per eph::Engine channel the peak and the RMS
@@ -141,27 +141,27 @@ public:
     void takeChannelMeters(float* peak, float* rms);
 
     // Muting.
-    bool muted() const { return mute_.load(std::memory_order_relaxed); }   ///< the output is silenced
+    bool muted() const { return m_mute.load(std::memory_order_relaxed); }   ///< the output is silenced
     /** @brief Mutes or unmutes; does nothing while `EPH_MUTE` forces it. */
-    void setMuted(bool on) { if (!forceMute_) mute_.store(on, std::memory_order_relaxed); }
-    bool muteForced() const { return forceMute_; }   ///< `EPH_MUTE` (or `EPH_SHOT`) was set: the switch is stuck on
+    void setMuted(bool on) { if (!m_forceMute) m_mute.store(on, std::memory_order_relaxed); }
+    bool muteForced() const { return m_forceMute; }   ///< `EPH_MUTE` (or `EPH_SHOT`) was set: the switch is stuck on
 
     // Performing.
     /** @brief Binds the next MIDI controller that arrives to store id @p id; -1 cancels. */
-    void learn(int id) { learn_ = id; }
-    int learning() const { return learn_.load(); }   ///< the store id waiting for a controller, or -1
+    void learn(int id) { m_learn = id; }
+    int learning() const { return m_learn.load(); }   ///< the store id waiting for a controller, or -1
     /** @brief The controller bound to store id @p id, or -1. */
     int controllerFor(int id) const;
     /** @brief Unbinds store id @p id (the controls' right-click menu). */
-    void forget(int id) { for (auto& c : ccMap_) if (c.load() == id) c = -1; }
+    void forget(int id) { for (auto& c : m_ccMap) if (c.load() == id) c = -1; }
 
     // Undo (the frame, 01.10.2026): a knob turned on the panel, a preset, a new seed, a reroll, a loaded set or a choice of
     // piece, concert or night set is a step; a step holds only what it changed, so taking it back never takes back the
     // sounds the composer wrote on the knobs since. Knobs moved from MIDI or by a host's automation are not steps.
     bool undo();                                     ///< takes the last step back; false if there was none
     bool redo();                                     ///< makes the last undone step again
-    juce::String undoName() const { return history_.undoName(); }   ///< what undo takes back (empty: nothing)
-    juce::String redoName() const { return history_.redoName(); }   ///< what redo makes again
+    juce::String undoName() const { return m_history.undoName(); }   ///< what undo takes back (empty: nothing)
+    juce::String redoName() const { return m_history.redoName(); }   ///< what redo makes again
     /** @brief Opens a step of several knobs (a preset, a reset): they are undone together. Close with endStep. */
     void beginStep(const juce::String& what);
     void endStep();                                  ///< closes beginStep's step
@@ -174,12 +174,12 @@ public:
      *        Off -- left pinch play and stop, both hands the next piece, right pinch holds the moves, the left hand's
      *        height the rows' filters, the right hand's the echo throw.
      */
-    frame::Headset& headset() { return headset_; }
+    frame::Headset& headset() { return m_headset; }
 
-    eph::ParamStore& store() { return engine_.params(); }   ///< the engine's parameters
+    eph::ParamStore& store() { return m_engine.params(); }   ///< the engine's parameters
     /** @brief The host parameter of store id @p id, or null. */
     /** @brief Applies factory preset @p index of @p module (Presets.h) to instance @p instance, through the host's parameters. */
-    void applyPreset(eph::Module module, int instance, int index);
+    void applyPreset(eph::ModuleE module, int instance, int index);
     /**
      * @brief Sets the knobs @p values (store id, real value) through the host's parameters as one undo step named @p what
      *        (15.10.2026: a value typed into the command palette).
@@ -193,15 +193,15 @@ public:
     /** @brief Back to the knobs as they were before previewKnobs (nothing when no preview plays). */
     void endPreview();
     /** @brief Applies @p preset (a factory or a user preset) to instance @p instance of @p module, through the host. */
-    void applyPresetValues(eph::Module module, int instance, const eph::SoundPreset& preset);
+    void applyPresetValues(eph::ModuleE module, int instance, const eph::SoundPreset& preset);
     /** @brief The user's presets of a synth: the text files in its folder under the application data, by name. */
-    std::vector<eph::SoundPreset> userPresets(eph::Module module) const;
+    std::vector<eph::SoundPreset> userPresets(eph::ModuleE module) const;
     /** @brief Saves the synth's knobs on @p instance as a user preset named @p name; false if it cannot be written. */
-    bool saveUserPreset(eph::Module module, int instance, const juce::String& name);
+    bool saveUserPreset(eph::ModuleE module, int instance, const juce::String& name);
     /** @brief Sets every `key=value` line of @p text (full keys, e.g. reverb.decay) through the host's parameters. */
     void applyKeyText(const juce::String& text);
     /** @brief The host parameter of store id @p id, or null. */
-    StoreParameter* parameter(int id) { return id >= 0 && id < static_cast<int>(params_.size()) ? params_[static_cast<size_t>(id)] : nullptr; }
+    StoreParameter* parameter(int id) { return id >= 0 && id < static_cast<int>(m_params.size()) ? m_params[static_cast<size_t>(id)] : nullptr; }
 
     // juce::AudioProcessor: a stereo instrument without MIDI, one program, the state as XML.
     void prepareToPlay(double sampleRate, int samplesPerBlock) override;   ///< prepares the engine and reloads the score
@@ -232,11 +232,11 @@ private:
     /** @brief Puts undo step @p s back (@p after false) or makes it again (@p after true). */
     void applyStep(const frame::UndoStep& s, bool after);
     void pollHeadset();                              ///< the hands' events, 30 times a second (message thread)
-    frame::UndoHistory history_;                     ///< undo and redo (message thread)
-    bool restoring_ = false;                         ///< an undo or the headset moves knobs: no step of their own
-    std::vector<std::pair<int, float>> previewSaved_;   ///< the knobs a preview replaced (store id, real value)
-    frame::Headset headset_;                         ///< the Quest's hands (message thread)
-    juce::TimedCallback headsetTick_{ [this] { pollHeadset(); } };   ///< polls the headset 30 times a second
+    frame::UndoHistory m_history;                     ///< undo and redo (message thread)
+    bool m_restoring = false;                         ///< an undo or the headset moves knobs: no step of their own
+    std::vector<std::pair<int, float>> m_previewSaved;   ///< the knobs a preview replaced (store id, real value)
+    frame::Headset m_headset;                         ///< the Quest's hands (message thread)
+    juce::TimedCallback m_headsetTick{ [this] { pollHeadset(); } };   ///< polls the headset 30 times a second
     void run() override;   ///< the composer thread
     void timerCallback() override;   ///< loads a finished score on the message thread
     eph::Score composeNow(eph::ParamStore& snapshot);   ///< composes with the knobs as they are (copied into @p snapshot)
@@ -249,21 +249,21 @@ private:
     eph::Score forPlayback(const eph::Score& s) const;
     /** @brief The performer's MIDI: keys transpose, controllers move what they are bound to (audio thread). */
     void perform(const juce::MidiBuffer& midi);
-    int keyboardSeen_ = 0;   ///< the keyboard target of the last block (audio thread): a change releases every key
+    int m_keyboardSeen = 0;   ///< the keyboard target of the last block (audio thread): a change releases every key
     // MIDI out (02.10.2026): the composer's notes as the engine plays them, on the channels of the MIDI export (Midi.h).
-    eph::NoteTap noteTap_;   ///< what the engine played in the last process() call (audio thread)
-    frame::KeyMemory keyMemory_;   ///< where each held key went (the split, Scale Lock), so its release follows (02.10.2026)
+    eph::NoteTap m_noteTap;   ///< what the engine played in the last process() call (audio thread)
+    frame::KeyMemory m_keyMemory;   ///< where each held key went (the split, Scale Lock), so its release follows (02.10.2026)
     // The stems as outputs of their own (02.10.2026): a stereo bus per channel strip and one for the rooms (Engine::setStems),
     // off until the host switches one on; pre-master, as the export's stems.
-    static constexpr int kStemOuts = eph::Engine::kChannels + 1;   ///< the strips and the rooms
-    std::vector<float> stemBuf_;                                    ///< kStemOuts x 2 x block (prepareToPlay)
-    std::array<float*, kStemOuts> stemL_{};                         ///< per stem: its left channel in stemBuf_
-    std::array<float*, kStemOuts> stemR_{};                         ///< per stem: its right channel in stemBuf_
-    bool stemsOn_ = false;                                          ///< audio thread: the engine writes the stems now
+    static constexpr int StemOuts = eph::Engine::Channels + 1;   ///< the strips and the rooms
+    std::vector<float> m_stemBuf;                                    ///< StemOuts x 2 x block (prepareToPlay)
+    std::array<float*, StemOuts> m_stemL{};                         ///< per stem: its left channel in m_stemBuf
+    std::array<float*, StemOuts> m_stemR{};                         ///< per stem: its right channel in m_stemBuf
+    bool m_stemsOn = false;                                          ///< audio thread: the engine writes the stems now
     /** @brief The buses: the main stereo output, then one stereo output per strip and one for the rooms, those off. */
     static BusesProperties busLayout();
-    int64_t midiExpect_ = -1;      ///< the sample the next block should start at; another is a jump
-    bool midiSounding_ = false;    ///< a note-on went out since the last all-notes-off
+    int64_t m_midiExpect = -1;      ///< the sample the next block should start at; another is a jump
+    bool m_midiSounding = false;    ///< a note-on went out since the last all-notes-off
     /** @brief Writes the notes the engine played in the block from @p start (@p n samples) into @p midi. */
     void emitMidi(juce::MidiBuffer& midi, int64_t start, int n);
     /** @brief All notes off on every channel, at the block's start, when a note sounded (a stop, a jump). */
@@ -271,65 +271,65 @@ private:
     /** @brief Sets store id @p id to the real value @p value through its host parameter. */
     void setFromMidi(int id, float value);
 
-    eph::Engine engine_;   ///< the engine
-    std::vector<StoreParameter*> params_;   ///< the host parameters, one per store id (owned by the processor)
-    uint64_t seed_ = 1;   ///< the seed of what plays
-    eph::Curation curation_;   ///< the rerolls and locks
-    mutable std::mutex lock_;   ///< guards what the composer thread hands over
-    std::unique_ptr<eph::Score> pending_;   ///< composed, waiting to be loaded
-    eph::Score current_;                    ///< what the engine plays (for reloading and the arrange view)
-    std::atomic<bool> composing_{ false };   ///< the composer thread works
-    std::atomic<bool> playing_{ false };   ///< play is on
-    std::atomic<bool> exporting_{ false };   ///< an export runs
-    std::atomic<bool> again_{ false };   ///< compose was asked for while composing: once more when done
+    eph::Engine m_engine;   ///< the engine
+    std::vector<StoreParameter*> m_params;   ///< the host parameters, one per store id (owned by the processor)
+    uint64_t m_seed = 1;   ///< the seed of what plays
+    eph::Curation m_curation;   ///< the rerolls and locks
+    mutable std::mutex m_lock;   ///< guards what the composer thread hands over
+    std::unique_ptr<eph::Score> m_pending;   ///< composed, waiting to be loaded
+    eph::Score m_current;                    ///< what the engine plays (for reloading and the arrange view)
+    std::atomic<bool> m_composing{ false };   ///< the composer thread works
+    std::atomic<bool> m_playing{ false };   ///< play is on
+    std::atomic<bool> m_exporting{ false };   ///< an export runs
+    std::atomic<bool> m_again{ false };   ///< compose was asked for while composing: once more when done
     // The loudness (Leveler.h): measured on the composer thread once the piece is handed over, while it plays.
-    std::atomic<bool> newer_{ false };       ///< a newer piece is asked for: the measuring of the last one stops
-    uint64_t composed_ = 0;   ///< counts the compositions
-    uint64_t pendingId_ = 0;   ///< pending_'s number (lock_)
-    uint64_t playingId_ = 0;   ///< current_'s number (lock_)
-    std::vector<float> trims_;               ///< the corrections found for the composition trimsFor_ (lock_)
-    uint64_t trimsFor_ = 0;   ///< the composition trims_ and bal_ belong to (lock_)
-    bool levelled_ = false;                  ///< current_ carries its corrections (lock_)
-    int pendingKind_ = 0;                    ///< what pending_ is: 0 a piece, 1 a concert, 2 a night set (lock_)
-    std::atomic<int> playingKind_{ 0 };      ///< ... and current_ (playingKind())
-    float concertMinutes_ = 60.0f;           ///< the concert's length while a piece is chosen (chooseKind; the state)
+    std::atomic<bool> m_newer{ false };       ///< a newer piece is asked for: the measuring of the last one stops
+    uint64_t m_composed = 0;   ///< counts the compositions
+    uint64_t m_pendingId = 0;   ///< m_pending's number (m_lock)
+    uint64_t m_playingId = 0;   ///< m_current's number (m_lock)
+    std::vector<float> m_trims;               ///< the corrections found for the composition m_trimsFor (m_lock)
+    uint64_t m_trimsFor = 0;   ///< the composition m_trims and bal_ belong to (m_lock)
+    bool m_levelled = false;                  ///< m_current carries its corrections (m_lock)
+    int m_pendingKind = 0;                    ///< what m_pending is: 0 a piece, 1 a concert, 2 a night set (m_lock)
+    std::atomic<int> m_playingKind{ 0 };      ///< ... and m_current (playingKind())
+    float m_concertMinutes = 60.0f;           ///< the concert's length while a piece is chosen (chooseKind; the state)
     // The composer's sounds (Score::knobs, 26.09.2026): a new piece puts them on the knobs of the synths whose sound it
     // changes; after a restored state or a loaded set the knobs already hold them.
-    std::atomic<bool> adoptNext_{ false };   ///< the next composition's sounds are already on the knobs
-    bool pendingAdopt_ = false;              ///< ... and the one in pending_ was such a composition
-    uint32_t toldSounds_ = 0;                ///< the engine's soundsVersion() the host and the pages were last told
+    std::atomic<bool> m_adoptNext{ false };   ///< the next composition's sounds are already on the knobs
+    bool m_pendingAdopt = false;              ///< ... and the one in m_pending was such a composition
+    uint32_t m_toldSounds = 0;                ///< the engine's soundsVersion() the host and the pages were last told
     /** @brief Puts @p next's sounds at its start on the knobs of every synth whose sound differs from the playing score's. */
     void takeSounds(const eph::Score& next);
     /** @brief Tells the host and the pages the values of the knobs @p s sets (the engine set them). */
     void tellSounds(const eph::Score& s);
-    std::atomic<double> position_{ 0.0 };   ///< where the engine is, beats (audio thread writes)
-    std::atomic<double> seekRequest_{ -1.0 };   ///< a jump asked for, beats; -1 none
-    double sampleRate_ = 48000.0;   ///< the sample rate, Hz
-    int blockSize_ = 512;   ///< the largest block, samples
-    juce::String lastExport_;   ///< the last export's result, for the Export tab
-    std::unique_ptr<std::thread> exporter_;   ///< the export thread while it runs
-    std::vector<float> record_;          ///< interleaved, allocated in prepareToPlay in the test mode only
-    size_t recordTarget_ = 0;   ///< TOT_RECORD: how many values record_ takes, 0 off
-    std::atomic<size_t> recordPos_{ 0 };   ///< how many are written
-    bool autoPlay_ = false;   ///< TOT_PLAY: play once the first score is loaded
-    std::array<std::atomic<float>, eph::Engine::kChannels> meterPeak_{};   ///< audio thread raises, the editor takes (exchange 0)
-    std::array<std::atomic<double>, eph::Engine::kChannels> meterSum_{};   ///< sums of squares since the editor last took them
-    std::atomic<int> meterCount_{ 0 };                                      ///< samples in those sums
-    std::atomic<int> scoreVersion_{ 0 };     ///< scoreVersion()
-    eph::CueSender cues_;                    ///< the OSC cues' socket and thread (message thread starts and stops it)
-    eph::CueTap cueTap_;                     ///< audio thread: beat range -> cues
-    int cuePort_ = 0;                        ///< the port the sender was started for, 0 = off (message thread)
-    double lastBeat_ = -1.0;                 ///< the beat after the last block (audio thread), to see a jump
-    std::array<std::atomic<int>, 128> ccMap_{};   ///< controller number -> store id, -1 unbound
-    std::atomic<int> learn_{ -1 };                ///< learn()
-    std::atomic<bool> mute_{ false };             ///< muted()
-    bool forceMute_ = false;                      ///< muteForced()
-    std::atomic<double> hostBpm_{ 0.0 };     ///< the host's tempo as the audio thread last saw it, 0 outside a host
-    std::atomic<double> playedBpm_{ 0.0 };   ///< the tempo the engine's score was loaded with (forPlayback), 0 as composed
+    std::atomic<double> m_position{ 0.0 };   ///< where the engine is, beats (audio thread writes)
+    std::atomic<double> m_seekRequest{ -1.0 };   ///< a jump asked for, beats; -1 none
+    double m_sampleRate = 48000.0;   ///< the sample rate, Hz
+    int m_blockSize = 512;   ///< the largest block, samples
+    juce::String m_lastExport;   ///< the last export's result, for the Export tab
+    std::unique_ptr<std::thread> m_exporter;   ///< the export thread while it runs
+    std::vector<float> m_record;          ///< interleaved, allocated in prepareToPlay in the test mode only
+    size_t m_recordTarget = 0;   ///< TOT_RECORD: how many values m_record takes, 0 off
+    std::atomic<size_t> m_recordPos{ 0 };   ///< how many are written
+    bool m_autoPlay = false;   ///< TOT_PLAY: play once the first score is loaded
+    std::array<std::atomic<float>, eph::Engine::Channels> m_meterPeak{};   ///< audio thread raises, the editor takes (exchange 0)
+    std::array<std::atomic<double>, eph::Engine::Channels> m_meterSum{};   ///< sums of squares since the editor last took them
+    std::atomic<int> m_meterCount{ 0 };                                      ///< samples in those sums
+    std::atomic<int> m_scoreVersion{ 0 };     ///< scoreVersion()
+    eph::CueSender m_cues;                    ///< the OSC cues' socket and thread (message thread starts and stops it)
+    eph::CueTap m_cueTap;                     ///< audio thread: beat range -> cues
+    int m_cuePort = 0;                        ///< the port the sender was started for, 0 = off (message thread)
+    double m_lastBeat = -1.0;                 ///< the beat after the last block (audio thread), to see a jump
+    std::array<std::atomic<int>, 128> m_ccMap{};   ///< controller number -> store id, -1 unbound
+    std::atomic<int> m_learn{ -1 };                ///< learn()
+    std::atomic<bool> m_mute{ false };             ///< muted()
+    bool m_forceMute = false;                      ///< muteForced()
+    std::atomic<double> m_hostBpm{ 0.0 };     ///< the host's tempo as the audio thread last saw it, 0 outside a host
+    std::atomic<double> m_playedBpm{ 0.0 };   ///< the tempo the engine's score was loaded with (forPlayback), 0 as composed
     // Ableton Link in the standalone (02.10.2026, LinkClock.h; Settings > Ableton Link).
-    frame::LinkClock link_;                          ///< the session (joined on the timer when the setting is on)
-    std::atomic<bool> linkFollowing_{ false };       ///< other apps are in the session: it rules tempo and phase as a host does
-    double linkBeat_ = -1.0;                         ///< audio thread: the session's beat at this block (the jam's timeline)
+    frame::LinkClock m_link;                          ///< the session (joined on the timer when the setting is on)
+    std::atomic<bool> m_linkFollowing{ false };       ///< other apps are in the session: it rules tempo and phase as a host does
+    double m_linkBeat = -1.0;                         ///< audio thread: the session's beat at this block (the jam's timeline)
     // The family jam (02.10.2026, Jam.h; Settings > Family jam).
     /** @brief Audio thread: as the jam's leader, the phases and roots of the coming beat go out, stamped with their bar. */
     void jamLead(double before, double after, double shared);
@@ -337,17 +337,17 @@ private:
     void jamFollow(double before, double shared);
     /** @brief Which of compose.scale's values a mode named @p mode is (-1: none of them). */
     static int scaleOfMode(const juce::String& mode);
-    frame::JamBus jam_ { "Ephemeris" };              ///< the family jam's bus
-    bool jamLeadStarted_ = false;                    ///< audio thread: the leader has said where it stands
-    double jamLeadLast_ = -1.0;                      ///< audio thread: where the leader's last block ended (a jump)
-    double jamLastBefore_ = -1.0;                    ///< audio thread: the previous block's start (its length in beats)
-    int jamTranspose_ = 0;                           ///< audio thread: the transposition the engine plays now
-    std::atomic<int> jamTransposeOut_ { 0 };         ///< the same, for the message thread
-    bool jamFollowing_ = false;                      ///< audio thread: the engine follows the jam (setJam was called)
-    std::atomic<int> jamComposeKey_ { -1 };         ///< a follower's next piece: the leader's root (-1: its own key)
-    std::atomic<int> jamComposeScale_ { -1 };       ///< and its mode as compose.scale (-1: its own)
-    juce::String jamLogged_;                         ///< the last line written to FAMILY_JAM_LOG
-    bool linkPlayed_ = false;                        ///< audio thread: the transport last told to or taken from the session
+    frame::JamBus m_jam { "Ephemeris" };              ///< the family jam's bus
+    bool m_jamLeadStarted = false;                    ///< audio thread: the leader has said where it stands
+    double m_jamLeadLast = -1.0;                      ///< audio thread: where the leader's last block ended (a jump)
+    double m_jamLastBefore = -1.0;                    ///< audio thread: the previous block's start (its length in beats)
+    int m_jamTranspose = 0;                           ///< audio thread: the transposition the engine plays now
+    std::atomic<int> m_jamTransposeOut { 0 };         ///< the same, for the message thread
+    bool m_jamFollowing = false;                      ///< audio thread: the engine follows the jam (setJam was called)
+    std::atomic<int> m_jamComposeKey { -1 };         ///< a follower's next piece: the leader's root (-1: its own key)
+    std::atomic<int> m_jamComposeScale { -1 };       ///< and its mode as compose.scale (-1: its own)
+    juce::String m_jamLogged;                         ///< the last line written to FAMILY_JAM_LOG
+    bool m_linkPlayed = false;                        ///< audio thread: the transport last told to or taken from the session
     /** @brief Whether a clock outside rules the tempo: a host's playhead, or a Link session with other apps in it. */
-    bool followsClock() const { return wrapperType != wrapperType_Standalone || linkFollowing_.load(std::memory_order_relaxed); }
+    bool followsClock() const { return wrapperType != wrapperType_Standalone || m_linkFollowing.load(std::memory_order_relaxed); }
 };

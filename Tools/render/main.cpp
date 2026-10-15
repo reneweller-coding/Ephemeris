@@ -137,18 +137,18 @@ int main(int argc, char** argv)
         SetFile sf;
         std::string err;
         if (!loadSet(setIn.c_str(), sf, p, &err)) { std::fprintf(stderr, "--set-file: %s\n", err.c_str()); return 2; }
-        seed = sf.seed;
-        soundsKept = sf.soundsInParams;
-        if (minutes <= 0.0) minutes = sf.minutes;
-        if (concert <= 0.0) concert = sf.concert;
-        for (const auto& r : curation.rerolls) sf.curation.rerolls[r.first] += r.second;
-        curation = sf.curation;
+        seed = sf.m_seed;
+        soundsKept = sf.m_soundsInParams;
+        if (minutes <= 0.0) minutes = sf.m_minutes;
+        if (concert <= 0.0) concert = sf.m_concert;
+        for (const auto& r : curation.m_rerolls) sf.m_curation.m_rerolls[r.first] += r.second;
+        curation = sf.m_curation;
     }
     if (!set.empty()) {
         std::string err;
         if (!p.parseText(set, &err)) { std::fprintf(stderr, "--set: %s\n", err.c_str()); return 2; }
     }
-    const int bpmId = p.id(Module::Compose, 0, compose::Bpm);
+    const int bpmId = p.id(ModuleE::COMPOSE, 0, compose::BPM);
     if (bpmArg > 0.0) p.set(bpmId, static_cast<float>(bpmArg));
     if (!dump.empty()) {
         // One object per parameter: the key, the descriptor, the default of this instance (Tools/manual).
@@ -164,15 +164,15 @@ int main(int argc, char** argv)
         for (int id = 0; id < p.count(); ++id) {
             const ParamDesc& d = p.desc(id);
             std::string choices = "[]";
-            if (d.curve == Curve::Choice && d.choices != nullptr) {
+            if (d.m_curve == CurveE::CHOICE && d.m_choices != nullptr) {
                 choices = "[";
-                for (int c = 0; c <= static_cast<int>(d.maxValue); ++c) choices += (c ? ", " : "") + quoted(d.choices[c]);
+                for (int c = 0; c <= static_cast<int>(d.m_maxValue); ++c) choices += (c ? ", " : "") + quoted(d.m_choices[c]);
                 choices += "]";
             }
             std::fprintf(f, "  {\"key\": %s, \"name\": %s, \"unit\": %s, \"min\": %g, \"max\": %g, \"default\": %g, \"curve\": \"%s\", \"choices\": %s}%s\n",
-                         quoted(p.key(id).c_str()).c_str(), quoted(d.name).c_str(), quoted(d.unit).c_str(),
-                         static_cast<double>(d.minValue), static_cast<double>(d.maxValue), static_cast<double>(p.defaultValue(id)),
-                         curves[static_cast<int>(d.curve)], choices.c_str(), id + 1 < p.count() ? "," : "");
+                         quoted(p.key(id).c_str()).c_str(), quoted(d.m_name).c_str(), quoted(d.m_unit).c_str(),
+                         static_cast<double>(d.m_minValue), static_cast<double>(d.m_maxValue), static_cast<double>(p.defaultValue(id)),
+                         curves[static_cast<int>(d.m_curve)], choices.c_str(), id + 1 < p.count() ? "," : "");
         }
         std::fprintf(f, "]\n");
         std::fclose(f);
@@ -186,9 +186,9 @@ int main(int argc, char** argv)
     const double bpm = p.get(bpmId);
     Score score;
     if (!frame) {
-        const double mins = minutes > 0.0 ? minutes : (bars > 0.0 ? bars * kBeatsPerBar / bpm
-                                                                  : p.get(p.id(Module::Compose, 0, compose::PieceMinutes)));
-        if (concert <= 0.0) concert = p.get(p.id(Module::Compose, 0, compose::ConcertMinutes));
+        const double mins = minutes > 0.0 ? minutes : (bars > 0.0 ? bars * BeatsPerBar / bpm
+                                                                  : p.get(p.id(ModuleE::COMPOSE, 0, compose::PIECE_MINUTES)));
+        if (concert <= 0.0) concert = p.get(p.id(ModuleE::COMPOSE, 0, compose::CONCERT_MINUTES));
         if (study) score = buildStudy(p, seed, mins);
         else if (sketch) score = buildSketch(p, seed, mins);
         else if (concert > 0.0) score = composeConcert(p, seed, concert, &curation);
@@ -199,28 +199,28 @@ int main(int argc, char** argv)
             for (const LevelReading& r : levelScore(score, p))
                 if (showLevels)
                     std::printf("level: piece at beat %.0f: loudest part %.1f LUFS, target %.1f, correction %+.1f dB, then %.1f LUFS\n",
-                                r.beat, static_cast<double>(r.measured), static_cast<double>(r.target), static_cast<double>(r.trim),
-                                static_cast<double>(r.after));
+                                r.m_beat, static_cast<double>(r.m_measured), static_cast<double>(r.m_target), static_cast<double>(r.m_trim),
+                                static_cast<double>(r.m_after));
             if (levelsOnly) return 0;
         }
-        bars = score.lengthBeats / kBeatsPerBar;
+        bars = score.m_lengthBeats / BeatsPerBar;
     } else {
         // The frame of Phase 0: a tempo map, a length and two markers.
         score.clear(bpm);
-        score.keyRoot = p.getInt(p.id(Module::Compose, 0, compose::Key));
+        score.m_keyRoot = p.getInt(p.id(ModuleE::COMPOSE, 0, compose::KEY));
         if (bars <= 0.0) {
-            const double mins = minutes > 0.0 ? minutes : p.get(p.id(Module::Compose, 0, compose::PieceMinutes));
+            const double mins = minutes > 0.0 ? minutes : p.get(p.id(ModuleE::COMPOSE, 0, compose::PIECE_MINUTES));
             // Bars from minutes at the mean tempo, so a ramp does not change the length much.
             const double meanBpm = rampTo > 0.0 ? 0.5 * (bpm + rampTo) : bpm;
-            bars = std::max(1.0, std::floor(mins * meanBpm / kBeatsPerBar + 0.5));
+            bars = std::max(1.0, std::floor(mins * meanBpm / BeatsPerBar + 0.5));
         }
-        score.lengthBeats = bars * kBeatsPerBar;
+        score.m_lengthBeats = bars * BeatsPerBar;
         if (rampTo > 0.0) {
-            score.tempo.add(0.0, bpm, true);
-            score.tempo.add(score.lengthBeats, rampTo, false);
+            score.m_tempo.add(0.0, bpm, true);
+            score.m_tempo.add(score.m_lengthBeats, rampTo, false);
         }
-        score.markers.push_back({ 0.0, "Start" });
-        score.markers.push_back({ score.lengthBeats, "End" });
+        score.m_markers.push_back({ 0.0, "Start" });
+        score.m_markers.push_back({ score.m_lengthBeats, "End" });
     }
     engine.prepare(rate, block);
     // The composer's sounds onto the knobs, as the plugin does with a new piece -- unless a saved set's parameters
@@ -228,10 +228,10 @@ int main(int argc, char** argv)
     engine.load(score, !soundsKept);
     if (!setOut.empty() && !frame) {
         SetFile sf;
-        sf.seed = seed;
-        sf.minutes = setMinutes;
-        sf.concert = concert;
-        sf.curation = curation;
+        sf.m_seed = seed;
+        sf.m_minutes = setMinutes;
+        sf.m_concert = concert;
+        sf.m_curation = curation;
         if (!saveSet(setOut.c_str(), sf, p)) { std::fprintf(stderr, "cannot write %s\n", setOut.c_str()); return 1; }
     }
     if (!cuesOut.empty()) {
@@ -239,30 +239,30 @@ int main(int argc, char** argv)
         if (f == nullptr) { std::fprintf(stderr, "cannot write %s\n", cuesOut.c_str()); return 1; }
         static const char* const kinds[] = { "beat", "phase", "key", "conjunction" };
         for (const CueMark& m : engine.cueMarks())
-            std::fprintf(f, "%10.3f  %8.2f s  %-11s %-10s %d %.2f\n", m.beat, score.tempo.secondsAt(m.beat), kinds[static_cast<int>(m.kind)], m.text, m.a, static_cast<double>(m.b));
+            std::fprintf(f, "%10.3f  %8.2f s  %-11s %-10s %d %.2f\n", m.m_beat, score.m_tempo.secondsAt(m.m_beat), kinds[static_cast<int>(m.m_kind)], m.m_text, m.m_a, static_cast<double>(m.m_b));
         std::fclose(f);
     }
 
     WavWriter wav;
-    if (!out.empty() && !wav.open(out.c_str(), static_cast<int>(rate), 2, WavFormat::Pcm24)) {
+    if (!out.empty() && !wav.open(out.c_str(), static_cast<int>(rate), 2, WavFormatE::PCM24)) {
         std::fprintf(stderr, "cannot write %s\n", out.c_str());
         return 1;
     }
     // The stems: a float WAV per channel strip and one for the rooms (Engine::setStems).
-    constexpr int kStems = Engine::kChannels + 1;
-    std::vector<std::vector<float>> stemBuf(2 * kStems, std::vector<float>(static_cast<size_t>(block)));
-    std::vector<float*> stemL(kStems), stemR(kStems);
-    std::vector<WavWriter> stems(stemsDir.empty() ? 0 : kStems);
+    constexpr int Stems = Engine::Channels + 1;
+    std::vector<std::vector<float>> stemBuf(2 * Stems, std::vector<float>(static_cast<size_t>(block)));
+    std::vector<float*> stemL(Stems), stemR(Stems);
+    std::vector<WavWriter> stems(stemsDir.empty() ? 0 : Stems);
     if (!stemsDir.empty()) {
-        for (int c = 0; c < kStems; ++c) {
+        for (int c = 0; c < Stems; ++c) {
             stemL[static_cast<size_t>(c)] = stemBuf[static_cast<size_t>(2 * c)].data();
             stemR[static_cast<size_t>(c)] = stemBuf[static_cast<size_t>(2 * c + 1)].data();
-            std::string name = c < Engine::kChannels ? Engine::channelName(c) : "Rooms";
+            std::string name = c < Engine::Channels ? Engine::channelName(c) : "Rooms";
             for (char& ch : name) ch = ch == ' ' ? '_' : ch;
             char file[64];
             std::snprintf(file, sizeof(file), "/%02d_%s.wav", c + 1, name.c_str());
             const std::string path = stemsDir + file;
-            if (!stems[static_cast<size_t>(c)].open(path.c_str(), static_cast<int>(rate), 2, WavFormat::Float32)) {
+            if (!stems[static_cast<size_t>(c)].open(path.c_str(), static_cast<int>(rate), 2, WavFormatE::FLOAT32)) {
                 std::fprintf(stderr, "cannot write %s (does the folder exist?)\n", path.c_str());
                 return 1;
             }
@@ -290,7 +290,7 @@ int main(int argc, char** argv)
             pm.process(L.data(), R.data(), n);
             done += n;
         }
-        archiveGain = static_cast<float>(std::pow(10.0, (-3.0 - pm.report().truePeak) / 20.0));
+        archiveGain = static_cast<float>(std::pow(10.0, (-3.0 - pm.report().m_truePeak) / 20.0));
         engine.setLimiter(false);
     }
     // The stems' correlation, each read on its own (the addon's 6: a target per layer, not one for the sum).
@@ -327,23 +327,23 @@ int main(int argc, char** argv)
 
     const double secs = static_cast<double>(total) / rate;
     std::printf("Ephemeris %s: %.0f bars, %.2f s + %.1f s tail at %.0f Hz, tempo %.1f BPM, key %s, seed %llu\n",
-                EPH_VERSION, bars, engine.lengthSeconds(), tail, rate, score.tempo.bpmAt(0.0), kKeyNames[score.keyRoot % 12],
+                EPH_VERSION, bars, engine.lengthSeconds(), tail, rate, score.m_tempo.bpmAt(0.0), KeyNames[score.m_keyRoot % 12],
                 static_cast<unsigned long long>(seed));
     std::printf("  %zu notes, %zu gestures, %zu rack events; peak %.1f dBFS, rms %.1f dBFS\n",
-                score.notes.size(), score.gestures.size(), score.rack.size(),
+                score.m_notes.size(), score.m_gestures.size(), score.m_rack.size(),
                 20.0 * std::log10(std::max(peak, 1e-12)), 10.0 * std::log10(std::max(sumSq / static_cast<double>(std::max<int64_t>(total, 1)), 1e-24)));
     const LoudnessReport lr = meter.report();
     std::printf("  loudness %.1f LUFS integrated, %.1f LUFS short-term max, range %.1f LU; true peak %.1f dBTP, PSR %.1f dB, PLR %.1f dB\n",
-                lr.integrated, lr.shortTermMax, lr.range, lr.truePeak, lr.psr, lr.plr);
-    std::printf("  stereo: correlation %.2f (lowest second %.2f at %.0f s), side %.1f dB under mid; crest factor %.1f dB%s\n", lr.correlation,
-                lr.correlationLow, lr.correlationLowAt, lr.sideUnderMid, lr.crest, archive ? " (archive: no limiter, -3 dBTP)" : "");
+                lr.m_integrated, lr.m_shortTermMax, lr.m_range, lr.m_truePeak, lr.m_psr, lr.m_plr);
+    std::printf("  stereo: correlation %.2f (lowest second %.2f at %.0f s), side %.1f dB under mid; crest factor %.1f dB%s\n", lr.m_correlation,
+                lr.m_correlationLow, lr.m_correlationLowAt, lr.m_sideUnderMid, lr.m_crest, archive ? " (archive: no limiter, -3 dBTP)" : "");
     for (size_t c = 0; c < stems.size(); ++c)
         if (stemLL[c] > 1e-6 && stemRR[c] > 1e-6)
-            std::printf("  stem %-12s correlation %.2f\n", static_cast<int>(c) < Engine::kChannels ? Engine::channelName(static_cast<int>(c)) : "Rooms",
+            std::printf("  stem %-12s correlation %.2f\n", static_cast<int>(c) < Engine::Channels ? Engine::channelName(static_cast<int>(c)) : "Rooms",
                         stemLR[c] / std::sqrt(stemLL[c] * stemRR[c]));
     std::printf("  %.3f s to render: %.0fx real time, %.2f %% of a core\n", took, secs / std::max(took, 1e-9), 100.0 * took / secs);
-    for (const TempoPoint& tp : score.tempo.points())
-        std::printf("  tempo point: beat %.1f, %.2f BPM%s, at %.3f s\n", tp.beat, tp.bpm, tp.rampToNext ? ", ramps" : "",
-                    score.tempo.secondsAt(tp.beat));
+    for (const TempoPoint& tp : score.m_tempo.points())
+        std::printf("  tempo point: beat %.1f, %.2f BPM%s, at %.3f s\n", tp.m_beat, tp.m_bpm, tp.m_rampToNext ? ", ramps" : "",
+                    score.m_tempo.secondsAt(tp.m_beat));
     return 0;
 }

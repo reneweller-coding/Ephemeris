@@ -14,42 +14,42 @@
 namespace eph {
 
 namespace {
-using Coeffs = std::vector<std::complex<double>>;   ///< A table frame's harmonics as complex coefficients.
-constexpr double kPiD = 3.14159265358979323846;   ///< pi
+using CoeffsT = std::vector<std::complex<double>>;   ///< A table frame's harmonics as complex coefficients.
+constexpr double PiD = 3.14159265358979323846;   ///< pi
 }
 
 // ---------------------------------------------------------------- Fft
 
-Fft::Fft(int n) : n_(n)
+Fft::Fft(int n) : m_n(n)
 {
-    cos_.resize(static_cast<size_t>(n / 2));
-    sin_.resize(static_cast<size_t>(n / 2));
+    m_cos.resize(static_cast<size_t>(n / 2));
+    m_sin.resize(static_cast<size_t>(n / 2));
     for (int i = 0; i < n / 2; ++i) {
-        cos_[static_cast<size_t>(i)] = static_cast<float>(std::cos(2.0 * kPiD * i / n));
-        sin_[static_cast<size_t>(i)] = static_cast<float>(std::sin(2.0 * kPiD * i / n));
+        m_cos[static_cast<size_t>(i)] = static_cast<float>(std::cos(2.0 * PiD * i / n));
+        m_sin[static_cast<size_t>(i)] = static_cast<float>(std::sin(2.0 * PiD * i / n));
     }
-    rev_.resize(static_cast<size_t>(n));
+    m_rev.resize(static_cast<size_t>(n));
     int bits = 0;
     while ((1 << bits) < n) ++bits;
     for (int i = 0; i < n; ++i) {
         int r = 0;
         for (int b = 0; b < bits; ++b) if (i & (1 << b)) r |= 1 << (bits - 1 - b);
-        rev_[static_cast<size_t>(i)] = r;
+        m_rev[static_cast<size_t>(i)] = r;
     }
 }
 
 void Fft::transform(float* re, float* im, bool inverse) const
 {
-    for (int i = 0; i < n_; ++i) {
-        const int j = rev_[static_cast<size_t>(i)];
+    for (int i = 0; i < m_n; ++i) {
+        const int j = m_rev[static_cast<size_t>(i)];
         if (j > i) { std::swap(re[i], re[j]); std::swap(im[i], im[j]); }
     }
-    for (int len = 2; len <= n_; len <<= 1) {
-        const int half = len / 2, stride = n_ / len;
-        for (int start = 0; start < n_; start += len) {
+    for (int len = 2; len <= m_n; len <<= 1) {
+        const int half = len / 2, stride = m_n / len;
+        for (int start = 0; start < m_n; start += len) {
             for (int k = 0; k < half; ++k) {
-                const float c = cos_[static_cast<size_t>(k * stride)];
-                const float s = inverse ? sin_[static_cast<size_t>(k * stride)] : -sin_[static_cast<size_t>(k * stride)];
+                const float c = m_cos[static_cast<size_t>(k * stride)];
+                const float s = inverse ? m_sin[static_cast<size_t>(k * stride)] : -m_sin[static_cast<size_t>(k * stride)];
                 const int a = start + k, b = a + half;
                 const float tr = re[b] * c - im[b] * s;
                 const float ti = re[b] * s + im[b] * c;
@@ -59,8 +59,8 @@ void Fft::transform(float* re, float* im, bool inverse) const
         }
     }
     if (inverse) {
-        const float inv = 1.0f / static_cast<float>(n_);
-        for (int i = 0; i < n_; ++i) { re[i] *= inv; im[i] *= inv; }
+        const float inv = 1.0f / static_cast<float>(m_n);
+        for (int i = 0; i < m_n; ++i) { re[i] *= inv; im[i] *= inv; }
     }
 }
 
@@ -69,10 +69,10 @@ void Fft::transform(float* re, float* im, bool inverse) const
 namespace {
 
 /** @brief The harmonics of one cycle of @p len samples (a power of two), as complex amplitudes of cosines. */
-Coeffs analyseCycle(const float* x, int len, const Fft& fft, std::vector<float>& re, std::vector<float>& im)
+CoeffsT analyseCycle(const float* x, int len, const Fft& fft, std::vector<float>& re, std::vector<float>& im)
 {
     const int top = std::min(CycleTable::levelHarmonics(0), (len - 1) / 2);
-    Coeffs c(static_cast<size_t>(std::max(top, 0)));
+    CoeffsT c(static_cast<size_t>(std::max(top, 0)));
     if (top <= 0) return c;
     const double scale = 2.0 / static_cast<double>(len);
     std::memcpy(re.data(), x, sizeof(float) * static_cast<size_t>(len));
@@ -84,7 +84,7 @@ Coeffs analyseCycle(const float* x, int len, const Fft& fft, std::vector<float>&
 }
 
 /** @brief One stored cycle at a level from the harmonics it keeps, and its guards. */
-void synthesise(const Coeffs& c, double gain, int level, const Fft& fft, std::vector<float>& re, std::vector<float>& im, float* out)
+void synthesise(const CoeffsT& c, double gain, int level, const Fft& fft, std::vector<float>& re, std::vector<float>& im, float* out)
 {
     const int len = CycleTable::levelLength(level);
     const int top = std::min(CycleTable::levelHarmonics(level), static_cast<int>(c.size()));
@@ -107,10 +107,10 @@ void synthesise(const Coeffs& c, double gain, int level, const Fft& fft, std::ve
 
 } // namespace
 
-bool CycleTable::buildFromHarmonics(const std::vector<Coeffs>& in)
+bool CycleTable::buildFromHarmonics(const std::vector<CoeffsT>& in)
 {
     clear();
-    const int count = std::min(static_cast<int>(in.size()), kMaxFrames);
+    const int count = std::min(static_cast<int>(in.size()), MaxFrames);
     if (count <= 0) return false;
     double loudest = 0.0;
     for (int k = 0; k < count; ++k) {
@@ -120,24 +120,24 @@ bool CycleTable::buildFromHarmonics(const std::vector<Coeffs>& in)
         loudest = std::max(loudest, std::sqrt(0.5 * e));
     }
     if (!(loudest > 1.0e-9)) return false;
-    const double gain = static_cast<double>(kTargetRms) / loudest;
+    const double gain = static_cast<double>(TargetRms) / loudest;
     size_t total = 0;
-    for (int l = 0; l < kLevels; ++l) {
-        offset[l] = static_cast<int>(total);
-        total += static_cast<size_t>(count) * static_cast<size_t>(levelLength(l) + kGuard);
+    for (int l = 0; l < Levels; ++l) {
+        m_offset[l] = static_cast<int>(total);
+        total += static_cast<size_t>(count) * static_cast<size_t>(levelLength(l) + Guard);
     }
-    data.assign(total, 0.0f);
-    std::vector<float> re(static_cast<size_t>(kStoreLen)), im(static_cast<size_t>(kStoreLen));
+    m_data.assign(total, 0.0f);
+    std::vector<float> re(static_cast<size_t>(StoreLen)), im(static_cast<size_t>(StoreLen));
     std::unique_ptr<Fft> fft;
-    for (int l = 0; l < kLevels; ++l) {
+    for (int l = 0; l < Levels; ++l) {
         const int len = levelLength(l);
         if (fft == nullptr || fft->size() != len) fft = std::make_unique<Fft>(len);
         for (int k = 0; k < count; ++k) {
-            float* out = data.data() + static_cast<size_t>(offset[l]) + static_cast<size_t>(k) * static_cast<size_t>(len + kGuard) + 1;
+            float* out = m_data.data() + static_cast<size_t>(m_offset[l]) + static_cast<size_t>(k) * static_cast<size_t>(len + Guard) + 1;
             synthesise(in[static_cast<size_t>(k)], gain, l, *fft, re, im, out);
         }
     }
-    frames = count;
+    m_frames = count;
     return true;
 }
 
@@ -146,10 +146,10 @@ bool CycleTable::build(const float* mono, int n, int cycleLen)
     clear();
     if (mono == nullptr || cycleLen < 8 || n < cycleLen || (cycleLen & (cycleLen - 1)) != 0) return false;
     const int total = n / cycleLen;
-    const int keep = std::min(total, kMaxFrames);
+    const int keep = std::min(total, MaxFrames);
     Fft fft(cycleLen);
     std::vector<float> re(static_cast<size_t>(cycleLen)), im(static_cast<size_t>(cycleLen));
-    std::vector<Coeffs> frameCoeffs(static_cast<size_t>(keep));
+    std::vector<CoeffsT> frameCoeffs(static_cast<size_t>(keep));
     for (int k = 0; k < keep; ++k) {
         const int src = keep == total ? k : static_cast<int>(static_cast<long long>(k) * (total - 1) / std::max(keep - 1, 1));
         frameCoeffs[static_cast<size_t>(k)] = analyseCycle(mono + static_cast<size_t>(src) * static_cast<size_t>(cycleLen), cycleLen, fft, re, im);
@@ -161,8 +161,8 @@ int cycleLevelFor(double hz, double sampleRate, int current)
 {
     const double nyquist = 0.5 * sampleRate;
     int floorLevel = 0;
-    while (floorLevel < CycleTable::kLevels - 1 && CycleTable::levelHarmonics(floorLevel) * hz >= nyquist) ++floorLevel;
-    if (current > floorLevel && current < CycleTable::kLevels) {
+    while (floorLevel < CycleTable::Levels - 1 && CycleTable::levelHarmonics(floorLevel) * hz >= nyquist) ++floorLevel;
+    if (current > floorLevel && current < CycleTable::Levels) {
         int l = floorLevel;
         while (l < current && CycleTable::levelHarmonics(l) * hz > 0.9 * nyquist) ++l;
         return l;
@@ -175,7 +175,7 @@ int cycleLevelFor(double hz, double sampleRate, int current)
 namespace {
 
 /** @brief Every frame brought to the same RMS, so a morph does not fade as it goes (Noctuary's rule). */
-Coeffs unit(Coeffs c)
+CoeffsT unit(CoeffsT c)
 {
     double e = 0.0;
     for (const auto& v : c) e += std::norm(v);
@@ -186,34 +186,34 @@ Coeffs unit(Coeffs c)
 
 /** @brief The formula tables and the sampled ones, built once. */
 struct Tables {
-    CycleTable t[kWavetableCount];   ///< every table
+    CycleTable m_t[WavetableCount];   ///< every table
     Tables()
     {
         const int H = CycleTable::levelHarmonics(0);
         const std::complex<double> sine(0.0, -1.0);   // sin x = cos(x - pi/2)
         // Classic: sine, triangle, saw, square, a pulse of a fifth -- the real waveforms, with their phases.
         {
-            std::vector<Coeffs> f(5, Coeffs(static_cast<size_t>(H)));
+            std::vector<CoeffsT> f(5, CoeffsT(static_cast<size_t>(H)));
             f[0][0] = sine;
             for (int h = 1; h <= H; ++h) {
                 const double sign = (h % 2 == 0) ? -1.0 : 1.0;
-                if (h % 2 == 1) f[1][static_cast<size_t>(h - 1)] = sine * ((((h - 1) / 2) % 2 == 0 ? 1.0 : -1.0) * 8.0 / (kPiD * kPiD * h * h));
-                f[2][static_cast<size_t>(h - 1)] = sine * (sign * 2.0 / (kPiD * h));
-                if (h % 2 == 1) f[3][static_cast<size_t>(h - 1)] = sine * (4.0 / (kPiD * h));
-                f[4][static_cast<size_t>(h - 1)] = std::complex<double>(2.0 / (kPiD * h) * std::sin(kPiD * h * 0.2), 0.0);
+                if (h % 2 == 1) f[1][static_cast<size_t>(h - 1)] = sine * ((((h - 1) / 2) % 2 == 0 ? 1.0 : -1.0) * 8.0 / (PiD * PiD * h * h));
+                f[2][static_cast<size_t>(h - 1)] = sine * (sign * 2.0 / (PiD * h));
+                if (h % 2 == 1) f[3][static_cast<size_t>(h - 1)] = sine * (4.0 / (PiD * h));
+                f[4][static_cast<size_t>(h - 1)] = std::complex<double>(2.0 / (PiD * h) * std::sin(PiD * h * 0.2), 0.0);
             }
             for (auto& c : f) c = unit(std::move(c));
-            t[0].buildFromHarmonics(f);
+            m_t[0].buildFromHarmonics(f);
         }
         // PWM: a pulse from half its cycle to a twentieth, centred on the cycle's start (its harmonics real).
         {
-            std::vector<Coeffs> f(32, Coeffs(static_cast<size_t>(H)));
+            std::vector<CoeffsT> f(32, CoeffsT(static_cast<size_t>(H)));
             for (int k = 0; k < 32; ++k) {
                 const double w = 0.5 - 0.45 * k / 31.0;
-                for (int h = 1; h <= H; ++h) f[static_cast<size_t>(k)][static_cast<size_t>(h - 1)] = 2.0 / (kPiD * h) * std::sin(kPiD * h * w);
+                for (int h = 1; h <= H; ++h) f[static_cast<size_t>(k)][static_cast<size_t>(h - 1)] = 2.0 / (PiD * h) * std::sin(PiD * h * w);
                 f[static_cast<size_t>(k)] = unit(std::move(f[static_cast<size_t>(k)]));
             }
-            t[1].buildFromHarmonics(f);
+            m_t[1].buildFromHarmonics(f);
         }
         // Sync: a saw hard-synced to 1 .. 5 times its master's frequency, drawn as samples and analysed.
         {
@@ -226,11 +226,11 @@ struct Tables {
                     x[static_cast<size_t>(k * L + n)] = static_cast<float>(2.0 * (ph - std::floor(ph)) - 1.0);
                 }
             }
-            t[2].build(x.data(), static_cast<int>(x.size()), L);
+            m_t[2].build(x.data(), static_cast<int>(x.size()), L);
         }
         // Formant: a saw through a resonant peak climbing from the first harmonic to the fortieth.
         {
-            std::vector<Coeffs> f(32, Coeffs(static_cast<size_t>(H)));
+            std::vector<CoeffsT> f(32, CoeffsT(static_cast<size_t>(H)));
             for (int k = 0; k < 32; ++k) {
                 const double peak = std::pow(40.0, k / 31.0);
                 for (int h = 1; h <= H; ++h) {
@@ -239,18 +239,18 @@ struct Tables {
                 }
                 f[static_cast<size_t>(k)] = unit(std::move(f[static_cast<size_t>(k)]));
             }
-            t[3].buildFromHarmonics(f);
+            m_t[3].buildFromHarmonics(f);
         }
         // Vocal, Organ, Glass, Metal: Noctuary's spectra of 32 partials, with sine phases.
         {
             auto table = [&](int index, const std::vector<std::vector<double>>& frames) {
-                std::vector<Coeffs> f;
+                std::vector<CoeffsT> f;
                 for (const auto& a : frames) {
-                    Coeffs c(static_cast<size_t>(H));
+                    CoeffsT c(static_cast<size_t>(H));
                     for (size_t h = 0; h < a.size() && h < c.size(); ++h) c[h] = sine * a[h];
                     f.push_back(unit(std::move(c)));
                 }
-                t[index].buildFromHarmonics(f);
+                m_t[index].buildFromHarmonics(f);
             };
             std::vector<std::vector<double>> vocal(5, std::vector<double>(32));
             const double F[5][3] = { { 800, 1150, 2900 }, { 400, 1600, 2700 }, { 270, 2300, 3000 }, { 450, 800, 2830 }, { 325, 700, 2530 } };
@@ -286,15 +286,15 @@ struct Tables {
         }
         // The sampled tables: frames of 256 samples.
         std::vector<float> x;
-        for (int i = 0; i < kSampledTableCount; ++i) {
-            const SampledTable& s = kSampledTables[i];
-            x.resize(static_cast<size_t>(s.frames) * 256);
-            for (size_t n = 0; n < x.size(); ++n) x[n] = static_cast<float>(s.data[n]) / 32768.0f;
-            t[kFormulaTableCount + i].build(x.data(), static_cast<int>(x.size()), 256);
+        for (int i = 0; i < SampledTableCount; ++i) {
+            const SampledTable& s = SampledTables[i];
+            x.resize(static_cast<size_t>(s.m_frames) * 256);
+            for (size_t n = 0; n < x.size(); ++n) x[n] = static_cast<float>(s.m_data[n]) / 32768.0f;
+            m_t[FormulaTableCount + i].build(x.data(), static_cast<int>(x.size()), 256);
         }
         // The VCO models' waves (Vco.h): sixteen frames, the model's ramp blended into its square over the first six,
         // the pulse then narrowing to a twelfth -- a model's PWM pad, drawn as samples and analysed.
-        for (int m = 1; m <= kVcoTableCount; ++m) {
+        for (int m = 1; m <= VcoTableCount; ++m) {
             constexpr int L = 2048;
             std::vector<float> y(static_cast<size_t>(16 * L));
             for (int k = 0; k < 16; ++k) {
@@ -302,7 +302,7 @@ struct Tables {
                 const float pw = k <= 5 ? 0.5f : 0.5f - 0.42f * static_cast<float>(k - 5) / 10.0f;
                 for (int n = 0; n < L; ++n) y[static_cast<size_t>(k * L + n)] = VcoOsc::value(vcoProfile(m), wave, pw, static_cast<double>(n) / L);
             }
-            t[kFormulaTableCount + kSampledTableCount + m - 1].build(y.data(), static_cast<int>(y.size()), L);
+            m_t[FormulaTableCount + SampledTableCount + m - 1].build(y.data(), static_cast<int>(y.size()), L);
         }
     }
 };
@@ -320,7 +320,7 @@ void prepareWavetables() { (void)tables(); }
 
 const CycleTable& wavetable(int index)
 {
-    return tables().t[std::clamp(index, 0, kWavetableCount - 1)];
+    return tables().m_t[std::clamp(index, 0, WavetableCount - 1)];
 }
 
 } // namespace eph

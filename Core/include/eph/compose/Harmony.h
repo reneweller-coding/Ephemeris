@@ -61,13 +61,13 @@ namespace eph {
  * @param rng          the row's stream
  * @return semitone offsets from the tonic, first and last 0
  */
-std::vector<int> drawProgression(Style style, int scale, int steps, int barsPerStep, Rng& rng);
+std::vector<int> drawProgression(StyleE style, int scale, int steps, int barsPerStep, Rng& rng);
 
 /** @brief The roots a style moves between, for tests and for mutating a transposer row. */
-const std::vector<int>& progressionRoots(Style style);
+const std::vector<int>& progressionRoots(StyleE style);
 
 /** @brief The classes of chord progression (the guide's 3.5). */
-enum class ChordClass : int { Static, Pendulum, Loop, Walk };
+enum class ChordClassE : int { STATIC, PENDULUM, LOOP, WALK };
 
 /**
  * @brief Draws a chord track between two beats: (beat, degree of the mode), starting on the tonic at @p from.
@@ -79,8 +79,8 @@ enum class ChordClass : int { Static, Pendulum, Loop, Walk };
  * @param rng    the harmony's stream
  * @param drawn  if not null, receives the class drawn
  */
-std::vector<std::pair<double, int>> drawChordTrack(Style style, int scale, double from, double to, Rng& rng,
-                                                   ChordClass* drawn = nullptr);
+std::vector<std::pair<double, int>> drawChordTrack(StyleE style, int scale, double from, double to, Rng& rng,
+                                                   ChordClassE* drawn = nullptr);
 
 /** @brief Whether the chord on @p degree of @p scale has a perfect fifth (the tonic of Locrian counts as usable). */
 bool usableDegree(int scale, int degree);
@@ -92,16 +92,16 @@ bool usableDegree(int scale, int degree);
 int bassDegree(int scale, int degree);
 
 /** @brief The chord kinds of the vocabulary (the guide's 3.4). */
-enum class ChordKind : int { Fifth, Triad, Sus2, Sus4, Add9, Quartal, Stack, Seventh };
+enum class ChordKindE : int { FIFTH, TRIAD, SUS2, SUS4, ADD9, QUARTAL, STACK, SEVENTH };
 
 /** @brief Draws a kind for a chord on @p degree: plain triads for a choir (@p choir), the whole vocabulary otherwise. */
-ChordKind drawChordKind(int scale, int degree, bool choir, Rng& rng);
+ChordKindE drawChordKind(int scale, int degree, bool choir, Rng& rng);
 
 /**
  * @brief The tones of a chord in semitones above the centre (may pass the octave; the open fifth doubles its
  *        root an octave up). A kind the degree cannot carry -- a sus4 on a tritone, a fifth that is not perfect --
  *        falls back to the triad.
  */
-std::vector<int> chordTones(int scale, int degree, ChordKind kind);
+std::vector<int> chordTones(int scale, int degree, ChordKindE kind);
 
 } // namespace eph

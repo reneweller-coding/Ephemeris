@@ -23,11 +23,11 @@ class LinkClock {
 public:
     /** @brief What the session says at the moment a block is heard. */
     struct Now {
-        bool active = false;    ///< Link is on
-        int peers = 0;          ///< the other apps in the session
-        double bpm = 120.0;     ///< the session's tempo
-        double beat = 0.0;      ///< the session's beat at that moment (its bar phase: beat modulo the quantum)
-        bool playing = false;   ///< the session's transport (start/stop sync)
+        bool m_active = false;    ///< Link is on
+        int m_peers = 0;          ///< the other apps in the session
+        double m_bpm = 120.0;     ///< the session's tempo
+        double m_beat = 0.0;      ///< the session's beat at that moment (its bar phase: beat modulo the quantum)
+        bool m_playing = false;   ///< the session's transport (start/stop sync)
     };
 
     LinkClock();
@@ -35,7 +35,7 @@ public:
     /** @brief Joins or leaves the session (message thread). */
     void setEnabled(bool on);
     /** @brief Whether it is in the session. */
-    bool enabled() const { return enabled_.load(std::memory_order_relaxed); }
+    bool enabled() const { return m_enabled.load(std::memory_order_relaxed); }
     /** @brief How many other apps are in the session (any thread). */
     int peers() const;
     /** @brief The session at the moment a block starting now is heard, @p latencySeconds from now (audio thread). */
@@ -51,9 +51,9 @@ public:
 
 private:
     struct Impl;                     ///< the Link object itself (LinkClock.cpp): the header stays free of asio
-    std::unique_ptr<Impl> impl_;     ///< made on construction, the session joined only when enabled
-    std::atomic<bool> enabled_{ false };   ///< setEnabled's last word
-    double lastReport_ = 0.0;              ///< when tick() last wrote, seconds on the steady clock
+    std::unique_ptr<Impl> m_impl;     ///< made on construction, the session joined only when enabled
+    std::atomic<bool> m_enabled{ false };   ///< setEnabled's last word
+    double m_lastReport = 0.0;              ///< when tick() last wrote, seconds on the steady clock
 };
 
 } // namespace frame

@@ -28,14 +28,14 @@ namespace eph {
 
 /** @brief Settings of the echo for the following samples. */
 struct EchoSettings {
-    double delaySeconds = 0.3;   ///< nominal delay
-    float feedback = 0.45f;      ///< loop gain (above 1 runs into saturation)
-    float toneHz = 3500.0f;      ///< loop low pass
-    float wowMs = 0.6f;          ///< depth of the slow wander
-    float flutterMs = 0.06f;     ///< depth of the fast wander
-    float driveDb = 4.0f;        ///< saturation drive in the loop
-    bool pingPong = true;        ///< cross the loops
-    float lowCutHz = 70.0f;      ///< the loop's high pass: each repeat thinner (the production guide's 5.4)
+    double m_delaySeconds = 0.3;   ///< nominal delay
+    float m_feedback = 0.45f;      ///< loop gain (above 1 runs into saturation)
+    float m_toneHz = 3500.0f;      ///< loop low pass
+    float m_wowMs = 0.6f;          ///< depth of the slow wander
+    float m_flutterMs = 0.06f;     ///< depth of the fast wander
+    float m_driveDb = 4.0f;        ///< saturation drive in the loop
+    bool m_pingPong = true;        ///< cross the loops
+    float m_lowCutHz = 70.0f;      ///< the loop's high pass: each repeat thinner (the production guide's 5.4)
 };
 
 /** @brief A stereo tape echo; returns only the wet signal. */
@@ -54,27 +54,27 @@ public:
 private:
     /** @brief @p buf read @p delaySamples ago (interpolated). */
     float read(const std::vector<float>& buf, double delaySamples) const;
-    double sr_ = 48000.0;   ///< the sample rate, Hz
-    std::vector<float> bufL_;   ///< the tape, left
-    std::vector<float> bufR_;   ///< the tape, right
-    size_t mask_ = 0;   ///< its size - 1
-    size_t write_ = 0;   ///< where the next sample goes
-    EchoSettings s_;   ///< the settings
-    Smoother delay_;             ///< the tape speed: the delay in samples glides to its target
-    double target_ = 0.0;   ///< the delay asked for, samples
-    bool fresh_ = true;          ///< no settings taken since prepare() or reset()
-    double wowPhase_ = 0.0;   ///< the wow's phase, cycles
-    double flutterPhase_ = 0.0;   ///< the flutter's phase, cycles
-    double drift_ = 0.0;   ///< the slow drift of the speed, -1..1
-    double driftTarget_ = 0.0;   ///< where it drifts to (a new one every 32768 samples)
-    int64_t count_ = 0;   ///< samples processed
-    Svf lpL_;   ///< the feedback's low pass, left
-    Svf lpR_;   ///< ... right
-    Svf hpL_;   ///< the feedback's high pass, left
-    Svf hpR_;   ///< ... right
-    float drive_ = 1.5f;   ///< the tape's drive
-    float driveNorm_ = 0.66f;   ///< the gain that keeps the level after it
-    Rng rng_;   ///< the drift's random stream
+    double m_sr = 48000.0;   ///< the sample rate, Hz
+    std::vector<float> m_bufL;   ///< the tape, left
+    std::vector<float> m_bufR;   ///< the tape, right
+    size_t m_mask = 0;   ///< its size - 1
+    size_t m_write = 0;   ///< where the next sample goes
+    EchoSettings m_s;   ///< the settings
+    Smoother m_delay;             ///< the tape speed: the delay in samples glides to its target
+    double m_target = 0.0;   ///< the delay asked for, samples
+    bool m_fresh = true;          ///< no settings taken since prepare() or reset()
+    double m_wowPhase = 0.0;   ///< the wow's phase, cycles
+    double m_flutterPhase = 0.0;   ///< the flutter's phase, cycles
+    double m_drift = 0.0;   ///< the slow drift of the speed, -1..1
+    double m_driftTarget = 0.0;   ///< where it drifts to (a new one every 32768 samples)
+    int64_t m_count = 0;   ///< samples processed
+    Svf m_lpL;   ///< the feedback's low pass, left
+    Svf m_lpR;   ///< ... right
+    Svf m_hpL;   ///< the feedback's high pass, left
+    Svf m_hpR;   ///< ... right
+    float m_drive = 1.5f;   ///< the tape's drive
+    float m_driveNorm = 0.66f;   ///< the gain that keeps the level after it
+    Rng m_rng;   ///< the drift's random stream
 };
 
 } // namespace eph

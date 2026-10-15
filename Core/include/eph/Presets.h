@@ -31,33 +31,33 @@ namespace eph {
 
 /** @brief One preset: its group (a submenu), its name, and the values it sets (knob index in its module, value). */
 struct SoundPreset {
-    std::string group;   ///< its group (a submenu)
-    std::string name;   ///< its name
-    std::vector<std::pair<int, float>> values;   ///< every knob it sets (all but presetLeaves), by index in the module
+    std::string m_group;   ///< its group (a submenu)
+    std::string m_name;   ///< its name
+    std::vector<std::pair<int, float>> m_values;   ///< every knob it sets (all but presetLeaves), by index in the module
 };
 
 /**
  * @brief The factory presets of a synth: Module::Voice, Lead, Drone, Tape, Strings, Drums or Atmos; empty for
  *        any other module. Built once, thread-safe.
  */
-const std::vector<SoundPreset>& factoryPresets(Module module);   // (and Module::Poly, the pad synth, since 25.09.2026)
+const std::vector<SoundPreset>& factoryPresets(ModuleE module);   // (and Module::Poly, the pad synth, since 25.09.2026)
 
 /** @brief Whether a preset leaves knob @p k of @p module alone (the mix, the composer's amounts). */
-bool presetLeaves(Module module, int k);
+bool presetLeaves(ModuleE module, int k);
 
 /**
  * @brief The values a preset gives every knob of its module it does not leave: its own, the defaults for the
  *        rest -- the whole sound, so a preset sounds the same whatever was loaded before.
  */
-std::vector<std::pair<int, float>> presetKnobs(Module module, const SoundPreset& preset);
+std::vector<std::pair<int, float>> presetKnobs(ModuleE module, const SoundPreset& preset);
 
 /** @brief The knobs a preset of @p module sets, as they stand on @p instance, as `key=value` lines (a user preset). */
-std::string presetText(const ParamStore& params, Module module, int instance);
+std::string presetText(const ParamStore& params, ModuleE module, int instance);
 
 /** @brief A user preset read back from such lines; false if none of them belongs to @p module. */
-bool presetFromText(Module module, const std::string& name, const std::string& text, SoundPreset& out);
+bool presetFromText(ModuleE module, const std::string& name, const std::string& text, SoundPreset& out);
 
 /** @brief Applies @p preset to instance @p instance of @p module in @p params (the offline tools and the tests). */
-void applyPreset(ParamStore& params, Module module, int instance, const SoundPreset& preset);
+void applyPreset(ParamStore& params, ModuleE module, int instance, const SoundPreset& preset);
 
 } // namespace eph

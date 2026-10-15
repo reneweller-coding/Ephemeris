@@ -18,12 +18,12 @@
 
 namespace eph {
 
-constexpr int kHalfbandMaxCoefs = 16;   ///< upper bound on all-pass sections
+constexpr int HalfbandMaxCoefs = 16;   ///< upper bound on all-pass sections
 
 /** @brief A designed coefficient set. */
 struct HalfbandDesign {
-    int count = 0;                              ///< number of coefficients (sections)
-    float coef[kHalfbandMaxCoefs] = {};         ///< all-pass coefficients, alternating between the chains
+    int m_count = 0;                              ///< number of coefficients (sections)
+    float m_coef[HalfbandMaxCoefs] = {};         ///< all-pass coefficients, alternating between the chains
 };
 
 /**
@@ -31,7 +31,7 @@ struct HalfbandDesign {
  * @param attenuationDb stopband attenuation in dB (e.g. 96)
  * @param transition    transition width as a fraction of the *oversampled* rate, 0 < t < 0.5;
  *                      the passband ends at (0.25 - t/2) and the stopband starts at (0.25 + t/2)
- * @return the coefficients; count is capped at kHalfbandMaxCoefs
+ * @return the coefficients; count is capped at HalfbandMaxCoefs
  */
 HalfbandDesign designHalfband(double attenuationDb, double transition);
 
@@ -39,34 +39,34 @@ HalfbandDesign designHalfband(double attenuationDb, double transition);
  * @brief 2x decimator: two samples at the high rate in, one at the base rate out.
  * @tparam V lane type (float or VecF)
  */
-template <class V>
+template <class VT>
 struct HalfbandDown {
-    HalfbandDesign d;                           ///< coefficients
-    V x[kHalfbandMaxCoefs];                     ///< previous inputs per section
-    V y[kHalfbandMaxCoefs];                     ///< previous outputs per section
+    HalfbandDesign m_d;                           ///< coefficients
+    VT m_x[HalfbandMaxCoefs];                     ///< previous inputs per section
+    VT m_y[HalfbandMaxCoefs];                     ///< previous outputs per section
 
     /** @brief Takes a design and clears the state. */
-    void setup(const HalfbandDesign& design) { d = design; reset(); }
+    void setup(const HalfbandDesign& design) { m_d = design; reset(); }
     /** @brief Clears the state. */
-    void reset() { for (int i = 0; i < kHalfbandMaxCoefs; ++i) { x[i] = lanes<V>(0.0f); y[i] = lanes<V>(0.0f); } }
+    void reset() { for (int i = 0; i < HalfbandMaxCoefs; ++i) { m_x[i] = lanes<VT>(0.0f); m_y[i] = lanes<VT>(0.0f); } }
 
     /**
      * @brief One decimation step.
      * @param first  the earlier of the two high-rate samples
      * @param second the later one
      */
-    inline V process(V first, V second)
+    inline VT process(VT first, VT second)
     {
-        V a = second, b = first;   // chain 0 gets the later sample, chain 1 the earlier
-        for (int i = 0; i < d.count; ++i) {
-            const V c = lanes<V>(d.coef[i]);
-            V& in = (i & 1) ? b : a;
-            const V out = vfmadd(in - y[i], c, x[i]);   // (in - y1) c + x1
-            x[i] = in;
-            y[i] = out;
+        VT a = second, b = first;   // chain 0 gets the later sample, chain 1 the earlier
+        for (int i = 0; i < m_d.m_count; ++i) {
+            const VT c = lanes<VT>(m_d.m_coef[i]);
+            VT& in = (i & 1) ? b : a;
+            const VT out = vfmadd(in - m_y[i], c, m_x[i]);   // (in - y1) c + x1
+            m_x[i] = in;
+            m_y[i] = out;
             in = out;
         }
-        return (a + b) * lanes<V>(0.5f);
+        return (a + b) * lanes<VT>(0.5f);
     }
 };
 
@@ -74,27 +74,27 @@ struct HalfbandDown {
  * @brief 2x interpolator: one base-rate sample in, two high-rate samples out.
  * @tparam V lane type (float or VecF)
  */
-template <class V>
+template <class VT>
 struct HalfbandUp {
-    HalfbandDesign d;                ///< the coefficients
-    V x[kHalfbandMaxCoefs];          ///< all-pass input states
-    V y[kHalfbandMaxCoefs];          ///< all-pass output states
+    HalfbandDesign m_d;                ///< the coefficients
+    VT m_x[HalfbandMaxCoefs];          ///< all-pass input states
+    VT m_y[HalfbandMaxCoefs];          ///< all-pass output states
 
     /** @brief Takes a design and clears the states. */
-    void setup(const HalfbandDesign& design) { d = design; reset(); }
+    void setup(const HalfbandDesign& design) { m_d = design; reset(); }
     /** @brief Clears the states. */
-    void reset() { for (int i = 0; i < kHalfbandMaxCoefs; ++i) { x[i] = lanes<V>(0.0f); y[i] = lanes<V>(0.0f); } }
+    void reset() { for (int i = 0; i < HalfbandMaxCoefs; ++i) { m_x[i] = lanes<VT>(0.0f); m_y[i] = lanes<VT>(0.0f); } }
 
     /** @brief One interpolation step; @p o0 is the earlier output sample, @p o1 the later. */
-    inline void process(V in, V& o0, V& o1)
+    inline void process(VT in, VT& o0, VT& o1)
     {
-        V a = in, b = in;
-        for (int i = 0; i < d.count; ++i) {
-            const V c = lanes<V>(d.coef[i]);
-            V& s = (i & 1) ? b : a;
-            const V out = vfmadd(s - y[i], c, x[i]);
-            x[i] = s;
-            y[i] = out;
+        VT a = in, b = in;
+        for (int i = 0; i < m_d.m_count; ++i) {
+            const VT c = lanes<VT>(m_d.m_coef[i]);
+            VT& s = (i & 1) ? b : a;
+            const VT out = vfmadd(s - m_y[i], c, m_x[i]);
+            m_x[i] = s;
+            m_y[i] = out;
             s = out;
         }
         o0 = a;

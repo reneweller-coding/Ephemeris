@@ -27,11 +27,11 @@ namespace eph {
 
 /** @brief What levelScore found for one piece. */
 struct LevelReading {
-    double beat = 0.0;       ///< the piece's start
-    float measured = 0.0f;   ///< its loudest part as composed, LUFS
-    float target = 0.0f;     ///< what it should measure
-    float trim = 0.0f;       ///< the correction set, dB
-    float after = 0.0f;      ///< the part with the correction, LUFS
+    double m_beat = 0.0;       ///< the piece's start
+    float m_measured = 0.0f;   ///< its loudest part as composed, LUFS
+    float m_target = 0.0f;     ///< what it should measure
+    float m_trim = 0.0f;       ///< the correction set, dB
+    float m_after = 0.0f;      ///< the part with the correction, LUFS
 };
 
 /**

@@ -33,52 +33,52 @@ int portOf(const juce::String& app)
 
 // ================================================================================================ the look and feel
 
-LookAndFeel::LookAndFeel(const Skin& skin) : skin_(skin)
+LookAndFeel::LookAndFeel(const Skin& skin) : m_skin(skin)
 {
-    const Skin& s = skin_;
-    setColour(juce::ResizableWindow::backgroundColourId, s.bg);
-    setColour(juce::Label::textColourId, s.ink);
-    setColour(juce::Slider::textBoxTextColourId, s.dim);
+    const Skin& s = m_skin;
+    setColour(juce::ResizableWindow::backgroundColourId, s.m_bg);
+    setColour(juce::Label::textColourId, s.m_ink);
+    setColour(juce::Slider::textBoxTextColourId, s.m_dim);
     setColour(juce::Slider::textBoxOutlineColourId, juce::Colours::transparentBlack);
     setColour(juce::Slider::textBoxBackgroundColourId, juce::Colours::transparentBlack);
-    setColour(juce::Slider::textBoxHighlightColourId, s.accent.withAlpha(0.35f));
-    setColour(juce::Slider::rotarySliderFillColourId, s.accent);
-    setColour(juce::Slider::thumbColourId, s.accent);
-    setColour(juce::Slider::trackColourId, s.accent.withAlpha(0.6f));
-    setColour(juce::Slider::backgroundColourId, s.faint);
-    setColour(juce::ComboBox::backgroundColourId, s.raised);
-    setColour(juce::ComboBox::outlineColourId, s.edge);
-    setColour(juce::ComboBox::textColourId, s.ink);
-    setColour(juce::ComboBox::arrowColourId, s.dim);
-    setColour(juce::PopupMenu::backgroundColourId, s.group);
-    setColour(juce::PopupMenu::textColourId, s.ink);
-    setColour(juce::PopupMenu::highlightedBackgroundColourId, s.accent.withAlpha(0.25f));
-    setColour(juce::PopupMenu::highlightedTextColourId, s.ink);
-    setColour(juce::PopupMenu::headerTextColourId, s.accent);
-    setColour(juce::TextButton::buttonColourId, s.raised);
-    setColour(juce::TextButton::buttonOnColourId, s.accent.withAlpha(0.35f));
-    setColour(juce::TextButton::textColourOffId, s.ink);
-    setColour(juce::TextButton::textColourOnId, s.ink);
-    setColour(juce::ToggleButton::textColourId, s.dim);
-    setColour(juce::ToggleButton::tickColourId, s.accent);
-    setColour(juce::TextEditor::backgroundColourId, s.raised);
-    setColour(juce::TextEditor::textColourId, s.ink);
-    setColour(juce::TextEditor::outlineColourId, s.edge);
-    setColour(juce::TextEditor::focusedOutlineColourId, s.accent.withAlpha(0.6f));
-    setColour(juce::TextEditor::highlightColourId, s.accent.withAlpha(0.3f));
-    setColour(juce::CaretComponent::caretColourId, s.accent);
+    setColour(juce::Slider::textBoxHighlightColourId, s.m_accent.withAlpha(0.35f));
+    setColour(juce::Slider::rotarySliderFillColourId, s.m_accent);
+    setColour(juce::Slider::thumbColourId, s.m_accent);
+    setColour(juce::Slider::trackColourId, s.m_accent.withAlpha(0.6f));
+    setColour(juce::Slider::backgroundColourId, s.m_faint);
+    setColour(juce::ComboBox::backgroundColourId, s.m_raised);
+    setColour(juce::ComboBox::outlineColourId, s.m_edge);
+    setColour(juce::ComboBox::textColourId, s.m_ink);
+    setColour(juce::ComboBox::arrowColourId, s.m_dim);
+    setColour(juce::PopupMenu::backgroundColourId, s.m_group);
+    setColour(juce::PopupMenu::textColourId, s.m_ink);
+    setColour(juce::PopupMenu::highlightedBackgroundColourId, s.m_accent.withAlpha(0.25f));
+    setColour(juce::PopupMenu::highlightedTextColourId, s.m_ink);
+    setColour(juce::PopupMenu::headerTextColourId, s.m_accent);
+    setColour(juce::TextButton::buttonColourId, s.m_raised);
+    setColour(juce::TextButton::buttonOnColourId, s.m_accent.withAlpha(0.35f));
+    setColour(juce::TextButton::textColourOffId, s.m_ink);
+    setColour(juce::TextButton::textColourOnId, s.m_ink);
+    setColour(juce::ToggleButton::textColourId, s.m_dim);
+    setColour(juce::ToggleButton::tickColourId, s.m_accent);
+    setColour(juce::TextEditor::backgroundColourId, s.m_raised);
+    setColour(juce::TextEditor::textColourId, s.m_ink);
+    setColour(juce::TextEditor::outlineColourId, s.m_edge);
+    setColour(juce::TextEditor::focusedOutlineColourId, s.m_accent.withAlpha(0.6f));
+    setColour(juce::TextEditor::highlightColourId, s.m_accent.withAlpha(0.3f));
+    setColour(juce::CaretComponent::caretColourId, s.m_accent);
     setColour(juce::TabbedComponent::backgroundColourId, juce::Colours::transparentBlack);
-    setColour(juce::TabbedComponent::outlineColourId, s.edge);
-    setColour(juce::ScrollBar::thumbColourId, s.faint);
+    setColour(juce::TabbedComponent::outlineColourId, s.m_edge);
+    setColour(juce::ScrollBar::thumbColourId, s.m_faint);
     setColour(juce::ListBox::backgroundColourId, juce::Colours::transparentBlack);
-    setColour(juce::ListBox::textColourId, s.ink);
-    setColour(juce::TooltipWindow::backgroundColourId, s.group);
-    setColour(juce::TooltipWindow::textColourId, s.ink);
-    setColour(juce::TooltipWindow::outlineColourId, s.edge);
-    setColour(juce::AlertWindow::backgroundColourId, s.group);
-    setColour(juce::AlertWindow::textColourId, s.ink);
-    setColour(juce::AlertWindow::outlineColourId, s.edge);
-    setColour(juce::HyperlinkButton::textColourId, s.accent);
+    setColour(juce::ListBox::textColourId, s.m_ink);
+    setColour(juce::TooltipWindow::backgroundColourId, s.m_group);
+    setColour(juce::TooltipWindow::textColourId, s.m_ink);
+    setColour(juce::TooltipWindow::outlineColourId, s.m_edge);
+    setColour(juce::AlertWindow::backgroundColourId, s.m_group);
+    setColour(juce::AlertWindow::textColourId, s.m_ink);
+    setColour(juce::AlertWindow::outlineColourId, s.m_edge);
+    setColour(juce::HyperlinkButton::textColourId, s.m_accent);
 }
 
 void LookAndFeel::drawRotarySlider(juce::Graphics& g, int x, int y, int width, int height, float pos, float startAngle,
@@ -86,7 +86,7 @@ void LookAndFeel::drawRotarySlider(juce::Graphics& g, int x, int y, int width, i
 {
     // A knob as on an instrument's panel: a dark cap with its pointer, and around it the value as an arc in the colour
     // of its family -- from the top where the parameter spans zero (pan, transposition), from the start otherwise.
-    const Skin& s = skin_;
+    const Skin& s = m_skin;
     const auto bounds = juce::Rectangle<float>(static_cast<float>(x), static_cast<float>(y), static_cast<float>(width), static_cast<float>(height));
     const float size = std::min(bounds.getWidth(), bounds.getHeight());
     const auto c = bounds.getCentre();
@@ -96,7 +96,7 @@ void LookAndFeel::drawRotarySlider(juce::Graphics& g, int x, int y, int width, i
     const int numMods = mods.isArray() ? std::min(4, mods.size()) : 0;
     const float ring = size * 0.5f - 3.0f - (numMods > 0 ? 2.0f + 2.4f * static_cast<float>(numMods) : 0.0f);
     const float track = std::max(2.5f, size * 0.07f);
-    const juce::Colour colour = slider.isEnabled() ? slider.findColour(juce::Slider::rotarySliderFillColourId) : s.faint;
+    const juce::Colour colour = slider.isEnabled() ? slider.findColour(juce::Slider::rotarySliderFillColourId) : s.m_faint;
     const float angle = startAngle + pos * (endAngle - startAngle);
     float from = startAngle;
     if (slider.getMinimum() < 0.0 && slider.getMaximum() > 0.0)
@@ -104,11 +104,11 @@ void LookAndFeel::drawRotarySlider(juce::Graphics& g, int x, int y, int width, i
     const float r = ring - track * 0.5f;
     juce::Path arc;
     arc.addCentredArc(c.x, c.y, r, r, 0.0f, startAngle, endAngle, true);
-    g.setColour(s.faint.withAlpha(0.55f));
+    g.setColour(s.m_faint.withAlpha(0.55f));
     g.strokePath(arc, juce::PathStrokeType(track, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
     juce::Path value;
     value.addCentredArc(c.x, c.y, r, r, 0.0f, std::min(from, angle), std::max(from, angle), true);
-    if (s.glow) {
+    if (s.m_glow) {
         g.setColour(colour.withAlpha(0.18f));
         g.strokePath(value, juce::PathStrokeType(track * 2.6f, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
     }
@@ -150,18 +150,18 @@ void LookAndFeel::drawRotarySlider(juce::Graphics& g, int x, int y, int width, i
     }
     // The cap, lit a little from above, with a hairline rim.
     const float cap = ring - track - std::max(2.0f, size * 0.05f);
-    g.setGradientFill(juce::ColourGradient(s.raised.brighter(0.25f), c.x, c.y - cap, s.raised.darker(0.35f), c.x, c.y + cap, false));
+    g.setGradientFill(juce::ColourGradient(s.m_raised.brighter(0.25f), c.x, c.y - cap, s.m_raised.darker(0.35f), c.x, c.y + cap, false));
     g.fillEllipse(c.x - cap, c.y - cap, 2.0f * cap, 2.0f * cap);
-    g.setColour(s.edge.brighter(0.2f));
+    g.setColour(s.m_edge.brighter(0.2f));
     g.drawEllipse(c.x - cap, c.y - cap, 2.0f * cap, 2.0f * cap, 1.0f);
     // The pointer; on a skin that shows the value inside the knob, short, so the number stays readable.
     const float sn = std::sin(angle), co = -std::cos(angle);
-    const bool inside = s.valueInKnob && slider.getTextBoxPosition() == juce::Slider::NoTextBox;
-    g.setColour(s.ink);
+    const bool inside = s.m_valueInKnob && slider.getTextBoxPosition() == juce::Slider::NoTextBox;
+    g.setColour(s.m_ink);
     if (inside) {
         g.drawLine(c.x + sn * cap * 0.72f, c.y + co * cap * 0.72f, c.x + sn * cap * 0.98f, c.y + co * cap * 0.98f, std::max(1.5f, size * 0.035f));
         const juce::String v = slider.getTextFromValue(slider.getValue()).trim();
-        g.setColour(s.ink.withAlpha(slider.isEnabled() ? 0.92f : 0.4f));
+        g.setColour(s.m_ink.withAlpha(slider.isEnabled() ? 0.92f : 0.4f));
         g.setFont(font(juce::jlimit(8.5f, 15.0f, size * 0.18f)));
         g.drawFittedText(v, juce::Rectangle<float>(c.x - cap * 0.82f, c.y - cap * 0.4f, cap * 1.64f, cap * 0.8f).toNearestInt(),
                          juce::Justification::centred, 1, 0.45f);
@@ -173,7 +173,7 @@ void LookAndFeel::drawRotarySlider(juce::Graphics& g, int x, int y, int width, i
 void LookAndFeel::drawLinearSlider(juce::Graphics& g, int x, int y, int width, int height, float pos, float, float,
                                    juce::Slider::SliderStyle style, juce::Slider& slider)
 {
-    const Skin& s = skin_;
+    const Skin& s = m_skin;
     const juce::var live = slider.getProperties()["live"];
     if (style == juce::Slider::LinearVertical) {
         // A fader: its slot, the level up to the thumb, a cap across it; the live value as a bright tick beside it.
@@ -192,7 +192,7 @@ void LookAndFeel::drawLinearSlider(juce::Graphics& g, int x, int y, int width, i
             }
         }
         const float tw = std::min(static_cast<float>(width) - 4.0f, 26.0f);
-        g.setColour(s.raised.brighter(0.3f));
+        g.setColour(s.m_raised.brighter(0.3f));
         g.fillRoundedRectangle(cx - tw * 0.5f, pos - 5.0f, tw, 10.0f, 2.5f);
         g.setColour(slider.findColour(juce::Slider::thumbColourId));
         g.fillRect(cx - tw * 0.5f + 3.0f, pos - 0.75f, tw - 6.0f, 1.5f);
@@ -203,7 +203,7 @@ void LookAndFeel::drawLinearSlider(juce::Graphics& g, int x, int y, int width, i
         return;
     }
     const float cy = static_cast<float>(y) + static_cast<float>(height) * 0.5f;
-    g.setColour(s.faint);
+    g.setColour(s.m_faint);
     g.fillRoundedRectangle(static_cast<float>(x), cy - 2.0f, static_cast<float>(width), 4.0f, 2.0f);
     g.setColour(slider.findColour(juce::Slider::trackColourId));
     // A slider that spans zero (a matrix slot's amount, the master filter) fills from its middle.
@@ -226,21 +226,21 @@ void LookAndFeel::drawLinearSlider(juce::Graphics& g, int x, int y, int width, i
 void LookAndFeel::drawToggleButton(juce::Graphics& g, juce::ToggleButton& b, bool highlighted, bool)
 {
     // A small switch with its lamp: lit in the button's colour when on.
-    const Skin& s = skin_;
+    const Skin& s = m_skin;
     const auto r = b.getLocalBounds().toFloat();
     const float h = std::min(16.0f, r.getHeight() - 4.0f);
     const juce::Rectangle<float> box(r.getX() + 2.0f, r.getCentreY() - h * 0.5f, h * 1.7f, h);
     const bool on = b.getToggleState();
     const juce::Colour colour = b.findColour(juce::ToggleButton::tickColourId);
-    g.setColour(on ? colour.withAlpha(0.35f) : s.raised);
+    g.setColour(on ? colour.withAlpha(0.35f) : s.m_raised);
     g.fillRoundedRectangle(box, h * 0.5f);
-    g.setColour(highlighted ? s.edge.brighter(0.4f) : s.edge);
+    g.setColour(highlighted ? s.m_edge.brighter(0.4f) : s.m_edge);
     g.drawRoundedRectangle(box, h * 0.5f, 1.0f);
     const float d = h - 6.0f;
-    g.setColour(on ? colour : s.dim);
+    g.setColour(on ? colour : s.m_dim);
     g.fillEllipse(on ? box.getRight() - d - 3.0f : box.getX() + 3.0f, box.getY() + 3.0f, d, d);
     if (b.getButtonText().isNotEmpty()) {
-        g.setColour(on ? s.ink : s.dim);
+        g.setColour(on ? s.m_ink : s.m_dim);
         g.setFont(font(13.0f));
         g.drawFittedText(b.getButtonText(), box.getRight() + 6.0f > r.getRight() ? r.toNearestInt() : r.withLeft(box.getRight() + 6.0f).toNearestInt(),
                          juce::Justification::centredLeft, 1);
@@ -249,12 +249,12 @@ void LookAndFeel::drawToggleButton(juce::Graphics& g, juce::ToggleButton& b, boo
 
 void LookAndFeel::drawComboBox(juce::Graphics& g, int width, int height, bool, int, int, int, int, juce::ComboBox& box)
 {
-    const Skin& s = skin_;
+    const Skin& s = m_skin;
     const auto r = juce::Rectangle<float>(0.0f, 0.0f, static_cast<float>(width), static_cast<float>(height)).reduced(0.5f);
     g.setColour(box.findColour(juce::ComboBox::backgroundColourId));
-    g.fillRoundedRectangle(r, s.radius);
-    g.setColour(box.isMouseOver(true) ? s.edge.brighter(0.4f) : box.findColour(juce::ComboBox::outlineColourId));
-    g.drawRoundedRectangle(r, s.radius, 1.0f);
+    g.fillRoundedRectangle(r, s.m_radius);
+    g.setColour(box.isMouseOver(true) ? s.m_edge.brighter(0.4f) : box.findColour(juce::ComboBox::outlineColourId));
+    g.drawRoundedRectangle(r, s.m_radius, 1.0f);
     const float ax = static_cast<float>(width) - 14.0f, ay = static_cast<float>(height) * 0.5f;
     juce::Path arrow;
     arrow.addTriangle(ax - 4.0f, ay - 2.0f, ax + 4.0f, ay - 2.0f, ax, ay + 3.0f);
@@ -264,44 +264,44 @@ void LookAndFeel::drawComboBox(juce::Graphics& g, int width, int height, bool, i
 
 void LookAndFeel::drawButtonBackground(juce::Graphics& g, juce::Button& b, const juce::Colour& background, bool highlighted, bool down)
 {
-    const Skin& s = skin_;
+    const Skin& s = m_skin;
     const auto r = b.getLocalBounds().toFloat().reduced(0.5f);
     juce::Colour fill = b.getToggleState() ? b.findColour(juce::TextButton::buttonOnColourId) : background;
     if (down) fill = fill.brighter(0.15f);
     else if (highlighted) fill = fill.brighter(0.08f);
     juce::Path p;
-    p.addRoundedRectangle(r.getX(), r.getY(), r.getWidth(), r.getHeight(), s.radius, s.radius,
+    p.addRoundedRectangle(r.getX(), r.getY(), r.getWidth(), r.getHeight(), s.m_radius, s.m_radius,
                           !b.isConnectedOnLeft() && !b.isConnectedOnTop(), !b.isConnectedOnRight() && !b.isConnectedOnTop(),
                           !b.isConnectedOnLeft() && !b.isConnectedOnBottom(), !b.isConnectedOnRight() && !b.isConnectedOnBottom());
     g.setColour(fill);
     g.fillPath(p);
-    g.setColour(highlighted ? s.edge.brighter(0.45f) : s.edge);
+    g.setColour(highlighted ? s.m_edge.brighter(0.45f) : s.m_edge);
     g.strokePath(p, juce::PathStrokeType(1.0f));
 }
 
 void LookAndFeel::drawTabButton(juce::TabBarButton& b, juce::Graphics& g, bool isMouseOver, bool)
 {
     // Flat tabs: the name, the page in front lit in the accent and underlined.
-    const Skin& s = skin_;
+    const Skin& s = m_skin;
     const auto r = b.getLocalBounds().toFloat();
     const bool front = b.isFrontTab();
     if (front) {
-        g.setColour(s.panel);
+        g.setColour(s.m_panel);
         g.fillRect(r);
-        g.setColour(s.accent);
+        g.setColour(s.m_accent);
         g.fillRect(r.getX() + 6.0f, r.getBottom() - 2.5f, r.getWidth() - 12.0f, 2.5f);
     } else if (isMouseOver) {
-        g.setColour(s.group.withAlpha(0.8f));
+        g.setColour(s.m_group.withAlpha(0.8f));
         g.fillRect(r);
     }
-    g.setColour(front ? s.accent : (isMouseOver ? s.ink : s.dim));
+    g.setColour(front ? s.m_accent : (isMouseOver ? s.m_ink : s.m_dim));
     g.setFont(getTabButtonFont(b, r.getHeight()));
     g.drawFittedText(b.getButtonText(), b.getLocalBounds().reduced(4, 0), juce::Justification::centred, 1);
 }
 
 void LookAndFeel::drawTabbedButtonBarBackground(juce::TabbedButtonBar& bar, juce::Graphics& g)
 {
-    g.setColour(skin_.edge);
+    g.setColour(m_skin.m_edge);
     g.fillRect(0, bar.getHeight() - 1, bar.getWidth(), 1);
 }
 
@@ -323,25 +323,25 @@ juce::Label* LookAndFeel::createSliderTextBox(juce::Slider& slider)
     l->setFont(font(12.0f));
     l->setColour(juce::Label::outlineColourId, juce::Colours::transparentBlack);
     l->setColour(juce::Label::backgroundColourId, juce::Colours::transparentBlack);
-    l->setColour(juce::Label::textColourId, skin_.dim);
+    l->setColour(juce::Label::textColourId, m_skin.m_dim);
     return l;
 }
 
 void LookAndFeel::drawPopupMenuBackground(juce::Graphics& g, int width, int height)
 {
-    g.fillAll(skin_.group);
-    g.setColour(skin_.edge);
+    g.fillAll(m_skin.m_group);
+    g.setColour(m_skin.m_edge);
     g.drawRect(0, 0, width, height, 1);
 }
 
 void LookAndFeel::drawTooltip(juce::Graphics& g, const juce::String& text, int width, int height)
 {
-    g.fillAll(skin_.group);
-    g.setColour(skin_.edge);
+    g.fillAll(m_skin.m_group);
+    g.setColour(m_skin.m_edge);
     g.drawRect(0, 0, width, height, 1);
     juce::AttributedString a;
     a.setJustification(juce::Justification::centredLeft);
-    a.append(text, font(13.0f), skin_.ink);
+    a.append(text, font(13.0f), m_skin.m_ink);
     juce::TextLayout tl;
     tl.createLayoutWithBalancedLineLengths(a, static_cast<float>(width) - 12.0f);
     tl.draw(g, juce::Rectangle<float>(6.0f, 4.0f, static_cast<float>(width) - 12.0f, static_cast<float>(height) - 8.0f));
@@ -351,31 +351,31 @@ namespace {
 /** @brief The skin's title font at @p height, with its tracking (the logo's lettering). */
 juce::Font titleFont(const Skin& skin, float height)
 {
-    const int style = skin.titleBold ? juce::Font::bold : juce::Font::plain;
-    juce::Font f = skin.typeface.isNotEmpty() ? juce::Font(juce::FontOptions(skin.typeface, height, style)) : font(height, skin.titleBold);
-    f.setExtraKerningFactor(skin.tracking);
+    const int style = skin.m_titleBold ? juce::Font::bold : juce::Font::plain;
+    juce::Font f = skin.m_typeface.isNotEmpty() ? juce::Font(juce::FontOptions(skin.m_typeface, height, style)) : font(height, skin.m_titleBold);
+    f.setExtraKerningFactor(skin.m_tracking);
     return f;
 }
 } // namespace
 
 float titleWidth(const Skin& skin, float height)
 {
-    return juce::GlyphArrangement::getStringWidth(titleFont(skin, height), skin.name.toUpperCase()) + 4.0f;
+    return juce::GlyphArrangement::getStringWidth(titleFont(skin, height), skin.m_name.toUpperCase()) + 4.0f;
 }
 
 void drawTitle(juce::Graphics& g, const Skin& skin, juce::Rectangle<float> r, float height)
 {
-    const juce::String t = skin.name.toUpperCase();
+    const juce::String t = skin.m_name.toUpperCase();
     const juce::Font f = titleFont(skin, height);
     juce::GlyphArrangement ga;
     ga.addLineOfText(f, t, r.getX(), r.getCentreY() + height * 0.36f);
     juce::Path p;
     ga.createPath(p);
-    if (skin.glow) {
-        g.setColour(skin.accent.withAlpha(0.22f));
+    if (skin.m_glow) {
+        g.setColour(skin.m_accent.withAlpha(0.22f));
         g.strokePath(p, juce::PathStrokeType(height * 0.18f));
     }
-    g.setColour(skin.accent);
+    g.setColour(skin.m_accent);
     g.fillPath(p);
 }
 
@@ -389,15 +389,15 @@ void FlatTab::paintButton(juce::Graphics& g, bool highlighted, bool)
     const auto r = getLocalBounds().toFloat();
     const bool front = getToggleState();
     if (front) {
-        g.setColour(s.panel);
+        g.setColour(s.m_panel);
         g.fillRect(r);
-        g.setColour(s.accent);
+        g.setColour(s.m_accent);
         g.fillRect(r.getX() + 6.0f, r.getBottom() - 2.5f, r.getWidth() - 12.0f, 2.5f);
     } else if (highlighted) {
-        g.setColour(s.group.withAlpha(0.8f));
+        g.setColour(s.m_group.withAlpha(0.8f));
         g.fillRect(r);
     }
-    g.setColour(front ? s.accent : (highlighted ? s.ink : s.dim));
+    g.setColour(front ? s.m_accent : (highlighted ? s.m_ink : s.m_dim));
     g.setFont(font(14.0f));
     g.drawFittedText(getButtonText(), getLocalBounds().reduced(4, 0), juce::Justification::centred, 1);
 }
@@ -406,7 +406,7 @@ int FlatTab::bestWidth() const { return juce::GlyphArrangement::getStringWidthIn
 
 // ============================================================================================================ icons
 
-IconButton::IconButton(Icon icon, const juce::String& tooltip) : juce::Button(tooltip), icon_(icon)
+IconButton::IconButton(IconE icon, const juce::String& tooltip) : juce::Button(tooltip), m_icon(icon)
 {
     setTooltip(tooltip);
     setWantsKeyboardFocus(false);
@@ -425,11 +425,11 @@ void IconButton::paintButton(juce::Graphics& g, bool highlighted, bool down)
     const float w = std::max(1.4f, s * 0.11f);
     const juce::PathStrokeType stroke(w, juce::PathStrokeType::curved, juce::PathStrokeType::rounded);
     juce::Path p;
-    switch (icon_) {
-    case Icon::Undo:
-    case Icon::Redo: {
+    switch (m_icon) {
+    case IconE::UNDO:
+    case IconE::REDO: {
         // A curved arrow turning back (undo) or on (redo).
-        const bool back = icon_ == Icon::Undo;
+        const bool back = m_icon == IconE::UNDO;
         const float cx = r.getCentreX(), cy = r.getCentreY() + s * 0.1f, rad = s * 0.36f;
         p.addCentredArc(cx, cy, rad, rad, 0.0f, back ? -juce::MathConstants<float>::halfPi * 1.6f : juce::MathConstants<float>::halfPi * 1.6f,
                         back ? juce::MathConstants<float>::halfPi * 0.9f : -juce::MathConstants<float>::halfPi * 0.9f, true);
@@ -442,12 +442,12 @@ void IconButton::paintButton(juce::Graphics& g, bool highlighted, bool down)
         g.fillPath(head);
         break;
     }
-    case Icon::Help: {
+    case IconE::HELP: {
         g.setFont(font(s * 1.25f, true));
         g.drawText("?", b, juce::Justification::centred);
         break;
     }
-    case Icon::Settings: {
+    case IconE::SETTINGS: {
         // A cog: a ring with eight teeth and a hole.
         const auto c = r.getCentre();
         const float ro = s * 0.5f, ri = s * 0.36f;
@@ -465,8 +465,8 @@ void IconButton::paintButton(juce::Graphics& g, bool highlighted, bool down)
         g.fillPath(p);
         break;
     }
-    case Icon::ThumbUp:
-    case Icon::ThumbDown: {
+    case IconE::THUMB_UP:
+    case IconE::THUMB_DOWN: {
         // A thumb: the cuff and the hand with the thumb raised; down is the same turned over.
         juce::Path t;
         t.addRoundedRectangle(0.0f, 0.42f, 0.22f, 0.58f, 0.04f);
@@ -481,12 +481,12 @@ void IconButton::paintButton(juce::Graphics& g, bool highlighted, bool down)
         t.lineTo(0.3f, 1.0f);
         t.closeSubPath();
         juce::AffineTransform at = juce::AffineTransform::scale(s, s);
-        if (icon_ == Icon::ThumbDown) at = juce::AffineTransform::verticalFlip(1.0f).scaled(s, s);
+        if (m_icon == IconE::THUMB_DOWN) at = juce::AffineTransform::verticalFlip(1.0f).scaled(s, s);
         t.applyTransform(at.translated(r.getX(), r.getY()));
         g.fillPath(t);
         break;
     }
-    case Icon::Headset: {
+    case IconE::HEADSET: {
         // A visor: a rounded band with two lenses.
         juce::Path v;
         v.addRoundedRectangle(r.getX(), r.getCentreY() - s * 0.25f, s, s * 0.5f, s * 0.18f);
@@ -508,23 +508,23 @@ void IconButton::paintGlyph(juce::Graphics& g, juce::Rectangle<float> r, juce::C
     const juce::AffineTransform at = juce::AffineTransform::scale(s, s).translated(r.getX(), r.getY());
     auto put = [&at](juce::Path p) { p.applyTransform(at); return p; };
     juce::Path p;
-    switch (icon_) {
-    case Icon::Play:
+    switch (m_icon) {
+    case IconE::PLAY:
         p.addTriangle(0.2f, 0.06f, 0.2f, 0.94f, 0.94f, 0.5f);
         g.fillPath(put(p));
         break;
-    case Icon::Stop:
+    case IconE::STOP:
         p.addRoundedRectangle(0.17f, 0.17f, 0.66f, 0.66f, 0.06f);
         g.fillPath(put(p));
         break;
-    case Icon::Record:
+    case IconE::RECORD:
         // Red while it waits; lit (the button's on colour behind it) the disc takes the ink.
         g.setColour(getToggleState() ? ink : juce::Colour(0xffe5484d).withMultipliedAlpha(isEnabled() ? 1.0f : 0.35f));
         p.addEllipse(0.1f, 0.1f, 0.8f, 0.8f);
         g.fillPath(put(p));
         break;
-    case Icon::Speaker:
-    case Icon::SpeakerOff: {
+    case IconE::SPEAKER:
+    case IconE::SPEAKER_OFF: {
         // The box and the cone; sounding, two waves; muted, a cross.
         p.startNewSubPath(0.04f, 0.36f);
         p.lineTo(0.26f, 0.36f);
@@ -535,7 +535,7 @@ void IconButton::paintGlyph(juce::Graphics& g, juce::Rectangle<float> r, juce::C
         p.closeSubPath();
         g.fillPath(put(p));
         juce::Path w;
-        if (icon_ == Icon::Speaker) {
+        if (m_icon == IconE::SPEAKER) {
             for (float rad : { 0.18f, 0.34f })
                 w.addCentredArc(0.54f, 0.5f, rad, rad, 0.0f, juce::MathConstants<float>::pi * 0.22f,
                                 juce::MathConstants<float>::pi * 0.78f, true);
@@ -548,7 +548,7 @@ void IconButton::paintGlyph(juce::Graphics& g, juce::Rectangle<float> r, juce::C
         g.strokePath(put(w), stroke);
         break;
     }
-    case Icon::Dice: {
+    case IconE::DICE: {
         // A die showing five.
         p.addRoundedRectangle(0.06f, 0.06f, 0.88f, 0.88f, 0.2f);
         g.strokePath(put(p), stroke);
@@ -558,7 +558,7 @@ void IconButton::paintGlyph(juce::Graphics& g, juce::Rectangle<float> r, juce::C
         g.fillPath(put(pips));
         break;
     }
-    case Icon::Save: {
+    case IconE::SAVE: {
         // A disk: the case with its corner cut, the shutter, the label.
         p.startNewSubPath(0.08f, 0.08f);
         p.lineTo(0.72f, 0.08f);
@@ -573,7 +573,7 @@ void IconButton::paintGlyph(juce::Graphics& g, juce::Rectangle<float> r, juce::C
         g.fillPath(put(shutter));
         break;
     }
-    case Icon::Open:
+    case IconE::OPEN:
         // A folder, its flap open.
         p.startNewSubPath(0.04f, 0.18f);
         p.lineTo(0.36f, 0.18f);
@@ -586,7 +586,7 @@ void IconButton::paintGlyph(juce::Graphics& g, juce::Rectangle<float> r, juce::C
         p.lineTo(0.92f, 0.44f);
         g.strokePath(put(p), stroke);
         break;
-    case Icon::MidiLearn: {
+    case IconE::MIDI_LEARN: {
         // A MIDI socket: the ring, five pins on an arc, the notch at the bottom.
         p.addEllipse(0.04f, 0.04f, 0.92f, 0.92f);
         g.strokePath(put(p), stroke);
@@ -600,14 +600,14 @@ void IconButton::paintGlyph(juce::Graphics& g, juce::Rectangle<float> r, juce::C
         g.fillPath(put(pins));
         break;
     }
-    case Icon::Search:
+    case IconE::SEARCH:
         // A magnifier: the lens and its handle.
         p.addEllipse(0.08f, 0.08f, 0.56f, 0.56f);
         p.startNewSubPath(0.6f, 0.6f);
         p.lineTo(0.92f, 0.92f);
         g.strokePath(put(p), stroke);
         break;
-    case Icon::Night: {
+    case IconE::NIGHT: {
         // A crescent: a disc with another taken out of its upper right.
         juce::Path outside;
         outside.addRectangle(-1.0f, -1.0f, 3.0f, 3.0f);
@@ -620,7 +620,7 @@ void IconButton::paintGlyph(juce::Graphics& g, juce::Rectangle<float> r, juce::C
         g.restoreState();
         break;
     }
-    case Icon::Compare: {
+    case IconE::COMPARE: {
         // Before | after: a frame split down the middle, its left half filled -- no letters, so it is not taken for an
         // instrument's own A and B (Noctuary's morph slots).
         p.addRoundedRectangle(0.06f, 0.2f, 0.88f, 0.6f, 0.08f);
@@ -642,37 +642,37 @@ void IconButton::paintGlyph(juce::Graphics& g, juce::Rectangle<float> r, juce::C
 void layoutHeader(juce::Rectangle<int>& area, const Header& h)
 {
     // The first row: who, what, how long -- then make, play, silence. What does not fit squeezes the length slider.
-    auto top = area.removeFromTop(kHeaderRow);
-    if (h.mute != nullptr) h.mute->setBounds(top.removeFromRight(kIconWidth).reduced(3));   // icons since 03.10.2026
-    if (h.play != nullptr) h.play->setBounds(top.removeFromRight(kIconWidth).reduced(3));
-    for (auto it = h.actions.rbegin(); it != h.actions.rend(); ++it)
+    auto top = area.removeFromTop(HeaderRow);
+    if (h.m_mute != nullptr) h.m_mute->setBounds(top.removeFromRight(IconWidth).reduced(3));   // icons since 03.10.2026
+    if (h.m_play != nullptr) h.m_play->setBounds(top.removeFromRight(IconWidth).reduced(3));
+    for (auto it = h.m_actions.rbegin(); it != h.m_actions.rend(); ++it)
         it->first->setBounds(top.removeFromRight(it->second > 0 ? it->second : 96).reduced(3));
     top.removeFromRight(6);
-    if (h.logo != nullptr) *h.logo = top.removeFromLeft(34).toFloat().reduced(2.0f);
-    if (h.title != nullptr) h.title->setBounds(top.removeFromLeft(h.titleWidth > 0 ? h.titleWidth : 110));
-    for (const auto& [c, w] : h.choices) c->setBounds(top.removeFromLeft(w > 0 ? w : 110).reduced(3));
+    if (h.m_logo != nullptr) *h.m_logo = top.removeFromLeft(34).toFloat().reduced(2.0f);
+    if (h.m_title != nullptr) h.m_title->setBounds(top.removeFromLeft(h.m_titleWidth > 0 ? h.m_titleWidth : 110));
+    for (const auto& [c, w] : h.m_choices) c->setBounds(top.removeFromLeft(w > 0 ? w : 110).reduced(3));
     top.removeFromLeft(8);
-    for (const auto& [c, w] : h.modes) c->setBounds(top.removeFromLeft(w > 0 ? w : 70).reduced(0, 3));
+    for (const auto& [c, w] : h.m_modes) c->setBounds(top.removeFromLeft(w > 0 ? w : 70).reduced(0, 3));
     top.removeFromLeft(4);
-    if (h.lengthLabel != nullptr) h.lengthLabel->setBounds(top.removeFromLeft(top.getWidth() > 200 ? 50 : 0));
-    if (h.length != nullptr) h.length->setBounds(top.withWidth(std::min(top.getWidth(), 230)).reduced(2));
+    if (h.m_lengthLabel != nullptr) h.m_lengthLabel->setBounds(top.removeFromLeft(top.getWidth() > 200 ? 50 : 0));
+    if (h.m_length != nullptr) h.m_length->setBounds(top.withWidth(std::min(top.getWidth(), 230)).reduced(2));
     area.removeFromTop(4);
     // The second: the ratings, what plays and what was rerolled; the tools at its right end.
-    auto row = area.removeFromTop(kStatusRow);
-    for (auto it = h.tools.rbegin(); it != h.tools.rend(); ++it) {
+    auto row = area.removeFromTop(StatusRow);
+    for (auto it = h.m_tools.rbegin(); it != h.m_tools.rend(); ++it) {
         if (*it == nullptr) row.removeFromRight(8);
         else if ((*it)->isVisible()) (*it)->setBounds(row.removeFromRight(30).reduced(2, 0));
     }
     row.removeFromRight(8);
-    if (h.update != nullptr) h.update->setBounds(row.removeFromRight(h.update->isVisible() ? 180 : 0));
-    if (h.like != nullptr) h.like->setBounds(row.removeFromLeft(28).reduced(1, 0));
-    if (h.dislike != nullptr) h.dislike->setBounds(row.removeFromLeft(28).reduced(1, 0));
+    if (h.m_update != nullptr) h.m_update->setBounds(row.removeFromRight(h.m_update->isVisible() ? 180 : 0));
+    if (h.m_like != nullptr) h.m_like->setBounds(row.removeFromLeft(28).reduced(1, 0));
+    if (h.m_dislike != nullptr) h.m_dislike->setBounds(row.removeFromLeft(28).reduced(1, 0));
     row.removeFromLeft(6);
-    if (h.status != nullptr && h.curation != nullptr) {
-        h.status->setBounds(row.removeFromLeft(row.getWidth() * 3 / 5));
-        h.curation->setBounds(row);
-    } else if (h.status != nullptr) {
-        h.status->setBounds(row);
+    if (h.m_status != nullptr && h.m_curation != nullptr) {
+        h.m_status->setBounds(row.removeFromLeft(row.getWidth() * 3 / 5));
+        h.m_curation->setBounds(row);
+    } else if (h.m_status != nullptr) {
+        h.m_status->setBounds(row);
     }
     area.removeFromTop(4);
 }
@@ -695,21 +695,21 @@ void connectModes(std::initializer_list<juce::Button*> modes, juce::Colour on)
 
 void Backdrop::paint(juce::Graphics& g, juce::Rectangle<int> area, int headerBottom, const Skin& skin, bool on)
 {
-    g.setColour(skin.bg);
+    g.setColour(skin.m_bg);
     g.fillRect(area);
     const juce::Image picture = skin.backdrop();
     if (!on || !picture.isValid() || area.isEmpty()) return;
-    if (cache_.isNull() || cachedFor_ != area || cachedHeader_ != headerBottom || cachedOn_ != on) {
+    if (m_cache.isNull() || m_cachedFor != area || m_cachedHeader != headerBottom || m_cachedOn != on) {
         // Rendered once per size: the picture covering the window (cropped, centred), strong behind the header and fading
         // to the page strength below it, under a vignette that keeps the edges and the corners quiet.
-        cache_ = juce::Image(juce::Image::RGB, area.getWidth(), area.getHeight(), true);
-        juce::Graphics c(cache_);
-        c.fillAll(skin.bg);
+        m_cache = juce::Image(juce::Image::RGB, area.getWidth(), area.getHeight(), true);
+        juce::Graphics c(m_cache);
+        c.fillAll(skin.m_bg);
         const auto& src = picture;
-        const juce::Rectangle<int> crop(juce::roundToInt(skin.crop.getX() * static_cast<float>(src.getWidth())),
-                                        juce::roundToInt(skin.crop.getY() * static_cast<float>(src.getHeight())),
-                                        juce::roundToInt(skin.crop.getWidth() * static_cast<float>(src.getWidth())),
-                                        juce::roundToInt(skin.crop.getHeight() * static_cast<float>(src.getHeight())));
+        const juce::Rectangle<int> crop(juce::roundToInt(skin.m_crop.getX() * static_cast<float>(src.getWidth())),
+                                        juce::roundToInt(skin.m_crop.getY() * static_cast<float>(src.getHeight())),
+                                        juce::roundToInt(skin.m_crop.getWidth() * static_cast<float>(src.getWidth())),
+                                        juce::roundToInt(skin.m_crop.getHeight() * static_cast<float>(src.getHeight())));
         const juce::Image part = src.getClippedImage(crop);
         const float sw = static_cast<float>(area.getWidth()) / static_cast<float>(part.getWidth());
         const float sh = static_cast<float>(area.getHeight()) / static_cast<float>(part.getHeight());
@@ -717,27 +717,27 @@ void Backdrop::paint(juce::Graphics& g, juce::Rectangle<int> area, int headerBot
         const float w = static_cast<float>(part.getWidth()) * k, h = static_cast<float>(part.getHeight()) * k;
         const juce::Rectangle<float> dest((static_cast<float>(area.getWidth()) - w) * 0.5f, 0.0f, w, h);
         c.setImageResamplingQuality(juce::Graphics::highResamplingQuality);
-        c.setOpacity(skin.backdropTop);
+        c.setOpacity(skin.m_backdropTop);
         c.drawImage(part, dest);
         c.setOpacity(1.0f);
         // Down from the header the picture fades to its page strength.
         const float hb = static_cast<float>(headerBottom), H = static_cast<float>(area.getHeight());
-        juce::ColourGradient fade(skin.bg.withAlpha(0.0f), 0.0f, hb * 0.6f, skin.bg.withAlpha(1.0f - skin.backdropPage / std::max(0.01f, skin.backdropTop)),
+        juce::ColourGradient fade(skin.m_bg.withAlpha(0.0f), 0.0f, hb * 0.6f, skin.m_bg.withAlpha(1.0f - skin.m_backdropPage / std::max(0.01f, skin.m_backdropTop)),
                                   0.0f, hb + 40.0f, false);
         c.setGradientFill(fade);
         c.fillRect(0.0f, hb * 0.6f, static_cast<float>(area.getWidth()), H);
         // The header's text stays readable: a soft darkening behind its left and right ends.
-        c.setGradientFill(juce::ColourGradient(skin.bg.withAlpha(0.55f), 0.0f, 0.0f, skin.bg.withAlpha(0.0f), 0.0f, hb, false));
+        c.setGradientFill(juce::ColourGradient(skin.m_bg.withAlpha(0.55f), 0.0f, 0.0f, skin.m_bg.withAlpha(0.0f), 0.0f, hb, false));
         c.fillRect(0.0f, 0.0f, static_cast<float>(area.getWidth()), hb);
         // The vignette.
-        juce::ColourGradient v(skin.bg.withAlpha(0.0f), static_cast<float>(area.getWidth()) * 0.5f, H * 0.4f, skin.bg.withAlpha(0.65f), 0.0f, H, true);
+        juce::ColourGradient v(skin.m_bg.withAlpha(0.0f), static_cast<float>(area.getWidth()) * 0.5f, H * 0.4f, skin.m_bg.withAlpha(0.65f), 0.0f, H, true);
         c.setGradientFill(v);
         c.fillRect(0.0f, 0.0f, static_cast<float>(area.getWidth()), H);
-        cachedFor_ = area;
-        cachedHeader_ = headerBottom;
-        cachedOn_ = on;
+        m_cachedFor = area;
+        m_cachedHeader = headerBottom;
+        m_cachedOn = on;
     }
-    g.drawImageAt(cache_, area.getX(), area.getY());
+    g.drawImageAt(m_cache, area.getX(), area.getY());
 }
 
 // ========================================================================================================= settings
@@ -745,7 +745,7 @@ void Backdrop::paint(juce::Graphics& g, juce::Rectangle<int> area, int headerBot
 namespace {
 /** @brief Every instrument's settings in this process, deleted when JUCE shuts down (not at the DLL's unloading). */
 struct SettingsRegistry final : public juce::DeletedAtShutdown {
-    std::map<juce::String, std::unique_ptr<Settings>> all;   ///< the settings by instrument name
+    std::map<juce::String, std::unique_ptr<Settings>> m_all;   ///< the settings by instrument name
     /** @brief The registry, created on first use; null after JUCE has deleted it. */
     static SettingsRegistry*& instance() { static SettingsRegistry* r = nullptr; return r; }
     ~SettingsRegistry() override { instance() = nullptr; }
@@ -756,162 +756,162 @@ Settings& Settings::of(const juce::String& app)
 {
     SettingsRegistry*& r = SettingsRegistry::instance();
     if (r == nullptr) r = new SettingsRegistry();
-    auto& s = r->all[app];
+    auto& s = r->m_all[app];
     if (s == nullptr) s = std::make_unique<Settings>(app);
     return *s;
 }
 
-Settings::Settings(const juce::String& app) : app_(app)
+Settings::Settings(const juce::String& app) : m_app(app)
 {
     juce::PropertiesFile::Options o;
     o.applicationName = app;
     o.filenameSuffix = ".frame";   // beside <app>.settings (the standalone's window and audio) and <app>.updates
     o.folderName = app;
     o.osxLibrarySubFolder = "Application Support";
-    file_ = std::make_unique<juce::PropertiesFile>(o);
+    m_file = std::make_unique<juce::PropertiesFile>(o);
 }
 
-Settings::HeadsetMode Settings::headset() const
+Settings::HeadsetModeE Settings::headset() const
 {
-    const juce::String m = file_->getValue("headset", "auto");
-    return m == "on" ? HeadsetMode::On : m == "off" ? HeadsetMode::Off : HeadsetMode::Auto;
+    const juce::String m = m_file->getValue("headset", "auto");
+    return m == "on" ? HeadsetModeE::ON : m == "off" ? HeadsetModeE::OFF : HeadsetModeE::AUTO;
 }
 
-void Settings::setHeadset(HeadsetMode m)
+void Settings::setHeadset(HeadsetModeE m)
 {
-    file_->setValue("headset", m == HeadsetMode::On ? "on" : m == HeadsetMode::Off ? "off" : "auto");
-    file_->saveIfNeeded();
+    m_file->setValue("headset", m == HeadsetModeE::ON ? "on" : m == HeadsetModeE::OFF ? "off" : "auto");
+    m_file->saveIfNeeded();
     sendChangeMessage();
 }
 
-int Settings::headsetPort() const { return file_->getIntValue("headsetPort", portOf(app_)); }
+int Settings::headsetPort() const { return m_file->getIntValue("headsetPort", portOf(m_app)); }
 
-bool Settings::backdrop() const { return file_->getBoolValue("backdrop", true); }
+bool Settings::backdrop() const { return m_file->getBoolValue("backdrop", true); }
 
 void Settings::setBackdrop(bool on)
 {
-    file_->setValue("backdrop", on);
-    file_->saveIfNeeded();
+    m_file->setValue("backdrop", on);
+    m_file->saveIfNeeded();
     sendChangeMessage();
 }
 
-bool Settings::overview() const { return file_->getBoolValue("overview", true); }
+bool Settings::overview() const { return m_file->getBoolValue("overview", true); }
 
 void Settings::setOverview(bool on)
 {
-    file_->setValue("overview", on);
-    file_->saveIfNeeded();
+    m_file->setValue("overview", on);
+    m_file->saveIfNeeded();
     sendChangeMessage();
 }
 
-bool Settings::link() const { return file_->getBoolValue("link", false); }
+bool Settings::link() const { return m_file->getBoolValue("link", false); }
 
 void Settings::setLink(bool on)
 {
-    file_->setValue("link", on);
-    file_->saveIfNeeded();
+    m_file->setValue("link", on);
+    m_file->saveIfNeeded();
     sendChangeMessage();
 }
 
 // FAMILY_CUES=<port> switches the cues on for one process, to that port (a test aid, as FAMILY_LINK is Link's).
-bool Settings::cues() const { return std::getenv("FAMILY_CUES") != nullptr || file_->getBoolValue("cues", false); }
+bool Settings::cues() const { return std::getenv("FAMILY_CUES") != nullptr || m_file->getBoolValue("cues", false); }
 
 void Settings::setCues(bool on)
 {
-    file_->setValue("cues", on);
-    file_->saveIfNeeded();
+    m_file->setValue("cues", on);
+    m_file->saveIfNeeded();
     sendChangeMessage();
 }
 
 int Settings::cuePort() const
 {
     if (const char* p = std::getenv("FAMILY_CUES")) return juce::jlimit(1024, 65535, std::atoi(p));
-    return juce::jlimit(1024, 65535, file_->getIntValue("cuePort", 9000));
+    return juce::jlimit(1024, 65535, m_file->getIntValue("cuePort", 9000));
 }
 
-Settings::JamRole Settings::jamRole() const
+Settings::JamRoleE Settings::jamRole() const
 {
     // FAMILY_JAM=lead|follow sets the role for one process (a test aid, as FAMILY_LINK is Link's).
-    if (const char* e = std::getenv("FAMILY_JAM")) return std::strcmp(e, "lead") == 0 ? JamRole::Lead : JamRole::Follow;
-    const int r = file_->getIntValue("jam", 0);
-    return r == 1 ? JamRole::Lead : r == 2 ? JamRole::Follow : JamRole::Off;
+    if (const char* e = std::getenv("FAMILY_JAM")) return std::strcmp(e, "lead") == 0 ? JamRoleE::LEAD : JamRoleE::FOLLOW;
+    const int r = m_file->getIntValue("jam", 0);
+    return r == 1 ? JamRoleE::LEAD : r == 2 ? JamRoleE::FOLLOW : JamRoleE::OFF;
 }
 
-void Settings::setJamRole(JamRole r)
+void Settings::setJamRole(JamRoleE r)
 {
-    file_->setValue("jam", r == JamRole::Lead ? 1 : r == JamRole::Follow ? 2 : 0);
-    file_->saveIfNeeded();
+    m_file->setValue("jam", r == JamRoleE::LEAD ? 1 : r == JamRoleE::FOLLOW ? 2 : 0);
+    m_file->saveIfNeeded();
     sendChangeMessage();
 }
 
-juce::String Settings::value(const juce::String& key, const juce::String& fallback) const { return file_->getValue(key, fallback); }
+juce::String Settings::value(const juce::String& key, const juce::String& fallback) const { return m_file->getValue(key, fallback); }
 
 void Settings::setValue(const juce::String& key, const juce::String& v, bool now)
 {
-    file_->setValue(key, v);
-    if (now) file_->saveIfNeeded();   // else the file's own timer writes it a few seconds later
+    m_file->setValue(key, v);
+    if (now) m_file->saveIfNeeded();   // else the file's own timer writes it a few seconds later
 }
 
 void SettingsMenu::show(juce::Component& target) const
 {
-    Settings& s = Settings::of(app);
+    Settings& s = Settings::of(m_app);
     juce::PopupMenu m;
-    m.addSectionHeader(app + " " + version);
-    if (updatesOn && setUpdates) m.addItem("Check for updates once a day", true, updatesOn(), [f = setUpdates, on = updatesOn()] { f(!on); });
+    m.addSectionHeader(m_app + " " + m_version);
+    if (m_updatesOn && m_setUpdates) m.addItem("Check for updates once a day", true, m_updatesOn(), [f = m_setUpdates, on = m_updatesOn()] { f(!on); });
     m.addItem("Picture behind the panel", true, s.backdrop(), [&s] { s.setBackdrop(!s.backdrop()); });
     m.addItem("Overview above the tabs (off: the pages get its height)", true, s.overview(), [&s] { s.setOverview(!s.overview()); });
     {
         juce::PopupMenu h;
         const auto mode = s.headset();
-        using M = Settings::HeadsetMode;
-        h.addItem("Auto: show its controls when a headset sends", true, mode == M::Auto, [&s] { s.setHeadset(M::Auto); });
-        h.addItem("Always show them", true, mode == M::On, [&s] { s.setHeadset(M::On); });
-        h.addItem(headsetOffText, true, mode == M::Off, [&s] { s.setHeadset(M::Off); });
-        if (headsetItems) {
+        using MT = Settings::HeadsetModeE;
+        h.addItem("Auto: show its controls when a headset sends", true, mode == MT::AUTO, [&s] { s.setHeadset(MT::AUTO); });
+        h.addItem("Always show them", true, mode == MT::ON, [&s] { s.setHeadset(MT::ON); });
+        h.addItem(m_headsetOffText, true, mode == MT::OFF, [&s] { s.setHeadset(MT::OFF); });
+        if (m_headsetItems) {
             h.addSeparator();
-            headsetItems(h);
+            m_headsetItems(h);
         }
-        if (headsetStatus) {
+        if (m_headsetStatus) {
             h.addSeparator();
-            h.addItem(headsetStatus(), false, false, nullptr);
+            h.addItem(m_headsetStatus(), false, false, nullptr);
         }
         m.addSubMenu("Headset (Meta Quest)", h);
     }
-    if (linkStatus)   // the standalone only (02.10.2026): a DAW's transport rules the plugin
-        m.addItem("Ableton Link: tempo and beat with other apps (" + linkStatus() + ")", true, s.link(), [&s] { s.setLink(!s.link()); });
-    if (cueStatus)
-        m.addItem("Score cues for a visualiser: OSC to port " + juce::String(s.cuePort()) + " (" + cueStatus() + ")", true, s.cues(),
+    if (m_linkStatus)   // the standalone only (02.10.2026): a DAW's transport rules the plugin
+        m.addItem("Ableton Link: tempo and beat with other apps (" + m_linkStatus() + ")", true, s.link(), [&s] { s.setLink(!s.link()); });
+    if (m_cueStatus)
+        m.addItem("Score cues for a visualiser: OSC to port " + juce::String(s.cuePort()) + " (" + m_cueStatus() + ")", true, s.cues(),
                   [&s] { s.setCues(!s.cues()); });
-    if (jamStatus) {
+    if (m_jamStatus) {
         // The family jam (02.10.2026, Jam.h): one instrument leads -- its key, its sections, its breaks and drops go out
         // to the others on the network --, the ones that follow take them up; tempo and bars come from Ableton Link.
         juce::PopupMenu j;
-        using R = Settings::JamRole;
-        const R role = s.jamRole();
-        j.addItem("Off", true, role == R::Off, [&s] { s.setJamRole(R::Off); });
-        j.addItem("Lead: the others follow this one's key, sections, breaks and drops", true, role == R::Lead, [&s] { s.setJamRole(R::Lead); });
-        j.addItem("Follow: take up the leader's key, energy, breaks and drops", true, role == R::Follow, [&s] { s.setJamRole(R::Follow); });
+        using RT = Settings::JamRoleE;
+        const RT role = s.jamRole();
+        j.addItem("Off", true, role == RT::OFF, [&s] { s.setJamRole(RT::OFF); });
+        j.addItem("Lead: the others follow this one's key, sections, breaks and drops", true, role == RT::LEAD, [&s] { s.setJamRole(RT::LEAD); });
+        j.addItem("Follow: take up the leader's key, energy, breaks and drops", true, role == RT::FOLLOW, [&s] { s.setJamRole(RT::FOLLOW); });
         j.addSeparator();
-        j.addItem(jamStatus(), false, false, nullptr);
+        j.addItem(m_jamStatus(), false, false, nullptr);
         m.addSubMenu("Family jam", j);
     }
-    if (setWindowScale) {
+    if (m_setWindowScale) {
         juce::PopupMenu w;
         for (int pct : { 75, 100, 125, 150, 200 })
-            w.addItem(juce::String(pct) + " %", [f = setWindowScale, pct] { f(static_cast<float>(pct) / 100.0f); });
+            w.addItem(juce::String(pct) + " %", [f = m_setWindowScale, pct] { f(static_cast<float>(pct) / 100.0f); });
         m.addSubMenu("Window size", w);
     }
-    if (canFullScreen && canFullScreen() && toggleFullScreen)
-        m.addItem("Full screen (F11)", true, isFullScreen && isFullScreen(), [f = toggleFullScreen] { f(); });
-    if (moreItems) {
+    if (m_canFullScreen && m_canFullScreen() && m_toggleFullScreen)
+        m.addItem("Full screen (F11)", true, m_isFullScreen && m_isFullScreen(), [f = m_toggleFullScreen] { f(); });
+    if (m_moreItems) {
         m.addSeparator();
-        moreItems(m);
+        m_moreItems(m);
     }
     m.addSeparator();
-    m.addItem("Keys ...", [n = app] {
+    m.addItem("Keys ...", [n = m_app] {
         juce::AlertWindow::showMessageBoxAsync(juce::MessageBoxIconType::NoIcon, n + ": keys", keysText(), "Close");
     });
-    m.addItem("About " + app + " ...", [n = app, v = version, more = about, own = showAbout] {
+    m.addItem("About " + m_app + " ...", [n = m_app, v = m_version, more = m_about, own = m_showAbout] {
         if (own) { own(); return; }
         juce::String t;
         t << n << " " << v << "\nbuilt " << juce::String(__DATE__).trim() << "\n\n" << (more ? more() : juce::String());
@@ -927,19 +927,19 @@ bool handleKey(const juce::KeyPress& key, const Keys& k)
     const auto mods = key.getModifiers();
     const int code = key.getKeyCode();
     auto run = [](const std::function<void()>& f) { if (!f) return false; f(); return true; };
-    if (code == juce::KeyPress::spaceKey && !mods.isAnyModifierKeyDown()) return run(k.playStop);
-    if (code == juce::KeyPress::F1Key) return run(k.help);
-    if (code == juce::KeyPress::F11Key) return run(k.fullScreen);
-    if (code == juce::KeyPress::escapeKey) return run(k.escape);
+    if (code == juce::KeyPress::spaceKey && !mods.isAnyModifierKeyDown()) return run(k.m_playStop);
+    if (code == juce::KeyPress::F1Key) return run(k.m_help);
+    if (code == juce::KeyPress::F11Key) return run(k.m_fullScreen);
+    if (code == juce::KeyPress::escapeKey) return run(k.m_escape);
     if (mods.isCommandDown()) {
         const juce::juce_wchar c = juce::CharacterFunctions::toLowerCase(key.getTextCharacter() != 0 ? key.getTextCharacter() : static_cast<juce::juce_wchar>(code));
-        if (c == 'z' && mods.isShiftDown()) return run(k.redo);
-        if (c == 'z') return run(k.undo);
-        if (c == 'y') return run(k.redo);
-        if (c == 's') return run(k.save);
-        if (c == 'o') return run(k.open);
-        if (c == 'e') return run(k.exportFile);
-        if (c == 'k') return run(k.palette);
+        if (c == 'z' && mods.isShiftDown()) return run(k.m_redo);
+        if (c == 'z') return run(k.m_undo);
+        if (c == 'y') return run(k.m_redo);
+        if (c == 's') return run(k.m_save);
+        if (c == 'o') return run(k.m_open);
+        if (c == 'e') return run(k.m_exportFile);
+        if (c == 'k') return run(k.m_palette);
     }
     return false;
 }
@@ -973,12 +973,12 @@ void keepKeysForEditor(juce::Component& root)
 
 // ============================================================================================================= help
 
-HelpView::HelpView(const juce::String& chapters, const Skin& skin) : skin_(skin)
+HelpView::HelpView(const juce::String& chapters, const Skin& skin) : m_skin(skin)
 {
     // chapters.txt as (name, text): paragraphs joined, lines indented by four spaces kept as they stand.
     juce::String name, textOf, para;
     auto flushPara = [&] { if (para.isNotEmpty()) { textOf << para.trimEnd() << "\n\n"; para.clear(); } };
-    auto flushChapter = [&] { flushPara(); if (name.isNotEmpty()) chapters_.emplace_back(name, textOf.trimEnd()); textOf.clear(); };
+    auto flushChapter = [&] { flushPara(); if (name.isNotEmpty()) m_chapters.emplace_back(name, textOf.trimEnd()); textOf.clear(); };
     for (const juce::String& raw : juce::StringArray::fromLines(chapters)) {
         const juce::String l = raw.trimEnd();
         if (l.startsWith("#")) continue;
@@ -995,86 +995,86 @@ HelpView::HelpView(const juce::String& chapters, const Skin& skin) : skin_(skin)
         para << l.trim();
     }
     flushChapter();
-    list_.setModel(this);
-    list_.setRowHeight(26);
-    list_.setColour(juce::ListBox::backgroundColourId, skin_.group);
-    addAndMakeVisible(list_);
-    text_.setMultiLine(true, true);
-    text_.setReadOnly(true);
-    text_.setScrollbarsShown(true);
-    text_.setCaretVisible(false);
-    text_.setFont(font(15.0f));
-    text_.setColour(juce::TextEditor::backgroundColourId, skin_.group);
-    text_.setColour(juce::TextEditor::outlineColourId, juce::Colours::transparentBlack);
-    text_.setIndents(14, 12);
-    addAndMakeVisible(text_);
-    close_.onClick = [this] { if (onClose) onClose(); };
-    addAndMakeVisible(close_);
+    m_list.setModel(this);
+    m_list.setRowHeight(26);
+    m_list.setColour(juce::ListBox::backgroundColourId, m_skin.m_group);
+    addAndMakeVisible(m_list);
+    m_text.setMultiLine(true, true);
+    m_text.setReadOnly(true);
+    m_text.setScrollbarsShown(true);
+    m_text.setCaretVisible(false);
+    m_text.setFont(font(15.0f));
+    m_text.setColour(juce::TextEditor::backgroundColourId, m_skin.m_group);
+    m_text.setColour(juce::TextEditor::outlineColourId, juce::Colours::transparentBlack);
+    m_text.setIndents(14, 12);
+    addAndMakeVisible(m_text);
+    m_close.onClick = [this] { if (m_onClose) m_onClose(); };
+    addAndMakeVisible(m_close);
     setWantsKeyboardFocus(true);
 }
 
 void HelpView::refresh()
 {
-    const juce::String was = names_[list_.getSelectedRow()];
-    names_.clear();
-    texts_.clear();
-    if (extraTopics)
-        for (const auto& [n, t] : extraTopics()) { names_.add(n); texts_.add(t); }
-    for (const auto& [n, t] : chapters_) { names_.add(n); texts_.add(t); }
-    list_.updateContent();
-    const int keep = names_.indexOf(was);
+    const juce::String was = m_names[m_list.getSelectedRow()];
+    m_names.clear();
+    m_texts.clear();
+    if (m_extraTopics)
+        for (const auto& [n, t] : m_extraTopics()) { m_names.add(n); m_texts.add(t); }
+    for (const auto& [n, t] : m_chapters) { m_names.add(n); m_texts.add(t); }
+    m_list.updateContent();
+    const int keep = m_names.indexOf(was);
     showTopic(keep >= 0 ? keep : 0);
 }
 
 void HelpView::showTopic(int index)
 {
-    if (index < 0 || index >= names_.size()) return;
-    list_.selectRow(index, false, true);
-    text_.setText(texts_[index], false);
-    text_.setCaretPosition(0);
-    text_.scrollEditorToPositionCaret(0, 0);
+    if (index < 0 || index >= m_names.size()) return;
+    m_list.selectRow(index, false, true);
+    m_text.setText(m_texts[index], false);
+    m_text.setCaretPosition(0);
+    m_text.scrollEditorToPositionCaret(0, 0);
 }
 
 void HelpView::selectedRowsChanged(int row)
 {
-    if (row >= 0 && row < texts_.size()) {
-        text_.setText(texts_[row], false);
-        text_.setCaretPosition(0);
-        text_.scrollEditorToPositionCaret(0, 0);
+    if (row >= 0 && row < m_texts.size()) {
+        m_text.setText(m_texts[row], false);
+        m_text.setCaretPosition(0);
+        m_text.scrollEditorToPositionCaret(0, 0);
     }
 }
 
 void HelpView::paintListBoxItem(int row, juce::Graphics& g, int width, int height, bool selected)
 {
     if (selected) {
-        g.setColour(skin_.accent.withAlpha(0.22f));
+        g.setColour(m_skin.m_accent.withAlpha(0.22f));
         g.fillRect(0, 0, width, height);
-        g.setColour(skin_.accent);
+        g.setColour(m_skin.m_accent);
         g.fillRect(0, 0, 3, height);
     }
-    g.setColour(selected ? skin_.ink : skin_.dim);
+    g.setColour(selected ? m_skin.m_ink : m_skin.m_dim);
     g.setFont(font(14.0f));
-    g.drawText(names_[row], 12, 0, width - 16, height, juce::Justification::centredLeft, true);
+    g.drawText(m_names[row], 12, 0, width - 16, height, juce::Justification::centredLeft, true);
 }
 
 void HelpView::resized()
 {
     auto r = getLocalBounds().reduced(10);
     auto top = r.removeFromTop(30);
-    close_.setBounds(top.removeFromRight(90).reduced(2));
+    m_close.setBounds(top.removeFromRight(90).reduced(2));
     r.removeFromTop(6);
-    list_.setBounds(r.removeFromLeft(std::min(260, r.getWidth() / 3)));
+    m_list.setBounds(r.removeFromLeft(std::min(260, r.getWidth() / 3)));
     r.removeFromLeft(10);
-    text_.setBounds(r);
+    m_text.setBounds(r);
 }
 
 void HelpView::paint(juce::Graphics& g)
 {
-    g.fillAll(skin_.bg);
-    g.setColour(skin_.accent);
+    g.fillAll(m_skin.m_bg);
+    g.setColour(m_skin.m_accent);
     g.setFont(font(16.0f, true));
     g.drawText("HELP", getLocalBounds().reduced(14, 10).withHeight(30), juce::Justification::centredLeft);
-    g.setColour(skin_.dim);
+    g.setColour(m_skin.m_dim);
     g.setFont(font(12.5f));
     g.drawText("F1 opens it, Esc closes it", getLocalBounds().reduced(80, 10).withHeight(30), juce::Justification::centredLeft);
 }
@@ -1082,7 +1082,7 @@ void HelpView::paint(juce::Graphics& g)
 bool HelpView::keyPressed(const juce::KeyPress& key)
 {
     if (key == juce::KeyPress::escapeKey || key.getKeyCode() == juce::KeyPress::F1Key) {
-        if (onClose) onClose();
+        if (m_onClose) m_onClose();
         return true;
     }
     return false;
@@ -1092,57 +1092,57 @@ bool HelpView::keyPressed(const juce::KeyPress& key)
 
 void UndoHistory::begin(const juce::String& what, std::vector<float> values, juce::String extra, bool allValues)
 {
-    if (depth_++ > 0) {
-        all_ = all_ || allValues;
+    if (m_depth++ > 0) {
+        m_all = m_all || allValues;
         return;
     }
-    what_ = what;
-    before_ = std::move(values);
-    extra_ = std::move(extra);
-    touched_.clear();
-    all_ = allValues;
+    m_what = what;
+    m_before = std::move(values);
+    m_extra = std::move(extra);
+    m_touched.clear();
+    m_all = allValues;
 }
 
 void UndoHistory::end(const std::vector<float>& values, const juce::String& extra)
 {
-    if (depth_ == 0 || --depth_ > 0) return;
+    if (m_depth == 0 || --m_depth > 0) return;
     UndoStep s;
-    s.what = what_;
-    s.extraBefore = extra_;
-    s.extraAfter = extra;
-    const size_t n = std::min(before_.size(), values.size());
+    s.m_what = m_what;
+    s.m_extraBefore = m_extra;
+    s.m_extraAfter = extra;
+    const size_t n = std::min(m_before.size(), values.size());
     auto add = [&](size_t i) {
-        if (i < n && before_[i] != values[i]) s.values.emplace_back(static_cast<int>(i), before_[i], values[i]);
+        if (i < n && m_before[i] != values[i]) s.m_values.emplace_back(static_cast<int>(i), m_before[i], values[i]);
     };
-    if (all_) {
+    if (m_all) {
         for (size_t i = 0; i < n; ++i) add(i);
     } else {
-        std::sort(touched_.begin(), touched_.end());
-        touched_.erase(std::unique(touched_.begin(), touched_.end()), touched_.end());
-        for (int id : touched_) if (id >= 0) add(static_cast<size_t>(id));
+        std::sort(m_touched.begin(), m_touched.end());
+        m_touched.erase(std::unique(m_touched.begin(), m_touched.end()), m_touched.end());
+        for (int id : m_touched) if (id >= 0) add(static_cast<size_t>(id));
     }
-    before_.clear();
-    touched_.clear();
+    m_before.clear();
+    m_touched.clear();
     if (s.empty()) return;
-    redo_.clear();
-    undo_.push_back(std::move(s));
-    while (undo_.size() > kSteps) undo_.pop_front();
+    m_redo.clear();
+    m_undo.push_back(std::move(s));
+    while (m_undo.size() > Steps) m_undo.pop_front();
 }
 
 const UndoStep* UndoHistory::undo()
 {
-    if (undo_.empty() || depth_ > 0) return nullptr;
-    redo_.push_back(std::move(undo_.back()));
-    undo_.pop_back();
-    return &redo_.back();
+    if (m_undo.empty() || m_depth > 0) return nullptr;
+    m_redo.push_back(std::move(m_undo.back()));
+    m_undo.pop_back();
+    return &m_redo.back();
 }
 
 const UndoStep* UndoHistory::redo()
 {
-    if (redo_.empty() || depth_ > 0) return nullptr;
-    undo_.push_back(std::move(redo_.back()));
-    redo_.pop_back();
-    return &undo_.back();
+    if (m_redo.empty() || m_depth > 0) return nullptr;
+    m_undo.push_back(std::move(m_redo.back()));
+    m_redo.pop_back();
+    return &m_undo.back();
 }
 
 // ========================================================================================================= sub-tabs
@@ -1150,47 +1150,47 @@ const UndoStep* UndoHistory::redo()
 void SubTabs::add(const juce::String& name, std::function<std::unique_ptr<juce::Component>()> make, juce::Colour colour)
 {
     Page p;
-    p.name = name;
-    p.colour = colour;
-    p.make = std::move(make);
-    p.button = std::make_unique<juce::TextButton>(name);
-    p.button->setClickingTogglesState(false);
-    p.button->setWantsKeyboardFocus(false);
-    const int index = static_cast<int>(pages_.size());
-    p.button->onClick = [this, index] { show(index); };
-    addAndMakeVisible(*p.button);
-    pages_.push_back(std::move(p));
-    if (current_ < 0) show(0);
+    p.m_name = name;
+    p.m_colour = colour;
+    p.m_make = std::move(make);
+    p.m_button = std::make_unique<juce::TextButton>(name);
+    p.m_button->setClickingTogglesState(false);
+    p.m_button->setWantsKeyboardFocus(false);
+    const int index = static_cast<int>(m_pages.size());
+    p.m_button->onClick = [this, index] { show(index); };
+    addAndMakeVisible(*p.m_button);
+    m_pages.push_back(std::move(p));
+    if (m_current < 0) show(0);
 }
 
 void SubTabs::show(int index)
 {
     if (index < 0 || index >= count()) return;
-    if (current_ >= 0 && pages_[static_cast<size_t>(current_)].comp != nullptr) pages_[static_cast<size_t>(current_)].comp->setVisible(false);
-    current_ = index;
-    Page& p = pages_[static_cast<size_t>(index)];
-    if (p.comp == nullptr) {
-        p.comp = p.make();
-        addAndMakeVisible(*p.comp);
+    if (m_current >= 0 && m_pages[static_cast<size_t>(m_current)].m_comp != nullptr) m_pages[static_cast<size_t>(m_current)].m_comp->setVisible(false);
+    m_current = index;
+    Page& p = m_pages[static_cast<size_t>(index)];
+    if (p.m_comp == nullptr) {
+        p.m_comp = p.m_make();
+        addAndMakeVisible(*p.m_comp);
     }
-    p.comp->setVisible(true);
-    for (size_t i = 0; i < pages_.size(); ++i) {
-        const juce::Colour c = pages_[i].colour.isTransparent() ? skin_.accent : pages_[i].colour;
-        pages_[i].button->setColour(juce::TextButton::buttonOnColourId, c.withAlpha(0.42f));
-        pages_[i].button->setToggleState(static_cast<int>(i) == index, juce::dontSendNotification);
+    p.m_comp->setVisible(true);
+    for (size_t i = 0; i < m_pages.size(); ++i) {
+        const juce::Colour c = m_pages[i].m_colour.isTransparent() ? m_skin.m_accent : m_pages[i].m_colour;
+        m_pages[i].m_button->setColour(juce::TextButton::buttonOnColourId, c.withAlpha(0.42f));
+        m_pages[i].m_button->setToggleState(static_cast<int>(i) == index, juce::dontSendNotification);
     }
     resized();
-    if (onChange) onChange(index);
+    if (m_onChange) m_onChange(index);
 }
 
-juce::Component* SubTabs::page() const { return current_ >= 0 ? pages_[static_cast<size_t>(current_)].comp.get() : nullptr; }
+juce::Component* SubTabs::page() const { return m_current >= 0 ? m_pages[static_cast<size_t>(m_current)].m_comp.get() : nullptr; }
 
 void SubTabs::reveal(juce::Component& part)
 {
-    for (size_t i = 0; i < pages_.size(); ++i) {
-        juce::Component* c = pages_[i].comp.get();
+    for (size_t i = 0; i < m_pages.size(); ++i) {
+        juce::Component* c = m_pages[i].m_comp.get();
         if (c != nullptr && (c == &part || c->isParentOf(&part))) {
-            if (current_ != static_cast<int>(i)) show(static_cast<int>(i));
+            if (m_current != static_cast<int>(i)) show(static_cast<int>(i));
             return;
         }
     }
@@ -1200,11 +1200,11 @@ void SubTabs::makeAll()
 {
     auto r = getLocalBounds();
     r.removeFromTop(36);
-    for (auto& p : pages_)
-        if (p.comp == nullptr) {
-            p.comp = p.make();
-            addChildComponent(*p.comp);   // hidden until its tab is chosen
-            p.comp->setBounds(r);
+    for (auto& p : m_pages)
+        if (p.m_comp == nullptr) {
+            p.m_comp = p.m_make();
+            addChildComponent(*p.m_comp);   // hidden until its tab is chosen
+            p.m_comp->setBounds(r);
         }
 }
 
@@ -1212,16 +1212,16 @@ void SubTabs::resized()
 {
     auto r = getLocalBounds();
     auto row = r.removeFromTop(36).reduced(10, 5);
-    for (auto& p : pages_) {
-        const int w = juce::GlyphArrangement::getStringWidthInt(font(13.5f), p.name) + 34;
-        p.button->setBounds(row.removeFromLeft(std::max(84, w)).reduced(2, 0));
+    for (auto& p : m_pages) {
+        const int w = juce::GlyphArrangement::getStringWidthInt(font(13.5f), p.m_name) + 34;
+        p.m_button->setBounds(row.removeFromLeft(std::max(84, w)).reduced(2, 0));
     }
     if (auto* c = page()) c->setBounds(r);
 }
 
 void SubTabs::paint(juce::Graphics& g)
 {
-    g.setColour(skin_.edge);
+    g.setColour(m_skin.m_edge);
     g.fillRect(10, 35, getWidth() - 20, 1);
 }
 
@@ -1245,8 +1245,8 @@ SectionPlan planSections(const juce::StringArray& titles, int available, const s
     // FAMILY_NO_SECTIONS=1: every page whole (the manual's full-page pictures, which show all of a page at once).
     static const bool whole = juce::SystemStats::getEnvironmentVariable("FAMILY_NO_SECTIONS", "").isNotEmpty();
     if (whole || all.empty() || available <= 0 || height(all) <= available + tolerance) {
-        plan.groups.push_back(all);
-        plan.names.add({});
+        plan.m_groups.push_back(all);
+        plan.m_names.add({});
         return plan;
     }
     // A section's name: the first group's title without its number ("LFO 1" -> "LFO", "Matrix 1-2" -> "Matrix").
@@ -1266,9 +1266,9 @@ SectionPlan planSections(const juce::StringArray& titles, int available, const s
             if (section.empty()) return;
             const bool named = first && (both || (presets && &kind == &sound));
             juce::String name = named ? firstName : plain(section.front());
-            for (int n = 2; plan.names.contains(name); ++n) name = plain(section.front()) + " " + juce::String(n);
-            plan.groups.push_back(section);
-            plan.names.add(name);
+            for (int n = 2; plan.m_names.contains(name); ++n) name = plain(section.front()) + " " + juce::String(n);
+            plan.m_groups.push_back(section);
+            plan.m_names.add(name);
             section.clear();
             first = false;
         };
@@ -1285,7 +1285,7 @@ SectionPlan planSections(const juce::StringArray& titles, int available, const s
     return plan;
 }
 
-SectionSwitch::SectionSwitch(const Skin& skin, const juce::StringArray& names) : skin_(skin)
+SectionSwitch::SectionSwitch(const Skin& skin, const juce::StringArray& names) : m_skin(skin)
 {
     setNames(names);
 }
@@ -1293,42 +1293,42 @@ SectionSwitch::SectionSwitch(const Skin& skin, const juce::StringArray& names) :
 void SectionSwitch::setNames(const juce::StringArray& names)
 {
     juce::StringArray now;
-    for (auto* b : buttons_) now.add(b->getButtonText());
+    for (auto* b : m_buttons) now.add(b->getButtonText());
     if (now == names) return;
-    buttons_.clear();
+    m_buttons.clear();
     for (int i = 0; i < names.size(); ++i) {
-        auto* b = buttons_.add(new juce::TextButton(names[i]));
+        auto* b = m_buttons.add(new juce::TextButton(names[i]));
         b->setClickingTogglesState(false);
         b->setWantsKeyboardFocus(false);
-        b->setColour(juce::TextButton::buttonOnColourId, skin_.accent.withAlpha(0.42f));
+        b->setColour(juce::TextButton::buttonOnColourId, m_skin.m_accent.withAlpha(0.42f));
         b->onClick = [this, i] {
-            if (i == current_) return;
+            if (i == m_current) return;
             setCurrent(i);
-            if (onChange) onChange(i);
+            if (m_onChange) m_onChange(i);
         };
         addAndMakeVisible(b);
     }
-    setCurrent(current_);
+    setCurrent(m_current);
     resized();
 }
 
 void SectionSwitch::setCurrent(int index)
 {
-    current_ = juce::jlimit(0, std::max(0, buttons_.size() - 1), index);
-    for (int i = 0; i < buttons_.size(); ++i) buttons_[i]->setToggleState(i == current_, juce::dontSendNotification);
+    m_current = juce::jlimit(0, std::max(0, m_buttons.size() - 1), index);
+    for (int i = 0; i < m_buttons.size(); ++i) m_buttons[i]->setToggleState(i == m_current, juce::dontSendNotification);
 }
 
 int SectionSwitch::bestWidth() const
 {
     int w = 0;
-    for (auto* b : buttons_) w += std::max(84, juce::GlyphArrangement::getStringWidthInt(font(13.5f), b->getButtonText()) + 34);
+    for (auto* b : m_buttons) w += std::max(84, juce::GlyphArrangement::getStringWidthInt(font(13.5f), b->getButtonText()) + 34);
     return w;
 }
 
 void SectionSwitch::resized()
 {
     auto r = getLocalBounds();
-    for (auto* b : buttons_)
+    for (auto* b : m_buttons)
         b->setBounds(r.removeFromLeft(std::max(84, juce::GlyphArrangement::getStringWidthInt(font(13.5f), b->getButtonText()) + 34)).reduced(2, 0));
 }
 
@@ -1363,11 +1363,11 @@ juce::String pageLines(juce::Component& page, const juce::String& name)
     const int was = s->current();
     for (int k = 0; k < s->count(); ++k) {
         s->setCurrent(k);
-        if (s->onChange) s->onChange(k);
+        if (s->m_onChange) s->m_onChange(k);
         out << name << " [" << s->name(k) << "]\t" << pageOverflow(page) << "\n";
     }
     s->setCurrent(was);
-    if (s->onChange) s->onChange(was);
+    if (s->m_onChange) s->m_onChange(was);
     return out;
 }
 
@@ -1400,39 +1400,39 @@ juce::String pageReport(juce::TabbedComponent& tabs)
 void ControlActions::showMenu(juce::Component& target, int id) const
 {
     juce::PopupMenu m;
-    if (describe) m.addSectionHeader(describe(id));
-    const int cc = controllerFor ? controllerFor(id) : -1;
-    if (learn) m.addItem(cc >= 0 ? "MIDI learn (now CC " + juce::String(cc) + ") ..." : juce::String("MIDI learn ..."), [f = learn, id] { f(id); });
-    if (forget && cc >= 0) m.addItem("Forget CC " + juce::String(cc), [f = forget, id] { f(id); });
-    if (reset) m.addItem("Default value", [f = reset, id] { f(id); });
-    if (more) more(m, id);
+    if (m_describe) m.addSectionHeader(m_describe(id));
+    const int cc = m_controllerFor ? m_controllerFor(id) : -1;
+    if (m_learn) m.addItem(cc >= 0 ? "MIDI learn (now CC " + juce::String(cc) + ") ..." : juce::String("MIDI learn ..."), [f = m_learn, id] { f(id); });
+    if (m_forget && cc >= 0) m.addItem("Forget CC " + juce::String(cc), [f = m_forget, id] { f(id); });
+    if (m_reset) m.addItem("Default value", [f = m_reset, id] { f(id); });
+    if (m_more) m_more(m, id);
     m.showMenuAsync(juce::PopupMenu::Options().withTargetComponent(&target));
 }
 
 Knob::Knob(SliderStyle style, TextEntryBoxPosition box, const ControlActions* actions, int id)
-    : juce::Slider(style, box), actions_(actions), id_(id)
+    : juce::Slider(style, box), m_actions(actions), m_id(id)
 {
 }
 
 void Knob::mouseDown(const juce::MouseEvent& e)
 {
-    if (e.mods.isPopupMenu() && actions_ != nullptr) { actions_->showMenu(*this, id_); return; }
-    altDragging_ = e.mods.isAltDown() && actions_ != nullptr && actions_->altDrag && actions_->altDrag(id_, e, 0);
-    if (altDragging_) return;
+    if (e.mods.isPopupMenu() && m_actions != nullptr) { m_actions->showMenu(*this, m_id); return; }
+    m_altDragging = e.mods.isAltDown() && m_actions != nullptr && m_actions->m_altDrag && m_actions->m_altDrag(m_id, e, 0);
+    if (m_altDragging) return;
     juce::Slider::mouseDown(e);
 }
 
 void Knob::mouseDrag(const juce::MouseEvent& e)
 {
-    if (altDragging_) { actions_->altDrag(id_, e, 1); return; }
+    if (m_altDragging) { m_actions->m_altDrag(m_id, e, 1); return; }
     juce::Slider::mouseDrag(e);
 }
 
 void Knob::mouseUp(const juce::MouseEvent& e)
 {
-    if (altDragging_) {
-        altDragging_ = false;
-        actions_->altDrag(id_, e, 2);
+    if (m_altDragging) {
+        m_altDragging = false;
+        m_actions->m_altDrag(m_id, e, 2);
         return;
     }
     juce::Slider::mouseUp(e);
@@ -1440,32 +1440,32 @@ void Knob::mouseUp(const juce::MouseEvent& e)
 
 void Choice::mouseDown(const juce::MouseEvent& e)
 {
-    if (e.mods.isPopupMenu() && actions_ != nullptr) { actions_->showMenu(*this, id_); return; }
+    if (e.mods.isPopupMenu() && m_actions != nullptr) { m_actions->showMenu(*this, m_id); return; }
     juce::ComboBox::mouseDown(e);
 }
 
 void Switch::mouseDown(const juce::MouseEvent& e)
 {
-    if (e.mods.isPopupMenu() && actions_ != nullptr) { actions_->showMenu(*this, id_); return; }
+    if (e.mods.isPopupMenu() && m_actions != nullptr) { m_actions->showMenu(*this, m_id); return; }
     juce::ToggleButton::mouseDown(e);
 }
 
 void Switch::mouseUp(const juce::MouseEvent& e)
 {
-    if (e.mods.isPopupMenu() && actions_ != nullptr) return;   // the menu, not a click
+    if (e.mods.isPopupMenu() && m_actions != nullptr) return;   // the menu, not a click
     juce::ToggleButton::mouseUp(e);
 }
 
-LiveRings::LiveRings(std::function<float(int)> playedNormalised) : played_(std::move(playedNormalised)) { startTimerHz(15); }
+LiveRings::LiveRings(std::function<float(int)> playedNormalised) : m_played(std::move(playedNormalised)) { startTimerHz(15); }
 
-void LiveRings::add(juce::Slider& slider, int id) { items_.emplace_back(&slider, id); }
+void LiveRings::add(juce::Slider& slider, int id) { m_items.emplace_back(&slider, id); }
 
 void LiveRings::timerCallback()
 {
-    for (auto& [s, id] : items_) {
+    for (auto& [s, id] : m_items) {
         juce::Slider* sl = s.getComponent();
         if (sl == nullptr || !sl->isShowing()) continue;
-        const float v = played_(id);
+        const float v = m_played(id);
         auto& props = sl->getProperties();
         const juce::var was = props["live"];
         if (std::isnan(v)) {
@@ -1474,69 +1474,69 @@ void LiveRings::timerCallback()
             props.set("live", v);
             sl->repaint();
         }
-        if (arcs_) showModArcs(*sl, arcs_(id));   // the modulations on it, redrawn when one of them moved
+        if (m_arcs) showModArcs(*sl, m_arcs(id));   // the modulations on it, redrawn when one of them moved
     }
 }
 
 // ========================================================================================================== console
 
 namespace {
-constexpr float kTopDb = 6.0f;   ///< the top of the strips' meter scale, dB
-constexpr float kFloorDb = -60.0f;   ///< the floor of the strips' meter scale, dB
+constexpr float TopDb = 6.0f;   ///< the top of the strips' meter scale, dB
+constexpr float FloorDb = -60.0f;   ///< the floor of the strips' meter scale, dB
 /** @brief A linear amplitude in dB, -100 for silence. */
 float toDb(float linear) { return linear > 1.0e-5f ? 20.0f * std::log10(linear) : -100.0f; }
 } // namespace
 
 ChannelStrip::ChannelStrip(const Skin& skin, const juce::String& name, juce::Colour colour, Control fader, std::vector<Control> knobs,
                            const ControlActions* actions, LiveRings* live)
-    : skin_(skin), name_(name), colour_(colour)
+    : m_skin(skin), m_name(name), m_colour(colour)
 {
-    if (fader.param != nullptr) {
-        fader_ = std::make_unique<Knob>(juce::Slider::LinearVertical, juce::Slider::NoTextBox, actions, fader.id);
-        fader_->setColour(juce::Slider::trackColourId, colour_.withAlpha(0.8f));
-        fader_->setColour(juce::Slider::thumbColourId, skin_.ink);
-        fader_->setColour(juce::Slider::backgroundColourId, skin_.bg);
-        fader_->setPopupDisplayEnabled(true, true, nullptr);
-        fader_->setTooltip(fader.label);
-        addAndMakeVisible(*fader_);
-        faderLink_ = std::make_unique<juce::SliderParameterAttachment>(*fader.param, *fader_);
-        fader_->setDoubleClickReturnValue(true, fader.param->convertFrom0to1(fader.param->getDefaultValue()));
-        if (live != nullptr) live->add(*fader_, fader.id);
+    if (fader.m_param != nullptr) {
+        m_fader = std::make_unique<Knob>(juce::Slider::LinearVertical, juce::Slider::NoTextBox, actions, fader.m_id);
+        m_fader->setColour(juce::Slider::trackColourId, m_colour.withAlpha(0.8f));
+        m_fader->setColour(juce::Slider::thumbColourId, m_skin.m_ink);
+        m_fader->setColour(juce::Slider::backgroundColourId, m_skin.m_bg);
+        m_fader->setPopupDisplayEnabled(true, true, nullptr);
+        m_fader->setTooltip(fader.m_label);
+        addAndMakeVisible(*m_fader);
+        m_faderLink = std::make_unique<juce::SliderParameterAttachment>(*fader.m_param, *m_fader);
+        m_fader->setDoubleClickReturnValue(true, fader.m_param->convertFrom0to1(fader.m_param->getDefaultValue()));
+        if (live != nullptr) live->add(*m_fader, fader.m_id);
     }
     for (const Control& c : knobs) {
-        if (c.param == nullptr) continue;
-        auto k = std::make_unique<Knob>(juce::Slider::RotaryHorizontalVerticalDrag, juce::Slider::NoTextBox, actions, c.id);
-        k->setColour(juce::Slider::rotarySliderFillColourId, colour_);
+        if (c.m_param == nullptr) continue;
+        auto k = std::make_unique<Knob>(juce::Slider::RotaryHorizontalVerticalDrag, juce::Slider::NoTextBox, actions, c.m_id);
+        k->setColour(juce::Slider::rotarySliderFillColourId, m_colour);
         k->setPopupDisplayEnabled(true, true, nullptr);
-        k->setTooltip(c.label);
+        k->setTooltip(c.m_label);
         addAndMakeVisible(*k);
-        links_.push_back(std::make_unique<juce::SliderParameterAttachment>(*c.param, *k));
-        k->setDoubleClickReturnValue(true, c.param->convertFrom0to1(c.param->getDefaultValue()));
-        if (live != nullptr) live->add(*k, c.id);
-        auto l = std::make_unique<juce::Label>(juce::String(), c.label);
+        m_links.push_back(std::make_unique<juce::SliderParameterAttachment>(*c.m_param, *k));
+        k->setDoubleClickReturnValue(true, c.m_param->convertFrom0to1(c.m_param->getDefaultValue()));
+        if (live != nullptr) live->add(*k, c.m_id);
+        auto l = std::make_unique<juce::Label>(juce::String(), c.m_label);
         l->setJustificationType(juce::Justification::centred);
-        l->setColour(juce::Label::textColourId, skin_.dim);
+        l->setColour(juce::Label::textColourId, m_skin.m_dim);
         l->setFont(font(10.0f));
         l->setMinimumHorizontalScale(0.7f);
         l->setInterceptsMouseClicks(false, false);
         addAndMakeVisible(*l);
-        isSend_.push_back(c.send);
-        knobs_.push_back(std::move(k));
-        names_.push_back(std::move(l));
+        m_isSend.push_back(c.m_send);
+        m_knobs.push_back(std::move(k));
+        m_names.push_back(std::move(l));
     }
 }
 
 void ChannelStrip::setSound(const juce::String& s)
 {
-    if (s == sound_) return;
-    sound_ = s;
+    if (s == m_sound) return;
+    m_sound = s;
     setTooltip(s);
     repaint();
 }
 
 void ChannelStrip::setHeadButton(juce::Component* b)
 {
-    head_ = b;
+    m_head = b;
     if (b != nullptr) addAndMakeVisible(b);
     resized();
 }
@@ -1545,150 +1545,150 @@ void ChannelStrip::meter(float peak, float rms, double seconds)
 {
     const float pDb = toDb(peak), rDb = toDb(rms);
     const float a = static_cast<float>(std::exp(-seconds / 0.3));
-    rmsDb_ = rDb >= rmsDb_ ? rDb : juce::jmax(rDb, kFloorDb - 1.0f + (rmsDb_ - (kFloorDb - 1.0f)) * a);
-    if (pDb >= holdDb_) { holdDb_ = pDb; holdAge_ = 0.0; }
+    m_rmsDb = rDb >= m_rmsDb ? rDb : juce::jmax(rDb, FloorDb - 1.0f + (m_rmsDb - (FloorDb - 1.0f)) * a);
+    if (pDb >= m_holdDb) { m_holdDb = pDb; m_holdAge = 0.0; }
     else {
-        holdAge_ += seconds;
-        if (holdAge_ > 1.5) holdDb_ = juce::jmax(pDb, holdDb_ - static_cast<float>(20.0 * seconds));
+        m_holdAge += seconds;
+        if (m_holdAge > 1.5) m_holdDb = juce::jmax(pDb, m_holdDb - static_cast<float>(20.0 * seconds));
     }
-    repaint(meterArea_.expanded(2).withBottom(getHeight()));
+    repaint(m_meterArea.expanded(2).withBottom(getHeight()));
 }
 
 void ChannelStrip::resized()
 {
     auto r = getLocalBounds().reduced(3);
     r.removeFromTop(32);   // the name, and the sound under it
-    if (head_ != nullptr) head_->setBounds(r.removeFromTop(22).reduced(4, 1));
+    if (m_head != nullptr) m_head->setBounds(r.removeFromTop(22).reduced(4, 1));
     // Folded, only the pan above the fader; unfolded, the sends too. Every strip keeps the same room, so the faders and
     // the meters line up across the console.
-    const int slots = sends_ ? 6 : 1;
+    const int slots = m_sends ? 6 : 1;
     const int lh = 12, kh = juce::jlimit(20, 42, std::min(r.getWidth() - 18, (r.getHeight() - 150) / slots - lh));
     int used = 0;
-    for (size_t i = 0; i < knobs_.size(); ++i) {
-        const bool show = sends_ || !isSend_[i];
-        knobs_[i]->setVisible(show && used < slots);
-        names_[i]->setVisible(show && used < slots);
+    for (size_t i = 0; i < m_knobs.size(); ++i) {
+        const bool show = m_sends || !m_isSend[i];
+        m_knobs[i]->setVisible(show && used < slots);
+        m_names[i]->setVisible(show && used < slots);
         if (!show || used >= slots) continue;
         auto row = r.removeFromTop(kh + lh);
-        knobs_[i]->setBounds(row.removeFromTop(kh));
-        names_[i]->setBounds(row);
+        m_knobs[i]->setBounds(row.removeFromTop(kh));
+        m_names[i]->setBounds(row);
         ++used;
     }
     r.removeFromTop(std::max(0, slots - used) * (kh + lh));
     r.removeFromTop(6);
     r.removeFromBottom(15);   // the peak readout
-    if (fader_ != nullptr) fader_->setBounds(r.removeFromLeft(r.getWidth() / 2));
+    if (m_fader != nullptr) m_fader->setBounds(r.removeFromLeft(r.getWidth() / 2));
     else r.removeFromLeft(r.getWidth() / 4);
-    meterArea_ = r.reduced(4, 6);
+    m_meterArea = r.reduced(4, 6);
 }
 
 void ChannelStrip::paint(juce::Graphics& g)
 {
     const auto b = getLocalBounds().toFloat().reduced(1.0f);
-    g.setColour(skin_.group);
-    g.fillRoundedRectangle(b, skin_.radius);
-    g.setColour(colour_);
+    g.setColour(m_skin.m_group);
+    g.fillRoundedRectangle(b, m_skin.m_radius);
+    g.setColour(m_colour);
     g.fillRoundedRectangle(b.withHeight(3.0f), 1.5f);
-    g.setColour(skin_.ink);
+    g.setColour(m_skin.m_ink);
     g.setFont(font(12.5f, true));
-    g.drawFittedText(name_, getLocalBounds().withHeight(22).reduced(2, 0), juce::Justification::centred, 1);
-    if (sound_.isNotEmpty()) {
-        g.setColour(skin_.dim);
+    g.drawFittedText(m_name, getLocalBounds().withHeight(22).reduced(2, 0), juce::Justification::centred, 1);
+    if (m_sound.isNotEmpty()) {
+        g.setColour(m_skin.m_dim);
         g.setFont(font(10.0f));
-        g.drawFittedText(sound_, getLocalBounds().withTrimmedTop(18).withHeight(14).reduced(3, 0), juce::Justification::centred, 1, 0.8f);
+        g.drawFittedText(m_sound, getLocalBounds().withTrimmedTop(18).withHeight(14).reduced(3, 0), juce::Justification::centred, 1, 0.8f);
     }
     // The meter: -60 .. +6 dB, the RMS bar, the held peak, 0 dBFS marked.
-    const auto m = meterArea_.toFloat();
-    g.setColour(skin_.bg);
+    const auto m = m_meterArea.toFloat();
+    g.setColour(m_skin.m_bg);
     g.fillRect(m);
     auto yOf = [&](float db) {
-        const float t = (juce::jlimit(kFloorDb, kTopDb, db) - kFloorDb) / (kTopDb - kFloorDb);
+        const float t = (juce::jlimit(FloorDb, TopDb, db) - FloorDb) / (TopDb - FloorDb);
         return m.getBottom() - t * m.getHeight();
     };
-    if (rmsDb_ > kFloorDb) {
-        const float top = yOf(rmsDb_), y6 = yOf(-6.0f), y0 = yOf(0.0f);
-        g.setColour(skin_.good.withAlpha(0.85f));
+    if (m_rmsDb > FloorDb) {
+        const float top = yOf(m_rmsDb), y6 = yOf(-6.0f), y0 = yOf(0.0f);
+        g.setColour(m_skin.m_good.withAlpha(0.85f));
         g.fillRect(m.getX(), std::max(top, y6), m.getWidth(), m.getBottom() - std::max(top, y6));
         if (top < y6) {
-            g.setColour(skin_.accent.withAlpha(0.85f));
+            g.setColour(m_skin.m_accent.withAlpha(0.85f));
             g.fillRect(m.getX(), std::max(top, y0), m.getWidth(), y6 - std::max(top, y0));
         }
         if (top < y0) {
-            g.setColour(skin_.bad);
+            g.setColour(m_skin.m_bad);
             g.fillRect(m.getX(), top, m.getWidth(), y0 - top);
         }
     }
-    if (holdDb_ > kFloorDb) {
-        g.setColour(holdDb_ > 0.0f ? skin_.bad : skin_.ink);
-        g.fillRect(m.getX(), yOf(holdDb_) - 1.0f, m.getWidth(), 2.0f);
+    if (m_holdDb > FloorDb) {
+        g.setColour(m_holdDb > 0.0f ? m_skin.m_bad : m_skin.m_ink);
+        g.fillRect(m.getX(), yOf(m_holdDb) - 1.0f, m.getWidth(), 2.0f);
     }
-    g.setColour(skin_.faint);
+    g.setColour(m_skin.m_faint);
     g.fillRect(m.getX() - 3.0f, yOf(0.0f), 3.0f, 1.0f);
-    g.setColour(holdDb_ > 0.0f ? skin_.bad : skin_.dim);
+    g.setColour(m_holdDb > 0.0f ? m_skin.m_bad : m_skin.m_dim);
     g.setFont(font(10.0f));
-    g.drawText(holdDb_ > kFloorDb ? juce::String(holdDb_, 1) : juce::String("-inf"), getLocalBounds().removeFromBottom(17), juce::Justification::centred);
+    g.drawText(m_holdDb > FloorDb ? juce::String(m_holdDb, 1) : juce::String("-inf"), getLocalBounds().removeFromBottom(17), juce::Justification::centred);
 }
 
-Console::Console(const Skin& skin) : skin_(skin)
+Console::Console(const Skin& skin) : m_skin(skin)
 {
-    fold_.setClickingTogglesState(true);
-    fold_.setTooltip("Unfold every strip's sends, or fold them away");
-    fold_.setWantsKeyboardFocus(false);
-    fold_.onClick = [this] {
-        sends_ = fold_.getToggleState();
-        for (auto& s : strips_) s->showSends(sends_);
+    m_fold.setClickingTogglesState(true);
+    m_fold.setTooltip("Unfold every strip's sends, or fold them away");
+    m_fold.setWantsKeyboardFocus(false);
+    m_fold.onClick = [this] {
+        m_sends = m_fold.getToggleState();
+        for (auto& s : m_strips) s->showSends(m_sends);
     };
-    addAndMakeVisible(fold_);
-    view_.setViewedComponent(&inner_, false);
-    view_.setScrollBarsShown(false, true);
-    addAndMakeVisible(view_);
+    addAndMakeVisible(m_fold);
+    m_view.setViewedComponent(&m_inner, false);
+    m_view.setScrollBarsShown(false, true);
+    addAndMakeVisible(m_view);
 }
 
 ChannelStrip& Console::add(std::unique_ptr<ChannelStrip> strip)
 {
-    inner_.addAndMakeVisible(*strip);
-    strip->showSends(sends_);
-    strips_.push_back(std::move(strip));
+    m_inner.addAndMakeVisible(*strip);
+    strip->showSends(m_sends);
+    m_strips.push_back(std::move(strip));
     resized();
-    return *strips_.back();
+    return *m_strips.back();
 }
 
 void Console::resized()
 {
     auto r = getLocalBounds().reduced(6, 4);
-    fold_.setBounds(r.removeFromTop(26).removeFromLeft(110));
+    m_fold.setBounds(r.removeFromTop(26).removeFromLeft(110));
     r.removeFromTop(6);
-    view_.setBounds(r);
-    if (strips_.empty()) return;
+    m_view.setBounds(r);
+    if (m_strips.empty()) return;
     const int n = size();
-    const bool scroll = r.getWidth() / n < kMinStrip;
-    const int w = scroll ? kMinStrip : r.getWidth() / n;
-    const int h = r.getHeight() - (scroll ? view_.getScrollBarThickness() : 0);
-    inner_.setSize(w * n, h);
-    for (int i = 0; i < n; ++i) strips_[static_cast<size_t>(i)]->setBounds(i * w, 0, w - 3, h);
+    const bool scroll = r.getWidth() / n < MinStrip;
+    const int w = scroll ? MinStrip : r.getWidth() / n;
+    const int h = r.getHeight() - (scroll ? m_view.getScrollBarThickness() : 0);
+    m_inner.setSize(w * n, h);
+    for (int i = 0; i < n; ++i) m_strips[static_cast<size_t>(i)]->setBounds(i * w, 0, w - 3, h);
 }
 
 // ========================================================================================================== headset
 
-Headset::Headset() { receiver_.addListener(this); }
+Headset::Headset() { m_receiver.addListener(this); }
 
 Headset::~Headset()
 {
-    receiver_.removeListener(this);
-    receiver_.disconnect();
+    m_receiver.removeListener(this);
+    m_receiver.disconnect();
 }
 
 void Headset::listen(int port)
 {
-    if (port == port_ && (port == 0 || error_.isEmpty())) return;
-    receiver_.disconnect();
-    port_ = port;
-    error_ = {};
+    if (port == m_port && (port == 0 || m_error.isEmpty())) return;
+    m_receiver.disconnect();
+    m_port = port;
+    m_error = {};
     if (port <= 0) return;
-    if (!receiver_.connect(port)) error_ = "port " + juce::String(port) + " is taken";
+    if (!m_receiver.connect(port)) m_error = "port " + juce::String(port) + " is taken";
 }
 
-bool Headset::active() const { return juce::Time::getMillisecondCounterHiRes() - last_ < 3000.0; }
+bool Headset::active() const { return juce::Time::getMillisecondCounterHiRes() - m_last < 3000.0; }
 
 void Headset::oscMessageReceived(const juce::OSCMessage& m)
 {
@@ -1696,19 +1696,19 @@ void Headset::oscMessageReceived(const juce::OSCMessage& m)
     auto f = [&](int i) { return m[i].isFloat32() ? m[i].getFloat32() : m[i].isInt32() ? static_cast<float>(m[i].getInt32()) : 0.0f; };
     Hands h;
     for (int i = 0; i < 2; ++i) {
-        h.height[i] = juce::jlimit(0.0f, 1.0f, f(i));
-        h.pinch[i] = f(2 + i) > 0.5f;
-        h.tracked[i] = f(4 + i) > 0.5f;
+        h.m_height[i] = juce::jlimit(0.0f, 1.0f, f(i));
+        h.m_pinch[i] = f(2 + i) > 0.5f;
+        h.m_tracked[i] = f(4 + i) > 0.5f;
     }
     inject(h);
 }
 
 void Headset::inject(const Hands& h)
 {
-    hands_ = h;
-    ++messages_;
-    last_ = juce::Time::getMillisecondCounterHiRes();
-    source_ = "the headset";
+    m_hands = h;
+    ++m_messages;
+    m_last = juce::Time::getMillisecondCounterHiRes();
+    m_source = "the headset";
 }
 
 HeadsetEvents Headset::poll()
@@ -1720,65 +1720,65 @@ HeadsetEvents Headset::poll()
     // height plays what was composed: the filter with a dead zone of 0.1 round the middle, the throw from the middle up.
     HeadsetEvents e;
     const double now = juce::Time::getMillisecondCounterHiRes();
-    const double dt = lastPoll_ > 0.0 ? std::min(0.2, (now - lastPoll_) / 1000.0) : 0.0;
-    lastPoll_ = now;
+    const double dt = m_lastPoll > 0.0 ? std::min(0.2, (now - m_lastPoll) / 1000.0) : 0.0;
+    m_lastPoll = now;
     if (!active()) {
-        was_[0] = was_[1] = both_ = false;
-        spoiled_[0] = spoiled_[1] = true;
-        if (holding_) { holding_ = false; e.holdEnded = true; }
+        m_was[0] = m_was[1] = m_both = false;
+        m_spoiled[0] = m_spoiled[1] = true;
+        if (m_holding) { m_holding = false; e.m_holdEnded = true; }
         return e;
     }
-    const Hands h = hands_;
-    const bool closed[2] = { h.tracked[0] && h.pinch[0], h.tracked[1] && h.pinch[1] };
+    const Hands h = m_hands;
+    const bool closed[2] = { h.m_tracked[0] && h.m_pinch[0], h.m_tracked[1] && h.m_pinch[1] };
     if (closed[0] && closed[1]) {
-        spoiled_[0] = spoiled_[1] = true;
-        if (!both_) { e.next = true; both_ = true; }
+        m_spoiled[0] = m_spoiled[1] = true;
+        if (!m_both) { e.m_next = true; m_both = true; }
     }
     for (int i = 0; i < 2; ++i) {
-        if (closed[i] && !was_[i] && !closed[1 - i]) { spoiled_[i] = false; since_[i] = now; }
-        if (i == 1 && closed[1] && !spoiled_[1] && now - since_[1] >= 600.0) {
-            spoiled_[1] = true;
-            e.hold = true;
-            holding_ = true;
+        if (closed[i] && !m_was[i] && !closed[1 - i]) { m_spoiled[i] = false; m_since[i] = now; }
+        if (i == 1 && closed[1] && !m_spoiled[1] && now - m_since[1] >= 600.0) {
+            m_spoiled[1] = true;
+            e.m_hold = true;
+            m_holding = true;
         }
-        if (i == 1 && !closed[1] && holding_) { holding_ = false; e.holdEnded = true; }
-        if (!closed[i] && was_[i] && !spoiled_[i]) {
-            if (i == 0) e.playStop = true;
-            else e.action = true;
+        if (i == 1 && !closed[1] && m_holding) { m_holding = false; e.m_holdEnded = true; }
+        if (!closed[i] && m_was[i] && !m_spoiled[i]) {
+            if (i == 0) e.m_playStop = true;
+            else e.m_action = true;
         }
-        was_[i] = closed[i];
+        m_was[i] = closed[i];
     }
-    if (!closed[0] && !closed[1]) both_ = false;
+    if (!closed[0] && !closed[1]) m_both = false;
     const float a = dt > 0.0 ? static_cast<float>(1.0 - std::exp(-dt / 0.15)) : 1.0f;
     // The left hand: below the middle a low pass, above it a high pass, a dead zone round the middle.
     float ft = 0.0f;
-    if (h.tracked[0] && !h.pinch[0]) {
-        const float d = (h.height[0] - 0.5f) * 2.0f;
+    if (h.m_tracked[0] && !h.m_pinch[0]) {
+        const float d = (h.m_height[0] - 0.5f) * 2.0f;
         ft = std::abs(d) < 0.1f ? 0.0f : juce::jlimit(-1.0f, 1.0f, (d - std::copysign(0.1f, d)) / 0.9f);
-    } else if (h.tracked[0]) {
-        ft = filter_;   // pinching: held where it was
+    } else if (h.m_tracked[0]) {
+        ft = m_filter;   // pinching: held where it was
     }
     // The right hand: the throw from the middle up.
     float tt = 0.0f;
-    if (h.tracked[1] && !h.pinch[1]) tt = juce::jlimit(0.0f, 1.0f, 2.0f * (h.height[1] - 0.5f));
-    else if (h.tracked[1]) tt = throw_;
-    const float nf = filter_ + a * (ft - filter_), nt = throw_ + a * (tt - throw_);
-    if (std::abs(nf - filter_) > 1.0e-4f || (nf == 0.0f) != (filter_ == 0.0f)) e.filterMoved = true;
-    if (std::abs(nt - throw_) > 1.0e-4f || (nt == 0.0f) != (throw_ == 0.0f)) e.throwMoved = true;
-    filter_ = std::abs(nf) < 1.0e-3f ? 0.0f : nf;
-    throw_ = nt < 1.0e-3f ? 0.0f : nt;
-    e.filter = filter_;
-    e.throwAmount = throw_;
+    if (h.m_tracked[1] && !h.m_pinch[1]) tt = juce::jlimit(0.0f, 1.0f, 2.0f * (h.m_height[1] - 0.5f));
+    else if (h.m_tracked[1]) tt = m_throw;
+    const float nf = m_filter + a * (ft - m_filter), nt = m_throw + a * (tt - m_throw);
+    if (std::abs(nf - m_filter) > 1.0e-4f || (nf == 0.0f) != (m_filter == 0.0f)) e.m_filterMoved = true;
+    if (std::abs(nt - m_throw) > 1.0e-4f || (nt == 0.0f) != (m_throw == 0.0f)) e.m_throwMoved = true;
+    m_filter = std::abs(nf) < 1.0e-3f ? 0.0f : nf;
+    m_throw = nt < 1.0e-3f ? 0.0f : nt;
+    e.m_filter = m_filter;
+    e.m_throwAmount = m_throw;
     return e;
 }
 
 juce::String Headset::statusText() const
 {
-    if (port_ <= 0) return "the headset: not listening (Off)";
-    if (error_.isNotEmpty()) return "the headset: " + error_;
-    if (active()) return "the headset sends its hands (port " + juce::String(port_) + ")";
-    if (everSeen()) return "the headset is quiet (port " + juce::String(port_) + ")";
-    return "listening for a headset on port " + juce::String(port_);
+    if (m_port <= 0) return "the headset: not listening (Off)";
+    if (m_error.isNotEmpty()) return "the headset: " + m_error;
+    if (active()) return "the headset sends its hands (port " + juce::String(m_port) + ")";
+    if (everSeen()) return "the headset is quiet (port " + juce::String(m_port) + ")";
+    return "listening for a headset on port " + juce::String(m_port);
 }
 
 std::vector<std::pair<juce::String, juce::String>> headsetGrammarShort(const juce::String& action, const juce::String& hold,
@@ -1798,16 +1798,16 @@ void drawHeadsetBox(juce::Graphics& g, juce::Rectangle<int> area, const Skin& sk
 {
     auto h = area.reduced(framed ? 6 : 0, 0);
     if (framed) {   // a box of its own; inside a page's group (Phosphene's) the group is the box
-        g.setColour(skin.group);
-        g.fillRoundedRectangle(h.toFloat(), skin.radius);
-        g.setColour(skin.edge);
-        g.drawRoundedRectangle(h.toFloat().reduced(0.5f), skin.radius, 1.0f);
+        g.setColour(skin.m_group);
+        g.fillRoundedRectangle(h.toFloat(), skin.m_radius);
+        g.setColour(skin.m_edge);
+        g.drawRoundedRectangle(h.toFloat().reduced(0.5f), skin.m_radius, 1.0f);
         h = h.reduced(12, 8);
-        g.setColour(skin.family(Family::Motion));
+        g.setColour(skin.family(FamilyE::MOTION));
         g.setFont(font(11.5f, true));
         g.drawText("HEADSET", h.removeFromTop(16), juce::Justification::centredLeft);
     }
-    g.setColour(skin.dim);
+    g.setColour(skin.m_dim);
     g.setFont(font(11.5f));
     g.drawFittedText(headset.statusText(), h.removeFromTop(18), juce::Justification::centredLeft, 1, 0.8f);
     h.removeFromTop(4);
@@ -1817,14 +1817,14 @@ void drawHeadsetBox(juce::Graphics& g, juce::Rectangle<int> area, const Skin& sk
     auto bars = h.removeFromLeft(96);
     for (int i = 0; i < 2; ++i) {
         auto col = bars.removeFromLeft(48).reduced(6, 0);
-        g.setColour(skin.dim);
+        g.setColour(skin.m_dim);
         g.drawText(i == 0 ? "left" : "right", col.removeFromBottom(16), juce::Justification::centred);
         const auto track = col.withSizeKeepingCentre(10, col.getHeight()).toFloat();
-        g.setColour(skin.faint);
+        g.setColour(skin.m_faint);
         g.fillRoundedRectangle(track, 5.0f);
-        if (live && hands.tracked[i]) {
-            const float y = track.getBottom() - hands.height[i] * track.getHeight();
-            g.setColour(hands.pinch[i] ? skin.onset : skin.accent);
+        if (live && hands.m_tracked[i]) {
+            const float y = track.getBottom() - hands.m_height[i] * track.getHeight();
+            g.setColour(hands.m_pinch[i] ? skin.m_onset : skin.m_accent);
             g.fillEllipse(track.getCentreX() - 7.0f, y - 7.0f, 14.0f, 14.0f);
         }
     }
@@ -1835,9 +1835,9 @@ void drawHeadsetBox(juce::Graphics& g, juce::Rectangle<int> area, const Skin& sk
     g.setFont(font(std::min(12.0f, static_cast<float>(lh) - 1.0f)));
     for (const auto& [gesture, effect] : lines) {
         auto row = h.removeFromTop(lh);
-        g.setColour(skin.dim);
+        g.setColour(skin.m_dim);
         g.drawText(gesture, row.removeFromLeft(80), juce::Justification::centredLeft);
-        g.setColour(skin.ink);
+        g.setColour(skin.m_ink);
         g.drawFittedText(effect, row, juce::Justification::centredLeft, 1, 0.75f);
     }
 }
@@ -1862,7 +1862,7 @@ juce::String headsetGrammar(const juce::String& action, const juce::String& hold
 
 uint16_t scaleMask(const juce::String& name)
 {
-    static const std::pair<const char*, std::array<int, 8>> kScales[] = {
+    static const std::pair<const char*, std::array<int, 8>> Scales[] = {
         { "aeolian", { 0, 2, 3, 5, 7, 8, 10, -1 } },          { "minor", { 0, 2, 3, 5, 7, 8, 10, -1 } },
         { "dorian", { 0, 2, 3, 5, 7, 9, 10, -1 } },           { "phrygian", { 0, 1, 3, 5, 7, 8, 10, -1 } },
         { "harmonic minor", { 0, 2, 3, 5, 7, 8, 11, -1 } },   { "minor pentatonic", { 0, 3, 5, 7, 10, -1, -1, -1 } },
@@ -1872,7 +1872,7 @@ uint16_t scaleMask(const juce::String& name)
         { "double harmonic", { 0, 1, 4, 5, 7, 8, 11, -1 } },  { "hexachord", { 0, 2, 3, 5, 7, 10, -1, -1 } },
     };
     const juce::String n = name.trim().toLowerCase();
-    for (const auto& [key, steps] : kScales)
+    for (const auto& [key, steps] : Scales)
         if (n == key) {
             uint16_t m = 0;
             for (int s : steps) if (s >= 0) m = static_cast<uint16_t>(m | (1u << s));
@@ -1903,23 +1903,23 @@ int shapeVelocity(int velocity, int curve)
 
 void KeyMemory::clear()
 {
-    for (auto& row : target_) for (auto& t : row) t = -2;
-    for (auto& row : pitch_) for (auto& p : row) p = 0;
+    for (auto& row : m_target) for (auto& t : row) t = -2;
+    for (auto& row : m_pitch) for (auto& p : row) p = 0;
 }
 
 void KeyMemory::press(int channel, int key, int target, int pitch)
 {
     if (channel < 0 || channel > 15 || key < 0 || key > 127) return;
-    target_[channel][key] = static_cast<int16_t>(target);
-    pitch_[channel][key] = static_cast<int16_t>(pitch);
+    m_target[channel][key] = static_cast<int16_t>(target);
+    m_pitch[channel][key] = static_cast<int16_t>(pitch);
 }
 
 bool KeyMemory::release(int channel, int key, int& target, int& pitch)
 {
-    if (channel < 0 || channel > 15 || key < 0 || key > 127 || target_[channel][key] == -2) return false;
-    target = target_[channel][key];
-    pitch = pitch_[channel][key];
-    target_[channel][key] = -2;
+    if (channel < 0 || channel > 15 || key < 0 || key > 127 || m_target[channel][key] == -2) return false;
+    target = m_target[channel][key];
+    pitch = m_pitch[channel][key];
+    m_target[channel][key] = -2;
     return true;
 }
 
@@ -1927,20 +1927,20 @@ bool KeyMemory::release(int channel, int key, int& target, int& pitch)
 
 WindowKeeper::~WindowKeeper()
 {
-    if (window_ != nullptr) window_->removeComponentListener(this);
+    if (m_window != nullptr) m_window->removeComponentListener(this);
 }
 
 bool WindowKeeper::attach(juce::Component& editor, const juce::String& app)
 {
-    if (window_ != nullptr) return true;
+    if (m_window != nullptr) return true;
     // Only the standalone's own window: a host's is the host's to place.
     if (!juce::JUCEApplicationBase::isStandaloneApp()) return false;
     auto* w = editor.findParentComponentOfClass<juce::ResizableWindow>();
     if (w == nullptr) return false;
-    app_ = app;
+    m_app = app;
     const juce::String state = Settings::of(app).value("window");
     if (state.isNotEmpty()) w->restoreWindowStateFromString(state);   // onto a screen should that one be gone
-    window_ = w;
+    m_window = w;
     w->addComponentListener(this);
     return true;
 }
@@ -1948,8 +1948,8 @@ bool WindowKeeper::attach(juce::Component& editor, const juce::String& app)
 void WindowKeeper::componentMovedOrResized(juce::Component&, bool, bool)
 {
     // Not while minimised or in full screen (the state would be the screen's); maximised is kept as such ("fs ...").
-    if (window_ == nullptr || window_->isMinimised() || juce::Desktop::getInstance().getKioskModeComponent() != nullptr) return;
-    Settings::of(app_).setValue("window", window_->getWindowStateAsString(), false);
+    if (m_window == nullptr || m_window->isMinimised() || juce::Desktop::getInstance().getKioskModeComponent() != nullptr) return;
+    Settings::of(m_app).setValue("window", m_window->getWindowStateAsString(), false);
 }
 
 // ========================================================================================================== reveal
@@ -1985,7 +1985,7 @@ void makeEverything(juce::Component& page)
 class Flash final : public juce::Component, private juce::Timer {
 public:
     /** @brief Lights @p target in @p colour. */
-    Flash(juce::Component& target, juce::Colour colour) : target_(&target), colour_(colour)
+    Flash(juce::Component& target, juce::Colour colour) : m_target(&target), m_colour(colour)
     {
         setInterceptsMouseClicks(false, false);
         if (auto* top = target.getTopLevelComponent()) top->addAndMakeVisible(this);
@@ -1995,12 +1995,12 @@ public:
     /** @brief The ring, pulsing twice and fading. */
     void paint(juce::Graphics& g) override
     {
-        const float t = static_cast<float>(ticks_) / 30.0f;
+        const float t = static_cast<float>(m_ticks) / 30.0f;
         const float a = juce::jlimit(0.0f, 1.0f, 1.0f - t / 1.6f) * (0.6f + 0.4f * std::cos(t * juce::MathConstants<float>::twoPi * 1.25f));
         const auto r = getLocalBounds().toFloat().reduced(2.0f);
-        g.setColour(colour_.withAlpha(0.14f * a));
+        g.setColour(m_colour.withAlpha(0.14f * a));
         g.fillRoundedRectangle(r, 6.0f);
-        g.setColour(colour_.withAlpha(a));
+        g.setColour(m_colour.withAlpha(a));
         g.drawRoundedRectangle(r, 6.0f, 2.5f);
     }
 
@@ -2009,13 +2009,13 @@ private:
     void place()
     {
         auto* top = getParentComponent();
-        if (top == nullptr || target_ == nullptr) return;
-        setBounds(top->getLocalArea(target_.getComponent(), target_->getLocalBounds()).expanded(6));
+        if (top == nullptr || m_target == nullptr) return;
+        setBounds(top->getLocalArea(m_target.getComponent(), m_target->getLocalBounds()).expanded(6));
     }
     /** @brief Follows the control; gone after 1.6 s. */
     void timerCallback() override
     {
-        if (++ticks_ > 48 || target_ == nullptr || getParentComponent() == nullptr) {
+        if (++m_ticks > 48 || m_target == nullptr || getParentComponent() == nullptr) {
             stopTimer();
             juce::MessageManager::callAsync([safe = juce::Component::SafePointer<Flash>(this)] { delete safe.getComponent(); });
             return;
@@ -2023,9 +2023,9 @@ private:
         place();
         repaint();
     }
-    juce::Component::SafePointer<juce::Component> target_;   ///< what it lights
-    juce::Colour colour_;                                     ///< in what
-    int ticks_ = 0;                                           ///< timer ticks so far
+    juce::Component::SafePointer<juce::Component> m_target;   ///< what it lights
+    juce::Colour m_colour;                                     ///< in what
+    int m_ticks = 0;                                           ///< timer ticks so far
 };
 
 } // namespace
@@ -2052,8 +2052,8 @@ void showModArcs(juce::Slider& slider, const std::vector<ModArc>& arcs)
     auto& props = slider.getProperties();
     juce::String key;
     for (const ModArc& m : arcs)
-        key << juce::roundToInt(m.depth * 1000.0f) << ',' << (m.unipolar ? 1 : 0) << ',' << juce::roundToInt(m.now * 300.0f) << ','
-            << static_cast<juce::int64>(m.colour.getARGB()) << ';';
+        key << juce::roundToInt(m.m_depth * 1000.0f) << ',' << (m.m_unipolar ? 1 : 0) << ',' << juce::roundToInt(m.m_now * 300.0f) << ','
+            << static_cast<juce::int64>(m.m_colour.getARGB()) << ';';
     if (key == props["modsKey"].toString()) return;
     if (arcs.empty()) {
         props.remove("mods");
@@ -2062,10 +2062,10 @@ void showModArcs(juce::Slider& slider, const std::vector<ModArc>& arcs)
         juce::Array<juce::var> list;
         for (const ModArc& m : arcs) {
             juce::Array<juce::var> one;
-            one.add(m.depth);
-            one.add(m.unipolar);
-            one.add(m.now);
-            one.add(static_cast<juce::int64>(m.colour.getARGB()));
+            one.add(m.m_depth);
+            one.add(m.m_unipolar);
+            one.add(m.m_now);
+            one.add(static_cast<juce::int64>(m.m_colour.getARGB()));
             list.add(juce::var(one));
         }
         props.set("mods", juce::var(list));
@@ -2146,41 +2146,41 @@ float fitWord(const juce::String& text, const juce::String& word)
 
 } // namespace
 
-CommandPalette::CommandPalette(const Skin& skin) : skin_(skin), list_({}, this)
+CommandPalette::CommandPalette(const Skin& skin) : m_skin(skin), m_list({}, this)
 {
-    search_.setFont(juce::FontOptions(17.0f));
-    search_.setTextToShowWhenEmpty("A control, a preset or an action -- \"cutoff\", \"cutoff 800\", \"export\" ...", skin_.dim);
-    search_.setColour(juce::TextEditor::backgroundColourId, skin_.raised);
-    search_.setColour(juce::TextEditor::textColourId, skin_.ink);
-    search_.setColour(juce::TextEditor::outlineColourId, skin_.edge);
-    search_.setColour(juce::TextEditor::focusedOutlineColourId, skin_.accent);
-    search_.addListener(this);
-    search_.addKeyListener(this);
-    list_.setRowHeight(30);
-    list_.setColour(juce::ListBox::backgroundColourId, juce::Colours::transparentBlack);
-    addAndMakeVisible(search_);
-    addAndMakeVisible(list_);
+    m_search.setFont(juce::FontOptions(17.0f));
+    m_search.setTextToShowWhenEmpty("A control, a preset or an action -- \"cutoff\", \"cutoff 800\", \"export\" ...", m_skin.m_dim);
+    m_search.setColour(juce::TextEditor::backgroundColourId, m_skin.m_raised);
+    m_search.setColour(juce::TextEditor::textColourId, m_skin.m_ink);
+    m_search.setColour(juce::TextEditor::outlineColourId, m_skin.m_edge);
+    m_search.setColour(juce::TextEditor::focusedOutlineColourId, m_skin.m_accent);
+    m_search.addListener(this);
+    m_search.addKeyListener(this);
+    m_list.setRowHeight(30);
+    m_list.setColour(juce::ListBox::backgroundColourId, juce::Colours::transparentBlack);
+    addAndMakeVisible(m_search);
+    addAndMakeVisible(m_list);
     setInterceptsMouseClicks(true, true);
     setVisible(false);
 }
 
 void CommandPalette::open(std::vector<Command> commands)
 {
-    all_ = std::move(commands);
-    fixed_ = all_.size();
+    m_all = std::move(commands);
+    m_fixed = m_all.size();
     if (auto* p = getParentComponent()) setBounds(p->getLocalBounds());
-    search_.clear();
+    m_search.clear();
     filter();
     setVisible(true);
     toFront(true);
-    search_.grabKeyboardFocus();
+    m_search.grabKeyboardFocus();
 }
 
 void CommandPalette::close()
 {
     setVisible(false);
-    all_.clear();
-    shown_.clear();
+    m_all.clear();
+    m_shown.clear();
     if (auto* p = getParentComponent()) p->grabKeyboardFocus();
 }
 
@@ -2193,19 +2193,19 @@ juce::Rectangle<int> CommandPalette::panel() const
 void CommandPalette::resized()
 {
     auto r = panel().reduced(12);
-    search_.setBounds(r.removeFromTop(36));
+    m_search.setBounds(r.removeFromTop(36));
     r.removeFromTop(8);
-    list_.setBounds(r);
+    m_list.setBounds(r);
 }
 
 void CommandPalette::paint(juce::Graphics& g)
 {
-    g.fillAll(skin_.bg.withAlpha(0.55f));
+    g.fillAll(m_skin.m_bg.withAlpha(0.55f));
     const auto p = panel().toFloat();
-    g.setColour(skin_.group.withAlpha(1.0f));
-    g.fillRoundedRectangle(p, skin_.radius * 2.0f);
-    g.setColour(skin_.accent.withAlpha(0.6f));
-    g.drawRoundedRectangle(p.reduced(0.5f), skin_.radius * 2.0f, 1.2f);
+    g.setColour(m_skin.m_group.withAlpha(1.0f));
+    g.fillRoundedRectangle(p, m_skin.m_radius * 2.0f);
+    g.setColour(m_skin.m_accent.withAlpha(0.6f));
+    g.drawRoundedRectangle(p.reduced(0.5f), m_skin.m_radius * 2.0f, 1.2f);
 }
 
 void CommandPalette::mouseDown(const juce::MouseEvent& e)
@@ -2216,28 +2216,28 @@ void CommandPalette::mouseDown(const juce::MouseEvent& e)
 void CommandPalette::filter()
 {
     // The words, and a number after them (a control's value).
-    juce::StringArray words = juce::StringArray::fromTokens(search_.getText().toLowerCase().trim(), " ", "");
+    juce::StringArray words = juce::StringArray::fromTokens(m_search.getText().toLowerCase().trim(), " ", "");
     words.removeEmptyStrings();
-    number_.clear();
+    m_number.clear();
     if (!words.isEmpty() && words[words.size() - 1].containsOnly("0123456789.-") && words[words.size() - 1].containsAnyOf("0123456789")) {
-        number_ = words[words.size() - 1];
+        m_number = words[words.size() - 1];
         words.remove(words.size() - 1);
     }
     std::vector<std::pair<float, int>> scored;
     // What the words make (an instrument's own): first, in their own order.
-    all_.resize(fixed_);
-    if (fromWords && !words.isEmpty())
-        for (Command& c : fromWords(words)) {
-            scored.emplace_back(1000.0f - static_cast<float>(scored.size()), static_cast<int>(all_.size()));
-            all_.push_back(std::move(c));
+    m_all.resize(m_fixed);
+    if (m_fromWords && !words.isEmpty())
+        for (Command& c : m_fromWords(words)) {
+            scored.emplace_back(1000.0f - static_cast<float>(scored.size()), static_cast<int>(m_all.size()));
+            m_all.push_back(std::move(c));
         }
-    for (size_t i = 0; i < fixed_; ++i) {
-        const Command& c = all_[i];
+    for (size_t i = 0; i < m_fixed; ++i) {
+        const Command& c = m_all[i];
         if (words.isEmpty()) {   // nothing typed: the actions and the pages
-            if (c.kind == "Action" || c.kind == "Page") scored.emplace_back(c.kind == "Action" ? 1.0f : 0.5f, static_cast<int>(i));
+            if (c.m_kind == "Action" || c.m_kind == "Page") scored.emplace_back(c.m_kind == "Action" ? 1.0f : 0.5f, static_cast<int>(i));
             continue;
         }
-        const juce::String title = c.title.toLowerCase(), detail = c.detail.toLowerCase();
+        const juce::String title = c.m_title.toLowerCase(), detail = c.m_detail.toLowerCase();
         float s = 0.0f;
         bool all = true;
         for (const juce::String& w : words) {
@@ -2246,53 +2246,53 @@ void CommandPalette::filter()
             s += std::max(a, d);
         }
         if (!all) continue;
-        if (!number_.isEmpty() && !c.takesNumber) s *= 0.5f;   // a number asks for a control
-        s += c.kind == "Action" ? 0.3f : c.kind == "Page" ? 0.25f : c.kind == "Control" ? 0.2f : c.kind == "Yours" ? 0.1f : 0.0f;
-        s -= 0.002f * static_cast<float>(c.title.length());    // the shorter of two equal fits
+        if (!m_number.isEmpty() && !c.m_takesNumber) s *= 0.5f;   // a number asks for a control
+        s += c.m_kind == "Action" ? 0.3f : c.m_kind == "Page" ? 0.25f : c.m_kind == "Control" ? 0.2f : c.m_kind == "Yours" ? 0.1f : 0.0f;
+        s -= 0.002f * static_cast<float>(c.m_title.length());    // the shorter of two equal fits
         scored.emplace_back(s, static_cast<int>(i));
     }
     std::stable_sort(scored.begin(), scored.end(), [](const auto& a, const auto& b) { return a.first > b.first; });
-    shown_.clear();
-    for (size_t i = 0; i < scored.size() && i < 80; ++i) shown_.push_back(scored[i].second);
-    list_.updateContent();
-    list_.selectRow(shown_.empty() ? -1 : 0);
-    list_.repaint();
+    m_shown.clear();
+    for (size_t i = 0; i < scored.size() && i < 80; ++i) m_shown.push_back(scored[i].second);
+    m_list.updateContent();
+    m_list.selectRow(m_shown.empty() ? -1 : 0);
+    m_list.repaint();
 }
 
 void CommandPalette::run(int row)
 {
-    if (row < 0 || row >= static_cast<int>(shown_.size())) return;
-    const Command c = all_[static_cast<size_t>(shown_[static_cast<size_t>(row)])];
-    const juce::String number = c.takesNumber ? number_ : juce::String();
+    if (row < 0 || row >= static_cast<int>(m_shown.size())) return;
+    const Command c = m_all[static_cast<size_t>(m_shown[static_cast<size_t>(row)])];
+    const juce::String number = c.m_takesNumber ? m_number : juce::String();
     close();
-    if (c.run) c.run(number);
+    if (c.m_run) c.m_run(number);
 }
 
-int CommandPalette::getNumRows() { return static_cast<int>(shown_.size()); }
+int CommandPalette::getNumRows() { return static_cast<int>(m_shown.size()); }
 
 void CommandPalette::paintListBoxItem(int row, juce::Graphics& g, int width, int height, bool selected)
 {
-    if (row < 0 || row >= static_cast<int>(shown_.size())) return;
-    const Command& c = all_[static_cast<size_t>(shown_[static_cast<size_t>(row)])];
+    if (row < 0 || row >= static_cast<int>(m_shown.size())) return;
+    const Command& c = m_all[static_cast<size_t>(m_shown[static_cast<size_t>(row)])];
     if (selected) {
-        g.setColour(skin_.accent.withAlpha(0.18f));
-        g.fillRoundedRectangle(juce::Rectangle<float>(0.0f, 1.0f, static_cast<float>(width), static_cast<float>(height - 2)), skin_.radius);
+        g.setColour(m_skin.m_accent.withAlpha(0.18f));
+        g.fillRoundedRectangle(juce::Rectangle<float>(0.0f, 1.0f, static_cast<float>(width), static_cast<float>(height - 2)), m_skin.m_radius);
     }
-    const juce::Colour kindColour = c.kind == "Control" ? skin_.family(Family::Source)
-                                  : c.kind == "Action"  ? skin_.accent
-                                  : c.kind == "Page"    ? skin_.family(Family::Motion)
-                                  : c.kind == "Yours"   ? skin_.family(Family::Envelope)
-                                                        : skin_.family(Family::Space);
+    const juce::Colour kindColour = c.m_kind == "Control" ? m_skin.family(FamilyE::SOURCE)
+                                  : c.m_kind == "Action"  ? m_skin.m_accent
+                                  : c.m_kind == "Page"    ? m_skin.family(FamilyE::MOTION)
+                                  : c.m_kind == "Yours"   ? m_skin.family(FamilyE::ENVELOPE)
+                                                        : m_skin.family(FamilyE::SPACE);
     g.setColour(kindColour);
     g.setFont(font(11.0f, true));
-    g.drawText(c.kind.toUpperCase(), 8, 0, 70, height, juce::Justification::centredLeft);
-    g.setColour(skin_.ink);
+    g.drawText(c.m_kind.toUpperCase(), 8, 0, 70, height, juce::Justification::centredLeft);
+    g.setColour(m_skin.m_ink);
     g.setFont(font(14.0f));
-    const juce::String title = c.takesNumber && number_.isNotEmpty() ? c.title + "  = " + number_ : c.title;
+    const juce::String title = c.m_takesNumber && m_number.isNotEmpty() ? c.m_title + "  = " + m_number : c.m_title;
     g.drawText(title, 82, 0, width / 2, height, juce::Justification::centredLeft);
-    g.setColour(skin_.dim);
+    g.setColour(m_skin.m_dim);
     g.setFont(font(12.0f));
-    g.drawText(c.detail, 82 + width / 2, 0, width / 2 - 90, height, juce::Justification::centredRight);
+    g.drawText(c.m_detail, 82 + width / 2, 0, width / 2 - 90, height, juce::Justification::centredRight);
 }
 
 void CommandPalette::listBoxItemClicked(int row, const juce::MouseEvent&) { run(row); }
@@ -2301,45 +2301,45 @@ void CommandPalette::returnKeyPressed(int row) { run(row); }
 
 void CommandPalette::textEditorTextChanged(juce::TextEditor&) { filter(); }
 
-void CommandPalette::textEditorReturnKeyPressed(juce::TextEditor&) { run(list_.getSelectedRow()); }
+void CommandPalette::textEditorReturnKeyPressed(juce::TextEditor&) { run(m_list.getSelectedRow()); }
 
 void CommandPalette::textEditorEscapeKeyPressed(juce::TextEditor&) { close(); }
 
 bool CommandPalette::keyPressed(const juce::KeyPress& key, juce::Component*)
 {
-    const int n = static_cast<int>(shown_.size());
+    const int n = static_cast<int>(m_shown.size());
     if (n == 0) return false;
-    if (key.isKeyCode(juce::KeyPress::downKey)) { list_.selectRow(std::min(list_.getSelectedRow() + 1, n - 1)); return true; }
-    if (key.isKeyCode(juce::KeyPress::upKey)) { list_.selectRow(std::max(list_.getSelectedRow() - 1, 0)); return true; }
-    if (key.isKeyCode(juce::KeyPress::pageDownKey)) { list_.selectRow(std::min(list_.getSelectedRow() + 10, n - 1)); return true; }
-    if (key.isKeyCode(juce::KeyPress::pageUpKey)) { list_.selectRow(std::max(list_.getSelectedRow() - 10, 0)); return true; }
+    if (key.isKeyCode(juce::KeyPress::downKey)) { m_list.selectRow(std::min(m_list.getSelectedRow() + 1, n - 1)); return true; }
+    if (key.isKeyCode(juce::KeyPress::upKey)) { m_list.selectRow(std::max(m_list.getSelectedRow() - 1, 0)); return true; }
+    if (key.isKeyCode(juce::KeyPress::pageDownKey)) { m_list.selectRow(std::min(m_list.getSelectedRow() + 10, n - 1)); return true; }
+    if (key.isKeyCode(juce::KeyPress::pageUpKey)) { m_list.selectRow(std::max(m_list.getSelectedRow() - 10, 0)); return true; }
     return false;
 }
 
 // ======================================================================================================= info line
 
-InfoLine::InfoLine(const Skin& skin, juce::Component& watched) : skin_(skin), watched_(watched)
+InfoLine::InfoLine(const Skin& skin, juce::Component& watched) : m_skin(skin), m_watched(watched)
 {
-    tracker_.line = this;
-    watched_.addMouseListener(&tracker_, true);
+    m_tracker.m_line = this;
+    m_watched.addMouseListener(&m_tracker, true);
     setInterceptsMouseClicks(false, false);
-    text_ = "Point at a control: what it is and what it does is told here.";
+    m_text = "Point at a control: what it is and what it does is told here.";
     startTimerHz(5);
 }
 
-InfoLine::~InfoLine() { watched_.removeMouseListener(&tracker_); }
+InfoLine::~InfoLine() { m_watched.removeMouseListener(&m_tracker); }
 
 void InfoLine::over(juce::Component* c)
 {
     // The control under the mouse, or the nearest of its parents that is one.
-    for (juce::Component* p = c; p != nullptr && p != &watched_; p = p->getParentComponent()) {
+    for (juce::Component* p = c; p != nullptr && p != &m_watched; p = p->getParentComponent()) {
         const int id = controlId(*p);
         juce::String name, text;
-        if (id >= 0 && describe && describe(id, name, text)) {
-            if (id != id_ || name != name_ || text != text_) {
-                id_ = id;
-                name_ = name;
-                text_ = text;
+        if (id >= 0 && m_describe && m_describe(id, name, text)) {
+            if (id != m_id || name != m_name || text != m_text) {
+                m_id = id;
+                m_name = name;
+                m_text = text;
                 repaint();
             }
             return;
@@ -2347,10 +2347,10 @@ void InfoLine::over(juce::Component* c)
         if (auto* tip = dynamic_cast<juce::SettableTooltipClient*>(p)) {
             const juce::String t = tip->getTooltip();
             if (t.isNotEmpty()) {
-                if (id_ != -1 || name_.isNotEmpty() || text_ != t) {
-                    id_ = -1;
-                    name_.clear();
-                    text_ = t;
+                if (m_id != -1 || m_name.isNotEmpty() || m_text != t) {
+                    m_id = -1;
+                    m_name.clear();
+                    m_text = t;
                     repaint();
                 }
                 return;
@@ -2362,41 +2362,41 @@ void InfoLine::over(juce::Component* c)
 void InfoLine::showControl(int id)
 {
     juce::String name, text;
-    if (!describe || !describe(id, name, text)) return;
-    id_ = id;
-    name_ = name;
-    text_ = text;
+    if (!m_describe || !m_describe(id, name, text)) return;
+    m_id = id;
+    m_name = name;
+    m_text = text;
     repaint();
 }
 
 void InfoLine::showText(const juce::String& text)
 {
-    id_ = -1;
-    name_.clear();
-    text_ = text;
+    m_id = -1;
+    m_name.clear();
+    m_text = text;
     repaint();
 }
 
 void InfoLine::timerCallback()
 {
-    if (id_ < 0 || !describe) return;
+    if (m_id < 0 || !m_describe) return;
     juce::String name, text;
-    if (describe(id_, name, text) && (text != text_ || name != name_)) {
-        name_ = name;
-        text_ = text;
+    if (m_describe(m_id, name, text) && (text != m_text || name != m_name)) {
+        m_name = name;
+        m_text = text;
         repaint();
     }
 }
 
 void InfoLine::paint(juce::Graphics& g)
 {
-    g.setColour(skin_.group.withAlpha(0.85f));
+    g.setColour(m_skin.m_group.withAlpha(0.85f));
     g.fillRect(getLocalBounds());
-    g.setColour(skin_.edge);
+    g.setColour(m_skin.m_edge);
     g.drawHorizontalLine(0, 0.0f, static_cast<float>(getWidth()));
     juce::AttributedString a;
-    if (name_.isNotEmpty()) a.append(name_ + "    ", juce::FontOptions(12.5f, juce::Font::bold), skin_.accent);
-    a.append(text_, juce::FontOptions(12.5f), skin_.dim);
+    if (m_name.isNotEmpty()) a.append(m_name + "    ", juce::FontOptions(12.5f, juce::Font::bold), m_skin.m_accent);
+    a.append(m_text, juce::FontOptions(12.5f), m_skin.m_dim);
     a.setJustification(juce::Justification::centredLeft);
     a.setWordWrap(juce::AttributedString::none);
     a.draw(g, getLocalBounds().reduced(12, 0).toFloat());
@@ -2404,21 +2404,21 @@ void InfoLine::paint(juce::Graphics& g)
 
 // ============================================================================================================ tour
 
-Tour::Tour(const Skin& skin) : skin_(skin)
+Tour::Tour(const Skin& skin) : m_skin(skin)
 {
-    next_.onClick = [this] { next(); };
-    skip_.onClick = [this] { finish(); };
-    addAndMakeVisible(next_);
-    addAndMakeVisible(skip_);
+    m_next.onClick = [this] { next(); };
+    m_skip.onClick = [this] { finish(); };
+    addAndMakeVisible(m_next);
+    addAndMakeVisible(m_skip);
     setInterceptsMouseClicks(true, true);
     setVisible(false);
 }
 
 void Tour::start(std::vector<Step> steps)
 {
-    steps_ = std::move(steps);
-    at_ = 0;
-    if (steps_.empty()) return;
+    m_steps = std::move(steps);
+    m_at = 0;
+    if (m_steps.empty()) return;
     if (auto* p = getParentComponent()) setBounds(p->getLocalBounds());
     setVisible(true);
     toFront(true);
@@ -2428,7 +2428,7 @@ void Tour::start(std::vector<Step> steps)
 
 void Tour::next()
 {
-    if (++at_ >= steps_.size()) { finish(); return; }
+    if (++m_at >= m_steps.size()) { finish(); return; }
     resized();
     repaint();
 }
@@ -2436,14 +2436,14 @@ void Tour::next()
 void Tour::finish()
 {
     setVisible(false);
-    steps_.clear();
-    if (onDone) onDone();
+    m_steps.clear();
+    if (m_onDone) m_onDone();
 }
 
 juce::Rectangle<int> Tour::hole() const
 {
-    if (at_ >= steps_.size() || steps_[at_].target == nullptr || !steps_[at_].target->isShowing()) return {};
-    return getLocalArea(steps_[at_].target.getComponent(), steps_[at_].target->getLocalBounds()).expanded(6);
+    if (m_at >= m_steps.size() || m_steps[m_at].m_target == nullptr || !m_steps[m_at].m_target->isShowing()) return {};
+    return getLocalArea(m_steps[m_at].m_target.getComponent(), m_steps[m_at].m_target->getLocalBounds()).expanded(6);
 }
 
 juce::Rectangle<int> Tour::bubble() const
@@ -2461,206 +2461,206 @@ juce::Rectangle<int> Tour::bubble() const
 void Tour::resized()
 {
     const auto b = bubble();
-    next_.setButtonText(at_ + 1 >= steps_.size() ? "Done" : "Next");
-    next_.setBounds(b.getRight() - 92, b.getBottom() - 36, 80, 26);
-    skip_.setBounds(b.getRight() - 180, b.getBottom() - 36, 80, 26);
-    skip_.setVisible(at_ + 1 < steps_.size());
+    m_next.setButtonText(m_at + 1 >= m_steps.size() ? "Done" : "Next");
+    m_next.setBounds(b.getRight() - 92, b.getBottom() - 36, 80, 26);
+    m_skip.setBounds(b.getRight() - 180, b.getBottom() - 36, 80, 26);
+    m_skip.setVisible(m_at + 1 < m_steps.size());
 }
 
 void Tour::paint(juce::Graphics& g)
 {
-    if (at_ >= steps_.size()) return;
+    if (m_at >= m_steps.size()) return;
     const auto h = hole();
     // The window dimmed, the control left bright.
     juce::Path dim;
     dim.addRectangle(getLocalBounds().toFloat());
     if (!h.isEmpty()) dim.addRoundedRectangle(h.toFloat(), 8.0f);
     dim.setUsingNonZeroWinding(false);
-    g.setColour(skin_.bg.withAlpha(0.72f));
+    g.setColour(m_skin.m_bg.withAlpha(0.72f));
     g.fillPath(dim);
     if (!h.isEmpty()) {
-        g.setColour(skin_.accent);
+        g.setColour(m_skin.m_accent);
         g.drawRoundedRectangle(h.toFloat(), 8.0f, 2.0f);
     }
     const auto b = bubble().toFloat();
-    g.setColour(skin_.group.withAlpha(1.0f));
+    g.setColour(m_skin.m_group.withAlpha(1.0f));
     g.fillRoundedRectangle(b, 8.0f);
-    g.setColour(skin_.accent.withAlpha(0.7f));
+    g.setColour(m_skin.m_accent.withAlpha(0.7f));
     g.drawRoundedRectangle(b.reduced(0.5f), 8.0f, 1.2f);
-    const Step& s = steps_[at_];
-    g.setColour(skin_.accent);
+    const Step& s = m_steps[m_at];
+    g.setColour(m_skin.m_accent);
     g.setFont(font(15.0f, true));
-    g.drawText(s.title, b.reduced(14.0f, 10.0f).withHeight(22.0f), juce::Justification::centredLeft);
-    g.setColour(skin_.dim);
+    g.drawText(s.m_title, b.reduced(14.0f, 10.0f).withHeight(22.0f), juce::Justification::centredLeft);
+    g.setColour(m_skin.m_dim);
     g.setFont(font(11.0f));
-    g.drawText(juce::String(static_cast<int>(at_) + 1) + " / " + juce::String(static_cast<int>(steps_.size())), b.reduced(14.0f, 10.0f).withHeight(22.0f),
+    g.drawText(juce::String(static_cast<int>(m_at) + 1) + " / " + juce::String(static_cast<int>(m_steps.size())), b.reduced(14.0f, 10.0f).withHeight(22.0f),
                juce::Justification::centredRight);
-    g.setColour(skin_.ink);
+    g.setColour(m_skin.m_ink);
     g.setFont(font(13.0f));
-    g.drawFittedText(s.text, b.reduced(14.0f, 10.0f).withTrimmedTop(26.0f).withTrimmedBottom(36.0f).toNearestInt(), juce::Justification::topLeft, 5);
+    g.drawFittedText(s.m_text, b.reduced(14.0f, 10.0f).withTrimmedTop(26.0f).withTrimmedBottom(36.0f).toNearestInt(), juce::Justification::topLeft, 5);
 }
 
 // ================================================================================================= preset browser
 
 namespace {
-constexpr int kRecent = 40;   ///< the most presets the recent list keeps per bank
+constexpr int Recent = 40;   ///< the most presets the recent list keeps per bank
 } // namespace
 
 /** @brief A row of the list (see PresetBrowser): the play mark (held: listen), the star, the name, the group. */
 class PresetBrowser::Row final : public juce::Component {
 public:
     /** @brief A row of @p owner. */
-    explicit Row(PresetBrowser& owner) : owner_(owner) {}
+    explicit Row(PresetBrowser& owner) : m_owner(owner) {}
     /** @brief Shows entry @p e (-1 none) at list row @p row. */
     void show(int row, int e, bool selected)
     {
-        row_ = row;
-        entry_ = e;
-        selected_ = selected;
+        m_row = row;
+        m_entry = e;
+        m_selected = selected;
         repaint();
     }
     /** @brief The play mark, the star, the name, the group. */
     void paint(juce::Graphics& g) override
     {
-        if (entry_ < 0) return;
-        const Skin& skin = owner_.skin_;
-        const Entry& e = owner_.bank_.entries[static_cast<size_t>(entry_)];
-        if (selected_) {
-            g.setColour(skin.accent.withAlpha(0.16f));
-            g.fillRoundedRectangle(getLocalBounds().toFloat().reduced(1.0f), skin.radius);
+        if (m_entry < 0) return;
+        const Skin& skin = m_owner.m_skin;
+        const Entry& e = m_owner.m_bank.m_entries[static_cast<size_t>(m_entry)];
+        if (m_selected) {
+            g.setColour(skin.m_accent.withAlpha(0.16f));
+            g.fillRoundedRectangle(getLocalBounds().toFloat().reduced(1.0f), skin.m_radius);
         }
-        if (owner_.bank_.preview) {   // the play mark: a triangle, lit while held
+        if (m_owner.m_bank.m_preview) {   // the play mark: a triangle, lit while held
             juce::Path tri;
             tri.addTriangle(10.0f, 8.0f, 10.0f, static_cast<float>(getHeight()) - 8.0f, 22.0f, static_cast<float>(getHeight()) * 0.5f);
-            g.setColour(listening_ ? skin.accent : skin.dim);
+            g.setColour(m_listening ? skin.m_accent : skin.m_dim);
             g.fillPath(tri);
         }
-        const bool fav = owner_.favourite(e.name);
+        const bool fav = m_owner.favourite(e.m_name);
         juce::Path star;
         star.addStar({ 40.0f, static_cast<float>(getHeight()) * 0.5f }, 5, 3.0f, 7.0f);
-        g.setColour(fav ? skin.family(Family::Envelope) : skin.faint);
+        g.setColour(fav ? skin.family(FamilyE::ENVELOPE) : skin.m_faint);
         if (fav) g.fillPath(star);
         else g.strokePath(star, juce::PathStrokeType(1.2f));
-        g.setColour(e.yours ? skin.family(Family::Envelope) : skin.ink);
+        g.setColour(e.m_yours ? skin.family(FamilyE::ENVELOPE) : skin.m_ink);
         g.setFont(font(14.0f));
-        g.drawText(e.name, 56, 0, getWidth() / 2 - 56, getHeight(), juce::Justification::centredLeft);
-        g.setColour(skin.dim);
+        g.drawText(e.m_name, 56, 0, getWidth() / 2 - 56, getHeight(), juce::Justification::centredLeft);
+        g.setColour(skin.m_dim);
         g.setFont(font(12.0f));
-        g.drawText(e.group + (e.note.isNotEmpty() ? "   (" + e.note + ")" : juce::String()), getWidth() / 2, 0, getWidth() / 2 - 12, getHeight(),
+        g.drawText(e.m_group + (e.m_note.isNotEmpty() ? "   (" + e.m_note + ")" : juce::String()), getWidth() / 2, 0, getWidth() / 2 - 12, getHeight(),
                    juce::Justification::centredLeft);
     }
     /** @brief Listens (the play mark), stars, or chooses the row. */
     void mouseDown(const juce::MouseEvent& e) override
     {
-        if (entry_ < 0) return;
-        owner_.list_.selectRow(row_);
-        const Entry en = owner_.bank_.entries[static_cast<size_t>(entry_)];
-        if (e.x < 30 && owner_.bank_.preview) {
-            listening_ = true;
-            owner_.bank_.preview(en);
+        if (m_entry < 0) return;
+        m_owner.m_list.selectRow(m_row);
+        const Entry en = m_owner.m_bank.m_entries[static_cast<size_t>(m_entry)];
+        if (e.x < 30 && m_owner.m_bank.m_preview) {
+            m_listening = true;
+            m_owner.m_bank.m_preview(en);
             repaint();
         } else if (e.x < 52) {
-            owner_.setFavourite(en.name, !owner_.favourite(en.name));
+            m_owner.setFavourite(en.m_name, !m_owner.favourite(en.m_name));
             repaint();
-            if (owner_.categories_[static_cast<size_t>(owner_.category_)].kind == 1) owner_.filter();
+            if (m_owner.m_categories[static_cast<size_t>(m_owner.m_category)].m_kind == 1) m_owner.filter();
         }
     }
     /** @brief Back to the sound before the listening. */
     void mouseUp(const juce::MouseEvent&) override
     {
-        if (!listening_) return;
-        listening_ = false;
-        if (owner_.bank_.endPreview) owner_.bank_.endPreview();
+        if (!m_listening) return;
+        m_listening = false;
+        if (m_owner.m_bank.m_endPreview) m_owner.m_bank.m_endPreview();
         repaint();
     }
     /** @brief Takes it. */
     void mouseDoubleClick(const juce::MouseEvent& e) override
     {
-        if (e.x >= 52) owner_.choose(row_);
+        if (e.x >= 52) m_owner.choose(m_row);
     }
 
 private:
-    PresetBrowser& owner_;     ///< whose
-    int row_ = -1;             ///< the list's row
-    int entry_ = -1;           ///< the entry shown
-    bool selected_ = false;    ///< chosen
-    bool listening_ = false;   ///< its play mark is held
+    PresetBrowser& m_owner;     ///< whose
+    int m_row = -1;             ///< the list's row
+    int m_entry = -1;           ///< the entry shown
+    bool m_selected = false;    ///< chosen
+    bool m_listening = false;   ///< its play mark is held
 };
 
 /** @brief The categories' list (see PresetBrowser). */
 class PresetBrowser::Categories final : public juce::ListBoxModel {
 public:
     /** @brief The categories of @p owner. */
-    explicit Categories(PresetBrowser& owner) : owner_(owner) {}
+    explicit Categories(PresetBrowser& owner) : m_owner(owner) {}
     /** @brief How many. */
-    int getNumRows() override { return static_cast<int>(owner_.categories_.size()); }
+    int getNumRows() override { return static_cast<int>(m_owner.m_categories.size()); }
     /** @brief One: a heading for a section, indented for a group. */
     void paintListBoxItem(int row, juce::Graphics& g, int width, int height, bool selected) override
     {
         if (row < 0 || row >= getNumRows()) return;
-        const Skin& skin = owner_.skin_;
-        const Category& c = owner_.categories_[static_cast<size_t>(row)];
+        const Skin& skin = m_owner.m_skin;
+        const Category& c = m_owner.m_categories[static_cast<size_t>(row)];
         if (selected) {
-            g.setColour(skin.accent.withAlpha(0.18f));
-            g.fillRoundedRectangle(juce::Rectangle<float>(0.0f, 0.0f, static_cast<float>(width), static_cast<float>(height)), skin.radius);
+            g.setColour(skin.m_accent.withAlpha(0.18f));
+            g.fillRoundedRectangle(juce::Rectangle<float>(0.0f, 0.0f, static_cast<float>(width), static_cast<float>(height)), skin.m_radius);
         }
-        const bool heading = c.kind <= 4;
-        g.setColour(heading ? skin.ink : skin.dim);
+        const bool heading = c.m_kind <= 4;
+        g.setColour(heading ? skin.m_ink : skin.m_dim);
         g.setFont(font(heading ? 13.0f : 12.0f, heading));
-        g.drawText(c.title, c.kind == 5 ? 18 : 6, 0, width - 20, height, juce::Justification::centredLeft);
+        g.drawText(c.m_title, c.m_kind == 5 ? 18 : 6, 0, width - 20, height, juce::Justification::centredLeft);
     }
     /** @brief Chooses it. */
     void selectedRowsChanged(int row) override
     {
         if (row < 0) return;
-        owner_.category_ = row;
-        owner_.filter();
+        m_owner.m_category = row;
+        m_owner.filter();
     }
 
 private:
-    PresetBrowser& owner_;   ///< whose
+    PresetBrowser& m_owner;   ///< whose
 };
 
-PresetBrowser::PresetBrowser(const Skin& skin, const juce::String& app) : skin_(skin), app_(app), list_({}, this)
+PresetBrowser::PresetBrowser(const Skin& skin, const juce::String& app) : m_skin(skin), m_app(app), m_list({}, this)
 {
-    search_.setFont(juce::FontOptions(16.0f));
-    search_.setTextToShowWhenEmpty("A name or a group ...", skin_.dim);
-    search_.setColour(juce::TextEditor::backgroundColourId, skin_.raised);
-    search_.setColour(juce::TextEditor::textColourId, skin_.ink);
-    search_.setColour(juce::TextEditor::outlineColourId, skin_.edge);
-    search_.addListener(this);
-    addAndMakeVisible(search_);
-    title_.setColour(juce::Label::textColourId, skin_.accent);
-    title_.setFont(juce::FontOptions(15.0f, juce::Font::bold));
-    addAndMakeVisible(title_);
-    categoryModel_ = std::make_unique<Categories>(*this);
-    categoryList_ = std::make_unique<juce::ListBox>("categories", categoryModel_.get());
-    categoryList_->setRowHeight(22);
-    categoryList_->setColour(juce::ListBox::backgroundColourId, juce::Colours::transparentBlack);
-    addAndMakeVisible(*categoryList_);
-    take_.onClick = [this] { choose(list_.getSelectedRow()); };
-    close_.onClick = [this] { close(); };
-    addAndMakeVisible(take_);
-    addAndMakeVisible(close_);
-    count_.setColour(juce::Label::textColourId, skin_.dim);
-    count_.setFont(juce::FontOptions(12.0f));
-    addAndMakeVisible(count_);
-    list_.setRowHeight(28);
-    list_.setColour(juce::ListBox::backgroundColourId, juce::Colours::transparentBlack);
-    addAndMakeVisible(list_);
+    m_search.setFont(juce::FontOptions(16.0f));
+    m_search.setTextToShowWhenEmpty("A name or a group ...", m_skin.m_dim);
+    m_search.setColour(juce::TextEditor::backgroundColourId, m_skin.m_raised);
+    m_search.setColour(juce::TextEditor::textColourId, m_skin.m_ink);
+    m_search.setColour(juce::TextEditor::outlineColourId, m_skin.m_edge);
+    m_search.addListener(this);
+    addAndMakeVisible(m_search);
+    m_title.setColour(juce::Label::textColourId, m_skin.m_accent);
+    m_title.setFont(juce::FontOptions(15.0f, juce::Font::bold));
+    addAndMakeVisible(m_title);
+    m_categoryModel = std::make_unique<Categories>(*this);
+    m_categoryList = std::make_unique<juce::ListBox>("categories", m_categoryModel.get());
+    m_categoryList->setRowHeight(22);
+    m_categoryList->setColour(juce::ListBox::backgroundColourId, juce::Colours::transparentBlack);
+    addAndMakeVisible(*m_categoryList);
+    m_take.onClick = [this] { choose(m_list.getSelectedRow()); };
+    m_close.onClick = [this] { close(); };
+    addAndMakeVisible(m_take);
+    addAndMakeVisible(m_close);
+    m_count.setColour(juce::Label::textColourId, m_skin.m_dim);
+    m_count.setFont(juce::FontOptions(12.0f));
+    addAndMakeVisible(m_count);
+    m_list.setRowHeight(28);
+    m_list.setColour(juce::ListBox::backgroundColourId, juce::Colours::transparentBlack);
+    addAndMakeVisible(m_list);
     setWantsKeyboardFocus(true);
     setVisible(false);
 }
 
 PresetBrowser::~PresetBrowser() = default;
 
-bool PresetBrowser::favourite(const juce::String& name) const { return favourites_.contains(name); }
+bool PresetBrowser::favourite(const juce::String& name) const { return m_favourites.contains(name); }
 
 void PresetBrowser::setFavourite(const juce::String& name, bool on)
 {
-    if (on) favourites_.addIfNotAlreadyThere(name);
-    else favourites_.removeString(name);
-    Settings::of(app_).setValue("favourites." + bank_.key, favourites_.joinIntoString("\n"));
+    if (on) m_favourites.addIfNotAlreadyThere(name);
+    else m_favourites.removeString(name);
+    Settings::of(m_app).setValue("favourites." + m_bank.m_key, m_favourites.joinIntoString("\n"));
 }
 
 void PresetBrowser::played(const juce::String& app, const juce::String& key, const juce::String& name)
@@ -2670,90 +2670,90 @@ void PresetBrowser::played(const juce::String& app, const juce::String& key, con
     recent.removeEmptyStrings();
     recent.removeString(name);
     recent.insert(0, name);
-    while (recent.size() > kRecent) recent.remove(recent.size() - 1);
+    while (recent.size() > Recent) recent.remove(recent.size() - 1);
     s.setValue("recent." + key, recent.joinIntoString("\n"), false);
 }
 
 void PresetBrowser::open(Bank bank)
 {
-    bank_ = std::move(bank);
-    favourites_ = juce::StringArray::fromLines(Settings::of(app_).value("favourites." + bank_.key));
-    favourites_.removeEmptyStrings();
-    title_.setText(bank_.title, juce::dontSendNotification);
-    categories_.clear();
-    categories_.push_back({ "All", 0, {} });
-    categories_.push_back({ "Favourites", 1, {} });
-    categories_.push_back({ "Recently played", 2, {} });
+    m_bank = std::move(bank);
+    m_favourites = juce::StringArray::fromLines(Settings::of(m_app).value("favourites." + m_bank.m_key));
+    m_favourites.removeEmptyStrings();
+    m_title.setText(m_bank.m_title, juce::dontSendNotification);
+    m_categories.clear();
+    m_categories.push_back({ "All", 0, {} });
+    m_categories.push_back({ "Favourites", 1, {} });
+    m_categories.push_back({ "Recently played", 2, {} });
     bool yours = false;
-    for (const Entry& e : bank_.entries) yours = yours || e.yours;
-    if (yours) categories_.push_back({ "Yours", 3, {} });
+    for (const Entry& e : m_bank.m_entries) yours = yours || e.m_yours;
+    if (yours) m_categories.push_back({ "Yours", 3, {} });
     // The sections and their groups, in the bank's order.
     juce::String section, group;
-    for (const Entry& e : bank_.entries) {
-        if (e.yours) continue;
-        if (e.section.isNotEmpty() && e.section != section) {
-            section = e.section;
-            categories_.push_back({ section, 4, section });
+    for (const Entry& e : m_bank.m_entries) {
+        if (e.m_yours) continue;
+        if (e.m_section.isNotEmpty() && e.m_section != section) {
+            section = e.m_section;
+            m_categories.push_back({ section, 4, section });
         }
-        if (e.group != group) {
-            group = e.group;
-            categories_.push_back({ group, 5, group });
+        if (e.m_group != group) {
+            group = e.m_group;
+            m_categories.push_back({ group, 5, group });
         }
     }
-    categoryList_->updateContent();
-    category_ = 0;
-    categoryList_->selectRow(0, true, true);
-    search_.clear();
+    m_categoryList->updateContent();
+    m_category = 0;
+    m_categoryList->selectRow(0, true, true);
+    m_search.clear();
     if (auto* p = getParentComponent()) setBounds(p->getLocalBounds());
     filter();
     setVisible(true);
     toFront(true);
-    search_.grabKeyboardFocus();
+    m_search.grabKeyboardFocus();
 }
 
 void PresetBrowser::close()
 {
-    if (bank_.endPreview) bank_.endPreview();
+    if (m_bank.m_endPreview) m_bank.m_endPreview();
     setVisible(false);
     if (auto* p = getParentComponent()) p->grabKeyboardFocus();
 }
 
 void PresetBrowser::filter()
 {
-    const juce::String q = search_.getText().trim().toLowerCase();
-    const Category c = categories_.empty() ? Category{} : categories_[static_cast<size_t>(category_)];
+    const juce::String q = m_search.getText().trim().toLowerCase();
+    const Category c = m_categories.empty() ? Category{} : m_categories[static_cast<size_t>(m_category)];
     juce::StringArray recent;
-    if (c.kind == 2) {
-        recent = juce::StringArray::fromLines(Settings::of(app_).value("recent." + bank_.key));
+    if (c.m_kind == 2) {
+        recent = juce::StringArray::fromLines(Settings::of(m_app).value("recent." + m_bank.m_key));
         recent.removeEmptyStrings();
     }
-    shown_.clear();
-    for (size_t i = 0; i < bank_.entries.size(); ++i) {
-        const Entry& e = bank_.entries[i];
-        if (c.kind == 1 && !favourite(e.name)) continue;
-        if (c.kind == 2 && !recent.contains(e.name)) continue;
-        if (c.kind == 3 && !e.yours) continue;
-        if (c.kind == 4 && (e.yours || e.section != c.which)) continue;
-        if (c.kind == 5 && (e.yours || e.group != c.which)) continue;
-        if (q.isNotEmpty() && !e.name.toLowerCase().contains(q) && !e.group.toLowerCase().contains(q)) continue;
-        shown_.push_back(static_cast<int>(i));
+    m_shown.clear();
+    for (size_t i = 0; i < m_bank.m_entries.size(); ++i) {
+        const Entry& e = m_bank.m_entries[i];
+        if (c.m_kind == 1 && !favourite(e.m_name)) continue;
+        if (c.m_kind == 2 && !recent.contains(e.m_name)) continue;
+        if (c.m_kind == 3 && !e.m_yours) continue;
+        if (c.m_kind == 4 && (e.m_yours || e.m_section != c.m_which)) continue;
+        if (c.m_kind == 5 && (e.m_yours || e.m_group != c.m_which)) continue;
+        if (q.isNotEmpty() && !e.m_name.toLowerCase().contains(q) && !e.m_group.toLowerCase().contains(q)) continue;
+        m_shown.push_back(static_cast<int>(i));
     }
-    if (c.kind == 2)   // the recent ones newest first
-        std::stable_sort(shown_.begin(), shown_.end(), [&](int a, int b) {
-            return recent.indexOf(bank_.entries[static_cast<size_t>(a)].name) < recent.indexOf(bank_.entries[static_cast<size_t>(b)].name);
+    if (c.m_kind == 2)   // the recent ones newest first
+        std::stable_sort(m_shown.begin(), m_shown.end(), [&](int a, int b) {
+            return recent.indexOf(m_bank.m_entries[static_cast<size_t>(a)].m_name) < recent.indexOf(m_bank.m_entries[static_cast<size_t>(b)].m_name);
         });
-    list_.updateContent();
-    list_.selectRow(shown_.empty() ? -1 : 0);
-    list_.repaint();
-    count_.setText(juce::String(static_cast<int>(shown_.size())) + " presets", juce::dontSendNotification);
+    m_list.updateContent();
+    m_list.selectRow(m_shown.empty() ? -1 : 0);
+    m_list.repaint();
+    m_count.setText(juce::String(static_cast<int>(m_shown.size())) + " presets", juce::dontSendNotification);
 }
 
 void PresetBrowser::choose(int row)
 {
-    if (row < 0 || row >= static_cast<int>(shown_.size())) return;
-    const Entry e = bank_.entries[static_cast<size_t>(shown_[static_cast<size_t>(row)])];
-    played(app_, bank_.key, e.name);
-    if (bank_.choose) bank_.choose(e);
+    if (row < 0 || row >= static_cast<int>(m_shown.size())) return;
+    const Entry e = m_bank.m_entries[static_cast<size_t>(m_shown[static_cast<size_t>(row)])];
+    played(m_app, m_bank.m_key, e.m_name);
+    if (m_bank.m_choose) m_bank.m_choose(e);
     close();
 }
 
@@ -2767,27 +2767,27 @@ void PresetBrowser::resized()
 {
     auto r = panel().reduced(12);
     auto top = r.removeFromTop(34);
-    close_.setBounds(top.removeFromRight(80).reduced(2));
-    take_.setBounds(top.removeFromRight(80).reduced(2));
+    m_close.setBounds(top.removeFromRight(80).reduced(2));
+    m_take.setBounds(top.removeFromRight(80).reduced(2));
     top.removeFromRight(8);
-    title_.setBounds(top.removeFromLeft(200));
-    search_.setBounds(top);
+    m_title.setBounds(top.removeFromLeft(200));
+    m_search.setBounds(top);
     r.removeFromTop(8);
     auto left = r.removeFromLeft(210);
-    count_.setBounds(left.removeFromBottom(20));
-    categoryList_->setBounds(left);
+    m_count.setBounds(left.removeFromBottom(20));
+    m_categoryList->setBounds(left);
     r.removeFromLeft(10);
-    list_.setBounds(r);
+    m_list.setBounds(r);
 }
 
 void PresetBrowser::paint(juce::Graphics& g)
 {
-    g.fillAll(skin_.bg.withAlpha(0.55f));
+    g.fillAll(m_skin.m_bg.withAlpha(0.55f));
     const auto p = panel().toFloat();
-    g.setColour(skin_.group.withAlpha(1.0f));
-    g.fillRoundedRectangle(p, skin_.radius * 2.0f);
-    g.setColour(skin_.accent.withAlpha(0.5f));
-    g.drawRoundedRectangle(p.reduced(0.5f), skin_.radius * 2.0f, 1.2f);
+    g.setColour(m_skin.m_group.withAlpha(1.0f));
+    g.fillRoundedRectangle(p, m_skin.m_radius * 2.0f);
+    g.setColour(m_skin.m_accent.withAlpha(0.5f));
+    g.drawRoundedRectangle(p.reduced(0.5f), m_skin.m_radius * 2.0f, 1.2f);
 }
 
 void PresetBrowser::mouseDown(const juce::MouseEvent& e)
@@ -2798,11 +2798,11 @@ void PresetBrowser::mouseDown(const juce::MouseEvent& e)
 bool PresetBrowser::keyPressed(const juce::KeyPress& key)
 {
     if (key.isKeyCode(juce::KeyPress::escapeKey)) { close(); return true; }
-    if (key.isKeyCode(juce::KeyPress::returnKey)) { choose(list_.getSelectedRow()); return true; }
+    if (key.isKeyCode(juce::KeyPress::returnKey)) { choose(m_list.getSelectedRow()); return true; }
     return false;
 }
 
-int PresetBrowser::getNumRows() { return static_cast<int>(shown_.size()); }
+int PresetBrowser::getNumRows() { return static_cast<int>(m_shown.size()); }
 
 juce::Component* PresetBrowser::refreshComponentForRow(int row, bool selected, juce::Component* existing)
 {
@@ -2811,7 +2811,7 @@ juce::Component* PresetBrowser::refreshComponentForRow(int row, bool selected, j
         delete existing;
         r = new Row(*this);
     }
-    r->show(row, row >= 0 && row < static_cast<int>(shown_.size()) ? shown_[static_cast<size_t>(row)] : -1, selected);
+    r->show(row, row >= 0 && row < static_cast<int>(m_shown.size()) ? m_shown[static_cast<size_t>(row)] : -1, selected);
     return r;
 }
 
@@ -2823,30 +2823,30 @@ namespace {
 class ModRowItem final : public juce::PopupMenu::CustomComponent {
 public:
     /** @brief Row @p row of the matrix @p access works on. */
-    ModRowItem(ModAccess access, const ModAccess::Row& row) : juce::PopupMenu::CustomComponent(false), access_(std::move(access)), row_(row.index)
+    ModRowItem(ModAccess access, const ModAccess::Row& row) : juce::PopupMenu::CustomComponent(false), m_access(std::move(access)), m_row(row.m_index)
     {
-        name_.setText(row.name, juce::dontSendNotification);
-        name_.setColour(juce::Label::textColourId, row.colour);
-        name_.setFont(juce::FontOptions(13.0f));
-        name_.setInterceptsMouseClicks(false, false);
-        depth_.setSliderStyle(juce::Slider::LinearHorizontal);
-        depth_.setTextBoxStyle(juce::Slider::TextBoxRight, false, 52, 18);
-        depth_.setRange(-1.0, 1.0, 0.001);
-        depth_.setValue(row.depth, juce::dontSendNotification);
-        depth_.setDoubleClickReturnValue(true, 0.0);
-        depth_.setColour(juce::Slider::trackColourId, row.colour);
-        depth_.setTooltip("How far it moves the knob, of the knob's whole range (negative: the other way)");
-        depth_.onValueChange = [this] { if (access_.setDepth) access_.setDepth(row_, static_cast<float>(depth_.getValue())); };
-        depth_.onDragStart = [this] { if (access_.begin) access_.begin("Modulation depth"); };   // one step for the whole drag
-        depth_.onDragEnd = [this] { if (access_.end) access_.end(); };
-        remove_.setTooltip("Takes this row out of the matrix");
-        remove_.onClick = [this] {
-            if (access_.remove) access_.remove(row_);
+        m_name.setText(row.m_name, juce::dontSendNotification);
+        m_name.setColour(juce::Label::textColourId, row.m_colour);
+        m_name.setFont(juce::FontOptions(13.0f));
+        m_name.setInterceptsMouseClicks(false, false);
+        m_depth.setSliderStyle(juce::Slider::LinearHorizontal);
+        m_depth.setTextBoxStyle(juce::Slider::TextBoxRight, false, 52, 18);
+        m_depth.setRange(-1.0, 1.0, 0.001);
+        m_depth.setValue(row.m_depth, juce::dontSendNotification);
+        m_depth.setDoubleClickReturnValue(true, 0.0);
+        m_depth.setColour(juce::Slider::trackColourId, row.m_colour);
+        m_depth.setTooltip("How far it moves the knob, of the knob's whole range (negative: the other way)");
+        m_depth.onValueChange = [this] { if (m_access.m_setDepth) m_access.m_setDepth(m_row, static_cast<float>(m_depth.getValue())); };
+        m_depth.onDragStart = [this] { if (m_access.m_begin) m_access.m_begin("Modulation depth"); };   // one step for the whole drag
+        m_depth.onDragEnd = [this] { if (m_access.m_end) m_access.m_end(); };
+        m_remove.setTooltip("Takes this row out of the matrix");
+        m_remove.onClick = [this] {
+            if (m_access.m_remove) m_access.m_remove(m_row);
             triggerMenuItem();   // the menu closes: the row is gone
         };
-        addAndMakeVisible(name_);
-        addAndMakeVisible(depth_);
-        addAndMakeVisible(remove_);
+        addAndMakeVisible(m_name);
+        addAndMakeVisible(m_depth);
+        addAndMakeVisible(m_remove);
     }
     /** @brief A row's size in the menu. */
     void getIdealSize(int& w, int& h) override
@@ -2858,47 +2858,47 @@ public:
     void resized() override
     {
         auto r = getLocalBounds().reduced(6, 3);
-        remove_.setBounds(r.removeFromRight(24));
-        name_.setBounds(r.removeFromLeft(120));
-        depth_.setBounds(r.reduced(4, 0));
+        m_remove.setBounds(r.removeFromRight(24));
+        m_name.setBounds(r.removeFromLeft(120));
+        m_depth.setBounds(r.reduced(4, 0));
     }
 
 private:
-    ModAccess access_;                  ///< the matrix
-    int row_;                           ///< which row
-    juce::Label name_;                  ///< its source
-    juce::Slider depth_;                ///< its depth
-    juce::TextButton remove_{ "x" };    ///< takes it out
+    ModAccess m_access;                  ///< the matrix
+    int m_row;                           ///< which row
+    juce::Label m_name;                  ///< its source
+    juce::Slider m_depth;                ///< its depth
+    juce::TextButton m_remove{ "x" };    ///< takes it out
 };
 
 } // namespace
 
 void ModulationAtKnob::install(ControlActions& actions, LiveRings* rings)
 {
-    actions.more = [this](juce::PopupMenu& m, int id) { addMenuItems(m, id); };
-    actions.altDrag = [this](int id, const juce::MouseEvent& e, int phase) { return altDrag(id, e, phase); };
-    if (rings != nullptr && access_.arcs) rings->setModArcs(access_.arcs);
+    actions.m_more = [this](juce::PopupMenu& m, int id) { addMenuItems(m, id); };
+    actions.m_altDrag = [this](int id, const juce::MouseEvent& e, int phase) { return altDrag(id, e, phase); };
+    if (rings != nullptr && m_access.m_arcs) rings->setModArcs(m_access.m_arcs);
 }
 
 void ModulationAtKnob::addMenuItems(juce::PopupMenu& m, int id)
 {
-    if (!access_.sources) return;
-    const std::vector<ModAccess::Source> sources = access_.sources(id);
+    if (!m_access.m_sources) return;
+    const std::vector<ModAccess::Source> sources = m_access.m_sources(id);
     if (sources.empty()) return;
     m.addSeparator();
     m.addSectionHeader("Modulation");
-    if (access_.rowsOn)
-        for (const ModAccess::Row& r : access_.rowsOn(id))
-            m.addCustomItem(0x7f000000 + r.index, std::make_unique<ModRowItem>(access_, r), nullptr, r.name);
+    if (m_access.m_rowsOn)
+        for (const ModAccess::Row& r : m_access.m_rowsOn(id))
+            m.addCustomItem(0x7f000000 + r.m_index, std::make_unique<ModRowItem>(m_access, r), nullptr, r.m_name);
     juce::PopupMenu with;
     juce::String section;
     for (const ModAccess::Source& s : sources) {
-        if (s.section != section) {
-            section = s.section;
+        if (s.m_section != section) {
+            section = s.m_section;
             if (section.isNotEmpty()) with.addSectionHeader(section);
         }
-        with.addItem(s.name, [this, id, src = s.id] {
-            if (access_.add && !access_.add(id, src) && access_.say) access_.say("Every row of the matrix is taken: free one first.");
+        with.addItem(s.m_name, [this, id, src = s.m_id] {
+            if (m_access.m_add && !m_access.m_add(id, src) && m_access.m_say) m_access.m_say("Every row of the matrix is taken: free one first.");
         });
     }
     m.addSubMenu("Modulate with", with);
@@ -2907,23 +2907,23 @@ void ModulationAtKnob::addMenuItems(juce::PopupMenu& m, int id)
 bool ModulationAtKnob::altDrag(int id, const juce::MouseEvent& e, int phase)
 {
     if (phase == 0) {
-        row_ = -1;
-        if (!access_.rowsOn) return false;
-        const std::vector<ModAccess::Row> rows = access_.rowsOn(id);
+        m_row = -1;
+        if (!m_access.m_rowsOn) return false;
+        const std::vector<ModAccess::Row> rows = m_access.m_rowsOn(id);
         if (rows.empty()) return false;   // nothing on it: the knob turns as usual
-        row_ = rows.back().index;
-        depth0_ = rows.back().depth;
-        if (access_.begin) access_.begin("Modulation depth");   // one step for the whole drag
+        m_row = rows.back().m_index;
+        m_depth0 = rows.back().m_depth;
+        if (m_access.m_begin) m_access.m_begin("Modulation depth");   // one step for the whole drag
         return true;
     }
-    if (row_ < 0) return false;
+    if (m_row < 0) return false;
     // Up deepens, down the other way: 200 pixels the whole range.
-    const float d = juce::jlimit(-1.0f, 1.0f, depth0_ - static_cast<float>(e.getDistanceFromDragStartY()) / 200.0f);
-    if (access_.setDepth) access_.setDepth(row_, d);
-    if (access_.say) access_.say("Modulation depth " + juce::String(d, 2) + (phase == 2 ? juce::String() : juce::String("   (Alt-drag: up deeper, down the other way)")));
+    const float d = juce::jlimit(-1.0f, 1.0f, m_depth0 - static_cast<float>(e.getDistanceFromDragStartY()) / 200.0f);
+    if (m_access.m_setDepth) m_access.m_setDepth(m_row, d);
+    if (m_access.m_say) m_access.m_say("Modulation depth " + juce::String(d, 2) + (phase == 2 ? juce::String() : juce::String("   (Alt-drag: up deeper, down the other way)")));
     if (phase == 2) {
-        row_ = -1;
-        if (access_.end) access_.end();
+        m_row = -1;
+        if (m_access.m_end) m_access.m_end();
     }
     return true;
 }

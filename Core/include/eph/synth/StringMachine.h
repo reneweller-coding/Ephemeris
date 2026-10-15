@@ -42,28 +42,28 @@ namespace eph {
 
 /** @brief Settings for the following samples. */
 struct StringSettings {
-    float attackS = 0.35f;       ///< crescendo
-    float releaseS = 1.2f;       ///< sustain after the key
-    float feet = 0.4f;           ///< balance of the footages: 0 the low ones .. 1 the high ones
-    float toneHz = 5000.0f;      ///< low pass after the registers (times the registration's tone)
-    float ensemble = 0.8f;       ///< 0..1 depth of the ensemble
-    float registration = 0.0f;   ///< 0..7 through Violins, Violas, Cellos, Basses, Full, Hollow, Brass, Organ
-    float animate = 0.3f;        ///< 0..1 how far the slow sine moves the registration
-    float animateHz = 0.05f;     ///< its rate
-    int ensembleType = 0;        ///< 0 Solina, 1 Chorus, 2 Wide
-    float phaser = 0.0f;         ///< 0..1 amount of the phaser
+    float m_attackS = 0.35f;       ///< crescendo
+    float m_releaseS = 1.2f;       ///< sustain after the key
+    float m_feet = 0.4f;           ///< balance of the footages: 0 the low ones .. 1 the high ones
+    float m_toneHz = 5000.0f;      ///< low pass after the registers (times the registration's tone)
+    float m_ensemble = 0.8f;       ///< 0..1 depth of the ensemble
+    float m_registration = 0.0f;   ///< 0..7 through Violins, Violas, Cellos, Basses, Full, Hollow, Brass, Organ
+    float m_animate = 0.3f;        ///< 0..1 how far the slow sine moves the registration
+    float m_animateHz = 0.05f;     ///< its rate
+    int m_ensembleType = 0;        ///< 0 Solina, 1 Chorus, 2 Wide
+    float m_phaser = 0.0f;         ///< 0..1 amount of the phaser
     // 26.09.2026 (compared bit for bit: 4-byte members only).
-    float decayS = 2.0f;         ///< the decay after the crescendo, towards
-    float sustain = 1.0f;        ///< the sustain level (1: none)
-    ModSettings mod;             ///< two LFOs and four slots (the destinations mapped by shortModDest)
+    float m_decayS = 2.0f;         ///< the decay after the crescendo, towards
+    float m_sustain = 1.0f;        ///< the sustain level (1: none)
+    ModSettings m_mod;             ///< two LFOs and four slots (the destinations mapped by shortModDest)
 };
 
 /** @brief The string machine; stereo out (the ensemble makes the width). */
 class StringMachine {
 public:
-    static constexpr int kKeys = 12;          ///< polyphony
-    static constexpr int kRegisters = 5;      ///< saw 16', saw 8', saw 4', square 8', square 4'
-    static constexpr int kRegistrations = 8;  ///< the registrations the knob morphs through
+    static constexpr int Keys = 12;          ///< polyphony
+    static constexpr int Registers = 5;      ///< saw 16', saw 8', saw 4', square 8', square 4'
+    static constexpr int Registrations = 8;  ///< the registrations the knob morphs through
     /** @brief Sample rate; allocates the ensemble's lines. */
     void prepare(double sampleRate, uint64_t seed);
     void set(const StringSettings& s);                 ///< takes the settings (every 32-sample cell)
@@ -76,62 +76,62 @@ public:
     /** @brief The name of registration @p i (0..7). */
     static const char* registrationName(int i);
     /** @brief The piece's beat at the next sample and beats per sample (the synced LFOs); call at every cell. */
-    void setClock(double beat, double beatsPerSample) { beat0_ = beat; bps_ = beatsPerSample; clockAt_ = count_; }
+    void setClock(double beat, double beatsPerSample) { m_beat0 = beat; m_bps = beatsPerSample; m_clockAt = m_count; }
     /** @brief The matrix's pan offset (the engine adds it to the strip's pan). */
-    float panMod() const { return mod_.offset(mo_, ModDest::Pan); }
+    float panMod() const { return m_mod.offset(m_mo, ModDestE::PAN); }
 
 private:
     /** @brief One key: its divider taps, its envelope. */
     struct Key {
-        bool on = false;   ///< it sounds
-        bool held = false;   ///< it is held
-        int pitch = 60;   ///< MIDI note
-        int id = -1;   ///< the note id it plays, -1 none
-        float velocity = 0.8f;   ///< its velocity, 0..1
-        float env = 0.0f;   ///< its envelope
-        bool decaying = false;               ///< past the crescendo, on the way to the sustain level
-        uint32_t order = 0;   ///< when it was pressed (the oldest is taken)
-        int pc = 0;                          ///< pitch class: the top-octave generator the key divides
-        double inv16 = 1.0;   ///< 1 / the 16' divider
-        double inv8 = 1.0;   ///< 1 / the 8' divider
-        double inv4 = 1.0;   ///< 1 / the 4' divider (powers of two, so exact)
+        bool m_on = false;   ///< it sounds
+        bool m_held = false;   ///< it is held
+        int m_pitch = 60;   ///< MIDI note
+        int m_id = -1;   ///< the note id it plays, -1 none
+        float m_velocity = 0.8f;   ///< its velocity, 0..1
+        float m_env = 0.0f;   ///< its envelope
+        bool m_decaying = false;               ///< past the crescendo, on the way to the sustain level
+        uint32_t m_order = 0;   ///< when it was pressed (the oldest is taken)
+        int m_pc = 0;                          ///< pitch class: the top-octave generator the key divides
+        double m_inv16 = 1.0;   ///< 1 / the 16' divider
+        double m_inv8 = 1.0;   ///< 1 / the 8' divider
+        double m_inv4 = 1.0;   ///< 1 / the 4' divider (powers of two, so exact)
     };
     /** @brief The registration at @p position (0..7): register weights, tone factor and loudness. */
     void registrationAt(float position);
-    double sr_ = 48000.0;   ///< the sample rate, Hz
-    StringSettings s_;   ///< the settings
-    Key keys_[kKeys];   ///< the keys
-    double counter_[12] = {};   ///< top-octave phase counters per pitch class, modulo 256
-    uint32_t order_ = 0;   ///< counts the keys pressed
-    Svf tone_;   ///< the tone low pass on the sum
-    std::vector<float> line_;   ///< the ensemble's delay line
-    size_t mask_ = 0;   ///< its size - 1
-    size_t write_ = 0;   ///< where the next sample goes
-    double slow_ = 0.0;   ///< the ensemble's slow LFO phase
-    double fast_ = 0.0;   ///< ... its fast one
-    Svf bbd_[3];   ///< the ensemble's three taps' low passes (the BBD's)
-    float ring_ = 0.0f;               ///< decaying peak of the output, for active()
+    double m_sr = 48000.0;   ///< the sample rate, Hz
+    StringSettings m_s;   ///< the settings
+    Key m_keys[Keys];   ///< the keys
+    double m_counter[12] = {};   ///< top-octave phase counters per pitch class, modulo 256
+    uint32_t m_order = 0;   ///< counts the keys pressed
+    Svf m_tone;   ///< the tone low pass on the sum
+    std::vector<float> m_line;   ///< the ensemble's delay line
+    size_t m_mask = 0;   ///< its size - 1
+    size_t m_write = 0;   ///< where the next sample goes
+    double m_slow = 0.0;   ///< the ensemble's slow LFO phase
+    double m_fast = 0.0;   ///< ... its fast one
+    Svf m_bbd[3];   ///< the ensemble's three taps' low passes (the BBD's)
+    float m_ring = 0.0f;               ///< decaying peak of the output, for active()
     // The registration, renewed every 32 samples.
-    float weight_[kRegisters] = { 0.0f, 1.0f, 0.4f, 0.0f, 0.0f };   ///< the registers' weights at the registration
-    float regGain_ = 1.0f;   ///< the registration's loudness
-    double animPhase_ = 0.0;   ///< the registration's animation: its LFO phase
-    int64_t count_ = 0;   ///< samples rendered
+    float m_weight[Registers] = { 0.0f, 1.0f, 0.4f, 0.0f, 0.0f };   ///< the registers' weights at the registration
+    float m_regGain = 1.0f;   ///< the registration's loudness
+    double m_animPhase = 0.0;   ///< the registration's animation: its LFO phase
+    int64_t m_count = 0;   ///< samples rendered
     // The phaser: four all-passes per side.
-    float apX_[2][4] = {};   ///< the phaser's all-passes: last inputs, per side
-    float apY_[2][4] = {};   ///< ... last outputs, per side
-    float apCoef_[2] = { 0.0f, 0.0f };   ///< the phaser's all-pass coefficient, per side
-    float phFb_[2] = { 0.0f, 0.0f };   ///< the phaser's feedback, per side
-    double phPhase_ = 0.0;   ///< the phaser's LFO phase
+    float m_apX[2][4] = {};   ///< the phaser's all-passes: last inputs, per side
+    float m_apY[2][4] = {};   ///< ... last outputs, per side
+    float m_apCoef[2] = { 0.0f, 0.0f };   ///< the phaser's all-pass coefficient, per side
+    float m_phFb[2] = { 0.0f, 0.0f };   ///< the phaser's feedback, per side
+    double m_phPhase = 0.0;   ///< the phaser's LFO phase
     /// The machine's LFOs and matrix.
-    Modulator mod_;
-    float mo_[kModDests] = {};   ///< the matrix's last sums
-    double pitchMul_ = 1.0;       ///< the matrix's pitch on the top-octave generator
-    float toneMul_ = 1.0f;        ///< ... and on the tone
-    double beat0_ = 0.0;   ///< the clock: the beat at clockAt_
-    double bps_ = 0.0;   ///< beats per sample
-    int64_t clockAt_ = 0;   ///< the sample setClock() was called at
+    Modulator m_mod;
+    float m_mo[ModDests] = {};   ///< the matrix's last sums
+    double m_pitchMul = 1.0;       ///< the matrix's pitch on the top-octave generator
+    float m_toneMul = 1.0f;        ///< ... and on the tone
+    double m_beat0 = 0.0;   ///< the clock: the beat at m_clockAt
+    double m_bps = 0.0;   ///< beats per sample
+    int64_t m_clockAt = 0;   ///< the sample setClock() was called at
     /** @brief The beat at sample @p at. */
-    double beatAt(int64_t at) const { return beat0_ + static_cast<double>(at - clockAt_) * bps_; }
+    double beatAt(int64_t at) const { return m_beat0 + static_cast<double>(at - m_clockAt) * m_bps; }
 };
 
 } // namespace eph

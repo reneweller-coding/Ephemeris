@@ -25,20 +25,20 @@ public:
 private:
     /** @brief One knob's gestures. */
     struct Lane {
-        int param = -1;                    ///< the knob
-        juce::String name;                 ///< its key ("voice1.cutoff")
-        std::vector<eph::Gesture> gestures;   ///< in time order
-        int hand = 0;                      ///< the hand of its first gesture (for the colour)
+        int m_param = -1;                    ///< the knob
+        juce::String m_name;                 ///< its key ("voice1.cutoff")
+        std::vector<eph::Gesture> m_gestures;   ///< in time order
+        int m_hand = 0;                      ///< the hand of its first gesture (for the colour)
     };
     /** @brief Follows the playhead and a new score. */
     void timerCallback() override;
     void rebuild();                        ///< lanes and curves from a new score or size
     float xOf(double beat) const;          ///< the lanes' horizontal position of @p beat
 
-    EphemerisProcessor& proc_;             ///< where the score and the playhead come from
-    eph::Score score_;                     ///< a copy of the score the engine plays
-    int version_ = -1;                     ///< which one (EphemerisProcessor::scoreVersion)
-    std::vector<Lane> lanes_;              ///< one per gestured knob
-    std::vector<juce::Path> curves_;       ///< the lanes' curves at the current size
-    juce::Rectangle<float> area_;          ///< where the lanes are drawn
+    EphemerisProcessor& m_proc;             ///< where the score and the playhead come from
+    eph::Score m_score;                     ///< a copy of the score the engine plays
+    int m_version = -1;                     ///< which one (EphemerisProcessor::scoreVersion)
+    std::vector<Lane> m_lanes;              ///< one per gestured knob
+    std::vector<juce::Path> m_curves;       ///< the lanes' curves at the current size
+    juce::Rectangle<float> m_area;          ///< where the lanes are drawn
 };

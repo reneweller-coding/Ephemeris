@@ -30,11 +30,11 @@ private:
     void timerCallback() override;               ///< follows compose.style and the custom style
     /** @brief Writes the chosen style's numbers into the custom module, through the host parameters. */
     void copyStyle();
-    EphemerisProcessor& proc_;                   ///< where the chosen style comes from
-    std::unique_ptr<ParamPage> custom_;          ///< the custom module's controls
-    juce::Viewport view_;                        ///< scrolls the custom controls where they do not fit
-    juce::TextButton copy_;                      ///< "Copy <style> into Custom"
-    juce::Rectangle<int> table_;                 ///< where the table is drawn
-    int style_ = -1;                             ///< the style lit
-    float customHash_ = 0.0f;                    ///< a sum of the custom values, to repaint when they move
+    EphemerisProcessor& m_proc;                   ///< where the chosen style comes from
+    std::unique_ptr<ParamPage> m_custom;          ///< the custom module's controls
+    juce::Viewport m_view;                        ///< scrolls the custom controls where they do not fit
+    juce::TextButton m_copy;                      ///< "Copy <style> into Custom"
+    juce::Rectangle<int> m_table;                 ///< where the table is drawn
+    int m_style = -1;                             ///< the style lit
+    float m_customHash = 0.0f;                    ///< a sum of the custom values, to repaint when they move
 };

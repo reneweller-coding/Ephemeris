@@ -34,11 +34,11 @@ public:
 private:
     /** @brief Takes the processor's readings and hands them to the strips. */
     void timerCallback() override;
-    EphemerisProcessor& proc_;                          ///< the processor whose meters it reads
-    frame::ControlActions actions_;                     ///< the strips' right-click menu
-    frame::LiveRings live_;                             ///< where the faders and sends play
-    frame::Console console_;                            ///< the strips
-    std::vector<std::pair<eph::Module, int>> synths_;   ///< per strip: the synth whose presets it plays (Count: none)
-    int tick_ = 0;                                      ///< timer ticks, to look at the presets now and then
-    double lastPoll_ = 0.0;                             ///< when the meters were last read, seconds
+    EphemerisProcessor& m_proc;                          ///< the processor whose meters it reads
+    frame::ControlActions m_actions;                     ///< the strips' right-click menu
+    frame::LiveRings m_live;                             ///< where the faders and sends play
+    frame::Console m_console;                            ///< the strips
+    std::vector<std::pair<eph::ModuleE, int>> m_synths;   ///< per strip: the synth whose presets it plays (Count: none)
+    int m_tick = 0;                                      ///< timer ticks, to look at the presets now and then
+    double m_lastPoll = 0.0;                             ///< when the meters were last read, seconds
 };

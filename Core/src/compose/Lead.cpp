@@ -76,8 +76,8 @@ int drawStep(bool rising, Rng& rng)
 int toChordTone(int pitch, int rootPc, const bool* chord, const LeadPlan& plan)
 {
     for (int d = 1; d < 5; ++d) {
-        if (pitch + d <= plan.high && chord[pitchClass(pitch + d - rootPc)]) return pitch + d;
-        if (pitch - d >= plan.low && chord[pitchClass(pitch - d - rootPc)]) return pitch - d;
+        if (pitch + d <= plan.m_high && chord[pitchClass(pitch + d - rootPc)]) return pitch + d;
+        if (pitch - d >= plan.m_low && chord[pitchClass(pitch - d - rootPc)]) return pitch - d;
     }
     return pitch;
 }
@@ -95,26 +95,26 @@ void writeNote(Score& score, const LeadPlan& plan, const bool* sc, int rootPc, i
     noteLen -= lag;
     const int grace = sc[pitchClass(pitch - 2 - rootPc)] ? pitch - 2 : (sc[pitchClass(pitch - 1 - rootPc)] ? pitch - 1 : -1);
     NoteEvent e;
-    e.part = Part::Lead;
-    e.pitch = pitch;
-    if (glideSpot && rng.uniform() < 0.3f && grace >= plan.low && len >= 1.0) {
+    e.m_part = PartE::LEAD;
+    e.m_pitch = pitch;
+    if (glideSpot && rng.uniform() < 0.3f && grace >= plan.m_low && len >= 1.0) {
         NoteEvent g;
-        g.beat = beat;
-        g.length = 0.3;   // overlaps the target, so the voice glides
-        g.part = Part::Lead;
-        g.pitch = grace;
-        g.velocity = 0.75f;
-        g.slide = true;
-        score.notes.push_back(g);
-        e.beat = beat + 0.25;
-        e.length = std::max(0.2, noteLen - 0.25 - 0.05);
-        e.velocity = 0.8f;
+        g.m_beat = beat;
+        g.m_length = 0.3;   // overlaps the target, so the voice glides
+        g.m_part = PartE::LEAD;
+        g.m_pitch = grace;
+        g.m_velocity = 0.75f;
+        g.m_slide = true;
+        score.m_notes.push_back(g);
+        e.m_beat = beat + 0.25;
+        e.m_length = std::max(0.2, noteLen - 0.25 - 0.05);
+        e.m_velocity = 0.8f;
     } else {
-        e.beat = beat;
-        e.length = std::max(0.1, noteLen * (len <= 0.5 ? 0.85 : 0.95));
-        e.velocity = 0.72f + 0.12f * rng.uniform();
+        e.m_beat = beat;
+        e.m_length = std::max(0.1, noteLen * (len <= 0.5 ? 0.85 : 0.95));
+        e.m_velocity = 0.72f + 0.12f * rng.uniform();
     }
-    score.notes.push_back(e);
+    score.m_notes.push_back(e);
 }
 
 } // namespace
@@ -132,7 +132,7 @@ void writeLead(Score& score, const LeadPlan& plan, double from, double to, Rng& 
     int setsFor = -1;
     // The pitch sets of the scale at a beat (a parallel change of mode moves them).
     auto setsAt = [&](double beat) {
-        const int scale = plan.scales.empty() ? plan.scale : rootShiftAt(plan.scales, beat);
+        const int scale = plan.m_scales.empty() ? plan.m_scale : rootShiftAt(plan.m_scales, beat);
         if (scale == setsFor) return;
         setsFor = scale;
         pitchSets(scale, sc, pent);
@@ -144,25 +144,25 @@ void writeLead(Score& score, const LeadPlan& plan, double from, double to, Rng& 
         ending[sc[3] ? 3 : 4] = true;
     };
     setsAt(from);
-    const int centre = (plan.low + plan.high) / 2;
+    const int centre = (plan.m_low + plan.m_high) / 2;
 
-    double t = std::ceil(from / kBeatsPerBar - 1e-9) * kBeatsPerBar;
+    double t = std::ceil(from / BeatsPerBar - 1e-9) * BeatsPerBar;
     int cur = centre;
     std::vector<double> lastRhythm;
     std::vector<int> lastSteps;
     int lastBars = 0;
-    while (t < to - kBeatsPerBar) {
+    while (t < to - BeatsPerBar) {
         // A repeated phrase keeps the length of the one it repeats, so its rhythm fits.
         const bool repeat = !lastRhythm.empty() && rng.uniform() < 0.4f;
         // Phrases of four to eight bars (the style guide's 3.8).
         const int bars = repeat ? lastBars : (rng.uniform() < 0.6f ? 4 : 8);
-        const double end = std::min(t + bars * kBeatsPerBar, to);
+        const double end = std::min(t + bars * BeatsPerBar, to);
         setsAt(t);
-        const int rootPc = pitchClass(plan.keyRoot + rootShiftAt(plan.shifts, t));
-        const std::vector<int> pentSet = allowed(plan.low, plan.high, rootPc, pent);
-        const std::vector<int> fullSet = allowed(plan.low, plan.high, rootPc, sc);
+        const int rootPc = pitchClass(plan.m_keyRoot + rootShiftAt(plan.m_shifts, t));
+        const std::vector<int> pentSet = allowed(plan.m_low, plan.m_high, rootPc, pent);
+        const std::vector<int> fullSet = allowed(plan.m_low, plan.m_high, rootPc, sc);
         if (pentSet.size() < 3) break;
-        const std::vector<double> rhythm = repeat ? lastRhythm : drawRhythm(end - t, plan.intensity, rng);
+        const std::vector<double> rhythm = repeat ? lastRhythm : drawRhythm(end - t, plan.m_intensity, rng);
 
         // Pitches: an arc over the pentatonic, steps with the odd leap; chord tones on the strong beats.
         int idx = nearestIndex(pentSet, repeat ? cur : centre + static_cast<int>(rng.below(7)) - 3);
@@ -189,9 +189,9 @@ void writeLead(Score& score, const LeadPlan& plan, double from, double to, Rng& 
             }
             // Under a root or a mode that changes inside the phrase, the note is snapped into the new one.
             setsAt(beat);
-            const int rootNow = pitchClass(plan.keyRoot + rootShiftAt(plan.shifts, beat));
+            const int rootNow = pitchClass(plan.m_keyRoot + rootShiftAt(plan.m_shifts, beat));
             if (!sc[pitchClass(pitch - rootNow)]) {
-                const std::vector<int> now = allowed(plan.low, plan.high, rootNow, sc);
+                const std::vector<int> now = allowed(plan.m_low, plan.m_high, rootNow, sc);
                 if (!now.empty()) pitch = now[static_cast<size_t>(nearestIndex(now, pitch))];
             }
             const double noteLen = std::min(len, to - beat);
@@ -204,8 +204,8 @@ void writeLead(Score& score, const LeadPlan& plan, double from, double to, Rng& 
         lastSteps = steps;
         lastBars = bars;
         // A rest of two to four bars, shorter with more intensity (3.8).
-        const int restBars = 2 + static_cast<int>(rng.below(plan.intensity > 0.6f ? 2 : 3));
-        t = end + restBars * kBeatsPerBar;
+        const int restBars = 2 + static_cast<int>(rng.below(plan.m_intensity > 0.6f ? 2 : 3));
+        t = end + restBars * BeatsPerBar;
     }
 }
 

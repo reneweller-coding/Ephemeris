@@ -31,18 +31,18 @@ namespace eph {
 
 namespace {
 
-const char* const kRootNames[12] = { "C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B" };   ///< the keys' names
+const char* const RootNames[12] = { "C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B" };   ///< the keys' names
 
 /** @brief The English name of a section, from the composer's German marker ("Aufbau 2" -> "BUILD"). */
 const char* sectionOf(const std::string& marker)
 {
-    struct Name { const char* de; const char* en; };
+    struct Name { const char* m_de; const char* m_en; };
     static const Name names[] = { { "Atmo", "ATMOSPHERE" }, { "Einsatz", "ENTRY" }, { "Aufbau", "BUILD" }, { "Lead", "LEAD" },
                                   { "Hoehepunkt", "PEAK" }, { "Abbau", "BREAKDOWN" }, { "Bruecke", "BRIDGE" }, { "Ausklang", "CODA" } };
     // A concert's pieces carry "Stueck N: " before the section.
     const size_t colon = marker.find(": ");
     const std::string m = colon == std::string::npos ? marker : marker.substr(colon + 2);
-    for (const Name& n : names) if (m.rfind(n.de, 0) == 0) return n.en;
+    for (const Name& n : names) if (m.rfind(n.m_de, 0) == 0) return n.m_en;
     return nullptr;
 }
 
@@ -74,76 +74,76 @@ std::vector<CueMark> cueMarksOf(const Score& score)
     std::vector<CueMark> marks;
     // Sections: every marker the composer wrote; the phase counts the entries.
     int phase = 0;
-    for (const Marker& m : score.markers) {
-        const char* name = sectionOf(m.text);
+    for (const Marker& m : score.m_markers) {
+        const char* name = sectionOf(m.m_text);
         if (name == nullptr) continue;
         if (std::strcmp(name, "ENTRY") == 0) ++phase;
         CueMark c;
-        c.beat = m.beat;
-        c.kind = CueKind::Phase;
-        c.a = std::max(1, phase);
-        copyText(c.text, name);
+        c.m_beat = m.m_beat;
+        c.m_kind = CueKindE::PHASE;
+        c.m_a = std::max(1, phase);
+        copyText(c.m_text, name);
         marks.push_back(c);
     }
     // Keys: where the root the rows play on changes.
     int last = -1;
-    for (const auto& shift : score.rootShifts) {
-        const int root = pitchClass(score.keyRoot + shift.second);
+    for (const auto& shift : score.m_rootShifts) {
+        const int root = pitchClass(score.m_keyRoot + shift.second);
         if (root == last) continue;
         last = root;
         CueMark c;
-        c.beat = shift.first;
-        c.kind = CueKind::Key;
-        copyText(c.text, kRootNames[root]);
+        c.m_beat = shift.first;
+        c.m_kind = CueKindE::KEY;
+        copyText(c.m_text, RootNames[root]);
         marks.push_back(c);
     }
     // Conjunctions: every step (a 48th of a beat is fine enough for every division) where two or more running
     // rows that play notes stand on their first step together.
-    struct Row { bool known = false, transposer = false, running = false; double period = 4.0, start = 0.0; };
-    Row rows[kRows];
+    struct Row { bool m_known = false, m_transposer = false, m_running = false; double m_period = 4.0, m_start = 0.0; };
+    Row rows[Rows];
     size_t shape = 0, ev = 0;
-    std::vector<RowShape> shapes = score.rowShapes;
-    std::stable_sort(shapes.begin(), shapes.end(), [](const RowShape& a, const RowShape& b) { return a.from < b.from; });
+    std::vector<RowShape> shapes = score.m_rowShapes;
+    std::stable_sort(shapes.begin(), shapes.end(), [](const RowShape& a, const RowShape& b) { return a.m_from < b.m_from; });
     std::vector<RackEvent> rack;
-    for (const RackEvent& e : score.rack) if (e.op == RackOp::Start || e.op == RackOp::Stop) rack.push_back(e);
-    std::stable_sort(rack.begin(), rack.end(), [](const RackEvent& a, const RackEvent& b) { return a.beat < b.beat; });
-    const int64_t steps = static_cast<int64_t>(std::ceil(score.lengthBeats * 48.0));
+    for (const RackEvent& e : score.m_rack) if (e.m_op == RackOpE::START || e.m_op == RackOpE::STOP) rack.push_back(e);
+    std::stable_sort(rack.begin(), rack.end(), [](const RackEvent& a, const RackEvent& b) { return a.m_beat < b.m_beat; });
+    const int64_t steps = static_cast<int64_t>(std::ceil(score.m_lengthBeats * 48.0));
     for (int64_t t = 0; t < steps; t += 3) {   // sixteenth triplets and all coarser divisions land on multiples of 1/16
         const double beat = static_cast<double>(t) / 48.0;
-        while (shape < shapes.size() && shapes[shape].from <= beat + 1e-9) {
+        while (shape < shapes.size() && shapes[shape].m_from <= beat + 1e-9) {
             const RowShape& r = shapes[shape++];
-            if (r.row < 0 || r.row >= kRows) continue;
-            rows[r.row].known = true;
-            rows[r.row].transposer = r.transposer;
-            rows[r.row].period = r.length * r.divBeats;
+            if (r.m_row < 0 || r.m_row >= Rows) continue;
+            rows[r.m_row].m_known = true;
+            rows[r.m_row].m_transposer = r.m_transposer;
+            rows[r.m_row].m_period = r.m_length * r.m_divBeats;
         }
-        while (ev < rack.size() && rack[ev].beat <= beat + 1e-9) {
+        while (ev < rack.size() && rack[ev].m_beat <= beat + 1e-9) {
             const RackEvent& e = rack[ev++];
-            const int lo = e.row < 0 ? 0 : e.row, hi = e.row < 0 ? kRows - 1 : e.row;
-            for (int i = lo; i <= hi && i < kRows; ++i) {
-                rows[i].running = e.op == RackOp::Start;
-                if (rows[i].running) rows[i].start = e.beat;
+            const int lo = e.m_row < 0 ? 0 : e.m_row, hi = e.m_row < 0 ? Rows - 1 : e.m_row;
+            for (int i = lo; i <= hi && i < Rows; ++i) {
+                rows[i].m_running = e.m_op == RackOpE::START;
+                if (rows[i].m_running) rows[i].m_start = e.m_beat;
             }
         }
         // Rows that start on this step stand on their first step by starting: they do not count as meeting.
         int running = 0, meeting = 0;
         for (const Row& r : rows) {
-            if (!r.known || r.transposer || !r.running || r.period <= 0.0) continue;
+            if (!r.m_known || r.m_transposer || !r.m_running || r.m_period <= 0.0) continue;
             ++running;
-            if (beat - r.start < 1e-9) continue;
-            const double q = (beat - r.start) / r.period;
+            if (beat - r.m_start < 1e-9) continue;
+            const double q = (beat - r.m_start) / r.m_period;
             if (std::fabs(q - std::round(q)) < 1e-6) ++meeting;
         }
         if (meeting >= 2) {
             CueMark c;
-            c.beat = beat;
-            c.kind = CueKind::Conjunction;
-            c.a = meeting;
-            c.b = static_cast<float>(meeting) / static_cast<float>(running);
+            c.m_beat = beat;
+            c.m_kind = CueKindE::CONJUNCTION;
+            c.m_a = meeting;
+            c.m_b = static_cast<float>(meeting) / static_cast<float>(running);
             marks.push_back(c);
         }
     }
-    std::stable_sort(marks.begin(), marks.end(), [](const CueMark& x, const CueMark& y) { return x.beat < y.beat; });
+    std::stable_sort(marks.begin(), marks.end(), [](const CueMark& x, const CueMark& y) { return x.m_beat < y.m_beat; });
     return marks;
 }
 
@@ -156,25 +156,25 @@ int CueTap::scan(const std::vector<CueMark>& marks, double from, double to, floa
         return nowNanos + leadNanos + static_cast<int64_t>(static_cast<double>(blockNanos) * (beat - from) / (to - from));
     };
     // A jump backwards (a seek): start again from the first mark at or after the new position.
-    if (cursor_ > 0 && cursor_ <= marks.size() && marks[cursor_ - 1].beat >= from) cursor_ = 0;
-    while (cursor_ < marks.size() && marks[cursor_].beat < from) ++cursor_;
+    if (m_cursor > 0 && m_cursor <= marks.size() && marks[m_cursor - 1].m_beat >= from) m_cursor = 0;
+    while (m_cursor < marks.size() && marks[m_cursor].m_beat < from) ++m_cursor;
     // The beats: every whole beat in the range.
     for (double b = std::ceil(from); b < to; b += 1.0) {
         Cue c;
-        c.dueNanos = at(b);
-        c.kind = CueKind::Beat;
-        c.a = static_cast<int32_t>(b);
-        c.b = bpm;
+        c.m_dueNanos = at(b);
+        c.m_kind = CueKindE::BEAT;
+        c.m_a = static_cast<int32_t>(b);
+        c.m_b = bpm;
         if (!ring.push(c)) ++lost;
     }
-    for (; cursor_ < marks.size() && marks[cursor_].beat < to; ++cursor_) {
-        const CueMark& m = marks[cursor_];
+    for (; m_cursor < marks.size() && marks[m_cursor].m_beat < to; ++m_cursor) {
+        const CueMark& m = marks[m_cursor];
         Cue c;
-        c.dueNanos = at(m.beat);
-        c.kind = m.kind;
-        c.a = m.a;
-        c.b = m.b;
-        std::memcpy(c.text, m.text, sizeof(c.text));
+        c.m_dueNanos = at(m.m_beat);
+        c.m_kind = m.m_kind;
+        c.m_a = m.m_a;
+        c.m_b = m.m_b;
+        std::memcpy(c.m_text, m.m_text, sizeof(c.m_text));
         if (!ring.push(c)) ++lost;
     }
     return lost;
@@ -197,12 +197,12 @@ std::vector<uint8_t> oscMessage(const char* address, const char* tags, const int
 
 std::vector<uint8_t> oscOf(const Cue& c)
 {
-    const char* text = c.text;
-    switch (c.kind) {
-    case CueKind::Beat:        return oscMessage("/eph/beat", "if", &c.a, &c.b, nullptr);
-    case CueKind::Phase:       return oscMessage("/eph/phase", "si", &c.a, nullptr, &text);
-    case CueKind::Key:         return oscMessage("/eph/key", "s", nullptr, nullptr, &text);
-    case CueKind::Conjunction: return oscMessage("/eph/conjunction", "if", &c.a, &c.b, nullptr);
+    const char* text = c.m_text;
+    switch (c.m_kind) {
+    case CueKindE::BEAT:        return oscMessage("/eph/beat", "if", &c.m_a, &c.m_b, nullptr);
+    case CueKindE::PHASE:       return oscMessage("/eph/phase", "si", &c.m_a, nullptr, &text);
+    case CueKindE::KEY:         return oscMessage("/eph/key", "s", nullptr, nullptr, &text);
+    case CueKindE::CONJUNCTION: return oscMessage("/eph/conjunction", "if", &c.m_a, &c.m_b, nullptr);
     }
     return {};
 }
@@ -230,54 +230,54 @@ bool CueSender::start(const std::string& host, int port)
         addr.sin_addr = reinterpret_cast<sockaddr_in*>(res->ai_addr)->sin_addr;
         freeaddrinfo(res);
     }
-    static_assert(sizeof(address_) >= sizeof(sockaddr_in), "room for the address");
-    std::memcpy(address_, &addr, sizeof(addr));
+    static_assert(sizeof(m_address) >= sizeof(sockaddr_in), "room for the address");
+    std::memcpy(m_address, &addr, sizeof(addr));
     const auto s = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
 #if defined(_WIN32)
     if (s == INVALID_SOCKET) return false;
 #else
     if (s < 0) return false;
 #endif
-    socket_ = static_cast<intptr_t>(s);
-    stop_ = false;
-    running_ = true;
-    thread_ = std::thread([this] { loop(); });
+    m_socket = static_cast<intptr_t>(s);
+    m_stop = false;
+    m_running = true;
+    m_thread = std::thread([this] { loop(); });
     return true;
 }
 
 void CueSender::stop()
 {
-    if (thread_.joinable()) {
-        stop_ = true;
-        thread_.join();
+    if (m_thread.joinable()) {
+        m_stop = true;
+        m_thread.join();
     }
-    running_ = false;
-    if (socket_ >= 0) {
+    m_running = false;
+    if (m_socket >= 0) {
 #if defined(_WIN32)
-        closesocket(static_cast<SOCKET>(socket_));
+        closesocket(static_cast<SOCKET>(m_socket));
         WSACleanup();
 #else
-        close(static_cast<int>(socket_));
+        close(static_cast<int>(m_socket));
 #endif
-        socket_ = -1;
+        m_socket = -1;
     }
 }
 
 void CueSender::loop()
 {
     Cue c;
-    while (!stop_.load(std::memory_order_acquire)) {
-        if (!ring_.pop(c)) { std::this_thread::sleep_for(std::chrono::milliseconds(1)); continue; }
+    while (!m_stop.load(std::memory_order_acquire)) {
+        if (!m_ring.pop(c)) { std::this_thread::sleep_for(std::chrono::milliseconds(1)); continue; }
         // Hold it back until the listener hears it (a cue that is late already goes at once).
-        while (!stop_.load(std::memory_order_acquire)) {
-            const int64_t wait = c.dueNanos - nowNanos();
+        while (!m_stop.load(std::memory_order_acquire)) {
+            const int64_t wait = c.m_dueNanos - nowNanos();
             if (wait <= 0) break;
             std::this_thread::sleep_for(std::chrono::nanoseconds(std::min<int64_t>(wait, 2000000)));
         }
         const std::vector<uint8_t> msg = oscOf(c);
-        const auto sent = sendto(static_cast<decltype(socket(0, 0, 0))>(socket_), reinterpret_cast<const char*>(msg.data()),
-                                 static_cast<int>(msg.size()), 0, reinterpret_cast<const sockaddr*>(address_), sizeof(sockaddr_in));
-        if (sent < 0) dropped_.fetch_add(1, std::memory_order_relaxed);
+        const auto sent = sendto(static_cast<decltype(socket(0, 0, 0))>(m_socket), reinterpret_cast<const char*>(msg.data()),
+                                 static_cast<int>(msg.size()), 0, reinterpret_cast<const sockaddr*>(m_address), sizeof(sockaddr_in));
+        if (sent < 0) m_dropped.fetch_add(1, std::memory_order_relaxed);
     }
 }
 

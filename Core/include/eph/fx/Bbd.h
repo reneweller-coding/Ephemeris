@@ -32,26 +32,26 @@ public:
 private:
     /** @brief @p buf read @p delaySamples ago (interpolated). */
     float read(const std::vector<float>& buf, double delaySamples) const;
-    double sr_ = 48000.0;   ///< the sample rate, Hz
-    std::vector<float> bufL_;   ///< the bucket chain, left
-    std::vector<float> bufR_;   ///< ... right
-    size_t mask_ = 0;   ///< its size - 1
-    size_t write_ = 0;   ///< where the next sample goes
-    EchoSettings s_;   ///< the settings
-    Smoother delay_;   ///< the delay in samples, gliding to its target (the clock)
-    double target_ = 0.0;   ///< the delay asked for, samples
-    bool fresh_ = true;   ///< no settings taken since prepare() or reset()
-    double lfo_ = 0.0;   ///< the clock's wander: its phase
-    Svf lp1L_;   ///< the chain's fourth-order low pass: its first section, left
-    Svf lp2L_;   ///< ... its second section, left
-    Svf lp1R_;   ///< ... first section, right
-    Svf lp2R_;   ///< ... second section, right
-    Svf hpL_;   ///< the feedback's high pass, left
-    Svf hpR_;   ///< ... right
-    float drive_ = 1.5f;   ///< the chain's drive
-    float driveNorm_ = 0.66f;   ///< the gain that keeps the level after it
-    float hiss_ = 0.0f;   ///< the chain's hiss, linear
-    Rng rng_;   ///< the hiss's stream
+    double m_sr = 48000.0;   ///< the sample rate, Hz
+    std::vector<float> m_bufL;   ///< the bucket chain, left
+    std::vector<float> m_bufR;   ///< ... right
+    size_t m_mask = 0;   ///< its size - 1
+    size_t m_write = 0;   ///< where the next sample goes
+    EchoSettings m_s;   ///< the settings
+    Smoother m_delay;   ///< the delay in samples, gliding to its target (the clock)
+    double m_target = 0.0;   ///< the delay asked for, samples
+    bool m_fresh = true;   ///< no settings taken since prepare() or reset()
+    double m_lfo = 0.0;   ///< the clock's wander: its phase
+    Svf m_lp1L;   ///< the chain's fourth-order low pass: its first section, left
+    Svf m_lp2L;   ///< ... its second section, left
+    Svf m_lp1R;   ///< ... first section, right
+    Svf m_lp2R;   ///< ... second section, right
+    Svf m_hpL;   ///< the feedback's high pass, left
+    Svf m_hpR;   ///< ... right
+    float m_drive = 1.5f;   ///< the chain's drive
+    float m_driveNorm = 0.66f;   ///< the gain that keeps the level after it
+    float m_hiss = 0.0f;   ///< the chain's hiss, linear
+    Rng m_rng;   ///< the hiss's stream
 };
 
 } // namespace eph
