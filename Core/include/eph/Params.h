@@ -4,20 +4,21 @@
  *
  * A module declares its parameters once as a table of descriptors and may exist several times --
  * the eight rows of the sequencer rack are one module in eight instances. A parameter's id is the
- * base index of its module instance plus its index in the table; its text key is "<prefix>.<key>"
- * or "<prefix><instance>.<key>" ("compose.bpm", "row3.length").
+ * base index of its module instance plus its index in the table; its text key is "\<prefix\>.\<key\>"
+ * or "\<prefix\>\<instance\>.\<key\>" ("compose.bpm", "row3.length").
  *
  * From the same tables come the host parameters, OSC addresses, the preset text form, the manual and
  * the `--list` output of eph_render. The composer never writes parameters; it reads a snapshot, and
  * what it plays on a knob it writes into the score as a gesture (Score.h).
  *
- * Values are stored as std::atomic<float> in their real range (Hz, ms, dB), so the audio thread can
+ * Values are stored as std::atomic\<float\> in their real range (Hz, ms, dB), so the audio thread can
  * read what another thread wrote without a lock.
  *
  * @note The store (ParamStore) is copied from Phosphene `Core/include/phos/Params.h` at 9a2f615
  *       (24.09.2026); the module tables are Ephemeris's own. Rule kept from Phosphene: a table is only
  *       ever appended to, never reordered, because the indices sit in presets, `.ephset` files and the
  *       plugin's state.
+ * @author Rene Weller
  */
 #pragma once
 #include <atomic>
@@ -52,7 +53,12 @@ struct ParamDesc {
                                             ///< the names of the whole numbers a morph passes (strings.registration)
 };
 
-/** @brief The text of a morph between named whole numbers: the nearest name, or "Violins/Violas" between two. */
+/**
+ * @brief The text of a morph between named whole numbers: the nearest name, or "Violins/Violas" between two.
+ * @param[in] d  the parameter's description (its names)
+ * @param[in] v  the value
+ * @return the nearest name, or two names joined by a slash
+ */
 std::string morphText(const ParamDesc& d, float v);
 
 /** @brief The modules that own parameters. Appended to, never reordered. */
@@ -350,7 +356,11 @@ enum : int { TIME, FEEDBACK, TONE, WOW, FLUTTER, DRIVE, PING_PONG, RETURN,
 enum class EchoTimeE : int { SIXTEENTH = 0, EIGHTH, EIGHTH_D, QUARTER, QUARTER_D, HALF,
                              /** 25.09.2026: the quarter triplet of the style guide's 4.4. */
                              QUARTER_T, COUNT };
-/** @brief Length of an echo time in beats. */
+/**
+ * @brief Length of an echo time in beats.
+ * @param[in] t  the echo time
+ * @return its length in beats
+ */
 double echoTimeBeats(EchoTimeE t);
 extern const char* const EchoTimeNames[];      ///< names of echo.time
 
@@ -360,7 +370,11 @@ enum class StyleE : int { COSMIC = 0, DOOM, MELODIC, MODERN, DRIFT, COUNT };
 enum class RowDivisionE : int { QUARTER = 0, EIGHTH, EIGHTH_T, SIXTEENTH, SIXTEENTH_T, THIRTY_SECOND,
                                /** Phase 2: the slow divisions of a transposer row. */
                                BAR1, BARS2, BARS4, COUNT };
-/** @brief Length of a row division in quarter-note beats. */
+/**
+ * @brief Length of a row division in quarter-note beats.
+ * @param[in] d  the row division
+ * @return its length in quarter-note beats
+ */
 double rowDivisionBeats(RowDivisionE d);
 /** @brief What a row does, in the order of row.mode. */
 enum class RowModeE : int { NOTES = 0, TRANSPOSER, COUNT };
@@ -391,49 +405,116 @@ public:
     ParamStore(const ParamStore&) = delete;
     ParamStore& operator=(const ParamStore&) = delete;
 
-    /** @brief Number of parameters. */
+    /**
+     * @brief Number of parameters.
+     * @return the number of parameters
+     */
     int count() const { return static_cast<int>(m_entries.size()); }
-    /** @brief First id of a module instance; -1 if it does not exist. */
+    /**
+     * @brief First id of a module instance; -1 if it does not exist.
+     * @param[in] m         the module
+     * @param[in] instance  its instance
+     * @return the first id of the module instance, -1 if it does not exist
+     */
     int base(ModuleE m, int instance = 0) const;
-    /** @brief Id of parameter @p index of a module instance; -1 if it does not exist. */
+    /**
+     * @brief Id of parameter @p index of a module instance; -1 if it does not exist.
+     * @param[in] m         the module
+     * @param[in] instance  its instance
+     * @param[in] index     the parameter's index within the module
+     * @return the parameter's id, -1 if it does not exist
+     */
     int id(ModuleE m, int instance, int index) const { const int b = base(m, instance); return b < 0 ? -1 : b + index; }
-    /** @brief Descriptor of @p id. */
+    /**
+     * @brief Descriptor of @p id.
+     * @param[in] id  the parameter
+     * @return its descriptor
+     */
     const ParamDesc& desc(int id) const { return *m_entries[static_cast<size_t>(id)].m_desc; }
-    /** @brief Full text key of @p id ("row3.length"). */
+    /**
+     * @brief Full text key of @p id ("row3.length").
+     * @param[in] id  the parameter
+     * @return its full text key
+     */
     const std::string& key(int id) const { return m_entries[static_cast<size_t>(id)].m_key; }
-    /** @brief Id for a text key, or -1. */
+    /**
+     * @brief Id for a text key, or -1.
+     * @param[in] key  the text key
+     * @return its id, -1 when there is none
+     */
     int find(std::string_view key) const;
 
-    /** @brief Current real value. */
+    /**
+     * @brief Current real value.
+     * @param[in] id  the parameter
+     * @return its current real value
+     */
     float get(int id) const { return m_values[static_cast<size_t>(id)].load(std::memory_order_relaxed); }
-    /** @brief Current value rounded to an integer (Int, Choice, Toggle). */
+    /**
+     * @brief Current value rounded to an integer (Int, Choice, Toggle).
+     * @param[in] id  the parameter
+     * @return its current value rounded to an integer
+     */
     int getInt(int id) const;
-    /** @brief Current value as a switch. */
+    /**
+     * @brief Current value as a switch.
+     * @param[in] id  the parameter
+     * @return its current value as a switch
+     */
     bool getBool(int id) const { return get(id) >= 0.5f; }
-    /** @brief Sets a real value, clamped to the range (and rounded for discrete curves). */
+    /**
+     * @brief Sets a real value, clamped to the range (and rounded for discrete curves).
+     * @param[in] id     the parameter
+     * @param[in] value  the real value
+     */
     void set(int id, float value);
-    /** @brief Sets from a normalised 0..1 position. */
+    /**
+     * @brief Sets from a normalised 0..1 position.
+     * @param[in] id    the parameter
+     * @param[in] norm  the position, 0..1
+     */
     void setNormalised(int id, float norm) { set(id, fromNormalised(id, norm)); }
 
-    /** @brief Real value to normalised 0..1. */
+    /**
+     * @brief Real value to normalised 0..1.
+     * @param[in] id     the parameter
+     * @param[in] value  a real value
+     * @return its normalised position, 0..1
+     */
     float toNormalised(int id, float value) const;
-    /** @brief Normalised 0..1 to real value. */
+    /**
+     * @brief Normalised 0..1 to real value.
+     * @param[in] id    the parameter
+     * @param[in] norm  a normalised position, 0..1
+     * @return the real value there
+     */
     float fromNormalised(int id, float norm) const;
 
     /** @brief All parameters back to their defaults. */
     void resetDefaults();
-    /** @brief Default of @p id: the descriptor's, or the instance's own where instances differ (the rows). */
+    /**
+     * @brief Default of @p id: the descriptor's, or the instance's own where instances differ (the rows).
+     * @param[in] id  the parameter
+     * @return its default value
+     */
     float defaultValue(int id) const { return m_defaults[static_cast<size_t>(id)]; }
-    /** @brief Copies every value from another store (for snapshots on another thread). */
+    /**
+     * @brief Copies every value from another store (for snapshots on another thread).
+     * @param[in] other  the store whose values are copied
+     */
     void copyValuesFrom(const ParamStore& other);
     /**
      * @brief Copies the current values of one module instance into @p out, indexed like its table.
-     * @param m        module
-     * @param instance instance index
-     * @param out      at least as many floats as the module has parameters
+     * @param[in]     m         module
+     * @param[in]     instance  instance index
+     * @param[in,out] out       at least as many floats as the module has parameters
      */
     void readModule(ModuleE m, int instance, float* out) const;
-    /** @brief Number of parameters of a module. */
+    /**
+     * @brief Number of parameters of a module.
+     * @param[in] m  the module
+     * @return how many parameters an instance of it has
+     */
     static int moduleCount(ModuleE m);
 
     /**
@@ -441,17 +522,22 @@ public:
      *
      * Choice parameters accept their name ("compose.key=F#") or index. Lines starting with '#' are
      * comments.
-     * @param text  the assignments
-     * @param error receives a message for the first bad assignment, may be null
+     * @param[in]  text   the assignments
+     * @param[out] error  receives a message for the first bad assignment, may be null
      * @return false if any assignment failed (the good ones are still applied)
      */
     bool parseText(std::string_view text, std::string* error = nullptr);
     /**
      * @brief The text form, one "key=value" per line.
-     * @param onlyChanged leave out parameters at their default
+     * @param[in] onlyChanged  leave out parameters at their default
+     * @return the text form
      */
     std::string toText(bool onlyChanged) const;
-    /** @brief A value formatted for display ("330 Hz", "F#"). */
+    /**
+     * @brief A value formatted for display ("330 Hz", "F#").
+     * @param[in] id  the parameter
+     * @return its value formatted for display
+     */
     std::string format(int id) const;
 
 private:

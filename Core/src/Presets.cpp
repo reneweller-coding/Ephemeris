@@ -1,6 +1,7 @@
 /**
  * @file Presets.cpp
  * @brief The factory presets: sixteen groups per synth, sixty-four presets per group (Presets.h).
+ * @author Rene Weller
  */
 #include "eph/Presets.h"
 #include "eph/synth/Wavetable.h"
@@ -41,7 +42,10 @@ struct Synth {
 
 // --- The modular voice of the rows --------------------------------------------------------------------------
 namespace vo = voice;
-/** @brief The modular voice of the rows: its names and groups. */
+/**
+ * @brief The modular voice of the rows: its names and groups.
+ * @return the voice's names and groups
+ */
 const Synth& voiceSynth()
 {
     static const Synth s{
@@ -121,7 +125,10 @@ const Synth& voiceSynth()
 
 // --- The lead ---------------------------------------------------------------------------------------------------
 namespace le = lead;
-/** @brief The lead's names and groups. */
+/**
+ * @brief The lead's names and groups.
+ * @return the lead's names and groups
+ */
 const Synth& leadSynth()
 {
     static const Synth s{
@@ -186,7 +193,10 @@ const Synth& leadSynth()
 }
 
 // --- The drone (the lead's table): the foundation, in pure intervals -----------------------------------------------
-/** @brief The drone's names and groups: the foundation, in pure intervals. */
+/**
+ * @brief The drone's names and groups: the foundation, in pure intervals.
+ * @return the drone's names and groups
+ */
 const Synth& droneSynth()
 {
     // Every group: detune 0 .. 1 cent (the addon's pure foundation), no accent, a long release.
@@ -239,7 +249,10 @@ const Synth& droneSynth()
 }
 
 // --- The tape keys: choir, strings and flute tapes --------------------------------------------------------------------
-/** @brief The tape keys' names and groups: choir, strings and flute tapes. */
+/**
+ * @brief The tape keys' names and groups: choir, strings and flute tapes.
+ * @return the tape keys' names and groups
+ */
 const Synth& tapeSynth()
 {
     // The tapes' wobble stays inside the range of the defaults, so the keyboard stays in tune with the rest.
@@ -292,7 +305,10 @@ const Synth& tapeSynth()
 
 // --- The string machine ---------------------------------------------------------------------------------------------------
 namespace st = strings;
-/** @brief The string machine's names and groups. */
+/**
+ * @brief The string machine's names and groups.
+ * @return the string machine's names and groups
+ */
 const Synth& stringsSynth()
 {
     static const Synth s{
@@ -340,7 +356,10 @@ const Synth& stringsSynth()
 
 // --- The drums --------------------------------------------------------------------------------------------------------------
 namespace dr = drums;
-/** @brief The drums' names and groups. */
+/**
+ * @brief The drums' names and groups.
+ * @return the drums' names and groups
+ */
 const Synth& drumsSynth()
 {
     static const Synth s{
@@ -387,7 +406,10 @@ const Synth& drumsSynth()
 
 // --- The atmosphere: its colours; the amounts are the composer's ---------------------------------------------------------------
 namespace at = atmos;
-/** @brief The atmosphere's names and groups: its colours (the amounts are the composer's). */
+/**
+ * @brief The atmosphere's names and groups: its colours (the amounts are the composer's).
+ * @return the atmosphere's names and groups
+ */
 const Synth& atmosSynth()
 {
     static const Synth s{
@@ -434,13 +456,20 @@ const Synth& atmosSynth()
 
 // --- The pad synth: analog pads on the PWM table, the Oberheim's brass, the PPG's and Waldorf's planes -----------------
 namespace po = poly;
-/** @brief The index of a wavetable by name (Wavetable.h), as a knob value. */
+/**
+ * @brief The index of a wavetable by name (Wavetable.h), as a knob value.
+ * @param[in] name  the wavetable's name
+ * @return its index as a knob value
+ */
 float tableOf(const char* name)
 {
     for (int i = 0; i < WavetableCount; ++i) if (std::string(WavetableNames[i]) == name) return static_cast<float>(i);
     return 1.0f;
 }
-/** @brief The pad synth's names and groups. */
+/**
+ * @brief The pad synth's names and groups.
+ * @return the pad synth's names and groups
+ */
 const Synth& polySynth()
 {
     // Every group: a slow envelope and the ensemble unless it says otherwise; the detune within 14 cents.
@@ -509,7 +538,11 @@ const Synth& polySynth()
     return s;
 }
 
-/** @brief The names and groups of module @p m, null for a module without presets. */
+/**
+ * @brief The names and groups of module @p m, null for a module without presets.
+ * @param[in] m  the module
+ * @return its names and groups, null for a module without presets
+ */
 const Synth* synthOf(ModuleE m)
 {
     switch (m) {
@@ -539,6 +572,9 @@ struct FilterChoice {
  *        and then the diode ladder), the squelch on the diode ladder and the Korg35, glass on the Xpander's high and
  *        band passes, the Juno's strings on the IR3109, the Oberheim's brass on the SEM, the dark and dusty ones on the
  *        Polivoks and the Wasp, the cosmic drips on the comb and the phaser; empty for a synth without a filter model.
+ * @param[in] m      the module
+ * @param[in] group  the group
+ * @return the filters the group draws from
  */
 const std::vector<FilterChoice>& filterChoices(ModuleE m, const std::string& group)
 {
@@ -655,6 +691,9 @@ struct ModAtom {
  *        the sequencer's filter sweep synced to the bars, sample-and-hold drips, tape wobble, a vibrato that comes in
  *        late, the PPG's and the morphing pads' tables walked by a slow LFO, the brass's filter swell. Sources and
  *        targets by number (ModSourceNames, ModDestNames; the tape keys and the strings: ShortModDestNames).
+ * @param[in] m      the module
+ * @param[in] group  the group
+ * @return the group's modulation recipes
  */
 const std::vector<ModRecipe>& modRecipes(ModuleE m, const std::string& group)
 {
@@ -762,6 +801,8 @@ const std::vector<ModRecipe>& modRecipes(ModuleE m, const std::string& group)
  *        SEM's morph and the resonance breathing, a gate of the level in time, a zap of filter FM; on the pad synth the
  *        table walking and every key its own place and pitch; on the tape keys and the strings wobble, tone, tremolo,
  *        pan.
+ * @param[in] m  the module
+ * @return the pool of modulations its presets draw from
  */
 const std::vector<ModAtom>& modPool(ModuleE m)
 {
@@ -835,8 +876,13 @@ const std::vector<ModAtom>& modPool(ModuleE m)
     }
 }
 
-/** @brief The groups whose pitch is the foundation (the bass groups the composer draws the bass from; the drone throughout):
- *         no pitch modulation. */
+/**
+ * @brief The groups whose pitch is the foundation (the bass groups the composer draws the bass from; the drone throughout):
+ *         no pitch modulation.
+ * @param[in] m      the module
+ * @param[in] group  the group
+ * @return true when the group's pitch is the foundation
+ */
 bool foundation(ModuleE m, const std::string& group)
 {
     return m == ModuleE::DRONE || (m == ModuleE::VOICE && (group == "Ladder Bass" || group == "Deep Ostinato" || group == "Dark Throb" || group == "Warm Unison"));
@@ -859,6 +905,9 @@ struct VcoChoice {
  *        on the steady E-mu), the sync sweeps on the Prophet, the round pulses and pads on the SEM, the plucks and the
  *        squelch on the ARP, glass and bells on the E-mu (with cross mod now and then) -- and still the voices' own
  *        analog oscillators here and there.
+ * @param[in] m      the module
+ * @param[in] group  the group
+ * @return the VCOs the group draws from
  */
 const std::vector<VcoChoice>& vcoChoices(ModuleE m, const std::string& group)
 {
@@ -927,7 +976,11 @@ struct PolyTable {
     float m_posLo;         ///< the low end of its place's range
     float m_posHi;         ///< ... the high end
 };
-/** @brief The tables and places the pad synth's analog group @p group draws from (empty for the others). */
+/**
+ * @brief The tables and places the pad synth's analog group @p group draws from (empty for the others).
+ * @param[in] group  the pad synth's group
+ * @return its tables and places, empty for a group that is not analog
+ */
 const std::vector<PolyTable>& polyTables(const std::string& group)
 {
     // The waves' frames: the ramp into the square over the first third, then the pulse narrowing.
@@ -941,7 +994,12 @@ const std::vector<PolyTable>& polyTables(const std::string& group)
     return none;
 }
 
-/** @brief The sixty-four presets of every group of a synth, the knob values from the axes (Presets.h). */
+/**
+ * @brief The sixty-four presets of every group of a synth, the knob values from the axes (Presets.h).
+ * @param[in] m  the module
+ * @param[in] s  its names and groups
+ * @return the presets of every group
+ */
 std::vector<SoundPreset> build(ModuleE m, const Synth& s)
 {
     ParamStore store;

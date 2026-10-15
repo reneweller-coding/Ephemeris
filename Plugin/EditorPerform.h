@@ -7,6 +7,7 @@
  * pressed, the next controller that moves is bound (EphemerisProcessor::learn). A line says what a
  * keyboard does without any binding: its keys transpose the rows from middle C. While a headset sends its hands (or
  * the settings say always), the frame's headset box beside them: the hands as they stand and what they do.
+ * @author Rene Weller
  */
 #pragma once
 #include "PluginProcessor.h"
@@ -19,11 +20,19 @@ class ParamPage;
 /** @brief The perform tab. */
 class PerformPage final : public juce::Component, private juce::Timer {
 public:
-    /** @brief Builds the controls for @p p; @p params is the perform module's page, which this page owns. */
+    /**
+     * @brief Builds the controls for @p p; @p params is the perform module's page, which this page owns.
+     * @param[in,out] p       the processor
+     * @param[in]     params  the perform module's page
+     */
     PerformPage(EphemerisProcessor& p, std::unique_ptr<ParamPage> params);
     ~PerformPage() override;                  ///< stops the timer
     void resized() override;                  ///< the controls on top, the bindings below
-    void paint(juce::Graphics& g) override;   ///< the note on the keys
+    /**
+     * the note on the keys
+     * @param[in,out] g  the graphics context to draw into
+     */
+    void paint(juce::Graphics& g) override;
 
 private:
     void timerCallback() override;            ///< the bindings and the learn state as they are

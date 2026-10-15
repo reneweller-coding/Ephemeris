@@ -15,6 +15,7 @@
  *   gesture on the same knob starts.
  * - **Rack events**: transposition, a row starting or stopping, a mutation, a new length (PLAN 5.1),
  *   so that locking and rerolling can work on a row.
+ * @author Rene Weller
  */
 #pragma once
 #include "eph/Clock.h"
@@ -30,7 +31,11 @@ enum class PartE : int { ROW1 = 0, ROW2, ROW3, ROW4, ROW5, ROW6, ROW7, ROW8,
                         LEAD, TAPE_KEYS, STRINGS, PAD, DRONE, ATMOS, DRUMS, COUNT };
 constexpr int NumParts = static_cast<int>(PartE::COUNT);   ///< number of parts
 extern const char* const PartNames[NumParts];            ///< "row1" .. "row8", "lead", "tape", ...
-/** @brief The part of row @p r (0-based). */
+/**
+ * @brief The part of row @p r (0-based).
+ * @param[in] r  the row, 0-based
+ * @return its part
+ */
 constexpr PartE rowPart(int r) { return static_cast<PartE>(static_cast<int>(PartE::ROW1) + r); }
 
 /** @brief One note. */
@@ -66,9 +71,19 @@ struct Gesture {
     uint8_t m_hand = 0;           ///< which of the player's two hands (PLAN 6.4: never more than two at once)
 };
 
-/** @brief Position 0..1 along a shape at normalised time @p t (clamped to 0..1). */
+/**
+ * @brief Position 0..1 along a shape at normalised time @p t (clamped to 0..1).
+ * @param[in] shape  the shape
+ * @param[in] t      the position in the gesture, 0..1
+ * @return the shape's value, 0..1
+ */
 double gestureShape(GestureShapeE shape, double t);
-/** @brief Offset of one gesture at @p beat: @p from before it, its curve during it, @p to after it. */
+/**
+ * @brief Offset of one gesture at @p beat: @p from before it, its curve during it, @p to after it.
+ * @param[in] g     the gesture
+ * @param[in] beat  the position in beats
+ * @return its offset there
+ */
 float gestureValue(const Gesture& g, double beat);
 
 /** @brief What a rack event does to its row. */
@@ -149,7 +164,12 @@ struct Marker {
     std::string m_text;    ///< name, e.g. "Atmo", "Build", "Piece 2"
 };
 
-/** @brief The root offset in force at @p beat in a list of (beat, semitones) changes (0 before the first). */
+/**
+ * @brief The root offset in force at @p beat in a list of (beat, semitones) changes (0 before the first).
+ * @param[in] shifts  the (beat, semitones) changes, in order
+ * @param[in] beat    the position in beats
+ * @return the root offset in semitones
+ */
 int rootShiftAt(const std::vector<std::pair<double, int>>& shifts, double beat);
 
 /** @brief A score of one piece or a whole concert. */
@@ -175,7 +195,10 @@ struct Score {
 
     /** @brief Sorts every list by beat (stable, so equal beats keep the order they were written in). */
     void sort();
-    /** @brief Empties the score and resets the tempo to @p bpm. */
+    /**
+     * @brief Empties the score and resets the tempo to @p bpm.
+     * @param[in] bpm  the new tempo in beats per minute
+     */
     void clear(double bpm);
     /**
      * @brief The gesture offset of @p param at @p beat, in the normalised range.
@@ -183,11 +206,23 @@ struct Score {
      * Of the gestures on one knob, the latest that has started counts (a new movement starts from
      * where the knob is); before the first one the offset is 0. Linear in the number of gestures --
      * for the offline render and the tests; the audio thread keeps a cursor instead.
+     * @param[in] param  the parameter
+     * @param[in] beat   the position in beats
+     * @return the automation offset in the normalised range
      */
     float gestureOffset(int param, double beat) const;
-    /** @brief The transposer's root offset at @p beat (rootShifts). */
+    /**
+     * @brief The transposer's root offset at @p beat (rootShifts).
+     * @param[in] beat  the position in beats
+     * @return the root offset in semitones
+     */
     int rootAt(double beat) const { return rootShiftAt(m_rootShifts, beat); }
-    /** @brief The scale at @p beat (scaleShifts), @p fallback where the score has none. */
+    /**
+     * @brief The scale at @p beat (scaleShifts), @p fallback where the score has none.
+     * @param[in] beat      the position in beats
+     * @param[in] fallback  the scale where the score has none
+     * @return the scale
+     */
     int scaleAt(double beat, int fallback) const { return m_scaleShifts.empty() ? fallback : rootShiftAt(m_scaleShifts, beat); }
 };
 

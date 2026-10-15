@@ -12,6 +12,7 @@
  *              [--rate 48000] [--block 512] [--out file.wav] [--midi file.mid] [--study]
  *              [--frame [--ramp-to B]]
  *              [--stems DIR] [--cues FILE] [--list] [--dump-params FILE] [--version]
+ * @author Rene Weller
  */
 #include "eph/Loudness.h"
 #include "eph/Engine.h"
@@ -73,7 +74,12 @@ void usage()
 
 } // namespace
 
-/** @brief Parses the arguments (see usage()), composes or loads, renders, writes the files, reports. */
+/**
+ * @brief Parses the arguments (see usage()), composes or loads, renders, writes the files, reports.
+ * @param[in]     argc  the number of arguments
+ * @param[in,out] argv  the arguments: sections to run
+ * @return the number of failures
+ */
 int main(int argc, char** argv)
 {
     double bars = 0.0, minutes = 0.0, rampTo = 0.0, rate = 48000.0;

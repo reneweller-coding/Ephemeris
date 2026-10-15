@@ -1,6 +1,7 @@
 /**
  * @file EditorGestures.cpp
  * @brief The gestures page (EditorGestures.h).
+ * @author Rene Weller
  */
 #include "EditorGestures.h"
 #include "EditorTheme.h"

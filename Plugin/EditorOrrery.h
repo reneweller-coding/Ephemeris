@@ -10,6 +10,7 @@
  * down under the orbits. The sun in the centre is the transposer: the root the rows play on, which it
  * moves. Everything is computed from the score the engine plays (its rows' shapes and their start and
  * stop events) and the playhead, so it shows what sounds, in the standalone and in a host.
+ * @author Rene Weller
  */
 #pragma once
 #include "PluginProcessor.h"
@@ -22,9 +23,17 @@ class ParamPage;
 /** @brief The rows as orbits around the root (see the file comment). */
 class OrreryView final : public juce::Component, private juce::Timer {
 public:
-    explicit OrreryView(EphemerisProcessor& p);   ///< shows @p p's score and follows its playhead
+    /**
+     * shows @p p's score and follows its playhead
+     * @param[in,out] p  the processor
+     */
+    explicit OrreryView(EphemerisProcessor& p);
     ~OrreryView() override;                       ///< stops the timer
-    void paint(juce::Graphics& g) override;       ///< the orbits, the planets, the conjunction, the root
+    /**
+     * the orbits, the planets, the conjunction, the root
+     * @param[in,out] g  the graphics context
+     */
+    void paint(juce::Graphics& g) override;
 
 private:
     /** @brief One row at one beat. */
@@ -39,9 +48,18 @@ private:
     };
     /** @brief Follows the piece: the rows at the playhead. */
     void timerCallback() override;
-    /** @brief The rows at @p beat. */
+    /**
+     * @brief The rows at @p beat.
+     * @param[in] beat  the position in beats
+     * @return the rows' states
+     */
     std::vector<RowState> rowsAt(double beat) const;
-    /** @brief The next beat after @p beat at which every running row of @p rows is on its first step, or -1. */
+    /**
+     * @brief The next beat after @p beat at which every running row of @p rows is on its first step, or -1.
+     * @param[in] rows  the rows
+     * @param[in] beat  the position in beats
+     * @return the beat of the next conjunction, or -1
+     */
     static double nextConjunction(const std::vector<RowState>& rows, double beat);
 
     EphemerisProcessor& m_proc;   ///< where the score and the playhead come from
@@ -52,7 +70,11 @@ private:
 /** @brief The rack tab: the orrery on the left, the rows' parameters on the right. */
 class RackPage final : public juce::Component {
 public:
-    /** @brief Builds both halves; @p params is the rows' parameter page, which the rack page owns. */
+    /**
+     * @brief Builds both halves; @p params is the rows' parameter page, which the rack page owns.
+     * @param[in,out] p       the processor
+     * @param[in]     params  the rows' parameter page
+     */
     RackPage(EphemerisProcessor& p, std::unique_ptr<ParamPage> params);
     ~RackPage() override;          ///< needs ParamPage complete
     void resized() override;       ///< a square for the orrery, the rest for the parameters

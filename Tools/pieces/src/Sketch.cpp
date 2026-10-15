@@ -1,6 +1,7 @@
 /**
  * @file Sketch.cpp
  * @brief The sketch of Phase 2.
+ * @author Rene Weller
  */
 #include "eph/Sketch.h"
 #include "eph/compose/GestureEngine.h"

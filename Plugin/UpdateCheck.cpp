@@ -1,6 +1,7 @@
 /**
  * @file UpdateCheck.cpp
  * @brief The update check (UpdateCheck.h).
+ * @author Rene Weller
  */
 #include "UpdateCheck.h"
 #include <cstdlib>
@@ -9,7 +10,10 @@ namespace {
 const char* const Releases = "https://api.github.com/repos/reneweller-coding/Ephemeris/releases/latest";   ///< GitHub's API for the latest release
 constexpr juce::int64 Day = 24 * 60 * 60 * 1000;   ///< a day, ms
 
-/** @brief The check's settings file: Ephemeris.updates beside the standalone's settings. */
+/**
+ * @brief The check's settings file: Ephemeris.updates beside the standalone's settings.
+ * @return the settings file's options
+ */
 juce::PropertiesFile::Options options()
 {
     juce::PropertiesFile::Options o;

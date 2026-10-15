@@ -37,6 +37,7 @@
  * player's hand on the machine would reach them.
  * The magnitudes are first settings; PLAN 5.4 wants them measured on Mellotron recordings (statistics
  * only), which has not happened yet.
+ * @author Rene Weller
  */
 #pragma once
 #include "eph/Dsp.h"
@@ -73,31 +74,65 @@ struct TapeSettings {
 /** @brief The tape keyboard: eight keys, one output (mono). */
 class TapeKeys {
 public:
-    /** @brief Sample rate and seed (the seed fixes the tapes). */
+    /**
+     * @brief Sample rate and seed (the seed fixes the tapes).
+     * @param[in] sampleRate  the sample rate in Hz
+     * @param[in] seed        the seed that fixes the tapes
+     */
     void prepare(double sampleRate, uint64_t seed);
     /** @brief Silences everything. */
     void reset();
-    /** @brief Takes the settings; call at every 32-sample cell. */
+    /**
+     * @brief Takes the settings; call at every 32-sample cell.
+     * @param[in] s  the settings
+     */
     void set(const TapeSettings& s);
     /**
      * @brief How many of a choir key's singers sound (1 .. Singers; the Quest's quality level plays 3). The
      *        sum is scaled by 1 / sqrt(6 n), which keeps the level of a choir of random phases the same for any
      *        n and is exactly 1/6 for all six, so the desktop's sound does not move by a bit.
+     * @param[in] n  the singers per choir key
      */
     void setSingers(int n) { m_singers = n < 1 ? 1 : (n > Singers ? Singers : n); }
-    /** @brief Presses a key; if all keys sound, the oldest is taken. */
+    /**
+     * @brief Presses a key; if all keys sound, the oldest is taken.
+     * @param[in] pitch     the MIDI note
+     * @param[in] velocity  the velocity, 0..1
+     * @param[in] id        the note's id
+     */
     void noteOn(int pitch, float velocity, int id);
-    /** @brief Releases the key started with @p id. */
+    /**
+     * @brief Releases the key started with @p id.
+     * @param[in] id  the note's id
+     */
     void noteOff(int id);
-    /** @brief Whether anything sounds. */
+    /**
+     * @brief Whether anything sounds.
+     * @return true while anything sounds
+     */
     bool active() const;
-    /** @brief Renders @p n samples into @p out (overwritten). */
+    /**
+     * @brief Renders @p n samples into @p out (overwritten).
+     * @param[out] out  receives the output (overwritten)
+     * @param[in]  n    how many samples
+     */
     void process(float* out, int n);
-    /** @brief The capstan's speed factor for @p keysDown keys pressed (for the tests). */
+    /**
+     * @brief The capstan's speed factor for @p keysDown keys pressed (for the tests).
+     * @param[in] keysDown  how many keys are pressed
+     * @return the capstan's speed factor
+     */
     double speedFor(int keysDown) const;
-    /** @brief The piece's beat at the next sample and beats per sample (the synced LFOs); call at every cell. */
+    /**
+     * @brief The piece's beat at the next sample and beats per sample (the synced LFOs); call at every cell.
+     * @param[in] beat            the beat at the next sample
+     * @param[in] beatsPerSample  beats per sample from there
+     */
     void setClock(double beat, double beatsPerSample) { m_beat0 = beat; m_bps = beatsPerSample; m_clockAt = m_count; }
-    /** @brief The matrix's pan offset (the engine adds it to the strip's pan). */
+    /**
+     * @brief The matrix's pan offset (the engine adds it to the strip's pan).
+     * @return the pan offset, -1..1
+     */
     float panMod() const { return m_mod.offset(m_mo, ModDestE::PAN); }
 
 private:
@@ -137,9 +172,20 @@ private:
         TapeSetE m_set = TapeSetE::CHOIR;   ///< the tape set the key was pressed on: a switch takes the next press
         double m_decay = 1.0;        ///< the player's envelope: what is left of the decay towards the sustain level
     };
-    /** @brief One sample of key @p k at the capstan speed @p speedCents (cents off the true speed). */
+    /**
+     * @brief One sample of key @p k at the capstan speed @p speedCents (cents off the true speed).
+     * @param[in,out] k           the key
+     * @param[in]     speedCents  the capstan speed in cents off the true speed
+     * @return the key's sample
+     */
     float render(Key& k, double speedCents);
-    /** @brief Presses key @p k for @p pitch at @p velocity, note id @p id: its tape drawn, its sources set. */
+    /**
+     * @brief Presses key @p k for @p pitch at @p velocity, note id @p id: its tape drawn, its sources set.
+     * @param[in,out] k         the key
+     * @param[in]     pitch     the MIDI note
+     * @param[in]     velocity  the velocity, 0..1
+     * @param[in]     id        the note's id
+     */
     void startKey(Key& k, int pitch, float velocity, int id);
     double m_sr = 48000.0;   ///< the sample rate, Hz
     uint64_t m_seed = 1;   ///< the seed of the tapes
@@ -162,7 +208,11 @@ private:
     double m_beat0 = 0.0;   ///< the clock: the beat at m_clockAt
     double m_bps = 0.0;   ///< beats per sample
     int64_t m_clockAt = 0;   ///< the sample setClock() was called at
-    /** @brief The beat at sample @p at. */
+    /**
+     * @brief The beat at sample @p at.
+     * @param[in] at  the sample
+     * @return the beat there
+     */
     double beatAt(int64_t at) const { return m_beat0 + static_cast<double>(at - m_clockAt) * m_bps; }
 };
 

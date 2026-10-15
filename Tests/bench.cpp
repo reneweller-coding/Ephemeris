@@ -4,6 +4,7 @@
  *
  * Every case renders two seconds, five times; the fastest run counts, which keeps a busy machine's noise out of the
  * figure. Printed as the share of one core at 48 kHz. Not a test: ctest does not run it.
+ * @author Rene Weller
  */
 #include "eph/Dsp.h"
 #include "eph/synth/ModVoice.h"
@@ -23,7 +24,11 @@ constexpr int Seconds = 2;   ///< audio a run renders, s
 constexpr int Runs = 5;   ///< runs; the fastest counts
 constexpr int Block = 32;   ///< the block, samples
 
-/** @brief The fastest of Runs runs of @p render (Seconds of audio), as the share of a core. */
+/**
+ * @brief The fastest of Runs runs of @p render (Seconds of audio), as the share of a core.
+ * @param[in] render  renders the audio
+ * @return the share of a core
+ */
 template <class FT>
 double share(FT render)
 {
@@ -36,7 +41,11 @@ double share(FT render)
     return 100.0 * best / Seconds;
 }
 
-/** @brief Ten voices playing a sequence, each with filter model @p models[v]. */
+/**
+ * @brief Ten voices playing a sequence, each with filter model @p models[v].
+ * @param[in] models  the filter model per voice
+ * @return the share of a core
+ */
 double bank(const int* models)
 {
     return share([models]() {
@@ -62,7 +71,12 @@ double bank(const int* models)
     });
 }
 
-/** @brief The pad synth with @p keys keys held on filter model @p model. */
+/**
+ * @brief The pad synth with @p keys keys held on filter model @p model.
+ * @param[in] model  the filter model
+ * @param[in] keys   the keys held
+ * @return the share of a core
+ */
 double pad(int model, int keys)
 {
     return share([model, keys]() {
@@ -82,7 +96,10 @@ double pad(int model, int keys)
 
 } // namespace
 
-/** @brief Times the engine's parts and the whole; prints each as the share of a core. */
+/**
+ * @brief Times the engine's parts and the whole; prints each as the share of a core.
+ * @return the number of failures
+ */
 int main()
 {
     prepareWavetables();

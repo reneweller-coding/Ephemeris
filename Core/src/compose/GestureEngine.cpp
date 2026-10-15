@@ -1,6 +1,7 @@
 /**
  * @file GestureEngine.cpp
  * @brief The player's hands.
+ * @author Rene Weller
  */
 #include "eph/compose/GestureEngine.h"
 #include <algorithm>
@@ -10,7 +11,11 @@ namespace eph {
 
 namespace {
 
-/** @brief A standard normal draw from @p rng. */
+/**
+ * @brief A standard normal draw from @p rng.
+ * @param[in,out] rng  the random stream
+ * @return the draw
+ */
 double gaussian(Rng& rng) { return rng.gaussian(); }
 
 } // namespace

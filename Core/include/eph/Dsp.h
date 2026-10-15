@@ -8,6 +8,7 @@
  *       Namespace changed to `phos`, comments rewritten in Doxygen form, the drone-specific
  *       wavefolder left behind. Everything else is arithmetically unchanged.
  * @note Copied from Phosphene `Core/include/phos/Dsp.h` at 9a2f615 (24.09.2026); namespace eph, prefix EPH_.
+ * @author Rene Weller
  */
 #pragma once
 #include <algorithm>
@@ -24,17 +25,35 @@ namespace eph {
 constexpr float Pi    = 3.14159265358979f;   ///< pi as float
 constexpr float TwoPi = 6.28318530717959f;   ///< 2 pi as float
 
-/** @brief Clamps @p v into [@p lo, @p hi]. */
+/**
+ * @brief Clamps @p v into [@p lo, @p hi].
+ * @param[in] v   the value
+ * @param[in] lo  the lower bound
+ * @param[in] hi  the upper bound
+ * @return v limited to [lo, hi]
+ */
 template <class T> inline T clampv(T v, T lo, T hi) { return v < lo ? lo : (v > hi ? hi : v); }
 
-/** @brief Decibels to a linear amplitude factor. */
+/**
+ * @brief Decibels to a linear amplitude factor.
+ * @param[in] db  the level in decibels
+ * @return the linear amplitude factor
+ */
 inline float dbToGain(float db) { return std::pow(10.0f, db * 0.05f); }
 
 /** @brief MIDI note number to frequency in Hz (A4 = 69 = 440 Hz). */
-/** @brief The pitch class 0..11 of a note or interval, for negative values too. (Added in Ephemeris.) */
+/**
+ * @brief The pitch class 0..11 of a note or interval, for negative values too. (Added in Ephemeris.)
+ * @param[in] n  a note or an interval in semitones
+ * @return its pitch class, 0 .. 11
+ */
 inline int pitchClass(int n) { return ((n % 12) + 12) % 12; }
 
-/** @brief The frequency of MIDI note @p note (A4 = 440 Hz), Hz. */
+/**
+ * @brief The frequency of MIDI note @p note (A4 = 440 Hz), Hz.
+ * @param[in] note  the MIDI note, fractional allowed
+ * @return its frequency in Hz
+ */
 inline double midiToHz(double note) { return 440.0 * std::pow(2.0, (note - 69.0) / 12.0); }
 
 /**
@@ -46,21 +65,41 @@ inline double midiToHz(double note) { return 440.0 * std::pow(2.0, (note - 69.0)
 struct Rng {
     uint64_t m_s = 0x9E3779B97F4A7C15ull;   ///< state, never zero
 
-    /** @brief Seeds the generator; any value including 0 is valid. */
+    /**
+     * @brief Seeds the generator; any value including 0 is valid.
+     * @param[in] v  the seed
+     */
     void seed(uint64_t v) { m_s = v * 0x9E3779B97F4A7C15ull + 0xD1B54A32D192ED03ull; if (m_s == 0) m_s = 1; next(); next(); }
-    /** @brief Next raw 64-bit value. */
+    /**
+     * @brief Next raw 64-bit value.
+     * @return the next raw 64-bit value
+     */
     uint64_t next() { m_s ^= m_s << 13; m_s ^= m_s >> 7; m_s ^= m_s << 17; return m_s; }
-    /** @brief Uniform float in [0, 1). */
+    /**
+     * @brief Uniform float in [0, 1).
+     * @return a uniform value in [0, 1)
+     */
     float uniform() { return static_cast<float>((next() >> 40) * (1.0 / 16777216.0)); }
-    /** @brief Uniform float in [-1, 1). */
+    /**
+     * @brief Uniform float in [-1, 1).
+     * @return a uniform value in [-1, 1)
+     */
     float bipolar() { return uniform() * 2.0f - 1.0f; }
-    /** @brief Uniform integer in [0, n); 0 when n <= 0. */
+    /**
+     * @brief Uniform integer in [0, n); 0 when n <= 0.
+     * @param[in] n  the bound
+     * @return a uniform integer in [0, n), 0 when n <= 0
+     */
     int below(int n) { return n <= 0 ? 0 : static_cast<int>(next() % static_cast<uint64_t>(n)); }
-    /** @brief A seed for a derived, independent stream. */
+    /**
+     * @brief A seed for a derived, independent stream.
+     * @return a seed for an independent stream
+     */
     uint64_t fork() { return next(); }
     /**
      * @brief A standard normal value from twelve uniforms (Irwin-Hall): variance 1, bounded at +-6, cheap.
      *        Plenty for drifts and scatter. (Added in Ephemeris.)
+     * @return a standard normal value, bounded at +-6
      */
     double gaussian() { double n = -6.0; for (int i = 0; i < 12; ++i) n += static_cast<double>(uniform()); return n; }
 };
@@ -70,6 +109,9 @@ struct Rng {
  *
  * Used to derive per-bar and per-phrase seeds from the set seed, so that recomposing bar 37 gives
  * bar 37 again regardless of what was composed before it.
+ * @param[in] a  the first value
+ * @param[in] b  the second value
+ * @return the mixed seed
  */
 inline uint64_t mixSeed(uint64_t a, uint64_t b)
 {
@@ -91,12 +133,16 @@ struct SineTable {
     SineTable() { for (int i = 0; i <= N + 1; ++i) m_v[i] = std::sin(TwoPi * static_cast<float>(i) / static_cast<float>(N)); }
 };
 
-/** @brief The one shared sine table. */
+/**
+ * @brief The one shared sine table.
+ * @return the shared sine table
+ */
 inline const SineTable& sineTable() { static const SineTable t; return t; }
 
 /**
  * @brief sin(2 pi phase) from the table.
- * @param phase01 phase in [0, 1); values outside are wrapped.
+ * @param[in] phase01  phase in [0, 1); values outside are wrapped.
+ * @return sin(2 pi phase01)
  */
 inline float sin01(double phase01)
 {
@@ -124,14 +170,17 @@ public:
     /** @brief Envelope stage. */
     enum class StageE { IDLE, ATTACK, DECAY, SUSTAIN, RELEASE };
 
-    /** @brief Sets the sample rate the times refer to. */
+    /**
+     * @brief Sets the sample rate the times refer to.
+     * @param[in] sr  the sample rate in Hz
+     */
     void setSampleRate(double sr) { m_sr = sr; }
     /**
      * @brief Sets the segment times.
-     * @param attackS  seconds from 0 to 1
-     * @param decayS   seconds for the decay to settle near the sustain
-     * @param sustain  sustain level 0..1
-     * @param releaseS seconds to -43 dB (silent at about 1.8 times that)
+     * @param[in] attackS   seconds from 0 to 1
+     * @param[in] decayS    seconds for the decay to settle near the sustain
+     * @param[in] sustain   sustain level 0..1
+     * @param[in] releaseS  seconds to -43 dB (silent at about 1.8 times that)
      */
     void setTimes(float attackS, float decayS, float sustain, float releaseS)
     {
@@ -140,7 +189,10 @@ public:
         m_rCoef = coef(releaseS, 5.0f);
         m_sus   = sustain;
     }
-    /** @brief Takes over another envelope's segment times (the same sample rate assumed): setTimes without the exp. */
+    /**
+     * @brief Takes over another envelope's segment times (the same sample rate assumed): setTimes without the exp.
+     * @param[in] o  the envelope whose times are taken
+     */
     void copyTimes(const Envelope& o) { m_aCoef = o.m_aCoef; m_dCoef = o.m_dCoef; m_rCoef = o.m_rCoef; m_sus = o.m_sus; }
     /** @brief Starts the attack from the current level (no reset to zero, so no click). */
     void noteOn()  { m_stage = StageE::ATTACK; }
@@ -149,6 +201,7 @@ public:
      *
      * The attack is a one-pole towards 1.3, so after s samples the distance to 1.3 has shrunk by
      * (1 - a)^s -- for any real s. Used for sub-sample note onsets. (Added in Phosphene.)
+     * @param[in] samples  the fraction of a sample to advance by
      */
     void advanceAttack(double samples)
     {
@@ -160,12 +213,31 @@ public:
     void noteOff() { if (m_stage != StageE::IDLE) m_stage = StageE::RELEASE; }
     /** @brief Silences immediately. */
     void kill()    { m_stage = StageE::IDLE; m_level = 0.0f; }
-    bool  isActive() const    { return m_stage != StageE::IDLE; }        ///< not idle
-    bool  isReleasing() const { return m_stage == StageE::RELEASE; }     ///< in release
-    float level() const       { return m_level; }                       ///< current level
-    StageE stage() const       { return m_stage; }                       ///< current stage
+    /**
+     * not idle
+     * @return true unless idle
+     */
+    bool  isActive() const    { return m_stage != StageE::IDLE; }
+    /**
+     * in release
+     * @return true in the release stage
+     */
+    bool  isReleasing() const { return m_stage == StageE::RELEASE; }
+    /**
+     * current level
+     * @return the current level
+     */
+    float level() const       { return m_level; }
+    /**
+     * current stage
+     * @return the current stage
+     */
+    StageE stage() const       { return m_stage; }
 
-    /** @brief Advances one sample and returns the level. */
+    /**
+     * @brief Advances one sample and returns the level.
+     * @return the level after the step
+     */
     float process()
     {
         switch (m_stage) {
@@ -192,7 +264,12 @@ public:
     }
 
 private:
-    /** @brief The one-pole coefficient of a stage of @p seconds, @p k time constants long. */
+    /**
+     * @brief The one-pole coefficient of a stage of @p seconds, @p k time constants long.
+     * @param[in] seconds  the stage's length in seconds
+     * @param[in] k        how many time constants the stage lasts
+     * @return the one-pole coefficient
+     */
     float coef(float seconds, float k) const
     {
         const float tau = std::max(seconds, 0.0005f) / k;
@@ -220,19 +297,41 @@ struct Svf {
     float m_a3 = 0;      ///< coefficient g a2
     float m_k = 1.0f;    ///< damping (2 = no resonance)
 
-    /** @brief Cutoff and a 0..1 resonance (maps to damping 2 .. 0.1). */
+    /**
+     * @brief Cutoff and a 0..1 resonance (maps to damping 2 .. 0.1).
+     * @param[in] cutoffHz   the cutoff frequency in Hz
+     * @param[in] resonance  the resonance, 0..1
+     * @param[in] sr         the sample rate in Hz
+     */
     void set(float cutoffHz, float resonance, float sr) { setK(cutoffHz, 2.0f - 1.9f * clampv(resonance, 0.0f, 1.0f), sr); }
-    /** @brief Cutoff and quality factor. */
+    /**
+     * @brief Cutoff and quality factor.
+     * @param[in] cutoffHz  the cutoff frequency in Hz
+     * @param[in] q         the quality factor
+     * @param[in] sr        the sample rate in Hz
+     */
     void setQ(float cutoffHz, float q, float sr) { setK(cutoffHz, 1.0f / std::max(q, 0.05f), sr); }
-    /** @brief Takes another filter's coefficients, keeping this filter's state. */
+    /**
+     * @brief Takes another filter's coefficients, keeping this filter's state.
+     * @param[in] o  the filter whose coefficients are taken
+     */
     void copyCoefficients(const Svf& o) { m_a1 = o.m_a1; m_a2 = o.m_a2; m_a3 = o.m_a3; m_k = o.m_k; }
-    /** @brief Cutoff and damping directly. */
+    /**
+     * @brief Cutoff and damping directly.
+     * @param[in] cutoffHz  the cutoff frequency in Hz
+     * @param[in] damping   the damping k
+     * @param[in] sr        the sample rate in Hz
+     */
     void setK(float cutoffHz, float damping, float sr)
     {
         const float fc = clampv(cutoffHz, 10.0f, sr * 0.45f);
         setG(std::tan(Pi * fc / sr), damping);
     }
-    /** @brief Prewarped gain g = tan(pi fc / fs) and damping directly. */
+    /**
+     * @brief Prewarped gain g = tan(pi fc / fs) and damping directly.
+     * @param[in] g        the prewarped gain tan(pi fc / fs)
+     * @param[in] damping  the damping k
+     */
     void setG(float g, float damping)
     {
         m_k = damping;
@@ -240,7 +339,13 @@ struct Svf {
         m_a2 = g * m_a1;
         m_a3 = g * m_a2;
     }
-    /** @brief One sample, all outputs. The band pass has unity gain at the cutoff after scaling by k. */
+    /**
+     * @brief One sample, all outputs. The band pass has unity gain at the cutoff after scaling by k.
+     * @param[in]  in  the input sample
+     * @param[out] lp  receives the low-pass output
+     * @param[out] bp  receives the band-pass output
+     * @param[out] hp  receives the high-pass output
+     */
     inline void tick(float in, float& lp, float& bp, float& hp)
     {
         const float v3 = in - m_ic2;
@@ -250,7 +355,11 @@ struct Svf {
         m_ic2 = 2.0f * v2 - m_ic2;
         lp = v2; bp = v1; hp = in - m_k * v1 - v2;
     }
-    /** @brief One sample, low-pass output only. */
+    /**
+     * @brief One sample, low-pass output only.
+     * @param[in] in  the input sample
+     * @return the low-pass output
+     */
     inline float lp(float in)
     {
         const float v3 = in - m_ic2;
@@ -268,11 +377,22 @@ struct Svf {
 struct Smoother {
     float m_value = 0;        ///< current value
     float m_coef = 0.001f;    ///< per-sample coefficient
-    /** @brief Time constant in seconds. */
+    /**
+     * @brief Time constant in seconds.
+     * @param[in] seconds  the time constant in seconds
+     * @param[in] sr       the rate of the steps in Hz
+     */
     void setTime(float seconds, double sr) { m_coef = 1.0f - std::exp(-1.0f / (std::max(seconds, 1e-4f) * static_cast<float>(sr))); }
-    /** @brief One step towards @p target. */
+    /**
+     * @brief One step towards @p target.
+     * @param[in] target  the value to move towards
+     * @return the smoothed value after the step
+     */
     inline float next(float target) { m_value += (target - m_value) * m_coef; return m_value; }
-    /** @brief Jumps to @p v. */
+    /**
+     * @brief Jumps to @p v.
+     * @param[in] v  the value to jump to
+     */
     void snap(float v) { m_value = v; }
 };
 
@@ -283,9 +403,17 @@ struct DcBlocker {
     float m_x1 = 0.0f;     ///< previous input
     float m_y1 = 0.0f;     ///< previous output
     float m_r = 0.9995f;   ///< pole radius
-    /** @brief Sets the corner frequency. */
+    /**
+     * @brief Sets the corner frequency.
+     * @param[in] sr  the sample rate in Hz
+     * @param[in] hz  the corner frequency in Hz
+     */
     void prepare(double sr, float hz = 5.0f) { m_r = 1.0f - static_cast<float>(TwoPi * hz / sr); reset(); }
-    /** @brief One sample. */
+    /**
+     * @brief One sample.
+     * @param[in] x  the input sample
+     * @return the sample without its DC
+     */
     inline float process(float x) { const float y = x - m_x1 + m_r * m_y1; m_x1 = x; m_y1 = y; return y; }
     /** @brief Clears the states. */
     void reset() { m_x1 = m_y1 = 0.0f; }
@@ -323,7 +451,11 @@ struct BandLimit {
     Svf m_a;   ///< first Butterworth section (damping 2 cos(pi/8))
     Svf m_b;   ///< second Butterworth section (damping 2 cos(3 pi/8))
 
-    /** @brief Sets the corner; it never goes above 0.4 fs, so a low sample rate degrades gracefully. */
+    /**
+     * @brief Sets the corner; it never goes above 0.4 fs, so a low sample rate degrades gracefully.
+     * @param[in] sr        the sample rate in Hz
+     * @param[in] cornerHz  the corner frequency in Hz (at most 0.4 fs)
+     */
     void prepare(double sr, float cornerHz = 18000.0f)
     {
         const float fc = clampv(cornerHz, 1000.0f, static_cast<float>(0.4 * sr));
@@ -331,7 +463,11 @@ struct BandLimit {
         m_b.setK(fc, 0.7653669f, static_cast<float>(sr));   // 2 cos(3 pi/8)
         reset();
     }
-    /** @brief One sample. */
+    /**
+     * @brief One sample.
+     * @param[in] x  the input sample
+     * @return the band-limited sample
+     */
     inline float process(float x) { return m_b.lp(m_a.lp(x)); }
     /** @brief Clears the states. */
     void reset() { m_a.reset(); m_b.reset(); }
@@ -388,7 +524,11 @@ private:
 #endif
 };
 
-/** @brief Cubic soft clip, flat beyond +-1.5. */
+/**
+ * @brief Cubic soft clip, flat beyond +-1.5.
+ * @param[in] x  the input sample
+ * @return the clipped sample
+ */
 inline float softClip(float x)
 {
     if (x > 1.5f) return 1.0f;

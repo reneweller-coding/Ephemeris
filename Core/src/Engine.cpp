@@ -1,6 +1,7 @@
 /**
  * @file Engine.cpp
  * @brief The engine of Phase 1: rows, voices, gestures, mixer, tape echo.
+ * @author Rene Weller
  */
 #include "eph/Engine.h"
 #include "eph/Dsp.h"
@@ -13,7 +14,13 @@
 namespace eph {
 
 namespace {
-/** @brief Whether @p now differs from @p last bit for bit (or @p valid is false); if so, @p last takes it. */
+/**
+ * @brief Whether @p now differs from @p last bit for bit (or @p valid is false); if so, @p last takes it.
+ * @param[in,out] last   the last value, takes the new one
+ * @param[in]     now    the new value
+ * @param[in]     valid  false when last holds nothing yet
+ * @return true when the value changed
+ */
 template <class T>
 bool changed(T& last, const T& now, bool valid)
 {

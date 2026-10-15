@@ -2,6 +2,10 @@
  * @file LinkClock.cpp
  * @brief Ableton Link for the standalone (02.10.2026): LinkClock.h. Without the library (FAMILY_HAS_LINK unset) every
  *        call is a quiet no-op, so a build without it still runs.
+ * @author Rene Weller
+ *
+ * @par Compile Flags:
+ *   @arg @c FAMILY_HAS_LINK - Ableton Link is built in (its SDK was found); without it the clock never joins a session
  */
 #include "LinkClock.h"
 #include <chrono>

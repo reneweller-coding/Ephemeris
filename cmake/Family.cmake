@@ -12,16 +12,20 @@
 #
 # family_doccheck() adds the test `doccheck` where Doxygen is installed (01.10.2026): every class, function, variable,
 # typedef and macro of the sources -- Core, Plugin, the Quest app, the tools, the tests; private members, static functions
-# and anonymous namespaces included -- has its documentation, or the test fails and names what lacks it.
+# and anonymous namespaces included -- has its documentation, or the test fails and names what lacks it. Since
+# 15.10.2026 as the CGVR guideline's template asks: every parameter with its direction ([in], [out], [in,out]) and every
+# return value described, and no documentation error.
 #
 # The same file runs as a script (cmake -P) for the copy itself and for the documentation check.
 
 if(CMAKE_SCRIPT_MODE_FILE AND DOCCHECK)
     # cmake -DDOCCHECK=1 -DDOXYGEN=<doxygen> -DROOT=<source dir> -DOUT=<work dir> -DNAME=<project> -P Family.cmake
     set(inputs "")
+    set(globs "")
     foreach(d Core/include Core/src Plugin Quest/src Tools/render Tools/plandump Tests)
         if(IS_DIRECTORY "${ROOT}/${d}")
             string(APPEND inputs " \"${ROOT}/${d}\"")
+            list(APPEND globs "${ROOT}/${d}/*.h" "${ROOT}/${d}/*.cpp" "${ROOT}/${d}/*.cu" "${ROOT}/${d}/*.cuh")
         endif()
     endforeach()
     file(MAKE_DIRECTORY "${OUT}")
@@ -30,7 +34,8 @@ if(CMAKE_SCRIPT_MODE_FILE AND DOCCHECK)
     file(WRITE "${OUT}/Doxyfile" "PROJECT_NAME = \"${NAME}\"
 OUTPUT_DIRECTORY = \"${OUT}\"
 INPUT = ${inputs}
-FILE_PATTERNS = *.h *.cpp
+FILE_PATTERNS = *.h *.cpp *.cu *.cuh
+EXTENSION_MAPPING = cu=C++ cuh=C++
 RECURSIVE = YES
 EXCLUDE = \"${ROOT}/Tests/neonshim\" \"${ROOT}/Tests/neonbench\"
 EXCLUDE_PATTERNS = */ThirdParty/* */build/* */JuceLibraryCode/*
@@ -42,10 +47,11 @@ EXTRACT_ANON_NSPACES = YES
 EXTRACT_LOCAL_METHODS = YES
 DISTRIBUTE_GROUP_DOC = YES
 WARN_IF_UNDOCUMENTED = YES
-WARN_IF_DOC_ERROR = NO
-WARN_NO_PARAMDOC = NO
-WARN_IF_INCOMPLETE_DOC = NO
+WARN_IF_DOC_ERROR = YES
+WARN_NO_PARAMDOC = YES
+WARN_IF_INCOMPLETE_DOC = YES
 WARN_LOGFILE = \"${log}\"
+ALIASES += \"sideeffects=@par Side effects:^^\"
 GENERATE_HTML = NO
 GENERATE_LATEX = NO
 QUIET = YES
@@ -55,16 +61,29 @@ HAVE_DOT = NO
     if(NOT r EQUAL 0)
         message(FATAL_ERROR "doxygen failed (${r})")
     endif()
+    # 15.10.2026, the CGVR template: every parameter and return value described, no documentation error (a @param of a
+    # name the function does not have, a @copydoc without a target, a placeholder taken for HTML) ...
     set(missing "")
     if(EXISTS "${log}")
-        file(STRINGS "${log}" lines REGEX "is not documented")
+        file(STRINGS "${log}" lines REGEX "warning:")
         set(missing ${lines})
     endif()
+    # ... and every @param with its direction: [in], [out] or [in,out]
+    file(GLOB_RECURSE sources ${globs})
+    foreach(f ${sources})
+        if(f MATCHES "/(ThirdParty|third_party|build|neonshim|neonbench)/")
+            continue()
+        endif()
+        file(STRINGS "${f}" plain REGEX "[@\\\\]param[ \t]")
+        foreach(l ${plain})
+            list(APPEND missing "${f}: @param without a direction: ${l}")
+        endforeach()
+    endforeach()
     list(LENGTH missing n)
     if(n GREATER 0)
         list(SUBLIST missing 0 40 shown)
         string(REPLACE ";" "\n" shown "${shown}")
-        message(FATAL_ERROR "${n} undocumented (all of them in ${log}):\n${shown}")
+        message(FATAL_ERROR "${n} documentation gaps (Doxygen's in ${log}):\n${shown}")
     endif()
     message(STATUS "doccheck: everything documented")
     return()

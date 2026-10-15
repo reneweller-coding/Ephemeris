@@ -41,6 +41,7 @@
  * VI, VII, III), sus2 and sus4, add9, stacked fourths, a triad over the triad a fifth up (m9), the seventh
  * (a major seventh over VI) -- for the string machine; the tape keys' choirs play plain triads mostly. No
  * dominant with a leading tone, no suspension that is not a perfect fourth or a whole tone.
+ * @author Rene Weller
  */
 #pragma once
 #include "eph/Dsp.h"
@@ -52,18 +53,22 @@ namespace eph {
 
 /**
  * @brief Draws the roots of a transposer row: the chain of sequencer transpositions.
- * @param style        the style profile
- * @param scale        the mode: a move is left out where the centre would fall outside the moved scale
- *                     (a fifth up in Lydian, a fourth up in Locrian, a minor third down in Mixolydian), so the
- *                     drone held on the centre always belongs to the rows' scale
- * @param steps        how many steps (the transposer row's length)
- * @param barsPerStep  bars per step (the row's division), so a stage lasts four to sixteen bars
- * @param rng          the row's stream
+ * @param[in]     style        the style profile
+ * @param[in]     scale        the mode: a move is left out where the centre would fall outside the moved scale (a fifth
+ *                             up in Lydian, a fourth up in Locrian, a minor third down in Mixolydian), so the drone
+ *                             held on the centre always belongs to the rows' scale
+ * @param[in]     steps        how many steps (the transposer row's length)
+ * @param[in]     barsPerStep  bars per step (the row's division), so a stage lasts four to sixteen bars
+ * @param[in,out] rng          the row's stream
  * @return semitone offsets from the tonic, first and last 0
  */
 std::vector<int> drawProgression(StyleE style, int scale, int steps, int barsPerStep, Rng& rng);
 
-/** @brief The roots a style moves between, for tests and for mutating a transposer row. */
+/**
+ * @brief The roots a style moves between, for tests and for mutating a transposer row.
+ * @param[in] style  the style
+ * @return its roots as degrees
+ */
 const std::vector<int>& progressionRoots(StyleE style);
 
 /** @brief The classes of chord progression (the guide's 3.5). */
@@ -72,35 +77,55 @@ enum class ChordClassE : int { STATIC, PENDULUM, LOOP, WALK };
 /**
  * @brief Draws a chord track between two beats: (beat, degree of the mode), starting on the tonic at @p from.
  *        Changes fall on whole bars from @p from on; the caller returns to the tonic at @p to.
- * @param style  the style (classes' weights, harmonic rhythm)
- * @param scale  the mode (compose.scale order)
- * @param from   first beat (a bar line)
- * @param to     end (no change at or after it)
- * @param rng    the harmony's stream
- * @param drawn  if not null, receives the class drawn
+ * @param[in]     style  the style (classes' weights, harmonic rhythm)
+ * @param[in]     scale  the mode (compose.scale order)
+ * @param[in]     from   first beat (a bar line)
+ * @param[in]     to     end (no change at or after it)
+ * @param[in,out] rng    the harmony's stream
+ * @param[in,out] drawn  if not null, receives the class drawn
+ * @return (beat, degree of the mode) for every change
  */
 std::vector<std::pair<double, int>> drawChordTrack(StyleE style, int scale, double from, double to, Rng& rng,
                                                    ChordClassE* drawn = nullptr);
 
-/** @brief Whether the chord on @p degree of @p scale has a perfect fifth (the tonic of Locrian counts as usable). */
+/**
+ * @brief Whether the chord on @p degree of @p scale has a perfect fifth (the tonic of Locrian counts as usable).
+ * @param[in] scale   the mode
+ * @param[in] degree  the degree
+ * @return true when its chord has a perfect fifth
+ */
 bool usableDegree(int scale, int degree);
 
 /**
  * @brief The degree to move a bass row by for @p degree: the same, or an octave of degrees lower, whichever
  *        keeps the bass within a tritone of the centre (VI and VII go down, iv and III up).
+ * @param[in] scale   the mode
+ * @param[in] degree  the chord's degree
+ * @return the degree to move the bass row by
  */
 int bassDegree(int scale, int degree);
 
 /** @brief The chord kinds of the vocabulary (the guide's 3.4). */
 enum class ChordKindE : int { FIFTH, TRIAD, SUS2, SUS4, ADD9, QUARTAL, STACK, SEVENTH };
 
-/** @brief Draws a kind for a chord on @p degree: plain triads for a choir (@p choir), the whole vocabulary otherwise. */
+/**
+ * @brief Draws a kind for a chord on @p degree: plain triads for a choir (@p choir), the whole vocabulary otherwise.
+ * @param[in]     scale   the mode
+ * @param[in]     degree  the chord's degree
+ * @param[in]     choir   true for a choir
+ * @param[in,out] rng     the random stream
+ * @return the kind drawn
+ */
 ChordKindE drawChordKind(int scale, int degree, bool choir, Rng& rng);
 
 /**
  * @brief The tones of a chord in semitones above the centre (may pass the octave; the open fifth doubles its
  *        root an octave up). A kind the degree cannot carry -- a sus4 on a tritone, a fifth that is not perfect --
  *        falls back to the triad.
+ * @param[in] scale   the mode
+ * @param[in] degree  the chord's degree
+ * @param[in] kind    the chord's kind
+ * @return its tones in semitones above the centre
  */
 std::vector<int> chordTones(int scale, int degree, ChordKindE kind);
 

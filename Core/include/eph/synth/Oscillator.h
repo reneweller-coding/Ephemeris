@@ -19,6 +19,7 @@
  * Wave = 1/3 it vanished completely. The pulse is inverted (-1 for t < w) so both fundamentals share
  * one phase and the blend moves the timbre without taking the note away.
  * @note Copied from Phosphene `Core/include/phos/Oscillator.h` at 9a2f615 (24.09.2026); namespace eph, prefix EPH_.
+ * @author Rene Weller
  */
 #pragma once
 #include "eph/Dsp.h"
@@ -26,7 +27,12 @@
 
 namespace eph {
 
-/** @brief Two-point PolyBLEP residual for a unit step at phase 0; @p t phase in [0,1), @p dt increment. */
+/**
+ * @brief Two-point PolyBLEP residual for a unit step at phase 0; @p t phase in [0,1), @p dt increment.
+ * @param[in] t   the phase in [0, 1)
+ * @param[in] dt  the phase increment per sample
+ * @return the residual to add to the naive step
+ */
 inline float polyBlep(float t, float dt)
 {
     if (t < dt) { const float x = t / dt; return x + x - x * x - 1.0f; }
@@ -39,10 +45,10 @@ class VaOscillator {
 public:
     /**
      * @brief Sets the shape for the next samples.
-     * @param hz         frequency
-     * @param sampleRate rate the oscillator runs at
-     * @param wave       0 = saw, 1 = pulse, blended in between
-     * @param pulseWidth duty cycle of the pulse, 0.05..0.95
+     * @param[in] hz          frequency
+     * @param[in] sampleRate  rate the oscillator runs at
+     * @param[in] wave        0 = saw, 1 = pulse, blended in between
+     * @param[in] pulseWidth  duty cycle of the pulse, 0.05..0.95
      */
     void set(double hz, double sampleRate, float wave, float pulseWidth)
     {
@@ -53,8 +59,8 @@ public:
     /**
      * @brief Restarts so that the fundamental has sine phase @p fundamentalPhase at the time of the
      *        next sample minus @p late samples; the jump from the current value is band-limited.
-     * @param fundamentalPhase phase of the fundamental in cycles
-     * @param late             how many samples ago (at this oscillator's rate) the restart ideally happened
+     * @param[in] fundamentalPhase  phase of the fundamental in cycles
+     * @param[in] late              how many samples ago (at this oscillator's rate) the restart ideally happened
      */
     void restart(double fundamentalPhase, double late)
     {
@@ -64,7 +70,10 @@ public:
         m_pendingJump = shapeAt(m_phase) - m_lastValue;
         m_hasJump = true;
     }
-    /** @brief Next sample. */
+    /**
+     * @brief Next sample.
+     * @return the next sample
+     */
     inline float next()
     {
         const float t = m_phase;
@@ -89,7 +98,11 @@ public:
     }
 
 private:
-    /** @brief The naive wave at phase @p t: the saw blended into the pulse by m_wave. */
+    /**
+     * @brief The naive wave at phase @p t: the saw blended into the pulse by m_wave.
+     * @param[in] t  the phase in [0, 1)
+     * @return the naive wave there
+     */
     float shapeAt(float t) const
     {
         const float saw = 2.0f * t - 1.0f;

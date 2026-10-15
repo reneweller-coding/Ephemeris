@@ -1,6 +1,7 @@
 /**
  * @file Rack.cpp
  * @brief The sequencer rack.
+ * @author Rene Weller
  */
 #include "eph/Rack.h"
 #include "eph/compose/Harmony.h"
@@ -26,7 +27,12 @@ const int Scale7[Scales][7] = {
 };
 const int Pentatonic[5] = { 0, 3, 5, 7, 10 };   ///< the minor pentatonic's semitones
 
-/** @brief @p a / @p b rounded down (towards minus infinity). */
+/**
+ * @brief @p a / @p b rounded down (towards minus infinity).
+ * @param[in] a  the dividend
+ * @param[in] b  the divisor, not 0
+ * @return the quotient rounded towards minus infinity
+ */
 int floorDiv(int a, int b) { return a >= 0 ? a / b : -((-a + b - 1) / b); }
 
 } // namespace
@@ -92,7 +98,11 @@ struct Shape {
     int m_octave[8];   ///< their octaves
 };
 
-/** @brief The eight steps of figure @p f. */
+/**
+ * @brief The eight steps of figure @p f.
+ * @param[in] f  the figure
+ * @return its eight steps
+ */
 const Shape& shapeOf(FigureE f)
 {
     static const Shape Shapes[] = {
@@ -109,7 +119,12 @@ const Shape& shapeOf(FigureE f)
     return Shapes[std::clamp(static_cast<int>(f), 0, static_cast<int>(FigureE::SPIRAL))];
 }
 
-/** @brief A degree of a seven-note figure in @p scale: itself, or the nearest of the pentatonic's. */
+/**
+ * @brief A degree of a seven-note figure in @p scale: itself, or the nearest of the pentatonic's.
+ * @param[in] scale  the scale
+ * @param[in] d      the degree of a seven-note figure
+ * @return the degree in the scale
+ */
 int fromSeven(int scale, int d)
 {
     if (scaleSize(scale) == 7) return d;
@@ -118,21 +133,34 @@ int fromSeven(int scale, int d)
     return Pent[d - 7 * oct] + 5 * oct;
 }
 
-/** @brief Share of a row's steps that are probability gates, by style (the style guide's 4.6). */
+/**
+ * @brief Share of a row's steps that are probability gates, by style (the style guide's 4.6).
+ * @param[in] style  the style
+ * @return the share of probability gates, 0..1
+ */
 float chanceShare(StyleE style)
 {
     static const float Share[] = { 0.05f, 0.05f, 0.08f, 0.20f, 0.15f };   // Cosmic, Doom, Melodic, Modern, Drift
     return Share[std::clamp(static_cast<int>(style), 0, 4)];
 }
 
-/** @brief Share of a row's steps that play a quantised random note, by style (the style guide's 4.6). */
+/**
+ * @brief Share of a row's steps that play a quantised random note, by style (the style guide's 4.6).
+ * @param[in] style  the style
+ * @return the share of random notes, 0..1
+ */
 float randomShare(StyleE style)
 {
     static const float Share[] = { 0.03f, 0.03f, 0.05f, 0.12f, 0.20f };   // Cosmic, Doom, Melodic, Modern, Drift
     return Share[std::clamp(static_cast<int>(style), 0, 4)];
 }
 
-/** @brief A note through the quantiser: root, fifth, octave, seventh, fourth or third, the lower ones likelier. */
+/**
+ * @brief A note through the quantiser: root, fifth, octave, seventh, fourth or third, the lower ones likelier.
+ * @param[in]     scale  the scale
+ * @param[in,out] dice   the random stream
+ * @return the degree drawn
+ */
 int quantisedDegree(int scale, Rng& dice)
 {
     static const int Degrees[6] = { 0, 4, 7, 6, 3, 2 };
@@ -144,7 +172,13 @@ int quantisedDegree(int scale, Rng& dice)
 }
 
 template <size_t N>
-/** @brief One of the figures @p f, drawn from @p g with the weights @p w. */
+/**
+ * @brief One of the figures @p f, drawn from @p g with the weights @p w.
+ * @param[in]     f  the figures
+ * @param[in]     w  their weights
+ * @param[in,out] g  the random stream
+ * @return the figure drawn
+ */
 FigureE drawFigure(const FigureE (&f)[N], const float (&w)[N], Rng& g)
 {
     float total = 0.0f;

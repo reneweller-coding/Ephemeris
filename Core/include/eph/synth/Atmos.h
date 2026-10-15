@@ -17,6 +17,7 @@
  *   as a Poisson process at `grainsPerSecond`, up to 24 at once. The granular shimmer of the space sections.
  *   They draw on a stream of their own, so switching them on moves no other layer's randomness.
  * Deterministic: one stream (and the grains' own), seeded once; the rates are drawn per 32-sample cell.
+ * @author Rene Weller
  */
 #pragma once
 #include "eph/Dsp.h"
@@ -42,13 +43,30 @@ struct AtmosSettings {
 /** @brief The atmosphere: stereo out, plus a separate bleep output for the echo send. */
 class Atmos {
 public:
-    /** @brief Sample rate and seed. */
+    /**
+     * @brief Sample rate and seed.
+     * @param[in] sampleRate  the sample rate in Hz
+     * @param[in] seed        the seed
+     */
     void prepare(double sampleRate, uint64_t seed);
-    /** @brief Takes the settings; call at every 32-sample cell. */
+    /**
+     * @brief Takes the settings; call at every 32-sample cell.
+     * @param[in] s  the settings
+     */
     void set(const AtmosSettings& s);
-    /** @brief Whether any layer is audible or ringing. */
+    /**
+     * @brief Whether any layer is audible or ringing.
+     * @return true while any layer is audible or ringing
+     */
     bool active() const;
-    /** @brief Adds @p n samples to @p L, @p R; the bleeps also to @p bleepL, @p bleepR. */
+    /**
+     * @brief Adds @p n samples to @p L, @p R; the bleeps also to @p bleepL, @p bleepR.
+     * @param[in,out] L       the left channel, added to
+     * @param[in,out] R       the right channel, added to
+     * @param[in,out] bleepL  the bleeps' left channel, added to
+     * @param[in,out] bleepR  the bleeps' right channel, added to
+     * @param[in]     n       how many samples
+     */
     void process(float* L, float* R, float* bleepL, float* bleepR, int n);
 
 private:

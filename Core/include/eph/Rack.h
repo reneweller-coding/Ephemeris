@@ -48,6 +48,7 @@
  *
  * **A new key** (RackOp::Key, Phase 4) moves the whole rack -- rows, and the root the lead and the chords
  * follow -- by some semitones from the piece's key; the transposer then moves around the new key.
+ * @author Rene Weller
  */
 #pragma once
 #include "eph/Dsp.h"
@@ -82,9 +83,17 @@ struct Step {
  */
 enum class FigureE : int { CLASSIC, OCTAVE_PENDULUM, FIFTH_ANCHOR, THREE_PLUS_ONE, STAIRS_UP, STAIRS_DOWN, COLOUR,
                           PHRYGIAN_PUSH, SPIRAL, CANON, COUNT };
-/** @brief The name of a figure ("Classic", "Octave Pendulum", ...). */
+/**
+ * @brief The name of a figure ("Classic", "Octave Pendulum", ...).
+ * @param[in] f  the figure
+ * @return its name
+ */
 const char* figureName(FigureE f);
-/** @brief The degree that makes a mode heard (Aeolian b6, Dorian 6, Phrygian b2, Lydian #4 ...; the style guide's 3.2). */
+/**
+ * @brief The degree that makes a mode heard (Aeolian b6, Dorian 6, Phrygian b2, Lydian #4 ...; the style guide's 3.2).
+ * @param[in] scale  the scale (compose.scale order)
+ * @return its characteristic degree
+ */
 int characterDegree(int scale);
 
 /** @brief How a row's steps are drawn when it is generated. */
@@ -98,11 +107,25 @@ enum class RowRoleE : int {
 /** @brief Number of scales (compose.scale): Aeolian, Dorian, Phrygian, Harmonic Minor, Minor Pentatonic,
  *         Mixolydian, Lydian, Locrian (the last three since 25.09.2026, after the style guide's 3.2). */
 constexpr int Scales = 8;
-/** @brief Semitones of scale degree @p degree in scale @p scale (compose.scale order); any integer degree. */
+/**
+ * @brief Semitones of scale degree @p degree in scale @p scale (compose.scale order); any integer degree.
+ * @param[in] scale   the scale (compose.scale order)
+ * @param[in] degree  the degree, any integer
+ * @return its semitones above the root
+ */
 int scaleSemitones(int scale, int degree);
-/** @brief Number of degrees in an octave of scale @p scale. */
+/**
+ * @brief Number of degrees in an octave of scale @p scale.
+ * @param[in] scale  the scale (compose.scale order)
+ * @return the number of degrees in an octave
+ */
 int scaleSize(int scale);
-/** @brief Steps after which rows of lengths @p a and @p b (same division) are both on step 0 again. */
+/**
+ * @brief Steps after which rows of lengths @p a and @p b (same division) are both on step 0 again.
+ * @param[in] a  the first row's length in steps
+ * @param[in] b  the second row's length in steps
+ * @return the steps until both are on step 0 again
+ */
 int conjunctionSteps(int a, int b);
 
 /** @brief The rack: rows, their patterns and their running state. */
@@ -110,30 +133,71 @@ class Rack {
 public:
     /**
      * @brief Takes the row settings from the parameters and seeds every row.
-     * @param p     parameters (row module, compose.key and compose.scale)
-     * @param seed  the piece's seed; each row gets its own stream
+     * @param[in] p     parameters (row module, compose.key and compose.scale)
+     * @param[in] seed  the piece's seed; each row gets its own stream
      */
     void setup(const ParamStore& p, uint64_t seed);
-    /** @brief Draws a new pattern for row @p row from the rules of @p role (uses the row's stream). */
+    /**
+     * @brief Draws a new pattern for row @p row from the rules of @p role (uses the row's stream).
+     * @param[in] row   the row
+     * @param[in] role  its role
+     */
     void generate(int row, RowRoleE role);
-    /** @brief The pattern of a row, for inspection and for locking. */
+    /**
+     * @brief The pattern of a row, for inspection and for locking.
+     * @param[in] row  the row
+     * @return its pattern
+     */
     const Step* steps(int row) const { return m_rows[row].m_steps; }
-    /** @brief Current length of a row in steps. */
+    /**
+     * @brief Current length of a row in steps.
+     * @param[in] row  the row
+     * @return its length in steps
+     */
     int length(int row) const { return m_rows[row].m_length; }
-    /** @brief The figure a row was last drawn from. */
+    /**
+     * @brief The figure a row was last drawn from.
+     * @param[in] row  the row
+     * @return the figure it was last drawn from
+     */
     FigureE figure(int row) const { return m_rows[row].m_figure; }
-    /** @brief Mutations a row has made since setup(). */
+    /**
+     * @brief Mutations a row has made since setup().
+     * @param[in] row  the row
+     * @return how many mutations it has made
+     */
     int mutations(int row) const { return m_rows[row].m_mutations; }
-    /** @brief The transposer's current offset in semitones. */
+    /**
+     * @brief The transposer's current offset in semitones.
+     * @return the offset in semitones
+     */
     int shift() const { return m_shift; }
-    /** @brief Every change of the transposer's offset so far, as (beat, semitones), for the lead to follow. */
+    /**
+     * @brief Every change of the transposer's offset so far, as (beat, semitones), for the lead to follow.
+     * @return the changes as (beat, semitones)
+     */
     const std::vector<std::pair<double, int>>& shifts() const { return m_shiftLog; }
-    /** @brief Every change of the scale so far, as (beat, scale), starting with compose.scale at beat 0. */
+    /**
+     * @brief Every change of the scale so far, as (beat, scale), starting with compose.scale at beat 0.
+     * @return the changes as (beat, scale)
+     */
     const std::vector<std::pair<double, int>>& scales() const { return m_scaleLog; }
     /** @brief The key's pitch class and the scale (compose.scale order) the rack plays in. */
-    int keyRoot() const { return m_keyRoot; }   ///< the key's pitch class
-    int scale() const { return m_scale; }       ///< the scale, compose.scale order
-    /** @brief Division of a row in beats. */
+    /**
+     * the key's pitch class
+     * @return the key's pitch class
+     */
+    int keyRoot() const { return m_keyRoot; }
+    /**
+     * the scale, compose.scale order
+     * @return the scale, in compose.scale's order
+     */
+    int scale() const { return m_scale; }
+    /**
+     * @brief Division of a row in beats.
+     * @param[in] row  the row
+     * @return its division in beats
+     */
     double divisionBeats(int row) const { return m_rows[row].m_divBeats; }
 
     /**
@@ -142,6 +206,8 @@ public:
      * Start, Stop, Transpose and SetLength events of @p score within the span are applied at step
      * boundaries; the mutations the rows make are appended to the score as Mutate events. Call
      * repeatedly with increasing @p endBeat -- the composer's lookahead -- or once for a whole piece.
+     * @param[in,out] score    the score, written to
+     * @param[in]     endBeat  the beat to play up to
      */
     void run(Score& score, double endBeat);
 
@@ -182,15 +248,41 @@ private:
         Rng m_rng;   ///< the patterns' stream
         Rng m_dice;                 ///< probability gates, ratchets and thinning: apart from the patterns' stream
     };
-    /** @brief The beat of row @p r's next step. */
+    /**
+     * @brief The beat of row @p r's next step.
+     * @param[in] r  the row
+     * @return the beat of its next step
+     */
     double nextStepBeat(const Row& r) const { return r.m_startBeat + static_cast<double>(r.m_step) * r.m_divBeats; }
-    /** @brief Writes the note of row @p r's next step (row @p index) into @p score; what it does goes to @p log. */
+    /**
+     * @brief Writes the note of row @p r's next step (row @p index) into @p score; what it does goes to @p log.
+     * @param[in]     index  the row's index
+     * @param[in,out] r      the row
+     * @param[in,out] score  the score, written to
+     * @param[in,out] log    what happens, appended to
+     */
     void playStep(int index, Row& r, Score& score, std::vector<RackEvent>& log);
-    /** @brief Moves row @p r on a step at @p beat: its direction, its lanes, a mutation where one is due. */
+    /**
+     * @brief Moves row @p r on a step at @p beat: its direction, its lanes, a mutation where one is due.
+     * @param[in,out] r      the row
+     * @param[in]     index  the row's index
+     * @param[in]     beat   the beat of the step
+     * @param[in,out] log    what happens, appended to
+     */
     void advance(Row& r, int index, double beat, std::vector<RackEvent>& log);
-    /** @brief Mutates row @p r at @p beat (a step changed within its rules) and logs it. */
+    /**
+     * @brief Mutates row @p r at @p beat (a step changed within its rules) and logs it.
+     * @param[in,out] r      the row
+     * @param[in]     index  the row's index
+     * @param[in]     beat   the beat of the mutation
+     * @param[in,out] log    what happens, appended to
+     */
     void mutate(Row& r, int index, double beat, std::vector<RackEvent>& log);
-    /** @brief The MIDI note of row @p r's root: the key, the row's octave and transposition, the transposer's shift. */
+    /**
+     * @brief The MIDI note of row @p r's root: the key, the row's octave and transposition, the transposer's shift.
+     * @param[in] r  the row
+     * @return the MIDI note of its root
+     */
     int rootNote(const Row& r) const;
 
     Row m_rows[Rows];   ///< the rows

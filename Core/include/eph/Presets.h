@@ -20,6 +20,7 @@
  * knobs, the detune stays between 0 and 3 cents in the foundation (the drone, the bass groups: the pure
  * intervals of the dark-ambient addon) and at most 12 elsewhere, the drift at most 7, the lead's vibrato at
  * most 40 cents, the tape's wow, flutter and motor load inside the range of their defaults.
+ * @author Rene Weller
  */
 #pragma once
 #include "eph/Params.h"
@@ -39,25 +40,54 @@ struct SoundPreset {
 /**
  * @brief The factory presets of a synth: Module::Voice, Lead, Drone, Tape, Strings, Drums or Atmos; empty for
  *        any other module. Built once, thread-safe.
+ * @param[in] module  the module
+ * @return its factory presets
  */
 const std::vector<SoundPreset>& factoryPresets(ModuleE module);   // (and Module::Poly, the pad synth, since 25.09.2026)
 
-/** @brief Whether a preset leaves knob @p k of @p module alone (the mix, the composer's amounts). */
+/**
+ * @brief Whether a preset leaves knob @p k of @p module alone (the mix, the composer's amounts).
+ * @param[in] module  the module
+ * @param[in] k       the knob's index within the module
+ * @return true when presets leave it alone
+ */
 bool presetLeaves(ModuleE module, int k);
 
 /**
  * @brief The values a preset gives every knob of its module it does not leave: its own, the defaults for the
  *        rest -- the whole sound, so a preset sounds the same whatever was loaded before.
+ * @param[in] module  the preset's module
+ * @param[in] preset  the preset
+ * @return (parameter id, value) for every knob the preset sets
  */
 std::vector<std::pair<int, float>> presetKnobs(ModuleE module, const SoundPreset& preset);
 
-/** @brief The knobs a preset of @p module sets, as they stand on @p instance, as `key=value` lines (a user preset). */
+/**
+ * @brief The knobs a preset of @p module sets, as they stand on @p instance, as `key=value` lines (a user preset).
+ * @param[in] params    the parameters
+ * @param[in] module    the module
+ * @param[in] instance  its instance
+ * @return the knobs as key=value lines
+ */
 std::string presetText(const ParamStore& params, ModuleE module, int instance);
 
-/** @brief A user preset read back from such lines; false if none of them belongs to @p module. */
+/**
+ * @brief A user preset read back from such lines; false if none of them belongs to @p module.
+ * @param[in]  module  the module
+ * @param[in]  name    the preset's name
+ * @param[in]  text    the key=value lines
+ * @param[out] out     the preset read
+ * @return false when no line belongs to the module
+ */
 bool presetFromText(ModuleE module, const std::string& name, const std::string& text, SoundPreset& out);
 
-/** @brief Applies @p preset to instance @p instance of @p module in @p params (the offline tools and the tests). */
+/**
+ * @brief Applies @p preset to instance @p instance of @p module in @p params (the offline tools and the tests).
+ * @param[in,out] params    the knobs, set here
+ * @param[in]     module    the module
+ * @param[in]     instance  its instance
+ * @param[in]     preset    the preset
+ */
 void applyPreset(ParamStore& params, ModuleE module, int instance, const SoundPreset& preset);
 
 } // namespace eph

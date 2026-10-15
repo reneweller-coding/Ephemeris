@@ -12,6 +12,7 @@
  * around -20 with far more dynamics), and the tempo ranges were lowered after the measurement hinted
  * that PLAN 2.8's first ranges were high. Lengths and layer chances are still from listening and the
  * literature; the drums are drawn but not yet played (they come with the kit, later in Phase 4).
+ * @author Rene Weller
  */
 #pragma once
 #include "eph/compose/GestureEngine.h"
@@ -63,7 +64,11 @@ struct StyleProfile {
                                          ///< one's recedes from there to the end (0: at the bass's handover)
 };
 
-/** @brief The profile of a style. */
+/**
+ * @brief The profile of a style.
+ * @param[in] style  the style
+ * @return its profile
+ */
 const StyleProfile& styleProfile(StyleE style);
 
 /**
@@ -71,20 +76,39 @@ const StyleProfile& styleProfile(StyleE style);
  *        at @p t = 0 exactly @p a, at 1 exactly @p b. The numbers in between are interpolated (counts rounded);
  *        what cannot be halfway -- the counter rows' lengths, the transposer, the tape set, the name -- is the
  *        nearer profile's.
+ * @param[in] a  the profile at 0
+ * @param[in] b  the profile at 1
+ * @param[in] t  the place between them, 0..1
+ * @return the profile between
  */
 StyleProfile morphProfile(const StyleProfile& a, const StyleProfile& b, float t);
 
-/** @brief Whether the user's own style is on (custom.use). */
+/**
+ * @brief Whether the user's own style is on (custom.use).
+ * @param[in] p  the parameters
+ * @return true when the user's own style is on
+ */
 bool customStyleOn(const ParamStore& p);
 /**
  * @brief The user's own style (module custom): compose.style's profile (@p base) with the numbers of the custom
  *        module; the counter rows' lengths, the transposer, the tape set and the name stay @p base's.
+ * @param[in] p     the parameters
+ * @param[in] base  compose.style's profile
+ * @return the user's own profile
  */
 StyleProfile customProfile(const ParamStore& p, const StyleProfile& base);
-/** @brief Writes @p s's numbers into the custom module (the Style tab's "copy"). */
+/**
+ * @brief Writes @p s's numbers into the custom module (the Style tab's "copy").
+ * @param[in]     s  the profile
+ * @param[in,out] p  the parameters written to
+ */
 void copyToCustom(const StyleProfile& s, ParamStore& p);
 
-/** @brief Where a concert's arc of tension stands at @p t (0..1 of the concert): 0 at the ends, 1 at 60 %. */
+/**
+ * @brief Where a concert's arc of tension stands at @p t (0..1 of the concert): 0 at the ends, 1 at 60 %.
+ * @param[in] t  the place in the concert, 0..1
+ * @return the tension, 0..1
+ */
 float concertArc(float t);
 
 /**
@@ -92,6 +116,10 @@ float concertArc(float t);
  *        quiet ends) to +0.5 (the height), times @p strength (0..1). Towards the height: more rows at the peak,
  *        the layers and the lead more likely and denser, faster hands, a brighter sound, a few per cent more
  *        tempo; towards the ends the other way. At tension or strength 0 the profile itself.
+ * @param[in] p         the profile
+ * @param[in] tension   the tension, -0.5..0.5
+ * @param[in] strength  how strongly, 0..1
+ * @return the profile moved
  */
 StyleProfile arcProfile(const StyleProfile& p, float tension, float strength);
 

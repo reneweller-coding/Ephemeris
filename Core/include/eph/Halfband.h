@@ -12,6 +12,7 @@
  * processing schemes for efficient interpolation and decimation", IEE Proc. G, 1983, in the
  * formulation of Laurent de Soras' HIIR library.
  * @note Copied from Phosphene `Core/include/phos/Halfband.h` at 9a2f615 (24.09.2026); namespace eph, prefix EPH_.
+ * @author Rene Weller
  */
 #pragma once
 #include "eph/Vec.h"
@@ -28,9 +29,9 @@ struct HalfbandDesign {
 
 /**
  * @brief Designs a half-band filter.
- * @param attenuationDb stopband attenuation in dB (e.g. 96)
- * @param transition    transition width as a fraction of the *oversampled* rate, 0 < t < 0.5;
- *                      the passband ends at (0.25 - t/2) and the stopband starts at (0.25 + t/2)
+ * @param[in] attenuationDb  stopband attenuation in dB (e.g. 96)
+ * @param[in] transition     transition width as a fraction of the *oversampled* rate, 0 < t < 0.5; the passband ends at
+ *                           (0.25 - t/2) and the stopband starts at (0.25 + t/2)
  * @return the coefficients; count is capped at HalfbandMaxCoefs
  */
 HalfbandDesign designHalfband(double attenuationDb, double transition);
@@ -45,15 +46,19 @@ struct HalfbandDown {
     VT m_x[HalfbandMaxCoefs];                     ///< previous inputs per section
     VT m_y[HalfbandMaxCoefs];                     ///< previous outputs per section
 
-    /** @brief Takes a design and clears the state. */
+    /**
+     * @brief Takes a design and clears the state.
+     * @param[in] design  the filter design
+     */
     void setup(const HalfbandDesign& design) { m_d = design; reset(); }
     /** @brief Clears the state. */
     void reset() { for (int i = 0; i < HalfbandMaxCoefs; ++i) { m_x[i] = lanes<VT>(0.0f); m_y[i] = lanes<VT>(0.0f); } }
 
     /**
      * @brief One decimation step.
-     * @param first  the earlier of the two high-rate samples
-     * @param second the later one
+     * @param[in] first   the earlier of the two high-rate samples
+     * @param[in] second  the later one
+     * @return the low-rate sample
      */
     inline VT process(VT first, VT second)
     {
@@ -80,12 +85,20 @@ struct HalfbandUp {
     VT m_x[HalfbandMaxCoefs];          ///< all-pass input states
     VT m_y[HalfbandMaxCoefs];          ///< all-pass output states
 
-    /** @brief Takes a design and clears the states. */
+    /**
+     * @brief Takes a design and clears the states.
+     * @param[in] design  the filter design
+     */
     void setup(const HalfbandDesign& design) { m_d = design; reset(); }
     /** @brief Clears the states. */
     void reset() { for (int i = 0; i < HalfbandMaxCoefs; ++i) { m_x[i] = lanes<VT>(0.0f); m_y[i] = lanes<VT>(0.0f); } }
 
-    /** @brief One interpolation step; @p o0 is the earlier output sample, @p o1 the later. */
+    /**
+     * @brief One interpolation step; @p o0 is the earlier output sample, @p o1 the later.
+     * @param[in]  in  the low-rate sample
+     * @param[out] o0  receives the earlier high-rate sample
+     * @param[out] o1  receives the later high-rate sample
+     */
     inline void process(VT in, VT& o0, VT& o1)
     {
         VT a = in, b = in;

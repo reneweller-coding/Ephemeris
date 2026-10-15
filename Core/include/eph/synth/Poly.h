@@ -21,6 +21,7 @@
  *
  * **The ensemble.** A Juno-style chorus after the voices: one short delay line swept by a slow sine, read on the
  * left and, with the sweep inverted, on the right, and added to the dry sound -- width without losing the middle.
+ * @author Rene Weller
  */
 #pragma once
 #include "eph/Dsp.h"
@@ -65,14 +66,47 @@ struct PolySettings {
 class PolySynth {
 public:
     static constexpr int Keys = 8;   ///< polyphony
-    void prepare(double sampleRate, uint64_t seed);   ///< sample rate; allocates the ensemble's line
-    void set(const PolySettings& s);                  ///< takes the settings (every 32-sample cell)
-    void noteOn(int pitch, float velocity, int id);   ///< presses a key
-    void noteOff(int id);                             ///< releases a key
+    /**
+     * sample rate; allocates the ensemble's line
+     * @param[in] sampleRate  the sample rate in Hz
+     * @param[in] seed        the seed
+     */
+    void prepare(double sampleRate, uint64_t seed);
+    /**
+     * takes the settings (every 32-sample cell)
+     * @param[in] s  the settings
+     */
+    void set(const PolySettings& s);
+    /**
+     * presses a key
+     * @param[in] pitch     the MIDI note
+     * @param[in] velocity  the velocity, 0..1
+     * @param[in] id        the note's id
+     */
+    void noteOn(int pitch, float velocity, int id);
+    /**
+     * releases a key
+     * @param[in] id  the note's id
+     */
+    void noteOff(int id);
     void silence();                                   ///< every key off at once (a jump in the song)
-    bool active() const;                              ///< whether anything sounds or rings in the ensemble
-    void process(float* L, float* R, int n);          ///< renders @p n samples into @p L and @p R (overwritten)
-    /** @brief The piece's beat at the next sample and beats per sample (the synced LFOs); call at every cell. */
+    /**
+     * whether anything sounds or rings in the ensemble
+     * @return true while anything sounds or rings
+     */
+    bool active() const;
+    /**
+     * renders @p n samples into @p L and @p R (overwritten)
+     * @param[out] L  receives the left channel (overwritten)
+     * @param[out] R  receives the right channel (overwritten)
+     * @param[in]  n  how many samples
+     */
+    void process(float* L, float* R, int n);
+    /**
+     * @brief The piece's beat at the next sample and beats per sample (the synced LFOs); call at every cell.
+     * @param[in] beat            the beat at the next sample
+     * @param[in] beatsPerSample  beats per sample from there
+     */
     void setClock(double beat, double beatsPerSample) { m_beat0 = beat; m_bps = beatsPerSample; m_clockAt = m_count; }
 
 private:
@@ -103,14 +137,27 @@ private:
         float m_panL = 1.0f;   ///< the pan's gain, left
         float m_panR = 1.0f;   ///< ... right
     };
-    void retune(Key& k);   ///< the oscillators' increments and levels from the pitch, detune, drift and the matrix's pitch
+    /**
+     * the oscillators' increments and levels from the pitch, detune, drift and the matrix's pitch
+     * @param[in,out] k  the key
+     */
+    void retune(Key& k);
     /** @brief The keys' filters side by side (26.09.2026): key k's left channel in lane 2k, its right in lane 2k + 1, run
      *         in SIMD registers as the voice bank's are (the comb keeps the keys' FilterLanes, whose lines it needs). */
     static constexpr int Lanes = 2 * Keys;
     alignas(32) float m_fv[4][Lanes] = {};   ///< the filters' node voltages, four per lane
     alignas(32) float m_fs[4][Lanes] = {};   ///< the filters' states, four per lane
-    void clearLanes(int key);   ///< the key's two lanes from rest (a fresh key, a new model)
-    double beatAt(int64_t at) const { return m_beat0 + static_cast<double>(at - m_clockAt) * m_bps; }   ///< setClock's beat
+    /**
+     * the key's two lanes from rest (a fresh key, a new model)
+     * @param[in] key  the key
+     */
+    void clearLanes(int key);
+    /**
+     * setClock's beat
+     * @param[in] at  the sample
+     * @return the beat there
+     */
+    double beatAt(int64_t at) const { return m_beat0 + static_cast<double>(at - m_clockAt) * m_bps; }
     double m_sr = 48000.0;   ///< sample rate
     PolySettings m_s;   ///< the settings
     const CycleTable* m_table = nullptr;   ///< the wavetable it reads

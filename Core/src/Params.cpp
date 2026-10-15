@@ -3,6 +3,7 @@
  * @brief Module descriptor tables and the parameter store.
  * @note The store below the tables is copied from Phosphene `Core/src/Params.cpp` at 9a2f615
  *       (24.09.2026); the tables are Ephemeris's own.
+ * @author Rene Weller
  */
 #include "eph/synth/Wavetable.h"
 #include "eph/Params.h"
@@ -793,10 +794,18 @@ const ModuleSpec Modules[static_cast<int>(ModuleE::COUNT)] = {
     { "poly",    PolyParams,    poly::COUNT,    1 },   // the pad synth   // send D   // the second echo (a prefix without a digit: "row1" is an instance)
 };
 
-/** @brief Whether a curve takes whole steps (Int, Choice, Toggle). */
+/**
+ * @brief Whether a curve takes whole steps (Int, Choice, Toggle).
+ * @param[in] c  the curve
+ * @return true when it takes whole steps
+ */
 bool isDiscrete(CurveE c) { return c == CurveE::INT || c == CurveE::CHOICE || c == CurveE::TOGGLE; }
 
-/** @brief @p s without spaces, tabs and carriage returns at either end. */
+/**
+ * @brief @p s without spaces, tabs and carriage returns at either end.
+ * @param[in] s  the text
+ * @return the text without spaces, tabs and carriage returns at either end
+ */
 std::string_view trim(std::string_view s)
 {
     while (!s.empty() && (s.front() == ' ' || s.front() == '\t' || s.front() == '\r')) s.remove_prefix(1);
@@ -912,7 +921,11 @@ void ParamStore::copyValuesFrom(const ParamStore& other)
 }
 
 namespace {
-/** @brief Lower case without spaces, for matching choice names ("Harmonic Minor" = "harmonicminor"). */
+/**
+ * @brief Lower case without spaces, for matching choice names ("Harmonic Minor" = "harmonicminor").
+ * @param[in] s  the name
+ * @return the name folded
+ */
 std::string foldName(std::string_view s)
 {
     std::string out;

@@ -2,6 +2,7 @@
  * @file Wavetable.cpp
  * @brief Building the cycle stacks (ported from the AmbientSynth's CycleTable.cpp), the formula tables, and the
  *        registry of every table.
+ * @author Rene Weller
  */
 #include "eph/synth/Wavetable.h"
 #include "eph/synth/Vco.h"
@@ -68,7 +69,15 @@ void Fft::transform(float* re, float* im, bool inverse) const
 
 namespace {
 
-/** @brief The harmonics of one cycle of @p len samples (a power of two), as complex amplitudes of cosines. */
+/**
+ * @brief The harmonics of one cycle of @p len samples (a power of two), as complex amplitudes of cosines.
+ * @param[in]     x    the cycle's samples
+ * @param[in]     len  their count, a power of two
+ * @param[in]     fft  the transform of that length
+ * @param[in,out] re   scratch for the real parts
+ * @param[in,out] im   scratch for the imaginary parts
+ * @return the harmonics' complex amplitudes
+ */
 CoeffsT analyseCycle(const float* x, int len, const Fft& fft, std::vector<float>& re, std::vector<float>& im)
 {
     const int top = std::min(CycleTable::levelHarmonics(0), (len - 1) / 2);
@@ -83,7 +92,16 @@ CoeffsT analyseCycle(const float* x, int len, const Fft& fft, std::vector<float>
     return c;
 }
 
-/** @brief One stored cycle at a level from the harmonics it keeps, and its guards. */
+/**
+ * @brief One stored cycle at a level from the harmonics it keeps, and its guards.
+ * @param[in]     c      the harmonics
+ * @param[in]     gain   the gain
+ * @param[in]     level  the level, the harmonics it keeps
+ * @param[in]     fft    the transform
+ * @param[in,out] re     scratch for the real parts
+ * @param[in,out] im     scratch for the imaginary parts
+ * @param[out]    out    the cycle and its guards
+ */
 void synthesise(const CoeffsT& c, double gain, int level, const Fft& fft, std::vector<float>& re, std::vector<float>& im, float* out)
 {
     const int len = CycleTable::levelLength(level);
@@ -174,7 +192,11 @@ int cycleLevelFor(double hz, double sampleRate, int current)
 
 namespace {
 
-/** @brief Every frame brought to the same RMS, so a morph does not fade as it goes (Noctuary's rule). */
+/**
+ * @brief Every frame brought to the same RMS, so a morph does not fade as it goes (Noctuary's rule).
+ * @param[in] c  the frames' harmonics
+ * @return the frames at the same RMS
+ */
 CoeffsT unit(CoeffsT c)
 {
     double e = 0.0;
@@ -307,7 +329,10 @@ struct Tables {
     }
 };
 
-/** @brief The tables, built on first use. */
+/**
+ * @brief The tables, built on first use.
+ * @return the tables
+ */
 const Tables& tables()
 {
     static const Tables t;

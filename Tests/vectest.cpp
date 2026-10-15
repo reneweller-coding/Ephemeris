@@ -9,6 +9,10 @@
  * needs a tolerance, an operation has crept in that is not a single IEEE operation per lane.
  * @note Copied from Phosphene `Tests/vectest.cpp` at 9a2f615 (24.09.2026): the operations, the ladder and
  *       the half-band; the sections of the psytrance voices are left out.
+ * @author Rene Weller
+ *
+ * @par Compile Flags:
+ *   @arg @c EPH_EXPECT_PATH - the vector path the build expects; the test fails when Vec.h chose another
  */
 #include "eph/Halfband.h"
 #include "eph/synth/Ladder.h"
@@ -27,7 +31,11 @@ namespace {
 
 constexpr int W = VecWidth;   ///< the lanes of the vector type compiled here
 
-/** @brief Deterministic test values covering signs, tiny and large magnitudes. */
+/**
+ * @brief Deterministic test values covering signs, tiny and large magnitudes.
+ * @param[in] i  the index
+ * @return the float
+ */
 float testValue(uint32_t i)
 {
     uint32_t h = i * 2654435761u ^ 0x9E3779B9u;
@@ -42,7 +50,12 @@ float testValue(uint32_t i)
     }
 }
 
-/** @brief Whether @p a and @p b are the same float, bit for bit. */
+/**
+ * @brief Whether @p a and @p b are the same float, bit for bit.
+ * @param[in] a  a float
+ * @param[in] b  another float
+ * @return true when they are the same bit for bit
+ */
 bool sameBits(float a, float b) { return std::memcmp(&a, &b, sizeof(float)) == 0; }
 
 /** @brief The vector type's operations against the scalar ones, lane by lane, bit for bit. */
@@ -217,7 +230,10 @@ void testVoiceKernel()
 
 } // namespace
 
-/** @brief Runs the tests; the exit code is the number of failures. */
+/**
+ * @brief Runs the tests; the exit code is the number of failures.
+ * @return the number of failures
+ */
 int main()
 {
     std::printf("eph_vectest: path %s, %d lanes\n", VecPathName, W);

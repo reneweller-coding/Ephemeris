@@ -14,6 +14,7 @@
  * `EPH_SHOT` (a PNG file) and `EPH_TAB` (a tab index) render the panel into a picture after the first piece is
  * composed and quit the standalone -- how the layout is checked without a person looking. `EPH_SHOT_SIZE` ("1600x2400") the window's size, `EPH_SHOT_FULL` a window as tall as the page in front needs, `EPH_SHOT_AT` (a beat)
  * jumps there first; with `EPH_PLAY` set, the mixer's meters then show that place of the piece.
+ * @author Rene Weller
  */
 #pragma once
 #include "PluginProcessor.h"
@@ -30,11 +31,18 @@
  */
 class ModSlotControl final : public juce::Component {
 public:
-    /** @brief Slot @p number of the matrix, drawn in @p colour. */
+    /**
+     * @brief Slot @p number of the matrix, drawn in @p colour.
+     * @param[in] number  the slot's number
+     * @param[in] colour  its colour
+     */
     ModSlotControl(int number, juce::Colour colour);
     /** @brief The number, the two menus and the amount in a row. */
     void resized() override;
-    /** @brief The number. */
+    /**
+     * @brief The number.
+     * @param[in,out] g  the graphics context
+     */
     void paint(juce::Graphics& g) override;
     juce::ComboBox m_source;   ///< the slot's source
     juce::ComboBox m_target;   ///< the slot's target
@@ -52,32 +60,63 @@ class ParamPage final : public juce::Component, public frame::Revealer, private 
 public:
     /**
      * @brief A page for the modules in @p groups.
-     * @param p         the processor
-     * @param groups    module and instance pairs, shown one after the other
-     * @param instances how many instances the modules have; above one, a selector picks the instance
+     * @param[in,out] p          the processor
+     * @param[in]     groups     module and instance pairs, shown one after the other
+     * @param[in]     instances  how many instances the modules have; above one, a selector picks the instance
      */
     ParamPage(EphemerisProcessor& p, std::vector<std::pair<eph::ModuleE, int>> groups, int instances);
     void resized() override;   ///< lays the groups out, flowing across the page
-    void paint(juce::Graphics& g) override;   ///< the group boxes and their titles
-    /** @brief The height the page needs at @p width (for a page in a viewport). */
+    /**
+     * the group boxes and their titles
+     * @param[in,out] g  the graphics context to draw into
+     */
+    void paint(juce::Graphics& g) override;
+    /**
+     * @brief The height the page needs at @p width (for a page in a viewport).
+     * @param[in] width  the page's width
+     * @return the height it needs
+     */
     int heightFor(int width) const;
-    /** @brief The height the page has in its window (the scrolling page around it says so before heightFor). */
+    /**
+     * @brief The height the page has in its window (the scrolling page around it says so before heightFor).
+     * @param[in] h  the height in pixels
+     */
     void setAvailableHeight(int h) { m_available = h; }
-    /** @brief The page's parameters in words, group by group (the help's topic for the tab). */
+    /**
+     * @brief The page's parameters in words, group by group (the help's topic for the tab).
+     * @return the description
+     */
     juce::String describe() const;
-    /** @brief The instance shown (the row), 0 for a page of one. */
+    /**
+     * @brief The instance shown (the row), 0 for a page of one.
+     * @return the instance shown, 0 for a page of one
+     */
     int instance() const { return m_instances > 1 ? m_instance.getSelectedId() - 1 : 0; }
-    /** @brief Shows the section holding @p part (the search found it there). */
+    /**
+     * @brief Shows the section holding @p part (the search found it there).
+     * @param[in,out] part  the control to bring into view
+     */
     void reveal(juce::Component& part) override;
-    /** @brief Shows the instance whose controls hold store id @p id (a row); false when none of them does. */
+    /**
+     * @brief Shows the instance whose controls hold store id @p id (a row); false when none of them does.
+     * @param[in] id  the store id
+     * @return false when no instance holds it
+     */
     bool bringId(int id) override;
-    /** @brief Shows preset @p menuId as chosen (the browser took it: a factory preset's index + 1, or 5001 + one of the player's). */
+    /**
+     * @brief Shows preset @p menuId as chosen (the browser took it: a factory preset's index + 1, or 5001 + one of the
+     *        player's).
+     * @param[in] menuId  the menu id
+     */
     void chosen(int menuId);
 
 private:
     /** @brief Makes the controls of every group (once, in the constructor). */
     void build();
-    /** @brief Applies factory preset @p index to the page's synth (the instance shown). */
+    /**
+     * @brief Applies factory preset @p index to the page's synth (the instance shown).
+     * @param[in] index  the factory preset's index
+     */
     void choosePreset(int index);
     /** @brief Fills the list: the factory presets in their groups, then the user's under "User". */
     void fillPresets();
@@ -110,7 +149,10 @@ private:
     // An effect page (no factory presets): the user's presets of the whole page, every module of it, by full key.
     bool m_pagePresets = false;   ///< an effect page: the user presets are the whole page's
     std::vector<std::pair<juce::String, juce::String>> m_pageUser;   ///< name and text
-    /** @brief The folder of this page's user presets. */
+    /**
+     * @brief The folder of this page's user presets.
+     * @return the folder
+     */
     juce::File pageFolder() const;
     /** @brief Fills the list with the page's user presets. */
     void fillPagePresets();
@@ -143,12 +185,30 @@ private:
     int m_available = 0;   ///< the height of the window (setAvailableHeight)
     int m_plannedWidth = -1;   ///< the width the sections were planned for, -1 never
     int m_plannedAvailable = -1;   ///< the height the sections were planned for, -1 never
-    bool shown(size_t box) const;                 ///< the box is in the section shown (or being measured)
-    void plan(int width);                         ///< the sections of a page @p width wide in m_available
+    /**
+     * the box is in the section shown (or being measured)
+     * @param[in] box  the box's index
+     * @return true when it is in the section shown
+     */
+    bool shown(size_t box) const;
+    /**
+     * the sections of a page @p width wide in m_available
+     * @param[in] width  the page's width
+     */
+    void plan(int width);
     void applySection();                          ///< the controls of the section shown, the others hidden
     void refit();                                 ///< laid out again, and the scrolling page around it measures again
-    int top() const;   ///< height of the instance and preset bar
-    /** @brief Places the boxes and their cells in @p area (@p apply: move the components too); returns the height used. */
+    /**
+     * height of the instance and preset bar
+     * @return the height of the instance bar
+     */
+    int top() const;
+    /**
+     * @brief Places the boxes and their cells in @p area (@p apply: move the components too); returns the height used.
+     * @param[in] area   where the boxes go
+     * @param[in] apply  true to move the components too
+     * @return the height used
+     */
     int layoutBoxes(juce::Rectangle<int> area, bool apply);
     std::vector<std::unique_ptr<juce::SliderParameterAttachment>> m_sliders;   ///< the knobs on their parameters
     std::vector<std::unique_ptr<juce::ComboBoxParameterAttachment>> m_combos;   ///< the menus on their parameters
@@ -169,16 +229,53 @@ private:
  */
 class ArrangeView final : public juce::Component, public juce::SettableTooltipClient, private juce::Timer {
 public:
-    explicit ArrangeView(EphemerisProcessor& p);                ///< shows @p p's score
-    void paint(juce::Graphics& g) override;                     ///< the picture of the window, the playhead over it
-    void mouseDown(const juce::MouseEvent& e) override;         ///< jumps there (zoomed: on release, if it was no drag)
-    void mouseDrag(const juce::MouseEvent& e) override;         ///< moves a zoomed view along
-    void mouseUp(const juce::MouseEvent& e) override;           ///< the jump of a zoomed view
-    void mouseDoubleClick(const juce::MouseEvent& e) override;  ///< the whole length again
-    /** @brief Zooms around the pointer; the wheel sideways, or with Shift, moves along. */
+    /**
+     * shows @p p's score
+     * @param[in,out] p  the processor
+     */
+    explicit ArrangeView(EphemerisProcessor& p);
+    /**
+     * the picture of the window, the playhead over it
+     * @param[in,out] g  the graphics context to draw into
+     */
+    void paint(juce::Graphics& g) override;
+    /**
+     * jumps there (zoomed: on release, if it was no drag)
+     * @param[in] e  the mouse event
+     */
+    void mouseDown(const juce::MouseEvent& e) override;
+    /**
+     * moves a zoomed view along
+     * @param[in] e  the mouse event
+     */
+    void mouseDrag(const juce::MouseEvent& e) override;
+    /**
+     * the jump of a zoomed view
+     * @param[in] e  the mouse event
+     */
+    void mouseUp(const juce::MouseEvent& e) override;
+    /**
+     * the whole length again
+     * @param[in] e  the mouse event
+     */
+    void mouseDoubleClick(const juce::MouseEvent& e) override;
+    /**
+     * @brief Zooms around the pointer; the wheel sideways, or with Shift, moves along.
+     * @param[in] e      the mouse event
+     * @param[in] wheel  the wheel's movement
+     */
     void mouseWheelMove(const juce::MouseEvent& e, const juce::MouseWheelDetails& wheel) override;
-    void mouseMagnify(const juce::MouseEvent& e, float scale) override;   ///< a trackpad's pinch zooms
-    /** @brief Shows the beats @p from to @p to once a score is there (the pictures' EPH_SHOT_ZOOM). */
+    /**
+     * a trackpad's pinch zooms
+     * @param[in] e      the mouse event
+     * @param[in] scale  the pinch's factor
+     */
+    void mouseMagnify(const juce::MouseEvent& e, float scale) override;
+    /**
+     * @brief Shows the beats @p from to @p to once a score is there (the pictures' EPH_SHOT_ZOOM).
+     * @param[in] from  the first beat to show
+     * @param[in] to    the last beat to show
+     */
     void zoomTo(double from, double to) { m_wanted = { from, to }; }
 
 private:
@@ -192,12 +289,47 @@ private:
     static constexpr double Narrowest = 16.0;   ///< the least the view shows, in beats (four bars)
     void timerCallback() override;               ///< pages on with the playhead, repaints
     void rebuild();                              ///< the lanes of a new score
-    void show(double from, double span);         ///< the window, kept inside the length (all of it: not zoomed)
-    void zoomAround(float x, double factor);     ///< the window times @p factor, the beat under @p x staying put
-    void window(double& from, double& to) const; ///< the beats shown
-    bool zoomed(double& from, double& to) const; ///< the beats shown; false while it is the whole length
-    double beatAt(float x) const;                ///< the beat under @p x
-    void render(juce::Graphics& g, float w, float h, double from, double to, bool zoom);   ///< all but the playhead
+    /**
+     * the window, kept inside the length (all of it: not zoomed)
+     * @param[in] from  the first beat
+     * @param[in] span  how many beats
+     */
+    void show(double from, double span);
+    /**
+     * the window times @p factor, the beat under @p x staying put
+     * @param[in] x       the pointer's position
+     * @param[in] factor  the zoom factor
+     */
+    void zoomAround(float x, double factor);
+    /**
+     * the beats shown
+     * @param[out] from  receives the first beat shown
+     * @param[out] to    receives the last beat shown
+     */
+    void window(double& from, double& to) const;
+    /**
+     * the beats shown; false while it is the whole length
+     * @param[out] from  receives the first beat shown
+     * @param[out] to    receives the last beat shown
+     * @return false while the whole length is shown
+     */
+    bool zoomed(double& from, double& to) const;
+    /**
+     * the beat under @p x
+     * @param[in] x  the position in pixels
+     * @return the beat there
+     */
+    double beatAt(float x) const;
+    /**
+     * all but the playhead
+     * @param[in,out] g     the graphics context
+     * @param[in]     w     the width in pixels
+     * @param[in]     h     the height in pixels
+     * @param[in]     from  the first beat shown
+     * @param[in]     to    the last beat shown
+     * @param[in]     zoom  true for the zoomed view
+     */
+    void render(juce::Graphics& g, float w, float h, double from, double to, bool zoom);
     EphemerisProcessor& m_proc;   ///< the processor: what plays, where it is
     int m_version = -1;                    ///< the score the lanes were built from
     double m_beats = 0.0;                  ///< its length
@@ -225,11 +357,24 @@ private:
 /** @brief A parameter page in a viewport: it scrolls when its groups need more height than the tab gives. */
 class ScrollingPage final : public juce::Component {
 public:
-    explicit ScrollingPage(std::unique_ptr<ParamPage> page);   ///< takes the page over
+    /**
+     * takes the page over
+     * @param[in] page  the page, taken over
+     */
+    explicit ScrollingPage(std::unique_ptr<ParamPage> page);
     void resized() override;                                   ///< the page as wide as the view, as tall as it needs
-    /** @brief Sizes @p page for a view of @p area (the scroll bar taken off where it will show). */
+    /**
+     * @brief Sizes @p page for a view of @p area (the scroll bar taken off where it will show).
+     * @param[in,out] page  the page
+     * @param[in,out] view  its viewport
+     * @param[in]     area  the view's area
+     */
     static void fit(ParamPage& page, juce::Viewport& view, juce::Rectangle<int> area);
-    const ParamPage& page() const { return *m_page; }           ///< the page (the help describes it)
+    /**
+     * the page (the help describes it)
+     * @return the page
+     */
+    const ParamPage& page() const { return *m_page; }
 private:
     juce::Viewport m_view;   ///< scrolls the page
     std::unique_ptr<ParamPage> m_page;   ///< the page
@@ -242,11 +387,17 @@ private:
  */
 class ArrangePage final : public juce::Component, private juce::Timer {
 public:
-    /** @brief The tab for @p p. */
+    /**
+     * @brief The tab for @p p.
+     * @param[in,out] p  the processor
+     */
     explicit ArrangePage(EphemerisProcessor& p);
     /** @brief The rerolls on top, the view large, the automation under it. */
     void resized() override;
-    /** @brief The background and the headings. */
+    /**
+     * @brief The background and the headings.
+     * @param[in,out] g  the graphics context to draw into
+     */
     void paint(juce::Graphics& g) override;
 
 private:
@@ -262,13 +413,23 @@ private:
 /** @brief The Export tab (01.10.2026, as the siblings have it): the files, what each holds, the OSC cues' settings. */
 class ExportPage final : public juce::Component, private juce::Timer {
 public:
-    /** @brief The tab for @p p. */
+    /**
+     * @brief The tab for @p p.
+     * @param[in,out] p  the processor
+     */
     explicit ExportPage(EphemerisProcessor& p);
     /** @brief The buttons, the status, the cue settings under them. */
     void resized() override;
-    /** @brief The background and what each file holds. */
+    /**
+     * @brief The background and what each file holds.
+     * @param[in,out] g  the graphics context to draw into
+     */
     void paint(juce::Graphics& g) override;
-    void exportWith(bool stems);   ///< asks for a file, then exports (Ctrl+E: without the stems)
+    /**
+     * asks for a file, then exports (Ctrl+E: without the stems)
+     * @param[in] stems  true to export the stems too
+     */
+    void exportWith(bool stems);
     void save();                   ///< asks for a file, then saves the set (Ctrl+S)
     void load();                   ///< asks for a set, then loads it (Ctrl+O)
 
@@ -293,7 +454,10 @@ class EditorBody final : public juce::Component {
 public:
     std::function<void(juce::Graphics&)> m_painter;   ///< draws the background and the logo
     std::function<void()> m_onResize;                 ///< lays the controls out
-    /** @brief Draws through painter. */
+    /**
+     * @brief Draws through painter.
+     * @param[in,out] g  the graphics context to draw into
+     */
     void paint(juce::Graphics& g) override { if (m_painter) m_painter(g); }
     /** @brief Lays out through onResize. */
     void resized() override { if (m_onResize) m_onResize(); }
@@ -302,18 +466,37 @@ public:
 /** @brief The editor: the frame's header and keys, the arrange view, the tabs, the help over them. */
 class EphemerisEditor final : public juce::AudioProcessorEditor, private juce::Timer, private juce::ChangeListener {
 public:
-    explicit EphemerisEditor(EphemerisProcessor& p);   ///< builds the panel for @p p
+    /**
+     * builds the panel for @p p
+     * @param[in,out] p  the processor
+     */
+    explicit EphemerisEditor(EphemerisProcessor& p);
     ~EphemerisEditor() override;                       ///< stops the refresh timer
-    void paint(juce::Graphics& g) override;            ///< the background
+    /**
+     * the background
+     * @param[in,out] g  the graphics context
+     */
+    void paint(juce::Graphics& g) override;
     void resized() override;                           ///< scales the body to the window
     void parentHierarchyChanged() override;            ///< the standalone's title bar gets a maximise button, the window its place
-    bool keyPressed(const juce::KeyPress& key) override;   ///< the frame's keys (frame::handleKey)
+    /**
+     * the frame's keys (frame::handleKey)
+     * @param[in] key  the key
+     * @return true when the key was used
+     */
+    bool keyPressed(const juce::KeyPress& key) override;
     /**
      * @brief Opens the preset browser on instance @p instance of synth @p m; @p chosen hears the menu id taken (a factory
      *        preset's index + 1, or 5001 + one of the player's).
+     * @param[in] m         the synth
+     * @param[in] instance  its instance
+     * @param[in] chosen    called with the menu id taken
      */
     void browsePresets(eph::ModuleE m, int instance, std::function<void(int)> chosen);
-    /** @brief Shows a line in the info line (an Alt-drag's depth). */
+    /**
+     * @brief Shows a line in the info line (an Alt-drag's depth).
+     * @param[in] text  the line
+     */
     void say(const juce::String& text) { if (m_info != nullptr) m_info->showText(text); }
 
 private:
@@ -322,18 +505,53 @@ private:
     void changeListenerCallback(juce::ChangeBroadcaster*) override;   ///< the settings changed (the backdrop)
     void layoutBody();                                 ///< the top bar, the arrange view, the tabs, at the design scale
     void toggleFullScreen();                           ///< the standalone's window full screen and back
-    bool fullScreen() const;                           ///< whether it is
-    bool standalone() const;                           ///< the editor sits in the standalone's window
-    void showLength(int kind);                         ///< the length slider for a piece's minutes or a concert's
-    void showHelp(bool on);                            ///< the help over the tabs (F1)
+    /**
+     * whether it is
+     * @return true in full screen
+     */
+    bool fullScreen() const;
+    /**
+     * the editor sits in the standalone's window
+     * @return true in the standalone's window
+     */
+    bool standalone() const;
+    /**
+     * the length slider for a piece's minutes or a concert's
+     * @param[in] kind  what the slider sets: a piece's minutes or a concert's
+     */
+    void showLength(int kind);
+    /**
+     * the help over the tabs (F1)
+     * @param[in] on  true to show it
+     */
+    void showHelp(bool on);
     void showSettings();                               ///< the settings menu
-    ExportPage* exportPage() const;                    ///< the Export tab's page
+    /**
+     * the Export tab's page
+     * @return the page
+     */
+    ExportPage* exportPage() const;
     void openPalette();                                ///< the command palette (Ctrl+K)
-    std::vector<frame::CommandPalette::Command> paletteCommands();   ///< what the palette can do: actions, pages, controls, presets
+    /**
+     * what the palette can do: actions, pages, controls, presets
+     * @return the palette's commands
+     */
+    std::vector<frame::CommandPalette::Command> paletteCommands();
     void startTour();                                  ///< the first steps, from the first
-    /** @brief The info line's words for store id @p id: its name, its value, its range, what moves it, its key. */
+    /**
+     * @brief The info line's words for store id @p id: its name, its value, its range, what moves it, its key.
+     * @param[in]  id    the store id
+     * @param[out] name  the control's name
+     * @param[out] text  its value, range, mover and key
+     * @return false when no page has the control
+     */
     bool describeControl(int id, juce::String& name, juce::String& text);
-    /** @brief Shows the control of store id @p id (its tab, sub-tab, section, row) and lights it; false when no page has it. */
+    /**
+     * @brief Shows the control of store id @p id (its tab, sub-tab, section, row) and lights it; false when no page has
+     *        it.
+     * @param[in] id  the store id
+     * @return false when no page has the control
+     */
     bool revealId(int id);
     EphemerisProcessor& m_proc;   ///< the processor
     frame::LookAndFeel m_lnf{ ephui::skin() };          ///< first, so it outlives every component that uses it

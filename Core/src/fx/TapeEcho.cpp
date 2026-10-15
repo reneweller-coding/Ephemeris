@@ -1,6 +1,7 @@
 /**
  * @file TapeEcho.cpp
  * @brief The tape echo.
+ * @author Rene Weller
  */
 #include "eph/fx/TapeEcho.h"
 #include <algorithm>

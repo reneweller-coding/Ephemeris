@@ -4,6 +4,7 @@
  *        without its tail (send A: distance and glue without a smear) and the effect hall (send D: a long plate with an
  *        octave-up pitch shifter in its feedback -- the shimmer of the modern-modular school, for drones, pads and the
  *        transitions). The blend room (B) and the hall (C) are the plate and the hall of Engine.h.
+ * @author Rene Weller
  */
 #pragma once
 #include "eph/Dsp.h"
@@ -20,7 +21,10 @@ namespace eph {
  */
 class EarlyReflections {
 public:
-    /** @brief Allocates the line for a sample rate (120 ms) and sets the default reflections. */
+    /**
+     * @brief Allocates the line for a sample rate (120 ms) and sets the default reflections.
+     * @param[in] sampleRate  the sample rate in Hz
+     */
     void prepare(double sampleRate)
     {
         m_sr = sampleRate;
@@ -32,7 +36,12 @@ public:
         for (Svf* f : { &m_hpL, &m_hpR, &m_lpL, &m_lpR }) f->reset();
         set(35.0f, 200.0f, 8000.0f);
     }
-    /** @brief The span of the reflections in ms (10 .. 80) and the return's band. */
+    /**
+     * @brief The span of the reflections in ms (10 .. 80) and the return's band.
+     * @param[in] sizeMs     the span of the reflections in ms, 10 .. 80
+     * @param[in] lowCutHz   the return's low cut in Hz
+     * @param[in] highCutHz  the return's high cut in Hz
+     */
     void set(float sizeMs, float lowCutHz, float highCutHz)
     {
         const float sr = static_cast<float>(m_sr);
@@ -50,7 +59,14 @@ public:
         m_hpL.setQ(lowCutHz, 0.7071f, sr); m_hpR.copyCoefficients(m_hpL);
         m_lpL.setQ(highCutHz, 0.7071f, sr); m_lpR.copyCoefficients(m_lpL);
     }
-    /** @brief Adds the reflections of the send (@p inL, @p inR) to @p outL, @p outR. */
+    /**
+     * @brief Adds the reflections of the send (@p inL, @p inR) to @p outL, @p outR.
+     * @param[in]     inL   the left send
+     * @param[in]     inR   the right send
+     * @param[in,out] outL  the left output, added to
+     * @param[in,out] outR  the right output, added to
+     * @param[in]     n     how many samples
+     */
     void process(const float* inL, const float* inR, float* outL, float* outR, int n)
     {
         for (int i = 0; i < n; ++i) {
@@ -91,7 +107,10 @@ private:
  */
 class Shimmer {
 public:
-    /** @brief Prepares the plate and the shifter for a sample rate and sets the default effect. */
+    /**
+     * @brief Prepares the plate and the shifter for a sample rate and sets the default effect.
+     * @param[in] sampleRate  the sample rate in Hz
+     */
     void prepare(double sampleRate)
     {
         m_sr = sampleRate;
@@ -104,7 +123,13 @@ public:
         m_quiet = 0;
         set(8.0f, 0.35f, 400.0f, 4000.0f);
     }
-    /** @brief The tail in seconds, the octave's share fed back (0 .. 0.6), the return's band. */
+    /**
+     * @brief The tail in seconds, the octave's share fed back (0 .. 0.6), the return's band.
+     * @param[in] decaySeconds  the tail in seconds
+     * @param[in] amount        the octave's share fed back, 0 .. 0.6
+     * @param[in] lowCutHz      the return's low cut in Hz
+     * @param[in] highCutHz     the return's high cut in Hz
+     */
     void set(float decaySeconds, float amount, float lowCutHz, float highCutHz)
     {
         m_plate.set(decaySeconds, 0.35f, 0.0f, 150.0f, 9000.0f);
@@ -114,7 +139,14 @@ public:
         m_hpL.setQ(lowCutHz, 0.7071f, sr); m_hpR.copyCoefficients(m_hpL);
         m_lpL.setQ(highCutHz, 0.7071f, sr); m_lpR.copyCoefficients(m_lpL);
     }
-    /** @brief Adds the effect of the send to @p outL, @p outR (n at most 64). */
+    /**
+     * @brief Adds the effect of the send to @p outL, @p outR (n at most 64).
+     * @param[in]     inL   the left send
+     * @param[in]     inR   the right send
+     * @param[in,out] outL  the left output, added to
+     * @param[in,out] outR  the right output, added to
+     * @param[in]     n     how many samples, at most 64
+     */
     void process(const float* inL, const float* inR, float* outL, float* outR, int n)
     {
         // Idle once nothing has come in for twice the tail: most of a piece sends nothing here.
@@ -175,7 +207,10 @@ private:
 class ResonanceTamer {
 public:
     static constexpr int Bands = 6;   ///< the bands
-    /** @brief Sets the bands (350 Hz .. 4.8 kHz) and the followers (3 ms up, 60 ms down) for a sample rate. */
+    /**
+     * @brief Sets the bands (350 Hz .. 4.8 kHz) and the followers (3 ms up, 60 ms down) for a sample rate.
+     * @param[in] sampleRate  the sample rate in Hz
+     */
     void prepare(double sampleRate)
     {
         static const float Centre[Bands] = { 350.0f, 600.0f, 1000.0f, 1700.0f, 2900.0f, 4800.0f };
@@ -188,7 +223,13 @@ public:
         m_attack = std::exp(-1.0f / (0.003f * sr));
         m_release = std::exp(-1.0f / (0.06f * sr));
     }
-    /** @brief Works on @p L, @p R in place; @p depth 0 leaves them alone. */
+    /**
+     * @brief Works on @p L, @p R in place; @p depth 0 leaves them alone.
+     * @param[in,out] L      the left channel, processed in place
+     * @param[in,out] R      the right channel, processed in place
+     * @param[in]     n      how many samples
+     * @param[in]     depth  how far it tames, 0 for not at all
+     */
     void process(float* L, float* R, int n, float depth)
     {
         if (depth <= 0.0f) return;

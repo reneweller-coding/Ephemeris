@@ -1,6 +1,7 @@
 /**
  * @file Style.cpp
  * @brief The five profiles.
+ * @author Rene Weller
  */
 #include "eph/compose/Style.h"
 #include "eph/Params.h"
@@ -11,7 +12,12 @@ namespace eph {
 
 namespace {
 
-/** @brief A player's hands: a gesture's median length and the rest between, seconds. */
+/**
+ * @brief A player's hands: a gesture's median length and the rest between, seconds.
+ * @param[in] medianSeconds  a gesture's median length in seconds
+ * @param[in] restSeconds    the rest between gestures in seconds
+ * @return the hands
+ */
 HandStyle hands(double medianSeconds, double restSeconds)
 {
     HandStyle h;

@@ -1,6 +1,7 @@
 /**
  * @file SetFile.cpp
  * @brief The `.ephset` text form.
+ * @author Rene Weller
  */
 #include "eph/SetFile.h"
 #include "eph/Params.h"

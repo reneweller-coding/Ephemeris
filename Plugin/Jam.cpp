@@ -1,6 +1,7 @@
 /**
  * @file Jam.cpp
  * @brief The family jam's bus (Jam.h): the OSC it speaks, its thread, and the state a follower reads.
+ * @author Rene Weller
  */
 #include "Jam.h"
 #include <cmath>
@@ -38,7 +39,11 @@ const SectionName Names[] = {
     { "Cut", JamSectionE::BREAK, 0.25f, false, false },
 };
 
-/** @brief Appends an OSC string to @p b: the text, its terminator, nulls to the next multiple of four. */
+/**
+ * @brief Appends an OSC string to @p b: the text, its terminator, nulls to the next multiple of four.
+ * @param[in,out] b  the message, appended to
+ * @param[in]     s  the text
+ */
 void putString(juce::MemoryOutputStream& b, const char* s)
 {
     const size_t n = std::strlen(s) + 1;
@@ -46,10 +51,18 @@ void putString(juce::MemoryOutputStream& b, const char* s)
     for (size_t pad = (4 - (n & 3)) & 3; pad > 0; --pad) b.writeByte(0);
 }
 
-/** @brief Appends a big-endian int32. */
+/**
+ * @brief Appends a big-endian int32.
+ * @param[in,out] b  the message, appended to
+ * @param[in]     v  the value
+ */
 void putInt(juce::MemoryOutputStream& b, int32_t v) { b.writeIntBigEndian(v); }
 
-/** @brief Appends a big-endian float32. */
+/**
+ * @brief Appends a big-endian float32.
+ * @param[in,out] b  the message, appended to
+ * @param[in]     v  the value
+ */
 void putFloat(juce::MemoryOutputStream& b, float v)
 {
     int32_t i;
@@ -57,7 +70,15 @@ void putFloat(juce::MemoryOutputStream& b, float v)
     b.writeIntBigEndian(i);
 }
 
-/** @brief Reads an OSC string at @p pos into @p out (cap bytes); false when it is unterminated or runs past @p size. */
+/**
+ * @brief Reads an OSC string at @p pos into @p out (cap bytes); false when it is unterminated or runs past @p size.
+ * @param[in]     d     the datagram
+ * @param[in]     size  its length in bytes
+ * @param[in,out] pos   the read position, moved past the string
+ * @param[out]    out   receives the text
+ * @param[in]     cap   the room in out, in bytes
+ * @return false when the string is unterminated or runs past the end
+ */
 bool getString(const char* d, int size, int& pos, char* out, int cap)
 {
     int end = pos;
@@ -70,7 +91,14 @@ bool getString(const char* d, int size, int& pos, char* out, int cap)
     return pos <= size;
 }
 
-/** @brief Reads a big-endian int32 at @p pos; false past @p size. */
+/**
+ * @brief Reads a big-endian int32 at @p pos; false past @p size.
+ * @param[in]     d     the datagram
+ * @param[in]     size  its length in bytes
+ * @param[in,out] pos   the read position, moved past the value
+ * @param[out]    v     receives the value
+ * @return false past the end
+ */
 bool getInt(const char* d, int size, int& pos, int32_t& v)
 {
     if (pos + 4 > size) return false;
@@ -81,7 +109,14 @@ bool getInt(const char* d, int size, int& pos, int32_t& v)
     return true;
 }
 
-/** @brief Reads a big-endian float32 at @p pos; false past @p size. */
+/**
+ * @brief Reads a big-endian float32 at @p pos; false past @p size.
+ * @param[in]     d     the datagram
+ * @param[in]     size  its length in bytes
+ * @param[in,out] pos   the read position, moved past the value
+ * @param[out]    v     receives the value
+ * @return false past the end
+ */
 bool getFloat(const char* d, int size, int& pos, float& v)
 {
     int32_t i;

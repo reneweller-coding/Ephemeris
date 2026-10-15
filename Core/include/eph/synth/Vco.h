@@ -32,6 +32,7 @@
  * or the matrix's Osc 2 Pitch target from the filter envelope: the Prophet's Poly-Mod). **Cross mod**: VCO 1's
  * output on VCO 2's exponential frequency input at audio rate, as the ARP 2600's FM and the Prophet's Poly-Mod
  * from Osc B.
+ * @author Rene Weller
  */
 #pragma once
 #include <algorithm>
@@ -53,7 +54,11 @@ struct VcoProfile {
     float m_jitterCents;   ///< the fast wander of the pitch (a few milliseconds' correlation), cents
 };
 
-/** @brief The profile of model @p m (VcoModel; clamped). */
+/**
+ * @brief The profile of model @p m (VcoModel; clamped).
+ * @param[in] m  the model
+ * @return its profile
+ */
 inline const VcoProfile& vcoProfile(int m)
 {
     static const VcoProfile k[VcoModels] = {
@@ -72,14 +77,27 @@ struct VcoOsc {
     double m_ph = 0.0;          ///< phase in cycles, [0, 1)
     float m_pending = 0.0f;     ///< residuals of the events since the last sample, for the next
 
-    /** @brief The waveform at phase @p t: the model's ramp blended into the pulse (-1 below @p pw, +1 above). */
+    /**
+     * @brief The waveform at phase @p t: the model's ramp blended into the pulse (-1 below @p pw, +1 above).
+     * @param[in] p     the model's profile
+     * @param[in] wave  the blend of ramp and pulse, 0..1
+     * @param[in] pw    the pulse width
+     * @param[in] t     the phase in [0, 1)
+     * @return the waveform's value
+     */
     static float value(const VcoProfile& p, float wave, float pw, double t)
     {
         const float x = static_cast<float>(t), x2 = x * x, x4 = x2 * x2;
         const float ramp = 2.0f * x - 1.0f + p.m_bow * x * (1.0f - x) - p.m_knee * x4 * x4;
         return ramp + wave * ((x < pw ? -1.0f : 1.0f) - ramp);
     }
-    /** @brief Its slope per cycle at @p t (the pulse's is zero between its edges). */
+    /**
+     * @brief Its slope per cycle at @p t (the pulse's is zero between its edges).
+     * @param[in] p     the model's profile
+     * @param[in] wave  the blend of ramp and pulse, 0..1
+     * @param[in] t     the phase in [0, 1)
+     * @return the slope per cycle
+     */
     static float slope(const VcoProfile& p, float wave, double t)
     {
         const float x = static_cast<float>(t), x2 = x * x, x3 = x2 * x;
@@ -88,8 +106,13 @@ struct VcoOsc {
 
     /**
      * @brief The sample at the present phase, band-limited, then one step of @p dt cycles.
-     * @param syncAt  where in this step (0..1] VCO 1 completed a cycle, to restart there (negative: no sync)
-     * @param wrapAt  if not null: where in this step this oscillator completed its cycle (negative: it did not)
+     * @param[in]     dt      the phase step in cycles
+     * @param[in]     p       the model's profile
+     * @param[in]     wave    the blend of ramp and pulse, 0..1
+     * @param[in]     pw      the pulse width
+     * @param[in]     syncAt  where in this step (0..1] VCO 1 completed a cycle, to restart there (negative: no sync)
+     * @param[in,out] wrapAt  if not null: where in this step this oscillator completed its cycle (negative: it did not)
+     * @return the sample at the present phase
      */
     float step(double dt, const VcoProfile& p, float wave, float pw, double syncAt, double* wrapAt)
     {

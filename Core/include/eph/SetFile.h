@@ -20,6 +20,7 @@
  *   param compose.style=Cosmic
  * @endcode
  * Only the parameters that differ from their defaults are written.
+ * @author Rene Weller
  */
 #pragma once
 #include <cstdint>
@@ -33,9 +34,16 @@ class ParamStore;
 /** @brief The rerolls of a piece or concert: unit name -> how often it was drawn again. */
 struct Curation {
     std::map<std::string, int> m_rerolls;   ///< unit name -> reroll count
-    /** @brief The counter of @p unit (0 if never rerolled). */
+    /**
+     * @brief The counter of @p unit (0 if never rerolled).
+     * @param[in] unit  the unit's name
+     * @return how often it was rerolled
+     */
     int count(const std::string& unit) const { const auto it = m_rerolls.find(unit); return it == m_rerolls.end() ? 0 : it->second; }
-    /** @brief Draws @p unit once more. */
+    /**
+     * @brief Draws @p unit once more.
+     * @param[in] unit  the unit's name
+     */
     void reroll(const std::string& unit) { ++m_rerolls[unit]; }
 };
 
@@ -51,9 +59,22 @@ struct SetFile {
     bool m_soundsInParams = false;
 };
 
-/** @brief Writes a set; @p params' changed values are taken as they are now. */
+/**
+ * @brief Writes a set; @p params' changed values are taken as they are now.
+ * @param[in] path    the file
+ * @param[in] set     the set's seed, lengths and rerolls
+ * @param[in] params  the knobs
+ * @return false when the file cannot be written
+ */
 bool saveSet(const char* path, const SetFile& set, const ParamStore& params);
-/** @brief Reads a set and applies its parameters to @p params; @p error says why it failed. */
+/**
+ * @brief Reads a set and applies its parameters to @p params; @p error says why it failed.
+ * @param[in]  path    the file
+ * @param[out] set     receives the set's seed, lengths and rerolls
+ * @param[out] params  receives the knobs
+ * @param[out] error   receives why it failed, or null
+ * @return false when the file cannot be read
+ */
 bool loadSet(const char* path, SetFile& set, ParamStore& params, std::string* error = nullptr);
 
 } // namespace eph

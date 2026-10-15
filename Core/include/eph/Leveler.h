@@ -16,6 +16,7 @@
  * concert's pieces each get their own; the engine glides from one to the next over eight bars. The measuring renders
  * 48 seconds, some seconds of work: eph_render does it before it renders, the plugin and the Quest while the piece
  * already plays -- the correction follows and glides in (Engine::setLevelTrims).
+ * @author Rene Weller
  */
 #pragma once
 #include "eph/Params.h"
@@ -36,8 +37,10 @@ struct LevelReading {
 
 /**
  * @brief Measures every piece of @p score (its LevelMarks) with the knobs of @p params and sets their corrections.
- * @param seconds how much of each loudest part is measured
- * @param stop    asked between blocks: true breaks off, and @p score is left as it was
+ * @param[in,out] score    the score; its marks receive the corrections
+ * @param[in]     params   the knobs
+ * @param[in]     seconds  how much of each loudest part is measured
+ * @param[in]     stop     asked between blocks: true breaks off, and @p score is left as it was
  * @return what was found, a reading per piece (nothing if broken off)
  */
 std::vector<LevelReading> levelScore(Score& score, const ParamStore& params, double seconds = 20.0,

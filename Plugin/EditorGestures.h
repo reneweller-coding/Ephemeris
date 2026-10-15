@@ -7,6 +7,7 @@
  * where it is busy -- the two-hands rule of PLAN 6.4 made visible: never more than two gestures at once.
  * The sections of the piece lie behind the lanes, the playhead runs over them, and a click jumps there.
  * Everything comes from the score the engine plays, so it shows what sounds.
+ * @author Rene Weller
  */
 #pragma once
 #include "PluginProcessor.h"
@@ -16,11 +17,23 @@
 /** @brief The gesture lanes of the score that plays. */
 class GestureView final : public juce::Component, private juce::Timer {
 public:
-    explicit GestureView(EphemerisProcessor& p);   ///< shows @p p's score and follows its playhead
+    /**
+     * shows @p p's score and follows its playhead
+     * @param[in,out] p  the processor
+     */
+    explicit GestureView(EphemerisProcessor& p);
     ~GestureView() override;                       ///< stops the timer
-    void paint(juce::Graphics& g) override;        ///< the lanes, the hands, the sections, the playhead
+    /**
+     * the lanes, the hands, the sections, the playhead
+     * @param[in,out] g  the graphics context
+     */
+    void paint(juce::Graphics& g) override;
     void resized() override;                       ///< the curves are drawn again at the new size
-    void mouseDown(const juce::MouseEvent& e) override;   ///< jumps to the clicked beat
+    /**
+     * jumps to the clicked beat
+     * @param[in] e  the mouse event
+     */
+    void mouseDown(const juce::MouseEvent& e) override;
 
 private:
     /** @brief One knob's gestures. */
@@ -33,7 +46,12 @@ private:
     /** @brief Follows the playhead and a new score. */
     void timerCallback() override;
     void rebuild();                        ///< lanes and curves from a new score or size
-    float xOf(double beat) const;          ///< the lanes' horizontal position of @p beat
+    /**
+     * the lanes' horizontal position of @p beat
+     * @param[in] beat  the position in beats
+     * @return its x in pixels
+     */
+    float xOf(double beat) const;
 
     EphemerisProcessor& m_proc;             ///< where the score and the playhead come from
     eph::Score m_score;                     ///< a copy of the score the engine plays

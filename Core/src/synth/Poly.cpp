@@ -5,6 +5,7 @@
  * Everything runs sample by sample on the sample count's grid -- the control values every sixteen samples, the
  * drift every 512, each key drawing its drift from its own generator -- so the sound does not depend on how the
  * host cuts the blocks (the engine's rule).
+ * @author Rene Weller
  */
 #include "eph/synth/Poly.h"
 #include "eph/Vec.h"
@@ -21,6 +22,14 @@ constexpr int Drift = 512;     ///< samples between two steps of the drift
 /**
  * @brief One sample of the keys' filter lanes of model @p m (not the comb), a register at a time: the arithmetic of
  *        FilterLane::tick lane by lane, so the sound is the same to the bit; the makeup is the caller's.
+ * @param[in]     m     the filter model
+ * @param[in,out] fv    the lanes' first state, per register
+ * @param[in,out] fs    the lanes' second state, per register
+ * @param[in]     x     the lanes' input samples
+ * @param[in]     g     the lanes' cutoff coefficients
+ * @param[in]     k     the lanes' resonance coefficients
+ * @param[in]     mode  the lanes' modes
+ * @param[out]    y     the lanes' output samples
  */
 template <class VT, int N>
 void runLanes(FilterModelE m, float (*fv)[N], float (*fs)[N], const float* x, const float* g, const float* k, const float* mode, float* y)

@@ -1,6 +1,7 @@
 /**
  * @file Composer.cpp
  * @brief A piece and a concert.
+ * @author Rene Weller
  */
 #include "eph/compose/Composer.h"
 #include "eph/compose/Form.h"
@@ -24,7 +25,13 @@ namespace {
 /** @brief The streams of a piece: one per step of PLAN 6, so changing one leaves the others. */
 enum StreamE : uint64_t { S_FORM = 1, S_TEMPO, S_ROWS, S_RACK, S_LAYERS, S_LEAD, S_PADS, S_HANDS, S_SOUNDS };
 
-/** @brief The offset in a knob's normalised range that takes it from its default to @p value. */
+/**
+ * @brief The offset in a knob's normalised range that takes it from its default to @p value.
+ * @param[in] p      the parameters
+ * @param[in] id     the knob
+ * @param[in] value  the value wanted
+ * @return the offset in the normalised range
+ */
 float offsetTo(const ParamStore& p, int id, float value)
 {
     return p.toNormalised(id, value) - p.toNormalised(id, p.get(id));
@@ -33,6 +40,11 @@ float offsetTo(const ParamStore& p, int id, float value)
 /**
  * @brief Drums for a span, by style (PLAN 5.7): an eighties kit in "Melodic", a sparse one in "Modern",
  *        a lone tom now and then in "Doom". General MIDI numbers; toms are tuned by the engine.
+ * @param[in,out] s      the score written to
+ * @param[in]     style  the style
+ * @param[in]     from   the span's first beat
+ * @param[in]     to     the span's end in beats
+ * @param[in,out] rng    the random stream
  */
 void writeDrums(Score& s, StyleE style, double from, double to, Rng& rng)
 {
@@ -76,6 +88,11 @@ void writeDrums(Score& s, StyleE style, double from, double to, Rng& rng)
 /**
  * @brief The pulse (25.09.2026, hypnosis): a soft kick under the sequence where the kit does not play -- four to the
  *        floor in Melodic and Modern, a heartbeat in Cosmic, a slow beat in Drift, a low tom every bar in Doom.
+ * @param[in,out] s      the score written to
+ * @param[in]     style  the style
+ * @param[in]     from   the span's first beat
+ * @param[in]     to     the span's end in beats
+ * @param[in,out] rng    the random stream
  */
 void writePulse(Score& s, StyleE style, double from, double to, Rng& rng)
 {
@@ -109,7 +126,14 @@ namespace {
 
 /** @brief What the steps of a piece share: the settings, the profile, the form, the score being written. */
 struct Piece {
-    /** @brief The piece's settings, profile, score and form; the rest is filled in by the steps. */
+    /**
+     * @brief The piece's settings, profile, score and form; the rest is filled in by the steps.
+     * @param[in,out] params   the piece's copy of the parameters
+     * @param[in]     profile  the style profile
+     * @param[in]     st       the style
+     * @param[in,out] score    the score written to
+     * @param[in]     f        the form
+     */
     Piece(ParamStore& params, const StyleProfile& profile, StyleE st, Score& score, const PieceForm& f)
         : m_p(params), m_prof(profile), m_style(st), m_s(score), m_form(f) {}
     ParamStore& m_p;                        ///< the piece's own copy of the parameters
@@ -132,11 +156,18 @@ struct Piece {
     std::vector<std::pair<double, double>> m_doubled;   ///< spans where row 2 plays sixteenths (the pulse doubled)
     std::vector<std::pair<double, double>> m_breaks;    ///< spans where the rows stop before a peak (the style guide's 6.4)
     std::function<uint64_t(StreamE)> m_seedOf;   ///< the seed of a stream, rerolls counted
-    /** @brief A fresh generator on stream @p k. */
+    /**
+     * @brief A fresh generator on stream @p k.
+     * @param[in] k  the stream
+     * @return a generator seeded for it
+     */
     Rng stream(StreamE k) const { Rng r; r.seed(m_seedOf(k)); return r; }
 };
 
-/** @brief The tempo map (a new tempo starts with the bridge before its phase) and the markers. */
+/**
+ * @brief The tempo map (a new tempo starts with the bridge before its phase) and the markers.
+ * @param[in,out] c  the piece
+ */
 void writeMarkers(Piece& c)
 {
     for (const Section& sec : c.m_form.m_sections) {
@@ -147,7 +178,10 @@ void writeMarkers(Piece& c)
     }
 }
 
-/** @brief Step 2a, the rows: a bass row, the profile's counter rows, a transposer on row 8. */
+/**
+ * @brief Step 2a, the rows: a bass row, the profile's counter rows, a transposer on row 8.
+ * @param[in,out] c  the piece
+ */
 void setUpRows(Piece& c)
 {
     ParamStore& p = c.m_p;
@@ -178,7 +212,12 @@ void setUpRows(Piece& c)
     rowSet(tr, row::MUTATION, 0.0f);   // the chain of transpositions stays as drawn (Harmony.h)
 }
 
-/** @brief The cycle of row @p r in beats, as set up. */
+/**
+ * @brief The cycle of row @p r in beats, as set up.
+ * @param[in] p  the parameters
+ * @param[in] r  the row
+ * @return its cycle in beats
+ */
 double cycleBeats(const ParamStore& p, int r)
 {
     return std::clamp(static_cast<int>(p.get(p.id(ModuleE::ROW, r, row::LENGTH))), 1, MaxSteps)
@@ -192,6 +231,7 @@ double cycleBeats(const ParamStore& p, int r)
  *        the breakdown, drawn anew at the peak in the peak's mode; the transposer only on the plateau (the lead's
  *        section) and at the peak; a parallel change of mode at the peak (Aeolian to Dorian) or in the
  *        breakdown (to Phrygian).
+ * @param[in,out] c  the piece
  */
 void writeRack(Piece& c)
 {
@@ -435,6 +475,7 @@ void writeRack(Piece& c)
  *        to the end of the peak and in the bridges, the string machine at the peak and in the breakdown,
  *        the lead in its section and at the peak, the drums from the second build -- each with the
  *        profile's chance.
+ * @param[in,out] c  the piece
  */
 void writeLayers(Piece& c)
 {
@@ -584,7 +625,10 @@ void writeLayers(Piece& c)
         }), s.m_notes.end());
 }
 
-/** @brief Step 4, the atmosphere: wind and sweeps where no rows play, bleeps in the builds. */
+/**
+ * @brief Step 4, the atmosphere: wind and sweeps where no rows play, bleeps in the builds.
+ * @param[in,out] c  the piece
+ */
 void writeAtmosphere(Piece& c)
 {
     Score& s = c.m_s;
@@ -644,6 +688,11 @@ void writeAtmosphere(Piece& c)
  *        the parameters, so every move written after it moves from there, and in the score's knob settings, which the
  *        engine puts on the knobs where the piece begins. A step of the same knob at the piece's start goes: the knob
  *        now is that value.
+ * @param[in,out] c         the piece
+ * @param[in]     m         the synth
+ * @param[in]     instance  its instance
+ * @param[in]     id        the knob
+ * @param[in]     v         the value
  */
 void setKnob(Piece& c, ModuleE m, int instance, int id, float v)
 {
@@ -662,6 +711,7 @@ void setKnob(Piece& c, ModuleE m, int instance, int id, float v)
  *        start -- level, pan, the sends, the low cut, the distance, the punch, the spread, the auto pan -- becomes the
  *        knob's value (a KnobSet), and every later move of that knob along the form is rebased onto it, so what plays
  *        stays as it was while the mixer shows the piece's settings and a hand turns them from there.
+ * @param[in,out] c  the piece
  */
 void settleMix(Piece& c)
 {
@@ -703,6 +753,7 @@ void settleMix(Piece& c)
  *        begins (setKnob, 26.09.2026: a program change, no longer an offset), nudged where the part needs it (a bass not
  *        too bright, a main sequence with resonance and a deep envelope), and noted in the score for the pages. Its own
  *        stream: "reroll sounds" draws them again.
+ * @param[in,out] c  the piece
  */
 void writeSounds(Piece& c)
 {
@@ -812,7 +863,10 @@ void writeSounds(Piece& c)
     }
 }
 
-/** @brief Step 5, the settings of the piece as steps at its start: tape set, hall, loudness. */
+/**
+ * @brief Step 5, the settings of the piece as steps at its start: tape set, hall, loudness.
+ * @param[in,out] c  the piece
+ */
 void writeSettings(Piece& c)
 {
     ParamStore& p = c.m_p;
@@ -1065,6 +1119,7 @@ void writeSettings(Piece& c)
  *        now and then a near event, a lead fragment of one to three notes (root, fifth, third, octave of the scale
  *        at its beat), 20 to 90 s apart. It sets the ear's sense of depth anew; once the sequence runs, it is the
  *        reference. Their own stream, on the lead's unit.
+ * @param[in,out] c  the piece
  */
 void writeEvents(Piece& c)
 {
@@ -1092,7 +1147,10 @@ void writeEvents(Piece& c)
     }
 }
 
-/** @brief Step 6, the hands on the knobs of what plays, following the form's energy. */
+/**
+ * @brief Step 6, the hands on the knobs of what plays, following the form's energy.
+ * @param[in,out] c  the piece
+ */
 void writeHands(Piece& c)
 {
     ParamStore& p = c.m_p;
@@ -1273,7 +1331,10 @@ Score composeInterlude(const ParamStore& params, uint64_t seed, double minutes, 
 
 namespace {
 
-/** @brief The parameters' registry (every store has the same ids), for what does not depend on the values. */
+/**
+ * @brief The parameters' registry (every store has the same ids), for what does not depend on the values.
+ * @return a store with every parameter at its default
+ */
 const ParamStore& registry()
 {
     static const ParamStore reg;
@@ -1313,14 +1374,21 @@ struct RowParams {
     }
 };
 
-/** @brief The rows' parameter ids, looked up once. */
+/**
+ * @brief The rows' parameter ids, looked up once.
+ * @return the rows' parameter ids
+ */
 const RowParams& rowParams()
 {
     static const RowParams rp;
     return rp;
 }
 
-/** @brief Swaps the knobs of rows 1-4 and 5-8: a piece composed on rows 1-4 is then set against the knobs it will play on. */
+/**
+ * @brief Swaps the knobs of rows 1-4 and 5-8: a piece composed on rows 1-4 is then set against the knobs it will play
+ *        on.
+ * @param[in,out] p  the parameters
+ */
 void swapBanks(ParamStore& p)
 {
     for (ModuleE m : { ModuleE::ROW, ModuleE::VOICE })
@@ -1333,7 +1401,10 @@ void swapBanks(ParamStore& p)
             }
 }
 
-/** @brief Moves a piece from rows 1-4 to rows 5-8 (its transposer from row 8 to row 4): notes, knobs, rack, shapes. */
+/**
+ * @brief Moves a piece from rows 1-4 to rows 5-8 (its transposer from row 8 to row 4): notes, knobs, rack, shapes.
+ * @param[in,out] s  the piece's score
+ */
 void toOtherBank(Score& s)
 {
     const RowParams& rp = rowParams();
@@ -1364,6 +1435,11 @@ void toOtherBank(Score& s)
  * where dst left them; the tempo stays dst's to dst's end, then ramps to src's (16 bars for every 4 BPM). The master
  * bus (its level and width along the form) stays dst's through the overlap as well, and glides at dst's end to where
  * src has it by then: a DJ's mix keeps its level while one track goes and the other comes.
+ * @param[in,out] dst         the score laid into
+ * @param[in]     src         the score laid in
+ * @param[in]     overlap     the beats before dst's end at which src begins, 0 for its end
+ * @param[in]     rootOffset  semitones src's roots are moved by
+ * @param[in]     srcBank     the bank of rows src plays on
  */
 void mixInto(Score& dst, const Score& src, double overlap, int rootOffset, int srcBank)
 {

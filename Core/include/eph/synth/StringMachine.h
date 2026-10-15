@@ -31,6 +31,7 @@
  * Polyphonic (12 keys), slow attack and release after the machines' crescendo and sustain sliders; 26.09.2026 a decay
  * to a sustain level between them, and two LFOs and four slots (Modulation.h) on the whole machine: pitch (the
  * top-octave generator's vibrato), the tone, the level, the pan.
+ * @author Rene Weller
  */
 #pragma once
 #include "eph/Dsp.h"
@@ -64,20 +65,58 @@ public:
     static constexpr int Keys = 12;          ///< polyphony
     static constexpr int Registers = 5;      ///< saw 16', saw 8', saw 4', square 8', square 4'
     static constexpr int Registrations = 8;  ///< the registrations the knob morphs through
-    /** @brief Sample rate; allocates the ensemble's lines. */
+    /**
+     * @brief Sample rate; allocates the ensemble's lines.
+     * @param[in] sampleRate  the sample rate in Hz
+     * @param[in] seed        the seed
+     */
     void prepare(double sampleRate, uint64_t seed);
-    void set(const StringSettings& s);                 ///< takes the settings (every 32-sample cell)
-    void noteOn(int pitch, float velocity, int id);   ///< presses a key (the oldest is taken when all sound)
-    void noteOff(int id);                             ///< releases a key
+    /**
+     * takes the settings (every 32-sample cell)
+     * @param[in] s  the settings
+     */
+    void set(const StringSettings& s);
+    /**
+     * presses a key (the oldest is taken when all sound)
+     * @param[in] pitch     the MIDI note
+     * @param[in] velocity  the velocity, 0..1
+     * @param[in] id        the note's id
+     */
+    void noteOn(int pitch, float velocity, int id);
+    /**
+     * releases a key
+     * @param[in] id  the note's id
+     */
+    void noteOff(int id);
     void silence();                                   ///< every key off at once (a jump in the song)
-    bool active() const;                              ///< whether anything sounds or rings in the ensemble
-    /** @brief Renders @p n samples into @p L and @p R (overwritten). */
+    /**
+     * whether anything sounds or rings in the ensemble
+     * @return true while anything sounds or rings
+     */
+    bool active() const;
+    /**
+     * @brief Renders @p n samples into @p L and @p R (overwritten).
+     * @param[out] L  receives the left channel (overwritten)
+     * @param[out] R  receives the right channel (overwritten)
+     * @param[in]  n  how many samples
+     */
     void process(float* L, float* R, int n);
-    /** @brief The name of registration @p i (0..7). */
+    /**
+     * @brief The name of registration @p i (0..7).
+     * @param[in] i  the registration, 0..7
+     * @return its name
+     */
     static const char* registrationName(int i);
-    /** @brief The piece's beat at the next sample and beats per sample (the synced LFOs); call at every cell. */
+    /**
+     * @brief The piece's beat at the next sample and beats per sample (the synced LFOs); call at every cell.
+     * @param[in] beat            the beat at the next sample
+     * @param[in] beatsPerSample  beats per sample from there
+     */
     void setClock(double beat, double beatsPerSample) { m_beat0 = beat; m_bps = beatsPerSample; m_clockAt = m_count; }
-    /** @brief The matrix's pan offset (the engine adds it to the strip's pan). */
+    /**
+     * @brief The matrix's pan offset (the engine adds it to the strip's pan).
+     * @return the pan offset, -1..1
+     */
     float panMod() const { return m_mod.offset(m_mo, ModDestE::PAN); }
 
 private:
@@ -96,7 +135,10 @@ private:
         double m_inv8 = 1.0;   ///< 1 / the 8' divider
         double m_inv4 = 1.0;   ///< 1 / the 4' divider (powers of two, so exact)
     };
-    /** @brief The registration at @p position (0..7): register weights, tone factor and loudness. */
+    /**
+     * @brief The registration at @p position (0..7): register weights, tone factor and loudness.
+     * @param[in] position  the registration, 0..7
+     */
     void registrationAt(float position);
     double m_sr = 48000.0;   ///< the sample rate, Hz
     StringSettings m_s;   ///< the settings
@@ -130,7 +172,11 @@ private:
     double m_beat0 = 0.0;   ///< the clock: the beat at m_clockAt
     double m_bps = 0.0;   ///< beats per sample
     int64_t m_clockAt = 0;   ///< the sample setClock() was called at
-    /** @brief The beat at sample @p at. */
+    /**
+     * @brief The beat at sample @p at.
+     * @param[in] at  the sample
+     * @return the beat there
+     */
     double beatAt(int64_t at) const { return m_beat0 + static_cast<double>(at - m_clockAt) * m_bps; }
 };
 

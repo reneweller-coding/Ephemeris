@@ -1,6 +1,7 @@
 /**
  * @file ModVoice.cpp
  * @brief The modular voices: the scalar side per voice, the audio in lanes.
+ * @author Rene Weller
  */
 #include "eph/synth/ModVoice.h"
 #include <algorithm>
@@ -9,7 +10,10 @@
 namespace eph {
 
 namespace {
-/** @brief The half-band filter back down to the rate, designed once. */
+/**
+ * @brief The half-band filter back down to the rate, designed once.
+ * @return the half-band filter's design
+ */
 const HalfbandDesign& halfband()
 {
     static const HalfbandDesign d = designHalfband(96.0, 0.1);

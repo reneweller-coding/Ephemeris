@@ -9,6 +9,7 @@
  * decay lengthened and taken back, an echo thrown, a dip, a peak with resonance, the close. Never more
  * than two hands at once (PLAN 6.4). Positions are fractions of the length, rounded to bars, so any
  * length from two minutes up keeps the same shape.
+ * @author Rene Weller
  */
 #pragma once
 #include "eph/Params.h"

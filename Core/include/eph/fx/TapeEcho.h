@@ -18,6 +18,7 @@
  * Reading is by four-point Hermite interpolation. Ping-pong feeds each side's loop into the other.
  *
  * Deterministic: the drift has its own stream, seeded once.
+ * @author Rene Weller
  */
 #pragma once
 #include "eph/Dsp.h"
@@ -41,18 +42,38 @@ struct EchoSettings {
 /** @brief A stereo tape echo; returns only the wet signal. */
 class TapeEcho {
 public:
-    /** @brief Allocates for up to @p maxSeconds of delay. */
+    /**
+     * @brief Allocates for up to @p maxSeconds of delay.
+     * @param[in] sampleRate  the sample rate in Hz
+     * @param[in] maxSeconds  the longest delay in seconds
+     * @param[in] seed        the seed of the wow and flutter
+     */
     void prepare(double sampleRate, double maxSeconds, uint64_t seed);
     /** @brief Clears the tape. */
     void reset();
-    /** @brief Takes the settings; call at every 32-sample cell. The first call after prepare() or reset()
-     *         puts the tape at its speed at once; later changes of time glide, as a tape's speed does. */
+    /**
+     * @brief Takes the settings; call at every 32-sample cell. The first call after prepare() or reset()
+     *         puts the tape at its speed at once; later changes of time glide, as a tape's speed does.
+     * @param[in] s  the settings
+     */
     void set(const EchoSettings& s);
-    /** @brief Adds the echo of @p inL, @p inR to @p outL, @p outR. */
+    /**
+     * @brief Adds the echo of @p inL, @p inR to @p outL, @p outR.
+     * @param[in]     inL   the left input
+     * @param[in]     inR   the right input
+     * @param[in,out] outL  the left output, added to
+     * @param[in,out] outR  the right output, added to
+     * @param[in]     n     how many samples
+     */
     void process(const float* inL, const float* inR, float* outL, float* outR, int n);
 
 private:
-    /** @brief @p buf read @p delaySamples ago (interpolated). */
+    /**
+     * @brief @p buf read @p delaySamples ago (interpolated).
+     * @param[in] buf           the tape
+     * @param[in] delaySamples  how many samples ago, fractional
+     * @return the interpolated sample
+     */
     float read(const std::vector<float>& buf, double delaySamples) const;
     double m_sr = 48000.0;   ///< the sample rate, Hz
     std::vector<float> m_bufL;   ///< the tape, left

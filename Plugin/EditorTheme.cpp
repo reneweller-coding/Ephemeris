@@ -1,6 +1,7 @@
 /**
  * @file EditorTheme.cpp
  * @brief The palette, the families, the synths' panels and the look and feel (EditorTheme.h).
+ * @author Rene Weller
  */
 #include "EditorTheme.h"
 #include "EphemerisData.h"
@@ -24,12 +25,12 @@ juce::Colour familyColour(Family f)
     }
 }
 
-juce::Colour channelColour(int c)
+juce::Colour channelColour(int channel)
 {
     // The rows the sources' amber, the lead the filter's copper, the drone the room's blue, the tape keys a warm
     // sand, the strings sage, the pad synth teal, the drums a brick red, the atmosphere a dusk lavender.
-    if (c < eph::Rows) return juce::Colour(0xffe0a458);
-    switch (c - eph::Rows) {
+    if (channel < eph::Rows) return juce::Colour(0xffe0a458);
+    switch (channel - eph::Rows) {
     case 0: return juce::Colour(0xffd9825b);
     case 1: return juce::Colour(0xff6f8fb8);
     case 2: return juce::Colour(0xffc2a27e);

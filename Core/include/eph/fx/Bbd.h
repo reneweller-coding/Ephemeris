@@ -9,6 +9,7 @@
  * time gliding when it is changed), two cascaded low passes at a third of the clock (never above the tone knob),
  * a slow chorus-like wander of the clock instead of a tape's wow and flutter, the compander's soft saturation and
  * its faint hiss in the loop, and a high pass against rumble. Same settings as the tape echo (EchoSettings).
+ * @author Rene Weller
  */
 #pragma once
 #include "eph/Dsp.h"
@@ -20,17 +21,37 @@ namespace eph {
 /** @brief A stereo BBD echo; returns only the wet signal. */
 class BbdEcho {
 public:
-    /** @brief Allocates for up to @p maxSeconds of delay. */
+    /**
+     * @brief Allocates for up to @p maxSeconds of delay.
+     * @param[in] sampleRate  the sample rate in Hz
+     * @param[in] maxSeconds  the longest delay in seconds
+     * @param[in] seed        the seed of the clock's wander
+     */
     void prepare(double sampleRate, double maxSeconds, uint64_t seed);
     /** @brief Clears the chain. */
     void reset();
-    /** @brief Takes the settings; call at every 32-sample cell (wowMs: depth of the clock's wander). */
+    /**
+     * @brief Takes the settings; call at every 32-sample cell (wowMs: depth of the clock's wander).
+     * @param[in] s  the settings
+     */
     void set(const EchoSettings& s);
-    /** @brief Adds the echo of @p inL, @p inR to @p outL, @p outR. */
+    /**
+     * @brief Adds the echo of @p inL, @p inR to @p outL, @p outR.
+     * @param[in]     inL   the left input
+     * @param[in]     inR   the right input
+     * @param[in,out] outL  the left output, added to
+     * @param[in,out] outR  the right output, added to
+     * @param[in]     n     how many samples
+     */
     void process(const float* inL, const float* inR, float* outL, float* outR, int n);
 
 private:
-    /** @brief @p buf read @p delaySamples ago (interpolated). */
+    /**
+     * @brief @p buf read @p delaySamples ago (interpolated).
+     * @param[in] buf           the line
+     * @param[in] delaySamples  how many samples ago, fractional
+     * @return the interpolated sample
+     */
     float read(const std::vector<float>& buf, double delaySamples) const;
     double m_sr = 48000.0;   ///< the sample rate, Hz
     std::vector<float> m_bufL;   ///< the bucket chain, left

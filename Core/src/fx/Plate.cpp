@@ -1,6 +1,7 @@
 /**
  * @file Plate.cpp
  * @brief Dattorro's plate (Plate.h).
+ * @author Rene Weller
  */
 #include "eph/fx/Plate.h"
 #include "eph/Dsp.h"

@@ -20,6 +20,7 @@
  * the cutoff, the resonance, the string machine's registration and ensemble as on a Streichfett, the pad synth's
  * place in its table -- as large encoders. layoutOf() says which; a parameter it does not name lands in a group
  * "More" at the end, so nothing added to a table is ever lost from the editor.
+ * @author Rene Weller
  */
 #pragma once
 #include <juce_gui_basics/juce_gui_basics.h>
@@ -47,11 +48,22 @@ const juce::Colour Red       { 0xffe06a5f };   ///< a meter over, mute
 
 /** @brief The families of function, the logo's planets (the frame's, the same in every generator). */
 using Family = frame::FamilyE;
-/** @brief Ephemeris' skin of the frame: the palette above, the orrery behind it, the logo. */
+/**
+ * @brief Ephemeris' skin of the frame: the palette above, the orrery behind it, the logo.
+ * @return the skin
+ */
 const frame::Skin& skin();
-/** @brief The colour of a family. */
+/**
+ * @brief The colour of a family.
+ * @param[in] f  the family
+ * @return its colour
+ */
 juce::Colour familyColour(Family f);
-/** @brief The colour of a mixer channel (Engine channel order), from the families of what plays on it. */
+/**
+ * @brief The colour of a mixer channel (Engine channel order), from the families of what plays on it.
+ * @param[in] channel  the channel
+ * @return its colour
+ */
 juce::Colour channelColour(int channel);
 
 /**
@@ -63,7 +75,11 @@ struct GroupSpec {
     Family m_family;   ///< its family: the colour
     std::vector<const char*> m_keys;   ///< its parameters by key
 };
-/** @brief The panel of a module: its groups, in order (empty: one group of everything). */
+/**
+ * @brief The panel of a module: its groups, in order (empty: one group of everything).
+ * @param[in] m  the module
+ * @return its page's groups
+ */
 const std::vector<GroupSpec>& layoutOf(eph::ModuleE m);
 
 } // namespace ephui

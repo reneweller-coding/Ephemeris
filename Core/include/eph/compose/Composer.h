@@ -24,6 +24,7 @@
  * **Curation** (SetFile.h): every stream can be drawn again on its own; the rest stays bit for bit.
  *
  * The drums come in from the second build to the end of the peak in the styles that have them (Drums.h).
+ * @author Rene Weller
  */
 #pragma once
 #include "eph/Params.h"
@@ -37,13 +38,14 @@ struct StyleProfile;
 
 /**
  * @brief Writes one piece.
- * @param p        parameters (compose.style, key, scale, bpm or the profile's tempo, the voices)
- * @param seed     the piece's seed
- * @param minutes  its length
- * @param keyShift semitones from compose.key (a concert moves from piece to piece)
- * @param curation rerolls, or null
- * @param unit     prefix of this piece's units in @p curation ("" alone, "piece2." in a concert)
- * @param profile  a profile instead of compose.style's (a concert's morph, morphProfile), or null
+ * @param[in] p         parameters (compose.style, key, scale, bpm or the profile's tempo, the voices)
+ * @param[in] seed      the piece's seed
+ * @param[in] minutes   its length
+ * @param[in] keyShift  semitones from compose.key (a concert moves from piece to piece)
+ * @param[in] curation  rerolls, or null
+ * @param[in] unit      prefix of this piece's units in @p curation ("" alone, "piece2." in a concert)
+ * @param[in] profile   a profile instead of compose.style's (a concert's morph, morphProfile), or null
+ * @return the piece's score
  */
 Score composePiece(const ParamStore& p, uint64_t seed, double minutes, int keyShift = 0,
                    const Curation* curation = nullptr, const std::string& unit = std::string(),
@@ -58,6 +60,11 @@ Score composePiece(const ParamStore& p, uint64_t seed, double minutes, int keySh
  *        between the long pieces, the piece in the middle the darkest (Phrygian, darker voices), the last one
  *        ethereal (Dorian, a longer hall, a row fewer at the peak, no drums, a quieter lead). Without it the
  *        concert draws exactly what it drew before.
+ * @param[in] p         the parameters
+ * @param[in] seed      the concert's seed
+ * @param[in] minutes   its length in all
+ * @param[in] curation  the listener's curation, or null
+ * @return the concert's score
  */
 Score composeConcert(const ParamStore& p, uint64_t seed, double minutes, const Curation* curation = nullptr);
 
@@ -65,11 +72,12 @@ Score composeConcert(const ParamStore& p, uint64_t seed, double minutes, const C
  * @brief Writes an interlude (the style guide's 6.5, the album's short ambient pieces between the long ones): no
  *        rows, only the drone, slow chords on the string machine or the tape keys (a chord every 16 to 32 bars),
  *        the atmosphere with its granular cloud, a longer hall, and the open fifth at the end.
- * @param p        parameters (key, scale, the voices)
- * @param seed     the interlude's seed
- * @param minutes  its length
- * @param keyShift semitones from compose.key
- * @param profile  the profile of the moment in the concert
+ * @param[in] p         parameters (key, scale, the voices)
+ * @param[in] seed      the interlude's seed
+ * @param[in] minutes   its length
+ * @param[in] keyShift  semitones from compose.key
+ * @param[in] profile   the profile of the moment in the concert
+ * @return the interlude's score
  */
 Score composeInterlude(const ParamStore& p, uint64_t seed, double minutes, int keyShift, const StyleProfile& profile);
 
@@ -79,6 +87,9 @@ extern const char* const UnitNames[9];
 /**
  * @brief Appends @p src to @p dst at @p dst's end; its roots are moved by @p rootOffset semitones. A knob dst moved
  *        and src does not set goes back to the knob itself where src begins.
+ * @param[in,out] dst         the score appended to
+ * @param[in]     src         the score appended
+ * @param[in]     rootOffset  semitones src's roots are moved by
  */
 void appendScore(Score& dst, const Score& src, int rootOffset);
 
@@ -93,6 +104,11 @@ void appendScore(Score& dst, const Score& src, int rootOffset);
  *        its lows and recedes, then its main sequence filling up, where the last one's recedes to the end. The tempo
  *        is the one the last piece ended in, within 6 BPM of the style's range (else it ramps after the handover, 16
  *        bars for every 4 BPM). A piece has at most four rows. compose.style is the first piece's style.
+ * @param[in] p         the parameters
+ * @param[in] seed      the set's seed
+ * @param[in] minutes   its length in all
+ * @param[in] curation  the listener's curation, or null
+ * @return the night set's score
  */
 Score composeNightSet(const ParamStore& p, uint64_t seed, double minutes, const Curation* curation = nullptr);
 

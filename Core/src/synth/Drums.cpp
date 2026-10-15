@@ -1,6 +1,7 @@
 /**
  * @file Drums.cpp
  * @brief The analogue kit.
+ * @author Rene Weller
  */
 #include "eph/synth/Drums.h"
 #include <algorithm>

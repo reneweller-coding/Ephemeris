@@ -15,6 +15,7 @@
  *   guide: between 0 and +1, never below 0 for longer than a second), and how far the side lies under the mid.
  *
  * Offline: the meter keeps every 100 ms hop (a few hundred kilobytes an hour) and computes its report at the end.
+ * @author Rene Weller
  */
 #pragma once
 #include "eph/fx/Dynamics.h"
@@ -45,6 +46,10 @@ struct LoudnessReport {
  * @brief The gain of an exported file at sample @p i of @p total (the addon's 9): an S-shaped fade-in over the first
  *        two seconds and an S-shaped fade-out over the last ten, never linear, so the last tail of the hall fades to
  *        nothing instead of being cut.
+ * @param[in] i           the sample
+ * @param[in] total       the length of the file in samples
+ * @param[in] sampleRate  the sample rate in Hz
+ * @return the gain at that sample, 0..1
  */
 inline float exportFade(int64_t i, int64_t total, double sampleRate)
 {
@@ -56,11 +61,22 @@ inline float exportFade(int64_t i, int64_t total, double sampleRate)
 /** @brief Measures a stereo programme; call process() for every block, then report(). */
 class LoudnessMeter {
 public:
-    /** @brief Designs the filters for @p sampleRate and clears everything. */
+    /**
+     * @brief Designs the filters for @p sampleRate and clears everything.
+     * @param[in] sampleRate  the sample rate in Hz
+     */
     void prepare(double sampleRate);
-    /** @brief Measures @p n samples. */
+    /**
+     * @brief Measures @p n samples.
+     * @param[in] L  the left channel
+     * @param[in] R  the right channel
+     * @param[in] n  how many samples
+     */
     void process(const float* L, const float* R, int n);
-    /** @brief The figures of everything measured so far. */
+    /**
+     * @brief The figures of everything measured so far.
+     * @return the figures of everything measured so far
+     */
     LoudnessReport report() const;
 
 private:
@@ -73,7 +89,11 @@ private:
         double m_a2 = 0;   ///< ... of y[n-2]
         double m_z1 = 0;   ///< the first state
         double m_z2 = 0;   ///< the second state
-        /** @brief One sample @p x through the filter. */
+        /**
+         * @brief One sample @p x through the filter.
+         * @param[in] x  the input sample
+         * @return the filtered sample
+         */
         double process(double x) { const double y = m_b0 * x + m_z1; m_z1 = m_b1 * x - m_a1 * y + m_z2; m_z2 = m_b2 * x - m_a2 * y; return y; }
     };
     /** @brief The sums of one 100 ms hop. */
@@ -88,7 +108,11 @@ private:
         float m_peak = 0.0f;                   ///< true peak (linear)
         int m_samples = 0;   ///< how many samples the hop has
     };
-    /** @brief Writes @p x into the channel history @p hist and raises the hop's true peak by what lies around it. */
+    /**
+     * @brief Writes @p x into the channel history @p hist and raises the hop's true peak by what lies around it.
+     * @param[in,out] hist  the channel's recent samples
+     * @param[in]     x     the new sample
+     */
     void truePeak(std::vector<float>& hist, float x);
 
     double m_sr = 48000.0;   ///< the sample rate, Hz

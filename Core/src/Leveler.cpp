@@ -1,6 +1,7 @@
 /**
  * @file Leveler.cpp
  * @brief Every piece as loud as its style means (Leveler.h).
+ * @author Rene Weller
  */
 #include "eph/Leveler.h"
 #include "eph/Engine.h"
@@ -17,8 +18,16 @@ constexpr int Block = 512;   ///< the block they are rendered in
 constexpr double Warm = 4.0;       ///< seconds before the part: the rooms fill, the notes sounding on are found again
 constexpr float MostDb = 4.0f;     ///< the largest correction either way
 
-/** @brief The loudness of @p seconds from @p beat of the score @p e plays (after Warm seconds before it); nothing if
- *         @p stop said so on the way. */
+/**
+ * @brief The loudness of @p seconds from @p beat of the score @p e plays (after Warm seconds before it); nothing if
+ *         @p stop said so on the way.
+ * @param[in,out] e        the engine that plays the score
+ * @param[in]     s        the score
+ * @param[in]     beat     where the stretch begins
+ * @param[in]     seconds  how long it lasts
+ * @param[in]     stop     asked now and then; true stops the measurement
+ * @return the loudness in LUFS, empty when stopped
+ */
 std::optional<float> measure(Engine& e, const Score& s, double beat, double seconds, const std::function<bool()>& stop)
 {
     const double at = s.m_tempo.secondsAt(beat);

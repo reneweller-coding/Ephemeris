@@ -1,6 +1,7 @@
 /**
  * @file EditorStyle.cpp
  * @brief The style page (EditorStyle.h).
+ * @author Rene Weller
  */
 #include "EditorStyle.h"
 #include "EditorTheme.h"
@@ -17,14 +18,28 @@ const juce::Colour Dim = ephui::colour::Dim;   ///< names, secondary text
 const juce::Colour Faint = ephui::colour::Edge;   ///< hairlines
 const juce::Colour Accent = ephui::colour::Amber;   ///< the sun: the accent
 
-/** @brief @p x (0..1) as a percentage. */
+/**
+ * @brief @p x (0..1) as a percentage.
+ * @param[in] x  the share, 0..1
+ * @return the percentage
+ */
 juce::String percent(float x) { return juce::String(juce::roundToInt(100.0f * x)) + " %"; }
-/** @brief "@p a - @p b" with @p decimals decimals (one number where they are equal). */
+/**
+ * @brief "@p a - @p b" with @p decimals decimals (one number where they are equal).
+ * @param[in] a         the low end
+ * @param[in] b         the high end
+ * @param[in] decimals  the decimals shown
+ * @return the range as text
+ */
 juce::String range(double a, double b, int decimals = 0)
 {
     return a == b ? juce::String(a, decimals) : juce::String(a, decimals) + " - " + juce::String(b, decimals);
 }
-/** @brief The name of row division @p d. */
+/**
+ * @brief The name of row division @p d.
+ * @param[in] d  the row division
+ * @return its name
+ */
 juce::String division(RowDivisionE d)
 {
     switch (d) {
@@ -47,7 +62,10 @@ struct Line {
     std::function<juce::String(const StyleProfile&)> m_value;   ///< how a profile says it
 };
 
-/** @brief The lines of the table, built on first use. */
+/**
+ * @brief The lines of the table, built on first use.
+ * @return the table's lines
+ */
 const std::vector<Line>& lines()
 {
     static const std::vector<Line> l = {

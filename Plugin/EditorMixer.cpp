@@ -1,6 +1,7 @@
 /**
  * @file EditorMixer.cpp
  * @brief The mixer page (EditorMixer.h).
+ * @author Rene Weller
  */
 #include "EditorMixer.h"
 #include "EditorTheme.h"

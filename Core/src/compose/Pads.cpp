@@ -1,6 +1,7 @@
 /**
  * @file Pads.cpp
  * @brief Held chords with the least movement.
+ * @author Rene Weller
  */
 #include "eph/compose/Pads.h"
 #include "eph/compose/Harmony.h"

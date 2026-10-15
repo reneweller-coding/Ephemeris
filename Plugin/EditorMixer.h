@@ -14,6 +14,7 @@
  * Since 01.10.2026 the strips and the console are the frame's (Frame.h: ChannelStrip, Console), the same in every
  * generator; the controls have the frame's right-click menu and the live ring of the moves.
  * @note After Phosphene `Plugin/EditorMixer.h` (24.09.2026), without the mutes Ephemeris does not have.
+ * @author Rene Weller
  */
 #pragma once
 #include "PluginProcessor.h"
@@ -26,7 +27,10 @@
 /** @brief The console: one frame::ChannelStrip per engine channel, in the mixing order, fed by a 30 Hz timer. */
 class MixerConsole final : public juce::Component, private juce::Timer {
 public:
-    /** @brief Builds a strip per channel and starts the meter timer. */
+    /**
+     * @brief Builds a strip per channel and starts the meter timer.
+     * @param[in,out] proc  the processor
+     */
     explicit MixerConsole(EphemerisProcessor& proc);
     ~MixerConsole() override;   ///< stops the timer
     void resized() override;    ///< the console fills the page

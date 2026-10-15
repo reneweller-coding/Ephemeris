@@ -1,6 +1,7 @@
 /**
  * @file Harmony.cpp
  * @brief The chord track, the transposer's chain and the chord vocabulary (the style guide's 3.x).
+ * @author Rene Weller
  */
 #include "eph/compose/Harmony.h"
 #include "eph/Rack.h"
@@ -11,7 +12,11 @@ namespace eph {
 
 namespace {
 
-/** @brief The index of @p style, clamped into the styles. */
+/**
+ * @brief The index of @p style, clamped into the styles.
+ * @param[in] style  the style
+ * @return its index
+ */
 int styleIndex(StyleE style) { return std::clamp(static_cast<int>(style), 0, static_cast<int>(StyleE::COUNT) - 1); }
 
 /** @brief The transposer's moves of a style (3.7) and their weights. */
@@ -20,7 +25,11 @@ struct StyleMoves {
     std::vector<float> m_weights;   ///< their weights
 };
 
-/** @brief The transposer's moves of @p style. */
+/**
+ * @brief The transposer's moves of @p style.
+ * @param[in] style  the style
+ * @return its transposer's moves
+ */
 const StyleMoves& movesOf(StyleE style)
 {
     static const StyleMoves Styles[] = {
@@ -41,7 +50,11 @@ struct StyleChords {
     float m_stay;   ///< the Markov table's chance that a chord stays
 };
 
-/** @brief The chord classes, harmonic rhythm and stays of @p style. */
+/**
+ * @brief The chord classes, harmonic rhythm and stays of @p style.
+ * @param[in] style  the style
+ * @return its chord classes, harmonic rhythm and stays
+ */
 const StyleChords& chordsOf(StyleE style)
 {
     static const StyleChords Styles[] = {
@@ -62,7 +75,11 @@ struct Weighted {
     float m_weight;               ///< how often it is drawn
 };
 
-/** @brief The pendulum partners of the tonic per mode (3.5 B), as degrees of the mode. */
+/**
+ * @brief The pendulum partners of the tonic per mode (3.5 B), as degrees of the mode.
+ * @param[in] scale  the mode
+ * @return the tonic's pendulum partners
+ */
 const std::vector<Weighted>& pendulumsOf(int scale)
 {
     static const std::vector<Weighted> Modes[Scales] = {
@@ -78,7 +95,11 @@ const std::vector<Weighted>& pendulumsOf(int scale)
     return Modes[std::clamp(scale, 0, Scales - 1)];
 }
 
-/** @brief Three- and four-chord loops per mode (3.5 C), the tonic first. */
+/**
+ * @brief Three- and four-chord loops per mode (3.5 C), the tonic first.
+ * @param[in] scale  the mode
+ * @return its chord loops
+ */
 const std::vector<Weighted>& loopsOf(int scale)
 {
     static const std::vector<Weighted> Modes[Scales] = {
@@ -99,6 +120,10 @@ const std::vector<Weighted>& loopsOf(int scale)
  * @brief The Markov table of 3.6 over the degrees i, bII, III, iv, v, VI, VII (0 .. 6), rows from, columns to,
  *        without the "stays" column (the style's). bII only in Phrygian, where it is a degree; in Dorian the
  *        column iv is IV and 5 points heavier; in Phrygian bII from i rises to 15, VI and VII give 7 each.
+ * @param[in] scale  the mode
+ * @param[in] from   the degree moved from, 0..6
+ * @param[in] to     the degree moved to, 0..6
+ * @return the weight of the move
  */
 float markov(int scale, int from, int to)
 {
@@ -123,7 +148,13 @@ float markov(int scale, int from, int to)
 }
 
 template <typename T>
-/** @brief One of @p v, drawn from @p rng with the weights @p w. */
+/**
+ * @brief One of @p v, drawn from @p rng with the weights @p w.
+ * @param[in]     v    the choices
+ * @param[in]     w    their weights
+ * @param[in,out] rng  the random stream
+ * @return the choice drawn
+ */
 const T& pick(const std::vector<T>& v, const std::vector<float>& w, Rng& rng)
 {
     float total = 0.0f;
@@ -136,7 +167,13 @@ const T& pick(const std::vector<T>& v, const std::vector<float>& w, Rng& rng)
     return v.back();
 }
 
-/** @brief One of @p list, those with a degree the mode cannot carry left out (the list's first if none is left). */
+/**
+ * @brief One of @p list, those with a degree the mode cannot carry left out (the list's first if none is left).
+ * @param[in]     list   the weighted lists of degrees
+ * @param[in]     scale  the mode
+ * @param[in,out] rng    the random stream
+ * @return the degrees drawn
+ */
 const std::vector<int>& pickDegrees(const std::vector<Weighted>& list, int scale, Rng& rng)
 {
     std::vector<std::vector<int>> v;

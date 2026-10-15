@@ -1,6 +1,7 @@
 /**
  * @file Frame.cpp
  * @brief The frame the generators share (Frame.h).
+ * @author Rene Weller
  */
 #include "Frame.h"
 #include <cmath>
@@ -14,10 +15,19 @@ namespace frame {
 
 namespace {
 
-/** @brief The skin-less default font at @p height, bold or not (the help and the menus). */
+/**
+ * @brief The skin-less default font at @p height, bold or not (the help and the menus).
+ * @param[in] height  the font's height in pixels
+ * @param[in] bold    true for bold
+ * @return the font
+ */
 juce::Font font(float height, bool bold = false) { return juce::Font(juce::FontOptions(height, bold ? juce::Font::bold : juce::Font::plain)); }
 
-/** @brief The headset ports: each instrument its own, so two can listen side by side. */
+/**
+ * @brief The headset ports: each instrument its own, so two can listen side by side.
+ * @param[in] app  the instrument's name
+ * @return its headset port
+ */
 int portOf(const juce::String& app)
 {
     if (app == "Noctuary") return 9000;   // its OSC port since 2.0, which the Quest app's bridge already sends to
@@ -348,7 +358,12 @@ void LookAndFeel::drawTooltip(juce::Graphics& g, const juce::String& text, int w
 }
 
 namespace {
-/** @brief The skin's title font at @p height, with its tracking (the logo's lettering). */
+/**
+ * @brief The skin's title font at @p height, with its tracking (the logo's lettering).
+ * @param[in] skin    the skin
+ * @param[in] height  the font's height in pixels
+ * @return the title font
+ */
 juce::Font titleFont(const Skin& skin, float height)
 {
     const int style = skin.m_titleBold ? juce::Font::bold : juce::Font::plain;
@@ -746,7 +761,10 @@ namespace {
 /** @brief Every instrument's settings in this process, deleted when JUCE shuts down (not at the DLL's unloading). */
 struct SettingsRegistry final : public juce::DeletedAtShutdown {
     std::map<juce::String, std::unique_ptr<Settings>> m_all;   ///< the settings by instrument name
-    /** @brief The registry, created on first use; null after JUCE has deleted it. */
+    /**
+     * @brief The registry, created on first use; null after JUCE has deleted it.
+     * @return the registry, null after JUCE has deleted it
+     */
     static SettingsRegistry*& instance() { static SettingsRegistry* r = nullptr; return r; }
     ~SettingsRegistry() override { instance() = nullptr; }
 };
@@ -765,7 +783,7 @@ Settings::Settings(const juce::String& app) : m_app(app)
 {
     juce::PropertiesFile::Options o;
     o.applicationName = app;
-    o.filenameSuffix = ".frame";   // beside <app>.settings (the standalone's window and audio) and <app>.updates
+    o.filenameSuffix = ".frame";   // beside \<app\>.settings (the standalone's window and audio) and \<app\>.updates
     o.folderName = app;
     o.osxLibrarySubFolder = "Application Support";
     m_file = std::make_unique<juce::PropertiesFile>(o);
@@ -813,7 +831,7 @@ void Settings::setLink(bool on)
     sendChangeMessage();
 }
 
-// FAMILY_CUES=<port> switches the cues on for one process, to that port (a test aid, as FAMILY_LINK is Link's).
+// FAMILY_CUES=\<port\> switches the cues on for one process, to that port (a test aid, as FAMILY_LINK is Link's).
 bool Settings::cues() const { return std::getenv("FAMILY_CUES") != nullptr || m_file->getBoolValue("cues", false); }
 
 void Settings::setCues(bool on)
@@ -922,24 +940,24 @@ void SettingsMenu::show(juce::Component& target) const
 
 // ============================================================================================================= keys
 
-bool handleKey(const juce::KeyPress& key, const Keys& k)
+bool handleKey(const juce::KeyPress& key, const Keys& keys)
 {
     const auto mods = key.getModifiers();
     const int code = key.getKeyCode();
     auto run = [](const std::function<void()>& f) { if (!f) return false; f(); return true; };
-    if (code == juce::KeyPress::spaceKey && !mods.isAnyModifierKeyDown()) return run(k.m_playStop);
-    if (code == juce::KeyPress::F1Key) return run(k.m_help);
-    if (code == juce::KeyPress::F11Key) return run(k.m_fullScreen);
-    if (code == juce::KeyPress::escapeKey) return run(k.m_escape);
+    if (code == juce::KeyPress::spaceKey && !mods.isAnyModifierKeyDown()) return run(keys.m_playStop);
+    if (code == juce::KeyPress::F1Key) return run(keys.m_help);
+    if (code == juce::KeyPress::F11Key) return run(keys.m_fullScreen);
+    if (code == juce::KeyPress::escapeKey) return run(keys.m_escape);
     if (mods.isCommandDown()) {
         const juce::juce_wchar c = juce::CharacterFunctions::toLowerCase(key.getTextCharacter() != 0 ? key.getTextCharacter() : static_cast<juce::juce_wchar>(code));
-        if (c == 'z' && mods.isShiftDown()) return run(k.m_redo);
-        if (c == 'z') return run(k.m_undo);
-        if (c == 'y') return run(k.m_redo);
-        if (c == 's') return run(k.m_save);
-        if (c == 'o') return run(k.m_open);
-        if (c == 'e') return run(k.m_exportFile);
-        if (c == 'k') return run(k.m_palette);
+        if (c == 'z' && mods.isShiftDown()) return run(keys.m_redo);
+        if (c == 'z') return run(keys.m_undo);
+        if (c == 'y') return run(keys.m_redo);
+        if (c == 's') return run(keys.m_save);
+        if (c == 'o') return run(keys.m_open);
+        if (c == 'e') return run(keys.m_exportFile);
+        if (c == 'k') return run(keys.m_palette);
     }
     return false;
 }
@@ -1343,7 +1361,11 @@ int pageOverflow(juce::Component& c)
 }
 
 namespace {
-/** @brief The visible section switches under @p c (a page split into Sound and Modulation has one). */
+/**
+ * @brief The visible section switches under @p c (a page split into Sound and Modulation has one).
+ * @param[out]    c    where the search begins
+ * @param[in,out] out  the switches found, appended to
+ */
 void findSwitches(juce::Component& c, std::vector<SectionSwitch*>& out)
 {
     if (auto* s = dynamic_cast<SectionSwitch*>(&c)) { if (s->isVisible()) out.push_back(s); return; }
@@ -1483,7 +1505,11 @@ void LiveRings::timerCallback()
 namespace {
 constexpr float TopDb = 6.0f;   ///< the top of the strips' meter scale, dB
 constexpr float FloorDb = -60.0f;   ///< the floor of the strips' meter scale, dB
-/** @brief A linear amplitude in dB, -100 for silence. */
+/**
+ * @brief A linear amplitude in dB, -100 for silence.
+ * @param[in] linear  the linear amplitude
+ * @return the level in dB, -100 for silence
+ */
 float toDb(float linear) { return linear > 1.0e-5f ? 20.0f * std::log10(linear) : -100.0f; }
 } // namespace
 
@@ -1956,14 +1982,21 @@ void WindowKeeper::componentMovedOrResized(juce::Component&, bool, bool)
 
 namespace {
 
-/** @brief The revealers under @p c (c itself included). */
+/**
+ * @brief The revealers under @p c (c itself included).
+ * @param[out]    c    where the search begins
+ * @param[in,out] out  the revealers found, appended to
+ */
 void collectRevealers(juce::Component& c, std::vector<Revealer*>& out)
 {
     if (auto* r = dynamic_cast<Revealer*>(&c)) out.push_back(r);
     for (auto* child : c.getChildren()) collectRevealers(*child, out);
 }
 
-/** @brief Makes every part under @p page that is made only when first shown (a few rounds: a part made may hold more). */
+/**
+ * @brief Makes every part under @p page that is made only when first shown (a few rounds: a part made may hold more).
+ * @param[in,out] page  the page
+ */
 void makeEverything(juce::Component& page)
 {
     std::vector<Revealer*> done;
@@ -1984,7 +2017,11 @@ void makeEverything(juce::Component& page)
 /** @brief A ring that lights a control for a moment, over its window, and goes by itself. */
 class Flash final : public juce::Component, private juce::Timer {
 public:
-    /** @brief Lights @p target in @p colour. */
+    /**
+     * @brief Lights @p target in @p colour.
+     * @param[in,out] target  the component lit
+     * @param[in]     colour  the ring's colour
+     */
     Flash(juce::Component& target, juce::Colour colour) : m_target(&target), m_colour(colour)
     {
         setInterceptsMouseClicks(false, false);
@@ -1992,7 +2029,10 @@ public:
         place();
         startTimerHz(30);
     }
-    /** @brief The ring, pulsing twice and fading. */
+    /**
+     * @brief The ring, pulsing twice and fading.
+     * @param[in,out] g  the graphics context to draw into
+     */
     void paint(juce::Graphics& g) override
     {
         const float t = static_cast<float>(m_ticks) / 30.0f;
@@ -2132,6 +2172,9 @@ namespace {
 /**
  * @brief How well one word of the search fits a text: its start best, a word's start next, anywhere in it, then its
  *        letters in order (scattered). 0 when it does not fit, else the higher the better.
+ * @param[in] text  the text searched
+ * @param[in] word  one word of the search
+ * @return how well the word fits, 0 when it does not
  */
 float fitWord(const juce::String& text, const juce::String& word)
 {
@@ -2509,9 +2552,17 @@ constexpr int Recent = 40;   ///< the most presets the recent list keeps per ban
 /** @brief A row of the list (see PresetBrowser): the play mark (held: listen), the star, the name, the group. */
 class PresetBrowser::Row final : public juce::Component {
 public:
-    /** @brief A row of @p owner. */
+    /**
+     * @brief A row of @p owner.
+     * @param[in,out] owner  the browser
+     */
     explicit Row(PresetBrowser& owner) : m_owner(owner) {}
-    /** @brief Shows entry @p e (-1 none) at list row @p row. */
+    /**
+     * @brief Shows entry @p e (-1 none) at list row @p row.
+     * @param[in] row       the list row
+     * @param[in] e         the entry, -1 for none
+     * @param[in] selected  true when the row is chosen
+     */
     void show(int row, int e, bool selected)
     {
         m_row = row;
@@ -2519,7 +2570,10 @@ public:
         m_selected = selected;
         repaint();
     }
-    /** @brief The play mark, the star, the name, the group. */
+    /**
+     * @brief The play mark, the star, the name, the group.
+     * @param[in,out] g  the graphics context to draw into
+     */
     void paint(juce::Graphics& g) override
     {
         if (m_entry < 0) return;
@@ -2549,7 +2603,10 @@ public:
         g.drawText(e.m_group + (e.m_note.isNotEmpty() ? "   (" + e.m_note + ")" : juce::String()), getWidth() / 2, 0, getWidth() / 2 - 12, getHeight(),
                    juce::Justification::centredLeft);
     }
-    /** @brief Listens (the play mark), stars, or chooses the row. */
+    /**
+     * @brief Listens (the play mark), stars, or chooses the row.
+     * @param[in] e  the mouse event
+     */
     void mouseDown(const juce::MouseEvent& e) override
     {
         if (m_entry < 0) return;
@@ -2573,7 +2630,10 @@ public:
         if (m_owner.m_bank.m_endPreview) m_owner.m_bank.m_endPreview();
         repaint();
     }
-    /** @brief Takes it. */
+    /**
+     * @brief Takes it.
+     * @param[in] e  the mouse event
+     */
     void mouseDoubleClick(const juce::MouseEvent& e) override
     {
         if (e.x >= 52) m_owner.choose(m_row);
@@ -2590,11 +2650,24 @@ private:
 /** @brief The categories' list (see PresetBrowser). */
 class PresetBrowser::Categories final : public juce::ListBoxModel {
 public:
-    /** @brief The categories of @p owner. */
+    /**
+     * @brief The categories of @p owner.
+     * @param[in,out] owner  the browser
+     */
     explicit Categories(PresetBrowser& owner) : m_owner(owner) {}
-    /** @brief How many. */
+    /**
+     * @brief How many.
+     * @return how many categories there are
+     */
     int getNumRows() override { return static_cast<int>(m_owner.m_categories.size()); }
-    /** @brief One: a heading for a section, indented for a group. */
+    /**
+     * @brief One: a heading for a section, indented for a group.
+     * @param[in]     row       the row
+     * @param[in,out] g         the graphics context to draw into
+     * @param[in]     width     the row's width
+     * @param[in]     height    the row's height
+     * @param[in]     selected  true when the row is chosen
+     */
     void paintListBoxItem(int row, juce::Graphics& g, int width, int height, bool selected) override
     {
         if (row < 0 || row >= getNumRows()) return;
@@ -2609,7 +2682,10 @@ public:
         g.setFont(font(heading ? 13.0f : 12.0f, heading));
         g.drawText(c.m_title, c.m_kind == 5 ? 18 : 6, 0, width - 20, height, juce::Justification::centredLeft);
     }
-    /** @brief Chooses it. */
+    /**
+     * @brief Chooses it.
+     * @param[in] row  the row chosen
+     */
     void selectedRowsChanged(int row) override
     {
         if (row < 0) return;
@@ -2822,7 +2898,11 @@ namespace {
 /** @brief One row on a knob in its menu: its source, its depth to drag, a button that removes it. */
 class ModRowItem final : public juce::PopupMenu::CustomComponent {
 public:
-    /** @brief Row @p row of the matrix @p access works on. */
+    /**
+     * @brief Row @p row of the matrix @p access works on.
+     * @param[in] access  how the matrix is reached
+     * @param[in] row     the matrix row
+     */
     ModRowItem(ModAccess access, const ModAccess::Row& row) : juce::PopupMenu::CustomComponent(false), m_access(std::move(access)), m_row(row.m_index)
     {
         m_name.setText(row.m_name, juce::dontSendNotification);
@@ -2848,7 +2928,11 @@ public:
         addAndMakeVisible(m_depth);
         addAndMakeVisible(m_remove);
     }
-    /** @brief A row's size in the menu. */
+    /**
+     * @brief A row's size in the menu.
+     * @param[out] w  receives the width
+     * @param[out] h  receives the height
+     */
     void getIdealSize(int& w, int& h) override
     {
         w = 340;

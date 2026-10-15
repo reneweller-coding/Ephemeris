@@ -1,6 +1,7 @@
 /**
  * @file Spring.cpp
  * @brief Two dispersive springs.
+ * @author Rene Weller
  */
 #include "eph/fx/Spring.h"
 #include <algorithm>

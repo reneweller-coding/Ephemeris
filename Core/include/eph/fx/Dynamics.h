@@ -46,6 +46,7 @@
  * afterwards is exponential. The audio is delayed by the window (plus the interpolator's half length),
  * which the engine reports as its latency.
  * @note Copied from Phosphene `Core/include/phos/Dynamics.h` at 9a2f615 (24.09.2026); namespace eph, prefix EPH_.
+ * @author Rene Weller
  */
 #pragma once
 #include "eph/Dsp.h"
@@ -56,16 +57,20 @@ namespace eph {
 /** @brief Feed-forward log-domain compressor, stereo-linked. */
 class BusCompressor {
 public:
-    /** @brief Sets the sample rate and clears the detector. */
+    /**
+     * @brief Sets the sample rate and clears the detector.
+     * @param[in] sampleRate  the sample rate in Hz
+     */
     void prepare(double sampleRate) { m_sr = sampleRate; reset(); }
     /** @brief Clears the detector. */
     void reset() { m_y1 = 0.0; m_yL = 0.0; }
     /**
      * @brief Settings.
-     * @param thresholdDb threshold T
-     * @param ratio       R (1 = off)
-     * @param kneeDb      knee width W
-     * @param attackMs,releaseMs detector time constants
+     * @param[in] thresholdDb  threshold T
+     * @param[in] ratio        R (1 = off)
+     * @param[in] kneeDb       knee width W
+     * @param[in] attackMs     detector time constants
+     * @param[in] releaseMs    detector time constants
      */
     void set(float thresholdDb, float ratio, float kneeDb, float attackMs, float releaseMs)
     {
@@ -75,7 +80,11 @@ public:
         m_aA = std::exp(-1.0 / (std::max(0.01f, attackMs) * 0.001 * m_sr));
         m_aR = std::exp(-1.0 / (std::max(0.01f, releaseMs) * 0.001 * m_sr));
     }
-    /** @brief The static curve: output level for an input level, both in dB (Giannoulis eq. 4). */
+    /**
+     * @brief The static curve: output level for an input level, both in dB (Giannoulis eq. 4).
+     * @param[in] x  the input level in dB
+     * @return the output level in dB
+     */
     double curve(double x) const
     {
         const double d = x - m_T;
@@ -83,7 +92,12 @@ public:
         if (m_W > 0.0f && 2.0 * std::fabs(d) <= m_W) return x + (1.0 / m_R - 1.0) * (d + m_W / 2.0) * (d + m_W / 2.0) / (2.0 * m_W);
         return m_T + d / m_R;
     }
-    /** @brief Processes a stereo block in place. */
+    /**
+     * @brief Processes a stereo block in place.
+     * @param[in,out] L  the left channel, processed in place
+     * @param[in,out] R  the right channel, processed in place
+     * @param[in]     n  how many samples
+     */
     void process(float* L, float* R, int n)
     {
         for (int i = 0; i < n; ++i) {
@@ -98,7 +112,10 @@ public:
             m_reduction = static_cast<float>(m_yL);
         }
     }
-    /** @brief Gain reduction of the last sample, dB. */
+    /**
+     * @brief Gain reduction of the last sample, dB.
+     * @return the gain reduction of the last sample in dB
+     */
     float reduction() const { return m_reduction; }
 
 private:
@@ -124,7 +141,8 @@ public:
     TruePeakInterpolator();
     /**
      * @brief Largest magnitude of the Phases - 1 interpolated points between x[0] and x[1].
-     * @param x pointer to the earlier sample; x[-(Half - 1)] .. x[Half] must be readable
+     * @param[in] x  pointer to the earlier sample; x[-(Half - 1)] .. x[Half] must be readable
+     * @return the largest magnitude of the interpolated points
      */
     double between(const float* x) const
     {
@@ -153,9 +171,14 @@ public:
      * is at most @c a, no interpolated point can exceed @c gainBound() * a. A caller that only needs to
      * know whether the peak clears a threshold can skip the whole bank when it does not, which is
      * exact, not an approximation -- see TruePeakLimiter::process and LoudnessMeter::process.
+     * @return the largest gain any interpolated point can have over the largest input sample
      */
     double gainBound() const { return m_bound; }
-    /** @brief Largest magnitude among the Taps samples between() would read from @p x. */
+    /**
+     * @brief Largest magnitude among the Taps samples between() would read from @p x.
+     * @param[in] x  the earlier sample of the pair, as between() takes it
+     * @return the largest magnitude among the samples between() would read
+     */
     static float windowPeak(const float* x)
     {
         const float* p = x - Half + 1;
@@ -171,17 +194,36 @@ private:
 /** @brief Stereo lookahead true-peak limiter. */
 class TruePeakLimiter {
 public:
-    /** @brief Allocates for a sample rate; @p lookaheadMs sets the window. */
+    /**
+     * @brief Allocates for a sample rate; @p lookaheadMs sets the window.
+     * @param[in] sampleRate   the sample rate in Hz
+     * @param[in] lookaheadMs  the lookahead window in milliseconds
+     */
     void prepare(double sampleRate, float lookaheadMs = 1.5f);
     /** @brief Clears the delay lines and the gain. */
     void reset();
-    /** @brief Ceiling in dBTP and recovery time. */
+    /**
+     * @brief Ceiling in dBTP and recovery time.
+     * @param[in] ceilingDb  the ceiling in dBTP
+     * @param[in] releaseMs  the recovery time in milliseconds
+     */
     void set(float ceilingDb, float releaseMs);
-    /** @brief Processes in place. */
+    /**
+     * @brief Processes in place.
+     * @param[in,out] L  the left channel, processed in place
+     * @param[in,out] R  the right channel, processed in place
+     * @param[in]     n  how many samples
+     */
     void process(float* L, float* R, int n);
-    /** @brief Samples of delay the limiter adds. */
+    /**
+     * @brief Samples of delay the limiter adds.
+     * @return the samples of delay the limiter adds
+     */
     int latency() const { return m_window - 1 + TruePeakInterpolator::Half; }
-    /** @brief Gain reduction of the last sample, dB (>= 0). */
+    /**
+     * @brief Gain reduction of the last sample, dB (>= 0).
+     * @return the gain reduction of the last sample in dB, >= 0
+     */
     float reduction() const { return m_reduction; }
 
 private:

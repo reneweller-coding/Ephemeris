@@ -1,6 +1,7 @@
 /**
  * @file Form.cpp
  * @brief The grammar of a piece.
+ * @author Rene Weller
  */
 #include "eph/compose/Form.h"
 #include <algorithm>
@@ -43,7 +44,11 @@ const Section* PieceForm::find(SectionTypeE type, int phase) const
 
 namespace {
 
-/** @brief The fewest bars a section of type @p t has. */
+/**
+ * @brief The fewest bars a section of type @p t has.
+ * @param[in] t  the section type
+ * @return its fewest bars
+ */
 int minBars(SectionTypeE t)
 {
     switch (t) {

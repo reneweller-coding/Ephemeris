@@ -19,6 +19,7 @@
  * **Conjunctions** (PLAN 6.2, snapToConjunctions()): once the rows are set up, a build -- which brings
  * in a counter row -- ends where that row and the bass row begin their cycles together again, if such
  * a bar is near its drawn end. The change then falls where the ear hears the pattern come round.
+ * @author Rene Weller
  */
 #pragma once
 #include "eph/Dsp.h"
@@ -30,7 +31,11 @@ namespace eph {
 
 /** @brief What a section is. */
 enum class SectionTypeE : uint8_t { ATMO, ENTRY, BUILD, LEAD, PEAK, BREAKDOWN, BRIDGE, CODA };
-/** @brief German names for the markers ("Atmo", "Einsatz", "Aufbau", ...). */
+/**
+ * @brief German names for the markers ("Atmo", "Einsatz", "Aufbau", ...).
+ * @param[in] t  the section type
+ * @return its marker's name
+ */
 const char* sectionName(SectionTypeE t);
 
 /** @brief One section. */
@@ -50,18 +55,28 @@ struct PieceForm {
     std::vector<double> m_phaseBpm;   ///< tempo of each phase
     std::vector<int> m_phaseKey;      ///< semitones of each phase's key from the piece's
     double m_lengthBeats = 0.0;       ///< the piece's length
-    /** @brief The energy at @p beat, interpolated inside its section. */
+    /**
+     * @brief The energy at @p beat, interpolated inside its section.
+     * @param[in] beat  the position in beats
+     * @return the energy, 0..1
+     */
     float energy(double beat) const;
-    /** @brief The first section of @p type in @p phase, or null. */
+    /**
+     * @brief The first section of @p type in @p phase, or null.
+     * @param[in] type   the section type
+     * @param[in] phase  the phase
+     * @return the section, null when there is none
+     */
     const Section* find(SectionTypeE type, int phase) const;
 };
 
 /**
  * @brief Draws a form.
- * @param profile the style profile
- * @param minutes length of the piece
- * @param bpm     tempo of the first phase
- * @param rng     the form's stream
+ * @param[in]     profile  the style profile
+ * @param[in]     minutes  length of the piece
+ * @param[in]     bpm      tempo of the first phase
+ * @param[in,out] rng      the form's stream
+ * @return the form
  */
 PieceForm drawForm(const StyleProfile& profile, double minutes, double bpm, Rng& rng);
 
@@ -73,9 +88,9 @@ PieceForm drawForm(const StyleProfile& profile, double minutes, double bpm, Rng&
  * nearest such beat if it lies within a quarter of the build (at least two bars) of the drawn end, and
  * the section after it gives or takes the difference; a section never falls under its floor, and every
  * other boundary stays where it was.
- * @param form      the form
- * @param bassBeats the bass row's cycle in beats
- * @param rowBeats  the counter rows' cycles in beats, in the order they come in
+ * @param[in,out] form       the form
+ * @param[in]     bassBeats  the bass row's cycle in beats
+ * @param[in]     rowBeats   the counter rows' cycles in beats, in the order they come in
  * @return the number of builds moved
  */
 int snapToConjunctions(PieceForm& form, double bassBeats, const std::vector<double>& rowBeats);

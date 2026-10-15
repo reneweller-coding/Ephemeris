@@ -1,6 +1,7 @@
 /**
  * @file EditorOrrery.cpp
  * @brief The rack page and its orrery (EditorOrrery.h).
+ * @author Rene Weller
  */
 #include "EditorOrrery.h"
 #include "EditorTheme.h"
@@ -18,7 +19,11 @@ const juce::Colour Dim = ephui::colour::Dim;   ///< names, secondary text
 const juce::Colour Faint = ephui::colour::Faint;   ///< tracks, axes, the off state
 const juce::Colour Sun = ephui::colour::Amber;   ///< the sun: the accent
 
-/** @brief A colour per row, warm inside, cool outside. */
+/**
+ * @brief A colour per row, warm inside, cool outside.
+ * @param[in] r  the row
+ * @return its colour
+ */
 juce::Colour rowColour(int r)
 {
     static const juce::uint32 c[8] = { 0xffe0a458, 0xffd9825b, 0xffc9a45c, 0xff9fbf6f, 0xff6fb8ae, 0xff6f8fb8, 0xffa58ac2, 0xffc47a9c };
@@ -27,7 +32,11 @@ juce::Colour rowColour(int r)
 
 const char* const NoteNames[12] = { "C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B" };   ///< the notes' names
 
-/** @brief A step length in beats as a note value. */
+/**
+ * @brief A step length in beats as a note value.
+ * @param[in] beats  the step's length in beats
+ * @return its note value
+ */
 juce::String noteValue(double beats)
 {
     struct V { double m_beats; const char* m_name; };

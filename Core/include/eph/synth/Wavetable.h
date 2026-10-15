@@ -25,6 +25,7 @@
  *
  * All tables are built at once on first use (prepareWavetables(), which the engine's prepare calls), never on
  * the audio thread.
+ * @author Rene Weller
  */
 #pragma once
 #include <complex>
@@ -36,9 +37,23 @@ namespace eph {
 /** @brief A complex radix-2 FFT of a fixed power-of-two size, in place (Noctuary's). The inverse divides by n. */
 class Fft {
 public:
-    explicit Fft(int n);                                     ///< builds the tables for size @p n (a power of two)
-    void transform(float* re, float* im, bool inverse) const;   ///< in place; the inverse scaled by 1 / n
-    int size() const { return m_n; }                          ///< the transform length
+    /**
+     * builds the tables for size @p n (a power of two)
+     * @param[in] n  the transform length, a power of two
+     */
+    explicit Fft(int n);
+    /**
+     * in place; the inverse scaled by 1 / n
+     * @param[in,out] re       the real parts, transformed in place
+     * @param[in,out] im       the imaginary parts, transformed in place
+     * @param[in]     inverse  true for the inverse transform
+     */
+    void transform(float* re, float* im, bool inverse) const;
+    /**
+     * the transform length
+     * @return the transform length
+     */
+    int size() const { return m_n; }
 private:
     int m_n;   ///< the size
     std::vector<float> m_cos;   ///< the twiddle factors: cosines
@@ -58,17 +73,40 @@ struct CycleTable {
     int m_offset[Levels] = {};      ///< where each level's cycles begin in `data`
     std::vector<float> m_data;       ///< every frame at every level, guards included, level-major
 
-    /** @brief Samples per stored cycle at a level: 1024 halved per level. */
+    /**
+     * @brief Samples per stored cycle at a level: 1024 halved per level.
+     * @param[in] level  the level
+     * @return the samples per stored cycle
+     */
     static int levelLength(int level) { const int n = StoreLen >> level; return n < 8 ? 8 : n; }
-    /** @brief Highest harmonic a level keeps: an eighth of its length. */
+    /**
+     * @brief Highest harmonic a level keeps: an eighth of its length.
+     * @param[in] level  the level
+     * @return the highest harmonic it keeps
+     */
     static int levelHarmonics(int level) { const int h = (StoreLen / 8) >> level; return h < 1 ? 1 : h; }
-    bool empty() const { return m_frames <= 0; }   ///< whether there is nothing to play
-    /** @brief The stored cycle of frame @p f at a level, readable from index -1 to levelLength(level) + 1. */
+    /**
+     * whether there is nothing to play
+     * @return true when there is nothing to play
+     */
+    bool empty() const { return m_frames <= 0; }
+    /**
+     * @brief The stored cycle of frame @p f at a level, readable from index -1 to levelLength(level) + 1.
+     * @param[in] level  the level
+     * @param[in] f      the frame
+     * @return the stored cycle
+     */
     const float* cycle(int level, int f) const
     {
         return m_data.data() + static_cast<size_t>(m_offset[level]) + static_cast<size_t>(f) * static_cast<size_t>(levelLength(level) + Guard) + 1;
     }
-    /** @brief One sample of frame @p f at a level, at @p phase in [0, 1): Catmull-Rom through four samples. */
+    /**
+     * @brief One sample of frame @p f at a level, at @p phase in [0, 1): Catmull-Rom through four samples.
+     * @param[in] level  the level
+     * @param[in] f      the frame
+     * @param[in] phase  the phase in [0, 1)
+     * @return the sample
+     */
     float sample(int level, int f, double phase) const
     {
         const int len = levelLength(level);
@@ -86,9 +124,10 @@ struct CycleTable {
     }
     /**
      * @brief One sample at @p position (0..1 across the frames): the two neighbouring frames blended.
-     * @param level     the level cycleLevelFor() chose
-     * @param position  0 .. 1 across the frames (clamped)
-     * @param phase     the phase in cycles, [0, 1)
+     * @param[in] level     the level cycleLevelFor() chose
+     * @param[in] position  0 .. 1 across the frames (clamped)
+     * @param[in] phase     the phase in cycles, [0, 1)
+     * @return the sample
      */
     float at(int level, float position, double phase) const
     {
@@ -99,17 +138,31 @@ struct CycleTable {
         const float s0 = sample(level, f, phase);
         return f + 1 < m_frames && w > 0.0f ? s0 + w * (sample(level, f + 1, phase) - s0) : s0;
     }
-    /** @brief Builds the table from a mono file of @p cycleLen-sample cycles laid end to end (not the audio thread). */
+    /**
+     * @brief Builds the table from a mono file of @p cycleLen-sample cycles laid end to end (not the audio thread).
+     * @param[in] mono      the samples
+     * @param[in] n         how many
+     * @param[in] cycleLen  the samples per cycle
+     * @return false when the file holds no whole cycle
+     */
     bool build(const float* mono, int n, int cycleLen);
     /**
      * @brief Builds the table from spectra, one vector per frame: element h-1 is harmonic h as the complex amplitude
      *        of a cosine. The loudest frame is brought to TargetRms. Not the audio thread.
+     * @param[in] frameCoefficients  per frame its harmonics' complex amplitudes
+     * @return false when there is no frame
      */
     bool buildFromHarmonics(const std::vector<std::vector<std::complex<double>>>& frameCoefficients);
     void clear() { m_frames = 0; m_data.clear(); }   ///< empties the table
 };
 
-/** @brief The level a cycle at @p hz reads: the richest below Nyquist, with a little hysteresis (@p current < 0: none). */
+/**
+ * @brief The level a cycle at @p hz reads: the richest below Nyquist, with a little hysteresis (@p current < 0: none).
+ * @param[in] hz          the frequency
+ * @param[in] sampleRate  the sample rate
+ * @param[in] current     the level read so far, negative for none
+ * @return the level to read
+ */
 int cycleLevelFor(double hz, double sampleRate, int current);
 
 /** @brief A sampled table as the program keeps it (WavetableData.cpp): frames of 256 samples, 16 bit. */
@@ -130,7 +183,11 @@ extern const char* const VoiceTableNames[WavetableCount + 1];
 
 /** @brief Builds every table once (thread-safe); the engine's prepare calls it, so the audio thread never builds. */
 void prepareWavetables();
-/** @brief Table @p index (clamped), built on first use. */
+/**
+ * @brief Table @p index (clamped), built on first use.
+ * @param[in] index  the table's index
+ * @return the table
+ */
 const CycleTable& wavetable(int index);
 
 } // namespace eph

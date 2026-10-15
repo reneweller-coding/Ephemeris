@@ -31,6 +31,7 @@
  *
  * @note Identical in Ephemeris, Totality, Parhelion and Phosphene (Plugin/Frame.h and Frame.cpp), and Noctuary uses its
  *       settings, keys and headset parts: a change is made in all of them.
+ * @author Rene Weller
  */
 #pragma once
 #include <juce_audio_processors/juce_audio_processors.h>
@@ -91,11 +92,24 @@ struct Skin {
     float m_backdropPage = 0.35f;        ///< behind the pages (under the translucent panel)
     /** @brief Draws the logo into a square. */
     std::function<void(juce::Graphics&, juce::Rectangle<float>)> m_logo;
-    /** @brief The backdrop's picture (from JUCE's image cache, which lives as long as JUCE does). */
+    /**
+     * @brief The backdrop's picture (from JUCE's image cache, which lives as long as JUCE does).
+     * @return the backdrop's picture
+     */
     juce::Image backdrop() const { return m_backdropData != nullptr ? juce::ImageCache::getFromMemory(m_backdropData, m_backdropSize) : juce::Image(); }
 
-    juce::Colour family(FamilyE f) const { return m_families[static_cast<int>(f)]; }   ///< a family's colour
-    juce::Colour deck(int d) const { return m_decks[juce::jlimit(0, 2, d)]; }         ///< a deck's colour
+    /**
+     * a family's colour
+     * @param[in] f  the family
+     * @return its colour
+     */
+    juce::Colour family(FamilyE f) const { return m_families[static_cast<int>(f)]; }
+    /**
+     * a deck's colour
+     * @param[in] d  the deck
+     * @return its colour
+     */
+    juce::Colour deck(int d) const { return m_decks[juce::jlimit(0, 2, d)]; }
 };
 
 // =============================================================================================== the look and feel
@@ -106,55 +120,162 @@ struct Skin {
  */
 class LookAndFeel : public juce::LookAndFeel_V4 {
 public:
-    /** @brief A look and feel drawing with @p skin (it must outlive this object). */
+    /**
+     * @brief A look and feel drawing with @p skin (it must outlive this object).
+     * @param[in] skin  the skin it draws with
+     */
     explicit LookAndFeel(const Skin& skin);
-    const Skin& skin() const { return m_skin; }   ///< the skin it draws with
+    /**
+     * the skin it draws with
+     * @return the skin it draws with
+     */
+    const Skin& skin() const { return m_skin; }
 
     /**
      * @brief A knob: the skin's cap, its arc in the slider's fill colour from the start to the value, the value inside where
      *        the skin says so.
+     * @param[in,out] g           the graphics context to draw into
+     * @param[in]     x           the knob's left edge
+     * @param[in]     y           its top edge
+     * @param[in]     width       its width
+     * @param[in]     height      its height
+     * @param[in]     pos         the value's position, 0..1
+     * @param[in]     startAngle  the angle of the lowest value in radians
+     * @param[in]     endAngle    the angle of the highest value in radians
+     * @param[in,out] slider      the knob
      */
     void drawRotarySlider(juce::Graphics&, int x, int y, int width, int height, float pos, float startAngle, float endAngle,
                           juce::Slider&) override;
-    /** @brief A fader or a horizontal slider: a thin track, the filled part in the slider's colour, a flat thumb. */
+    /**
+     * @brief A fader or a horizontal slider: a thin track, the filled part in the slider's colour, a flat thumb.
+     * @param[in,out] g       the graphics context to draw into
+     * @param[in]     x       the slider's left edge
+     * @param[in]     y       its top edge
+     * @param[in]     width   its width
+     * @param[in]     height  its height
+     * @param[in]     pos     the thumb's position in pixels
+     * @param[in]     minPos  the position of the lowest value
+     * @param[in]     maxPos  the position of the highest value
+     * @param[in]     style   the slider's style
+     * @param[in,out] slider  the slider
+     */
     void drawLinearSlider(juce::Graphics&, int x, int y, int width, int height, float pos, float minPos, float maxPos,
                           juce::Slider::SliderStyle, juce::Slider&) override;
-    /** @brief A switch: a small pill, lit in its tick colour when on, the text beside it. */
+    /**
+     * @brief A switch: a small pill, lit in its tick colour when on, the text beside it.
+     * @param[in,out] g            the graphics context to draw into
+     * @param[in,out] b            the switch
+     * @param[in]     highlighted  true while the pointer is over it
+     * @param[in]     down         true while it is pressed
+     */
     void drawToggleButton(juce::Graphics&, juce::ToggleButton&, bool highlighted, bool down) override;
-    /** @brief A chooser: the skin's raised box and a small arrow in the box's arrow colour. */
+    /**
+     * @brief A chooser: the skin's raised box and a small arrow in the box's arrow colour.
+     * @param[in,out] g       the graphics context to draw into
+     * @param[in]     width   the box's width
+     * @param[in]     height  its height
+     * @param[in]     down    true while it is pressed
+     * @param[in]     bx      the arrow area's left edge
+     * @param[in]     by      its top edge
+     * @param[in]     bw      its width
+     * @param[in]     bh      its height
+     * @param[in,out] box     the chooser
+     */
     void drawComboBox(juce::Graphics&, int width, int height, bool down, int bx, int by, int bw, int bh, juce::ComboBox&) override;
-    /** @brief A button: a flat rounded box, brighter while the pointer is over it, darker while pressed. */
+    /**
+     * @brief A button: a flat rounded box, brighter while the pointer is over it, darker while pressed.
+     * @param[in,out] g            the graphics context to draw into
+     * @param[in,out] b            the button
+     * @param[in]     background   the button's colour
+     * @param[in]     highlighted  true while the pointer is over it
+     * @param[in]     down         true while it is pressed
+     */
     void drawButtonBackground(juce::Graphics&, juce::Button&, const juce::Colour& background, bool highlighted, bool down) override;
-    /** @brief A main tab: its name in the skin's tab font, the one in front underlined in the accent. */
+    /**
+     * @brief A main tab: its name in the skin's tab font, the one in front underlined in the accent.
+     * @param[in,out] b            the tab
+     * @param[in,out] g            the graphics context to draw into
+     * @param[in]     isMouseOver  true while the pointer is over it
+     * @param[in]     isMouseDown  true while it is pressed
+     */
     void drawTabButton(juce::TabBarButton&, juce::Graphics&, bool isMouseOver, bool isMouseDown) override;
-    /** @brief The tab bar's background: nothing but a line under the tabs. */
+    /**
+     * @brief The tab bar's background: nothing but a line under the tabs.
+     * @param[in,out] bar  the tab bar
+     * @param[in,out] g    the graphics context to draw into
+     */
     void drawTabbedButtonBarBackground(juce::TabbedButtonBar&, juce::Graphics&) override;
     /** @brief Nothing behind the tab in front (the line under the tabs is the bar background). */
     void drawTabAreaBehindFrontButton(juce::TabbedButtonBar&, juce::Graphics&, int, int) override;
-    /** @brief A tab's width: its name at the tab font, with room on either side. */
+    /**
+     * @brief A tab's width: its name at the tab font, with room on either side.
+     * @param[in,out] b         the tab
+     * @param[in]     tabDepth  the tab bar's depth
+     * @return the tab's width in pixels
+     */
     int getTabButtonBestWidth(juce::TabBarButton&, int tabDepth) override;
-    /** @brief The skin's tab font at the height the bar gives. */
+    /**
+     * @brief The skin's tab font at the height the bar gives.
+     * @param[in] height  the height the bar gives
+     * @return the tab font
+     */
     juce::Font getTabButtonFont(juce::TabBarButton&, float height) override;
-    /** @brief The skin's text font for a chooser. */
+    /**
+     * @brief The skin's text font for a chooser.
+     * @return the chooser's font
+     */
     juce::Font getComboBoxFont(juce::ComboBox&) override;
-    /** @brief The skin's text font for a button, a little smaller in a low one. */
+    /**
+     * @brief The skin's text font for a button, a little smaller in a low one.
+     * @param[in] buttonHeight  the button's height
+     * @return the button's font
+     */
     juce::Font getTextButtonFont(juce::TextButton&, int buttonHeight) override;
-    /** @brief The skin's text font for the menus. */
+    /**
+     * @brief The skin's text font for the menus.
+     * @return the menus' font
+     */
     juce::Font getPopupMenuFont() override;
-    /** @brief A slider's value box: centred, in the skin's ink, without the default box's frame. */
+    /**
+     * @brief A slider's value box: centred, in the skin's ink, without the default box's frame.
+     * @param[in,out] slider  the slider
+     * @return the value box, owned by the slider
+     */
     juce::Label* createSliderTextBox(juce::Slider&) override;
-    /** @brief A menu's background in the skin's panel colour with its edge. */
+    /**
+     * @brief A menu's background in the skin's panel colour with its edge.
+     * @param[in,out] g       the graphics context to draw into
+     * @param[in]     width   the menu's width
+     * @param[in]     height  its height
+     */
     void drawPopupMenuBackground(juce::Graphics&, int width, int height) override;
-    /** @brief A tooltip: the skin's raised colour, its ink, a rounded edge. */
+    /**
+     * @brief A tooltip: the skin's raised colour, its ink, a rounded edge.
+     * @param[in,out] g       the graphics context to draw into
+     * @param[in]     text    the tooltip's text
+     * @param[in]     width   its width
+     * @param[in]     height  its height
+     */
     void drawTooltip(juce::Graphics&, const juce::String& text, int width, int height) override;
 
 private:
     const Skin& m_skin;   ///< the colours, fonts and shapes it draws with
 };
 
-/** @brief Draws the instrument's name in the skin's title style (letter-spaced, glowing where the skin glows). */
+/**
+ * @brief Draws the instrument's name in the skin's title style (letter-spaced, glowing where the skin glows).
+ * @param[in,out] g       the graphics context to draw into
+ * @param[in]     skin    the skin
+ * @param[in]     r       where the title goes
+ * @param[in]     height  the title's height in pixels
+ */
 void drawTitle(juce::Graphics& g, const Skin& skin, juce::Rectangle<float> r, float height);
-/** @brief The width drawTitle needs for the name at @p height. */
+/**
+ * @brief The width drawTitle needs for the name at @p height.
+ * @param[in] skin    the skin
+ * @param[in] height  the title's height in pixels
+ * @return the title's width in pixels
+ */
 float titleWidth(const Skin& skin, float height);
 
 // =========================================================================================================== icons
@@ -165,11 +286,22 @@ float titleWidth(const Skin& skin, float height);
  */
 class FlatTab final : public juce::Button {
 public:
-    /** @brief A tab named @p name that never takes the keyboard focus (the keys stay the editor's). */
+    /**
+     * @brief A tab named @p name that never takes the keyboard focus (the keys stay the editor's).
+     * @param[in] name  the tab's name
+     */
     explicit FlatTab(const juce::String& name) : juce::Button(name) { setWantsKeyboardFocus(false); }
-    /** @brief Draws the tab as the frame's tab bar draws its tabs: the name, underlined in the accent when it is on. */
+    /**
+     * @brief Draws the tab as the frame's tab bar draws its tabs: the name, underlined in the accent when it is on.
+     * @param[in,out] g            the graphics context to draw into
+     * @param[in]     highlighted  true while the pointer is over it
+     * @param[in]     down         true while it is pressed
+     */
     void paintButton(juce::Graphics& g, bool highlighted, bool down) override;
-    /** @brief The width the name needs at the frame's tab font. */
+    /**
+     * @brief The width the name needs at the frame's tab font.
+     * @return the width in pixels
+     */
     int bestWidth() const;
 };
 
@@ -202,29 +334,54 @@ public:
         NIGHT,        ///< a crescent: the night mode
         COMPARE       ///< a frame half filled (before | after): hold to hear the preset as it was
     };
-    /** @brief A button with glyph @p icon and @p tooltip; it never takes the keyboard focus. */
+    /**
+     * @brief A button with glyph @p icon and @p tooltip; it never takes the keyboard focus.
+     * @param[in] icon     the glyph
+     * @param[in] tooltip  the tooltip
+     */
     IconButton(IconE icon, const juce::String& tooltip);
-    /** @brief Draws another glyph from now on (a play button that becomes a stop button); repaints only on a change. */
+    /**
+     * @brief Draws another glyph from now on (a play button that becomes a stop button); repaints only on a change.
+     * @param[in] icon  the glyph
+     */
     void setIcon(IconE icon)
     {
         if (icon == m_icon) return;
         m_icon = icon;
         repaint();
     }
-    /** @brief Draws @p icon and says @p tooltip from now on; nothing happens when both are as they were (a timer may
-     *         call it every tick). */
+    /**
+     * @brief Draws @p icon and says @p tooltip from now on; nothing happens when both are as they were (a timer may
+     *         call it every tick).
+     * @param[in] icon     the glyph
+     * @param[in] tooltip  the tooltip
+     */
     void show(IconE icon, const juce::String& tooltip)
     {
         setIcon(icon);
         if (getTooltip() != tooltip) setTooltip(tooltip);
     }
-    /** @brief The glyph it draws. */
+    /**
+     * @brief The glyph it draws.
+     * @return the glyph it draws
+     */
     IconE icon() const { return m_icon; }
-    /** @brief Draws the button's background as the look and feel draws a button, the glyph on it. */
+    /**
+     * @brief Draws the button's background as the look and feel draws a button, the glyph on it.
+     * @param[in,out] g            the graphics context to draw into
+     * @param[in]     highlighted  true while the pointer is over it
+     * @param[in]     down         true while it is pressed
+     */
     void paintButton(juce::Graphics& g, bool highlighted, bool down) override;
 
 private:
-    /** @brief Draws the glyphs from Play on into the square @p r, in @p ink, lines with @p stroke. */
+    /**
+     * @brief Draws the glyphs from Play on into the square @p r, in @p ink, lines with @p stroke.
+     * @param[in,out] g       the graphics context to draw into
+     * @param[in]     r       the square the glyph fills
+     * @param[in]     ink     the glyph's colour
+     * @param[in]     stroke  the stroke of its lines
+     */
     void paintGlyph(juce::Graphics& g, juce::Rectangle<float> r, juce::Colour ink, const juce::PathStrokeType& stroke) const;
 
     IconE m_icon;   ///< the glyph drawn
@@ -262,9 +419,17 @@ struct Header {
 };
 constexpr int HeaderRow = 34;     ///< the first row's height
 constexpr int StatusRow = 22;     ///< the second's
-/** @brief Lays the header out in the top of @p area (which loses the two rows and a gap). */
+/**
+ * @brief Lays the header out in the top of @p area (which loses the two rows and a gap).
+ * @param[in,out] area  the editor's area; the header's rows are taken off its top
+ * @param[in]     h     the header's components
+ */
 void layoutHeader(juce::Rectangle<int>& area, const Header& h);
-/** @brief Makes @p modes look like one control: connected edges, lit when chosen. */
+/**
+ * @brief Makes @p modes look like one control: connected edges, lit when chosen.
+ * @param[in,out] modes  the buttons, one of which is on
+ * @param[in]     on     the colour of the one that is on
+ */
 void connectModes(std::initializer_list<juce::Button*> modes, juce::Colour on);
 
 // ======================================================================================================== backdrop
@@ -275,6 +440,11 @@ public:
     /**
      * @brief Paints the window's background into @p area: the bg colour, and with the picture on, the picture covering it,
      *        strong down to @p headerBottom and faint below, under a vignette.
+     * @param[in,out] g             the graphics context to draw into
+     * @param[in]     area          the window's area
+     * @param[in]     headerBottom  where the header ends
+     * @param[in]     skin          the skin
+     * @param[in]     on            true to show the picture
      */
     void paint(juce::Graphics& g, juce::Rectangle<int> area, int headerBottom, const Skin& skin, bool on);
 
@@ -288,61 +458,124 @@ private:
 // ======================================================================================================== settings
 
 /**
- * @brief The instrument's settings: not the project's, the person's (application data/<name>/<name>.frame). They live
+ * @brief The instrument's settings: not the project's, the person's (application data/\<name\>/\<name\>.frame). They live
  *        until JUCE shuts down (a registry deleted at shutdown), never into a plugin's unloading.
  */
 class Settings final : public juce::ChangeBroadcaster {
 public:
     /** @brief Whether the headset's controls are shown: when a headset sends its hands, always, or never (nothing listens). */
     enum class HeadsetModeE { AUTO, ON, OFF };
-    /** @brief The settings of instrument @p app (one object per name, message thread). */
+    /**
+     * @brief The settings of instrument @p app (one object per name, message thread).
+     * @param[in] app  the instrument's name
+     * @return its settings
+     */
     static Settings& of(const juce::String& app);
-    /** @brief The settings of @p app, read from its file in the user's application data (made on first use). */
+    /**
+     * @brief The settings of @p app, read from its file in the user's application data (made on first use).
+     * @param[in] app  the instrument's name
+     */
     explicit Settings(const juce::String& app);
 
-    HeadsetModeE headset() const;                  ///< Auto: shown when a headset sends; On: always; Off: never, nothing listens
-    /** @brief Shows the headset's controls in mode @p m from now on; written at once. */
+    /**
+     * Auto: shown when a headset sends; On: always; Off: never, nothing listens
+     * @return when the headset's controls are shown
+     */
+    HeadsetModeE headset() const;
+    /**
+     * @brief Shows the headset's controls in mode @p m from now on; written at once.
+     * @param[in] m  the mode
+     */
     void setHeadset(HeadsetModeE m);
-    int headsetPort() const;                      ///< the UDP port the hands arrive on (9100 + the instrument's offset)
-    bool backdrop() const;                        ///< the picture behind the panel
-    /** @brief Shows the picture behind the panel or not; written at once. */
+    /**
+     * the UDP port the hands arrive on (9100 + the instrument's offset)
+     * @return the UDP port the hands arrive on
+     */
+    int headsetPort() const;
+    /**
+     * the picture behind the panel
+     * @return true when the picture is shown behind the panel
+     */
+    bool backdrop() const;
+    /**
+     * @brief Shows the picture behind the panel or not; written at once.
+     * @param[in] on  true to show the picture
+     */
     void setBackdrop(bool on);
-    /** @brief The overview above the tabs (01.10.2026: folded away, the pages get its height). */
+    /**
+     * @brief The overview above the tabs (01.10.2026: folded away, the pages get its height).
+     * @return true when the overview is shown above the tabs
+     */
     bool overview() const;
-    /** @brief Shows the overview above the tabs or folds it away; written at once. */
+    /**
+     * @brief Shows the overview above the tabs or folds it away; written at once.
+     * @param[in] on  true to show the overview
+     */
     void setOverview(bool on);
-    /** @brief Ableton Link in the standalone (02.10.2026, LinkClock.h): tempo and bar phase with other apps; off by default. */
+    /**
+     * @brief Ableton Link in the standalone (02.10.2026, LinkClock.h): tempo and bar phase with other apps; off by
+     *        default.
+     * @return true when the standalone joins Ableton Link
+     */
     bool link() const;
-    /** @brief Joins the Link session or leaves it (the standalone reads it on its timer); written at once. */
+    /**
+     * @brief Joins the Link session or leaves it (the standalone reads it on its timer); written at once.
+     * @param[in] on  true to join the Link session
+     */
     void setLink(bool on);
-    /** @brief Score cues to a visualiser over OSC (02.10.2026; Noctuary's -- the others have parameters); off by default. */
+    /**
+     * @brief Score cues to a visualiser over OSC (02.10.2026; Noctuary's -- the others have parameters); off by
+     *        default.
+     * @return true when the score cues are sent
+     */
     bool cues() const;
-    /** @brief Sends the score cues or stops; written at once. */
+    /**
+     * @brief Sends the score cues or stops; written at once.
+     * @param[in] on  true to send the score cues
+     */
     void setCues(bool on);
-    /** @brief The UDP port the score cues go to on this machine (9000, as the family's parameters say). */
+    /**
+     * @brief The UDP port the score cues go to on this machine (9000, as the family's parameters say).
+     * @return the UDP port the cues go to
+     */
     int cuePort() const;
     /** @brief The instrument's part in the family jam (02.10.2026, Jam.h): none, leading the others, or following one. */
     enum class JamRoleE { OFF, LEAD, FOLLOW };
-    /** @brief Its part in the family jam; Off by default. */
+    /**
+     * @brief Its part in the family jam; Off by default.
+     * @return its part in the family jam
+     */
     JamRoleE jamRole() const;
-    /** @brief Takes part in the family jam as @p r from now on; written at once. */
+    /**
+     * @brief Takes part in the family jam as @p r from now on; written at once.
+     * @param[in] r  the part
+     */
     void setJamRole(JamRoleE r);
-    /** @brief The instrument's name, as given to of(). */
+    /**
+     * @brief The instrument's name, as given to of().
+     * @return the instrument's name
+     */
     juce::String app() const { return m_app; }
     /**
      * @brief A value of the panel's own under @p key (15.10.2026: the window's state, the tour seen, the favourites and
      *        the recent presets), @p fallback when there is none.
+     * @param[in] key       the key
+     * @param[in] fallback  what comes back when nothing is stored
+     * @return the stored value, or the fallback
      */
     juce::String value(const juce::String& key, const juce::String& fallback = {}) const;
     /**
      * @brief Writes @p v under @p key (no change message: nothing on the panel follows it); @p now false lets the file's
      *        own timer write it a few seconds later (a window being dragged).
+     * @param[in] key  the key
+     * @param[in] v    the value
+     * @param[in] now  true to write the file at once
      */
     void setValue(const juce::String& key, const juce::String& v, bool now = true);
 
 private:
     juce::String m_app;   ///< the instrument's name
-    std::unique_ptr<juce::PropertiesFile> m_file;   ///< the settings file (<app>.frame in the user's application data)
+    std::unique_ptr<juce::PropertiesFile> m_file;   ///< the settings file (\<app\>.frame in the user's application data)
 };
 
 /** @brief What the settings menu shows and does; empty functions leave their items out. */
@@ -364,7 +597,10 @@ struct SettingsMenu {
     std::function<juce::String()> m_jamStatus;      ///< the family jam's roles, with a line on what is heard (empty: no item)
     std::function<juce::String()> m_about;          ///< more lines for "About"
     std::function<void()> m_showAbout;              ///< the instrument's own About (replaces the frame's)
-    /** @brief Shows the menu under @p target. */
+    /**
+     * @brief Shows the menu under @p target.
+     * @param[in,out] target  the component the menu appears under
+     */
     void show(juce::Component& target) const;
 };
 
@@ -383,11 +619,22 @@ struct Keys {
     std::function<void()> m_exportFile;   ///< Ctrl+E: export
     std::function<void()> m_palette;   ///< Ctrl+K: the command palette (15.10.2026)
 };
-/** @brief Handles @p key as every generator does; true if it was one of the frame's keys. */
+/**
+ * @brief Handles @p key as every generator does.
+ * @param[in] key   the key pressed
+ * @param[in] keys  what each of the frame's keys does
+ * @return true when it was one of the frame's keys
+ */
 bool handleKey(const juce::KeyPress& key, const Keys& keys);
-/** @brief The keys in words (the settings menu and the help). */
+/**
+ * @brief The keys in words (the settings menu and the help).
+ * @return the keys and what they do, a line each
+ */
 juce::String keysText();
-/** @brief Buttons, switches and menus under @p root never take the keyboard focus: the keys stay the editor's. */
+/**
+ * @brief Buttons, switches and menus under @p root never take the keyboard focus: the keys stay the editor's.
+ * @param[in,out] root  the editor
+ */
 void keepKeysForEditor(juce::Component& root);
 
 // ============================================================================================================ help
@@ -402,27 +649,52 @@ public:
     /**
      * @brief The help made of the manual's prose @p chapters (chapters.txt: "== Title | ... ==" lines and their paragraphs),
      *        drawn with @p skin.
+     * @param[in] chapters  the manual's prose
+     * @param[in] skin      the skin it draws with
      */
     HelpView(const juce::String& chapters, const Skin& skin);
     /** @brief Topics made each time the help opens (name, text), shown first. */
     std::function<std::vector<std::pair<juce::String, juce::String>>()> m_extraTopics;
     std::function<void()> m_onClose;                       ///< the close button or Esc
     void refresh();                                      ///< remakes the extra topics, keeps the one chosen
-    /** @brief Shows topic @p index (the chapters first, then the extra topics). */
+    /**
+     * @brief Shows topic @p index (the chapters first, then the extra topics).
+     * @param[in] index  the topic
+     */
     void showTopic(int index);
     /** @brief The topics left, the text right, the close button at the top right. */
     void resized() override;
-    /** @brief The panel's background behind the list and the text. */
+    /**
+     * @brief The panel's background behind the list and the text.
+     * @param[in,out] g  the graphics context to draw into
+     */
     void paint(juce::Graphics& g) override;
-    /** @brief Esc closes the help (onClose); the other keys go on to the editor. */
+    /**
+     * @brief Esc closes the help (onClose); the other keys go on to the editor.
+     * @param[in] key  the key pressed
+     * @return true when the key was used
+     */
     bool keyPressed(const juce::KeyPress& key) override;
 
 private:
-    /** @brief How many topics there are (the list box asks). */
+    /**
+     * @brief How many topics there are (the list box asks).
+     * @return how many topics there are
+     */
     int getNumRows() override { return m_names.size(); }
-    /** @brief A topic's name in the list, the chosen one in the accent. */
+    /**
+     * @brief A topic's name in the list, the chosen one in the accent.
+     * @param[in]     row       the row
+     * @param[in,out] g         the graphics context to draw into
+     * @param[in]     width     the row's width
+     * @param[in]     height    the row's height
+     * @param[in]     selected  true when the row is chosen
+     */
     void paintListBoxItem(int row, juce::Graphics& g, int width, int height, bool selected) override;
-    /** @brief Shows the topic chosen in the list. */
+    /**
+     * @brief Shows the topic chosen in the list.
+     * @param[in] lastRowSelected  the row chosen
+     */
     void selectedRowsChanged(int lastRowSelected) override;
     const Skin& m_skin;   ///< the colours and fonts it draws with
     std::vector<std::pair<juce::String, juce::String>> m_chapters;   ///< the manual's chapters: title and text
@@ -445,7 +717,10 @@ struct UndoStep {
     std::vector<std::tuple<int, float, float>> m_values;   ///< store id, before, after (real values)
     /** @brief the rest of the state before the step, as the processor writes it (seed, rerolls ...) */
     juce::String m_extraBefore, m_extraAfter;                ///< the rest of the state, as the processor writes it
-    /** @brief Whether the step changed nothing at all (it is not recorded then). */
+    /**
+     * @brief Whether the step changed nothing at all (it is not recorded then).
+     * @return true when the step changed nothing
+     */
     bool empty() const { return m_values.empty() && m_extraBefore == m_extraAfter; }
 };
 
@@ -456,23 +731,59 @@ struct UndoStep {
  */
 class UndoHistory {
 public:
-    /** @brief Opens a step named @p what with the state as it is (@p values, @p extra); nested ones join the outer. */
+    /**
+     * @brief Opens a step named @p what with the state as it is (@p values, @p extra); nested ones join the outer.
+     * @param[in] what       the step's name
+     * @param[in] values     the values as they are
+     * @param[in] extra      the state beyond the values as it is
+     * @param[in] allValues  true to record every value, not only those touched
+     */
     void begin(const juce::String& what, std::vector<float> values, juce::String extra, bool allValues);
-    /** @brief Names a value the open step may record (a knob gesture's); a step opened with allValues takes every one. */
+    /**
+     * @brief Names a value the open step may record (a knob gesture's); a step opened with allValues takes every one.
+     * @param[in] id  the store id
+     */
     void touch(int id) { if (m_depth > 0) m_touched.push_back(id); }
-    /** @brief Closes a step with the state as it is now; the outermost close records it, unless nothing changed. */
+    /**
+     * @brief Closes a step with the state as it is now; the outermost close records it, unless nothing changed.
+     * @param[in] values  the values as they are now
+     * @param[in] extra   the state beyond the values as it is now
+     */
     void end(const std::vector<float>& values, const juce::String& extra);
-    /** @brief Whether a step is open (begin() without its end()). */
+    /**
+     * @brief Whether a step is open (begin() without its end()).
+     * @return true while a step is open
+     */
     bool open() const { return m_depth > 0; }
-    /** @brief Whether there is a step to undo. */
+    /**
+     * @brief Whether there is a step to undo.
+     * @return true when there is a step to undo
+     */
     bool canUndo() const { return !m_undo.empty(); }
-    /** @brief Whether there is an undone step to make again. */
+    /**
+     * @brief Whether there is an undone step to make again.
+     * @return true when there is an undone step to make again
+     */
     bool canRedo() const { return !m_redo.empty(); }
-    juce::String undoName() const { return m_undo.empty() ? juce::String() : m_undo.back().m_what; }   ///< the step undo takes back
-    juce::String redoName() const { return m_redo.empty() ? juce::String() : m_redo.back().m_what; }   ///< the step redo makes again
-    /** @brief Takes the last step back: apply its "before" (null: nothing to undo). */
+    /**
+     * the step undo takes back
+     * @return the name of the step undo takes back
+     */
+    juce::String undoName() const { return m_undo.empty() ? juce::String() : m_undo.back().m_what; }
+    /**
+     * the step redo makes again
+     * @return the name of the step redo makes again
+     */
+    juce::String redoName() const { return m_redo.empty() ? juce::String() : m_redo.back().m_what; }
+    /**
+     * @brief Takes the last step back: apply its "before" (null: nothing to undo).
+     * @return the step to apply backwards, null when there is none
+     */
     const UndoStep* undo();
-    /** @brief Makes the last undone step again: apply its "after" (null: nothing to redo). */
+    /**
+     * @brief Makes the last undone step again: apply its "after" (null: nothing to redo).
+     * @return the step to apply again, null when there is none
+     */
     const UndoStep* redo();
     /** @brief Forgets every step (a new piece loaded, a state restored). */
     void clear() { m_undo.clear(); m_redo.clear(); }
@@ -498,13 +809,18 @@ private:
 class Revealer {
 public:
     virtual ~Revealer() = default;
-    /** @brief Brings @p part -- one of this component's descendants -- into view (its tab, its section). */
+    /**
+     * @brief Brings @p part -- one of this component's descendants -- into view (its tab, its section).
+     * @param[in,out] part  the descendant to bring into view
+     */
     virtual void reveal(juce::Component& part) = 0;
     /** @brief Makes every part it makes only when first shown (so a search finds them); nothing by default. */
     virtual void makeAll() {}
     /**
      * @brief Shows the control for store id @p id where it shows one of several at a time (an instance chooser: a lane
      *        of the kit); false when it has none for that id (the default).
+     * @param[in] id  the store id
+     * @return false when no control for that id is shown here
      */
     virtual bool bringId(int id) { (void) id; return false; }
 };
@@ -512,25 +828,57 @@ public:
 /** @brief A row of small tabs above a page: one tab of the main row holding several pages (the synths of a group). */
 class SubTabs final : public juce::Component, public Revealer {
 public:
-    /** @brief A row of small tabs drawn with @p skin; pages are added with add(). */
+    /**
+     * @brief A row of small tabs drawn with @p skin; pages are added with add().
+     * @param[in] skin  the skin it draws with
+     */
     explicit SubTabs(const Skin& skin) : m_skin(skin) {}
-    /** @brief A page, made the first time it is shown; @p colour marks its tab (transparent: the accent). */
+    /**
+     * @brief A page, made the first time it is shown; @p colour marks its tab (transparent: the accent).
+     * @param[in] name    the page's name
+     * @param[in] make    makes the page
+     * @param[in] colour  its tab's mark
+     */
     void add(const juce::String& name, std::function<std::unique_ptr<juce::Component>()> make,
              juce::Colour colour = juce::Colours::transparentBlack);
-    void show(int index);                         ///< shows page @p index
-    /** @brief The index of the page shown, -1 before any. */
+    /**
+     * shows page @p index
+     * @param[in] index  the page
+     */
+    void show(int index);
+    /**
+     * @brief The index of the page shown, -1 before any.
+     * @return the index of the page shown, -1 before any
+     */
     int current() const { return m_current; }
-    /** @brief How many pages there are. */
+    /**
+     * @brief How many pages there are.
+     * @return how many pages there are
+     */
     int count() const { return static_cast<int>(m_pages.size()); }
-    /** @brief The name of page @p i. */
+    /**
+     * @brief The name of page @p i.
+     * @param[in] i  the page
+     * @return its name
+     */
     juce::String name(int i) const { return m_pages[static_cast<size_t>(i)].m_name; }
-    juce::Component* page() const;               ///< the page shown (null before the first)
+    /**
+     * the page shown (null before the first)
+     * @return the page shown, null before the first
+     */
+    juce::Component* page() const;
     std::function<void(int)> m_onChange;            ///< after a page was chosen
     /** @brief The row of tabs at the top, the page shown under it. */
     void resized() override;
-    /** @brief The line under the row of tabs. */
+    /**
+     * @brief The line under the row of tabs.
+     * @param[in,out] g  the graphics context to draw into
+     */
     void paint(juce::Graphics& g) override;
-    /** @brief Shows the page holding @p part (revealControl). */
+    /**
+     * @brief Shows the page holding @p part (revealControl).
+     * @param[in,out] part  the descendant to bring into view
+     */
     void reveal(juce::Component& part) override;
     /** @brief Makes every page not yet made, hidden (revealControl's search finds their controls then). */
     void makeAll() override;
@@ -555,6 +903,8 @@ private:
  * @brief Whether a group of a synth's page belongs to its modulation -- the LFOs, the mod envelope, the matrix, the
  *        trance gate (01.10.2026). A page that does not fit the window shows its sound and its modulation as sections
  *        of their own (planSections).
+ * @param[in] title  the group's title
+ * @return true when the group belongs to the Modulation section
  */
 bool isModulationGroup(const juce::String& title);
 
@@ -572,9 +922,11 @@ struct SectionPlan {
  *        has both ("Sound" also where it begins with a synth's presets), else the first group's title (without its
  *        number: "LFO 1" -> "LFO", "Matrix 1-2" -> "Matrix"). FAMILY_NO_SECTIONS=1 keeps every page whole (the
  *        manual's full-page pictures).
- * @param titles the groups' titles, in the page's order
- * @param available the height the page has
- * @param height the height the page needs showing only the given groups (laid out as the page lays them out)
+ * @param[in] titles     the groups' titles, in the page's order
+ * @param[in] available  the height the page has
+ * @param[in] height     the height the page needs showing only the given groups (laid out as the page lays them out)
+ * @param[in] tolerance  the pixels a section may overflow before it is cut
+ * @return the plan
  */
 SectionPlan planSections(const juce::StringArray& titles, int available, const std::function<int(const std::vector<int>&)>& height,
                          int tolerance = 0);
@@ -582,18 +934,44 @@ SectionPlan planSections(const juce::StringArray& titles, int available, const s
 /** @brief The switch between a page's sections ("Sound" | "Modulation" | ...), drawn as the frame's small tabs. */
 class SectionSwitch final : public juce::Component {
 public:
-    /** @brief A switch drawn with @p skin with a button per name in @p names; the first is chosen. */
+    /**
+     * @brief A switch drawn with @p skin with a button per name in @p names; the first is chosen.
+     * @param[in] skin   the skin it draws with
+     * @param[in] names  the sections' names
+     */
     explicit SectionSwitch(const Skin& skin, const juce::StringArray& names = { "Sound", "Modulation" });
-    /** @brief The section chosen. */
+    /**
+     * @brief The section chosen.
+     * @return the section chosen
+     */
     int current() const { return m_current; }
-    /** @brief How many sections there are. */
+    /**
+     * @brief How many sections there are.
+     * @return how many sections there are
+     */
     int count() const { return m_buttons.size(); }
-    /** @brief The name of section @p index. */
+    /**
+     * @brief The name of section @p index.
+     * @param[in] index  the section
+     * @return its name
+     */
     juce::String name(int index) const { return m_buttons[index] != nullptr ? m_buttons[index]->getButtonText() : juce::String(); }
-    void setCurrent(int index);                   ///< without onChange
-    void setNames(const juce::StringArray& names);   ///< new sections (the current one kept where it still exists)
+    /**
+     * without onChange
+     * @param[in] index  the section
+     */
+    void setCurrent(int index);
+    /**
+     * new sections (the current one kept where it still exists)
+     * @param[in] names  the sections' names
+     */
+    void setNames(const juce::StringArray& names);
     std::function<void(int)> m_onChange;            ///< after a section was chosen
-    int bestWidth() const;                        ///< the width its buttons need
+    /**
+     * the width its buttons need
+     * @return the width its buttons need
+     */
+    int bestWidth() const;
     /** @brief The buttons side by side, each as wide as its name needs. */
     void resized() override;
 
@@ -605,16 +983,27 @@ private:
 
 /**
  * @brief How far every page of @p tabs reaches past the window (its viewports' overflow in pixels), every small tab
- *        of a page of several too, one line each: "Synths: Lead<TAB>412". The pages are shown one after the other and
+ *        of a page of several too, one line each: "Synths: Lead\<TAB\>412". The pages are shown one after the other and
  *        the one in front again at the end. For the screenshot mode's <P>_PAGE_REPORT (01.10.2026): which page still
  *        scrolls at the window's usual size, and by how much.
+ * @param[in,out] tabs  the editor's tabs
+ * @return the report
  */
 juce::String pageReport(juce::TabbedComponent& tabs);
 
-/** @brief The overflow of the viewports in @p c and below it (the largest), in pixels; 0 where nothing scrolls. */
+/**
+ * @brief The overflow of the viewports in @p c and below it (the largest), in pixels; 0 where nothing scrolls.
+ * @param[in,out] c  the page
+ * @return the pixels it overflows, 0 when it fits
+ */
 int pageOverflow(juce::Component& c);
 
-/** @brief One page's line of pageReport() -- and a line per section where it has a switch (Sound, Modulation). */
+/**
+ * @brief One page's line of pageReport() -- and a line per section where it has a switch (Sound, Modulation).
+ * @param[in,out] page  the page
+ * @param[in]     name  its name
+ * @return the report's lines of the page
+ */
 juce::String pageLines(juce::Component& page, const juce::String& name);
 
 // ======================================================================================================== controls
@@ -644,7 +1033,11 @@ struct ControlActions {
      *        press (return false to let the knob turn as usual), 1 each drag, 2 the release.
      */
     std::function<bool(int, const juce::MouseEvent&, int)> m_altDrag;
-    /** @brief Shows the menu for id @p id at @p target. */
+    /**
+     * @brief Shows the menu for id @p id at @p target.
+     * @param[in,out] target  the control clicked
+     * @param[in]     id      its store id
+     */
     void showMenu(juce::Component& target, int id) const;
 };
 /** @brief A knob or fader with the right-click menu (ControlActions) and its store id. */
@@ -653,15 +1046,32 @@ public:
     /**
      * @brief A knob or fader of style @p style with its value box at @p box; a right click offers @p actions for store id @p
      *        id.
+     * @param[in] style    the slider style
+     * @param[in] box      where the value box goes
+     * @param[in] actions  what its right click offers
+     * @param[in] id       the store id it edits
      */
     Knob(SliderStyle style, TextEntryBoxPosition box, const ControlActions* actions, int id);
-    /** @brief A right click shows the menu (ControlActions::showMenu); an Alt-drag goes to ControlActions::altDrag when it takes it; any other click turns the knob. */
+    /**
+     * @brief A right click shows the menu (ControlActions::showMenu); an Alt-drag goes to ControlActions::altDrag when
+     *        it takes it; any other click turns the knob.
+     * @param[in] e  the mouse event
+     */
     void mouseDown(const juce::MouseEvent& e) override;
-    /** @brief The drag: the knob's, or the Alt-drag's. @param e the drag */
+    /**
+     * @brief The drag: the knob's, or the Alt-drag's.
+     * @param[in] e  the drag
+     */
     void mouseDrag(const juce::MouseEvent& e) override;
-    /** @brief The release: the knob's, or the Alt-drag's end. @param e the release */
+    /**
+     * @brief The release: the knob's, or the Alt-drag's end.
+     * @param[in] e  the release
+     */
     void mouseUp(const juce::MouseEvent& e) override;
-    /** @brief The store id it edits. */
+    /**
+     * @brief The store id it edits.
+     * @return the store id it edits
+     */
     int id() const { return m_id; }
 
 private:
@@ -672,11 +1082,21 @@ private:
 /** @brief A menu with the right-click menu. */
 class Choice final : public juce::ComboBox {
 public:
-    /** @brief A chooser whose right click offers @p actions for store id @p id. */
+    /**
+     * @brief A chooser whose right click offers @p actions for store id @p id.
+     * @param[in] actions  what its right click offers
+     * @param[in] id       the store id it edits
+     */
     Choice(const ControlActions* actions, int id) : m_actions(actions), m_id(id) {}
-    /** @brief A right click shows the menu (ControlActions::showMenu); any other click opens the list. */
+    /**
+     * @brief A right click shows the menu (ControlActions::showMenu); any other click opens the list.
+     * @param[in] e  the mouse event
+     */
     void mouseDown(const juce::MouseEvent& e) override;
-    /** @brief The store id it edits. */
+    /**
+     * @brief The store id it edits.
+     * @return the store id it edits
+     */
     int id() const { return m_id; }
 
 private:
@@ -686,13 +1106,26 @@ private:
 /** @brief A switch with the right-click menu. */
 class Switch final : public juce::ToggleButton {
 public:
-    /** @brief A switch whose right click offers @p actions for store id @p id. */
+    /**
+     * @brief A switch whose right click offers @p actions for store id @p id.
+     * @param[in] actions  what its right click offers
+     * @param[in] id       the store id it edits
+     */
     Switch(const ControlActions* actions, int id) : m_actions(actions), m_id(id) {}
-    /** @brief A right click shows the menu (ControlActions::showMenu) and does not toggle. */
+    /**
+     * @brief A right click shows the menu (ControlActions::showMenu) and does not toggle.
+     * @param[in] e  the mouse event
+     */
     void mouseDown(const juce::MouseEvent& e) override;
-    /** @brief Toggles on a left click only (a right click's release does nothing). */
+    /**
+     * @brief Toggles on a left click only (a right click's release does nothing).
+     * @param[in] e  the mouse event
+     */
     void mouseUp(const juce::MouseEvent& e) override;
-    /** @brief The store id it edits. */
+    /**
+     * @brief The store id it edits.
+     * @return the store id it edits
+     */
     int id() const { return m_id; }
 
 private:
@@ -706,13 +1139,24 @@ private:
  */
 class LiveRings final : private juce::Timer {
 public:
-    /** @brief @p playedNormalised gives the value store id @p id plays, normalised, or NaN. */
+    /**
+     * @brief @p playedNormalised gives the value store id @p id plays, normalised, or NaN.
+     * @param[in] playedNormalised  gives the value a store id plays, normalised, or NaN
+     */
     explicit LiveRings(std::function<float(int)> playedNormalised);
     ~LiveRings() override { stopTimer(); }
-    void add(juce::Slider& slider, int id);       ///< follows @p slider (it must outlive this object, or call clear)
+    /**
+     * follows @p slider (it must outlive this object, or call clear)
+     * @param[in,out] slider  the slider to follow
+     * @param[in]     id      its store id
+     */
+    void add(juce::Slider& slider, int id);
     /** @brief Follows no slider any more (a page that rebuilds its controls). */
     void clear() { m_items.clear(); }
-    /** @brief The modulations on each followed knob (ModulationAtKnob), drawn as arcs (the slider property "mods"). */
+    /**
+     * @brief The modulations on each followed knob (ModulationAtKnob), drawn as arcs (the slider property "mods").
+     * @param[in] arcs  gives the modulation arcs of a store id
+     */
     void setModArcs(std::function<std::vector<ModArc>(int)> arcs) { m_arcs = std::move(arcs); }
 
 private:
@@ -743,19 +1187,47 @@ public:
     /**
      * @brief A strip drawn with @p skin: @p name and its @p colour on top, @p fader, the @p knobs above it, a meter beside
      *        it.
+     * @param[in]  skin     the skin it draws with
+     * @param[in]  name     the strip's name
+     * @param[in]  colour   its colour
+     * @param[in]  fader    its fader
+     * @param[in]  knobs    its knobs
+     * @param[in]  actions  what the controls' right click offers
+     * @param[out] live     where the knobs' played values show, or null
      */
     ChannelStrip(const Skin& skin, const juce::String& name, juce::Colour colour, Control fader, std::vector<Control> knobs,
                  const ControlActions* actions, LiveRings* live);
-    /** @brief A new reading (linear peak and RMS) covering @p seconds. */
+    /**
+     * @brief A new reading (linear peak and RMS) covering @p seconds.
+     * @param[in] peak     the linear peak
+     * @param[in] rms      the linear RMS
+     * @param[in] seconds  the time the reading covers
+     */
     void meter(float peak, float rms, double seconds);
-    /** @brief Shows the sends or folds them away (the console's Show sends). */
+    /**
+     * @brief Shows the sends or folds them away (the console's Show sends).
+     * @param[in] on  true to show the sends
+     */
     void showSends(bool on) { m_sends = on; resized(); }
-    void setSound(const juce::String& s);          ///< the sound it plays, under the name
-    /** @brief A button under the name (a mute); the strip does not own it. */
+    /**
+     * the sound it plays, under the name
+     * @param[in] s  the sound's name
+     */
+    void setSound(const juce::String& s);
+    /**
+     * @brief A button under the name (a mute); the strip does not own it.
+     * @param[in,out] b  the button, not owned; null for none
+     */
     void setHeadButton(juce::Component* b);
-    /** @brief The held peak, dB. */
+    /**
+     * @brief The held peak, dB.
+     * @return the held peak in dB
+     */
     float peakDb() const { return m_holdDb; }
-    /** @brief The name, the sound, the meter (RMS, the held peak) and the scale. */
+    /**
+     * @brief The name, the sound, the meter (RMS, the held peak) and the scale.
+     * @param[in,out] g  the graphics context to draw into
+     */
     void paint(juce::Graphics&) override;
     /** @brief The head button, the knobs (the sends only when shown), the fader and the meter. */
     void resized() override;
@@ -785,12 +1257,27 @@ private:
  */
 class Console final : public juce::Component {
 public:
-    /** @brief An empty console drawn with @p skin; strips are added with add(). */
+    /**
+     * @brief An empty console drawn with @p skin; strips are added with add().
+     * @param[in] skin  the skin it draws with
+     */
     explicit Console(const Skin& skin);
-    ChannelStrip& add(std::unique_ptr<ChannelStrip> strip);   ///< appends a strip
-    /** @brief How many strips there are. */
+    /**
+     * appends a strip
+     * @param[in] strip  the strip
+     * @return the strip, now the console's
+     */
+    ChannelStrip& add(std::unique_ptr<ChannelStrip> strip);
+    /**
+     * @brief How many strips there are.
+     * @return how many strips there are
+     */
     int size() const { return static_cast<int>(m_strips.size()); }
-    /** @brief Strip @p i. */
+    /**
+     * @brief Strip @p i.
+     * @param[in] i  the strip's index
+     * @return the strip
+     */
     ChannelStrip& strip(int i) { return *m_strips[static_cast<size_t>(i)]; }
     /** @brief The fold button on top, the strips side by side (scrolled sideways where they are narrower than MinStrip). */
     void resized() override;
@@ -836,33 +1323,80 @@ class Headset final : private juce::OSCReceiver::Listener<juce::OSCReceiver::Mes
 public:
     Headset();
     ~Headset() override;
-    /** @brief Listens on @p port (0: not at all). Message thread. */
+    /**
+     * @brief Listens on @p port (0: not at all). Message thread.
+     * @param[in] port  the UDP port, 0 for none
+     * @pre called on the message thread
+     */
     void listen(int port);
-    /** @brief The UDP port it listens on (0: none). */
+    /**
+     * @brief The UDP port it listens on (0: none).
+     * @return the UDP port it listens on, 0 for none
+     */
     int port() const { return m_port; }
-    /** @brief Whether it listens (a port, and no error opening it). */
+    /**
+     * @brief Whether it listens (a port, and no error opening it).
+     * @return true while it listens
+     */
     bool listening() const { return m_port > 0 && m_error.isEmpty(); }
-    /** @brief Why it does not listen, empty when it does. */
+    /**
+     * @brief Why it does not listen, empty when it does.
+     * @return why it does not listen, empty when it does
+     */
     juce::String error() const { return m_error; }
-    bool active() const;                          ///< hands arrived in the last three seconds
-    /** @brief Whether hands ever arrived. */
+    /**
+     * hands arrived in the last three seconds
+     * @return true when hands arrived in the last three seconds
+     */
+    bool active() const;
+    /**
+     * @brief Whether hands ever arrived.
+     * @return true when hands ever arrived
+     */
     bool everSeen() const { return m_messages > 0; }
-    /** @brief The hands as they arrived last. */
+    /**
+     * @brief The hands as they arrived last.
+     * @return the hands as they arrived last
+     */
     Hands hands() const { return m_hands; }
-    juce::String source() const { return m_source; }   ///< who sent them last
-    /** @brief How many messages arrived. */
+    /**
+     * who sent them last
+     * @return who sent them last
+     */
+    juce::String source() const { return m_source; }
+    /**
+     * @brief How many messages arrived.
+     * @return how many messages arrived
+     */
     juce::int64 messages() const { return m_messages; }
-    /** @brief What the hands did since the last call (message thread, every frame of a timer). */
+    /**
+     * @brief What the hands did since the last call (message thread, every frame of a timer).
+     * @return what the hands did since the last call
+     * @pre called on the message thread
+     */
     HeadsetEvents poll();
-    /** @brief A line on what it hears, for the settings and the Perform page. */
+    /**
+     * @brief A line on what it hears, for the settings and the Perform page.
+     * @return the line
+     */
     juce::String statusText() const;
-    /** @brief Whether the headset's controls should be shown under the settings' @p mode. */
+    /**
+     * @brief Whether the headset's controls should be shown under the settings' @p mode.
+     * @param[in] mode  the settings' headset mode
+     * @return true when the controls should be shown
+     */
     bool shown(Settings::HeadsetModeE mode) const { return mode == Settings::HeadsetModeE::ON || (mode == Settings::HeadsetModeE::AUTO && active()); }
-    /** @brief Feeds a message as if it had arrived (tests). */
+    /**
+     * @brief Feeds a message as if it had arrived (tests).
+     * @param[in] h  the hands
+     */
     void inject(const Hands& h);
 
 private:
-    /** @brief Reads "/hands" with six floats (heights, pinches, tracked) into the hands (inject). */
+    /**
+     * @brief Reads "/hands" with six floats (heights, pinches, tracked) into the hands (inject).
+     * @param[in] m  the OSC message
+     */
     void oscMessageReceived(const juce::OSCMessage& m) override;
     juce::OSCReceiver m_receiver;   ///< the OSC receiver on m_port
     int m_port = 0;   ///< the port listened on, 0 none
@@ -882,15 +1416,36 @@ private:
     double m_lastPoll = 0.0;   ///< when poll() ran last (ms; the smoothing's time step)
 };
 
-/** @brief The grammar as text (the help). */
+/**
+ * @brief The grammar as text (the help).
+ * @param[in] action  what the right pinch does
+ * @param[in] hold    what holding the right pinch does
+ * @return the grammar as text
+ */
 juce::String headsetGrammar(const juce::String& action, const juce::String& hold);
-/** @brief The grammar in short lines, gesture and effect (the Perform page's headset box). */
+/**
+ * @brief The grammar in short lines, gesture and effect (the Perform page's headset box).
+ * @param[in] action  what the right pinch does
+ * @param[in] hold    what holding the right pinch does
+ * @param[in] left    what the left height moves
+ * @param[in] right   what the right height moves
+ * @return the moves and what they do
+ */
 std::vector<std::pair<juce::String, juce::String>> headsetGrammarShort(const juce::String& action, const juce::String& hold,
                                                                        const juce::String& left = "master filter",
                                                                        const juce::String& right = "echo throw");
 /**
  * @brief The Perform page's headset box: its status, the two hands as they stand (a dot per hand on its height, lit while
  *        it pinches) and the grammar in short lines.
+ * @param[in,out] g        the graphics context to draw into
+ * @param[in]     area     the box's area
+ * @param[in]     skin     the skin
+ * @param[in]     headset  the headset
+ * @param[in]     action   what the right pinch does
+ * @param[in]     hold     what holding the right pinch does
+ * @param[in]     left     what the left height moves
+ * @param[in]     right    what the right height moves
+ * @param[in]     framed   true to draw the box's frame
  */
 void drawHeadsetBox(juce::Graphics& g, juce::Rectangle<int> area, const Skin& skin, const Headset& headset,
                     const juce::String& action, const juce::String& hold, const juce::String& left = "master filter",
@@ -900,13 +1455,28 @@ void drawHeadsetBox(juce::Graphics& g, juce::Rectangle<int> area, const Skin& sk
 // The keyboard's options (02.10.2026): what each generator's perform() does with a played key before the engine has it.
 // All of them off by default -- a key plays as it always did.
 
-/** @brief Pitch-class mask (bit k: k semitones above the root) of the scale named @p name; all twelve for an unknown. */
+/**
+ * @brief Pitch-class mask (bit k: k semitones above the root) of the scale named @p name; all twelve for an unknown.
+ * @param[in] name  the scale's name
+ * @return its pitch classes as bits, 0 for none
+ */
 uint16_t scaleMask(const juce::String& name);
-/** @brief The note of the scale (@p root 0..11, @p mask) nearest to @p pitch, a tie going down (Scale Lock). */
+/**
+ * @brief The note of the scale (@p root 0..11, @p mask) nearest to @p pitch, a tie going down (Scale Lock).
+ * @param[in] pitch  the MIDI note
+ * @param[in] root   the key's root, 0 .. 11
+ * @param[in] mask   the scale's pitch classes as bits
+ * @return the nearest note of the scale
+ */
 int snapToScale(int pitch, int root, uint16_t mask);
 /** @brief The velocity curve names, in the order shapeVelocity() takes them. */
 inline const char* const VelocityCurveNames[] = { "As Played", "Soft", "Hard", "Fixed" };
-/** @brief A played velocity (1..127) through a curve: 0 as played, 1 soft (a light touch louder), 2 hard, 3 fixed 100. */
+/**
+ * @brief A played velocity (1..127) through a curve: 0 as played, 1 soft (a light touch louder), 2 hard, 3 fixed 100.
+ * @param[in] velocity  the velocity, 1 .. 127
+ * @param[in] curve     the curve
+ * @return the shaped velocity
+ */
 int shapeVelocity(int velocity, int curve);
 
 /** @brief What became of each held key -- the voice and the pitch its press went to --, so that its release goes there. */
@@ -915,9 +1485,22 @@ public:
     KeyMemory() { clear(); }
     /** @brief Forgets every held key. */
     void clear();
-    /** @brief Key @p key on @p channel (0..15) was pressed and went to @p target (-1: the keyboard's own) as @p pitch. */
+    /**
+     * @brief Key @p key on @p channel (0..15) was pressed and went to @p target (-1: the keyboard's own) as @p pitch.
+     * @param[in] channel  the MIDI channel, 0..15
+     * @param[in] key      the key's MIDI note
+     * @param[in] target   where the press went, -1 for the keyboard's own
+     * @param[in] pitch    the pitch it played
+     */
     void press(int channel, int key, int target, int pitch);
-    /** @brief Where key @p key's press went; false when it is not held (then the release goes as it comes). */
+    /**
+     * @brief Where key @p key's press went; false when it is not held (then the release goes as it comes).
+     * @param[in]  channel  the MIDI channel, 0..15
+     * @param[in]  key      the key's MIDI note
+     * @param[out] target   receives where its press went
+     * @param[out] pitch    receives the pitch it played
+     * @return false when the key is not held
+     */
     bool release(int channel, int key, int& target, int& pitch);
 
 private:
@@ -942,12 +1525,19 @@ public:
      * @brief Brings @p editor's standalone window back to where @p app's was left and keeps its moves from now on.
      *        Nothing in a host (its window is the host's), nothing a second time. Call it on the turn of the message
      *        loop after parentHierarchyChanged (the window is still putting its content in before).
+     * @param[in,out] editor  the editor in the standalone's window
+     * @param[in]     app     the instrument's name
      * @return true when it follows a window (now or before)
      */
     bool attach(juce::Component& editor, const juce::String& app);
 
 private:
-    /** @brief The window moved or was resized: its state written (not while minimised or in full screen). */
+    /**
+     * @brief The window moved or was resized: its state written (not while minimised or in full screen).
+     * @param[in,out] c        the window
+     * @param[in]     moved    true when it moved
+     * @param[in]     resized  true when it was resized
+     */
     void componentMovedOrResized(juce::Component& c, bool moved, bool resized) override;
     juce::Component::SafePointer<juce::ResizableWindow> m_window;   ///< the standalone's window, null before attach (and in a host)
     juce::String m_app;   ///< whose settings
@@ -958,26 +1548,47 @@ private:
 /**
  * @brief The control for store id @p id under @p root, or null: a Knob, Choice or Switch of the frame, or any component
  *        carrying the property "frameId" (a panel's own controls: Phosphene's pages).
+ * @param[out] root  where the search begins
+ * @param[in]  id    the store id
+ * @return the control, null when there is none
  */
 juce::Component* findControl(juce::Component& root, int id);
-/** @brief The store id a control stands for (a Knob, Choice, Switch, or the property "frameId"), -1 for none. */
+/**
+ * @brief The store id a control stands for (a Knob, Choice, Switch, or the property "frameId"), -1 for none.
+ * @param[in] c  the component
+ * @return its store id, -1 for none
+ */
 int controlId(const juce::Component& c);
-/** @brief Sets the modulation arcs a knob draws (the slider property "mods"), repainting it only when they changed. */
+/**
+ * @brief Sets the modulation arcs a knob draws (the slider property "mods"), repainting it only when they changed.
+ * @param[in,out] slider  the knob
+ * @param[in]     arcs    its modulation arcs
+ */
 void showModArcs(juce::Slider& slider, const std::vector<ModArc>& arcs);
 
 /**
  * @brief Shows a control: the page holding the one for store id @p id brought to the front (@p showPage), its
  *        sub-tab or section (Revealer), a viewport scrolled to it, and the control lit for a moment (flash).
- * @param pages     the panel's pages (a tab's content each, shown or not)
- * @param showPage  brings page i to the front
- * @param id        the store id
- * @param colour    the light's colour
- * @return          false when no page has it
+ * @param[in] pages     the panel's pages (a tab's content each, shown or not)
+ * @param[in] showPage  brings page i to the front
+ * @param[in] id        the store id
+ * @param[in] colour    the light's colour
+ * @return false when no page has it
  */
 bool revealControl(const std::vector<juce::Component*>& pages, const std::function<void(int)>& showPage, int id, juce::Colour colour);
-/** @brief revealControl over a TabbedComponent's pages. */
+/**
+ * @brief revealControl over a TabbedComponent's pages.
+ * @param[in,out] tabs    the editor's tabs
+ * @param[in]     id      the store id
+ * @param[in]     colour  the colour it lights in
+ * @return false when no page has it
+ */
 bool revealControl(juce::TabbedComponent& tabs, int id, juce::Colour colour);
-/** @brief Lights @p c for a moment: a ring round it in @p colour that fades (an overlay on its window, gone by itself). */
+/**
+ * @brief Lights @p c for a moment: a ring round it in @p colour that fades (an overlay on its window, gone by itself).
+ * @param[in,out] c       the component
+ * @param[in]     colour  the ring's colour
+ */
 void flash(juce::Component& c, juce::Colour colour);
 
 // ========================================================================================================= palette
@@ -998,37 +1609,75 @@ public:
         bool m_takesNumber = false;    ///< a number after its name is its value ("cutoff 800")
         std::function<void(const juce::String& number)> m_run;   ///< what it does (the number, "" when none was typed)
     };
-    /** @brief An empty palette drawn with @p skin; open() fills it. */
+    /**
+     * @brief An empty palette drawn with @p skin; open() fills it.
+     * @param[in] skin  the skin it draws with
+     */
     explicit CommandPalette(const Skin& skin);
-    /** @brief Opens it over its parent with @p commands, the search empty and focused. */
+    /**
+     * @brief Opens it over its parent with @p commands, the search empty and focused.
+     * @param[in] commands  what it offers
+     */
     void open(std::vector<Command> commands);
     /** @brief Commands made from the words typed, shown first (an instrument's own: presets by how they sound). */
     std::function<std::vector<Command>(const juce::StringArray&)> m_fromWords;
     /** @brief Closes it. */
     void close();
-    /** @brief Types into the search (the screenshot modes' way of showing it). */
+    /**
+     * @brief Types into the search (the screenshot modes' way of showing it).
+     * @param[in] text  the text typed
+     */
     void type(const juce::String& text) { m_search.setText(text, true); }
-    /** @brief The dimmed window and the panel. */
+    /**
+     * @brief The dimmed window and the panel.
+     * @param[in,out] g  the graphics context to draw into
+     */
     void paint(juce::Graphics& g) override;
     /** @brief The search on top, the list under it. */
     void resized() override;
-    /** @brief A click beside the panel closes it. */
+    /**
+     * @brief A click beside the panel closes it.
+     * @param[in] e  the mouse event
+     */
     void mouseDown(const juce::MouseEvent& e) override;
 
 private:
     /** @brief The commands that match the search, best first. */
     void filter();
-    /** @brief Runs a shown command and closes. */
+    /**
+     * @brief Runs a shown command and closes.
+     * @param[in] row  the row of the command
+     */
     void run(int row);
-    /** @brief The panel's rectangle. */
+    /**
+     * @brief The panel's rectangle.
+     * @return the panel's rectangle
+     */
     juce::Rectangle<int> panel() const;
-    /** @brief How many match. */
+    /**
+     * @brief How many match.
+     * @return how many commands match the search
+     */
     int getNumRows() override;
-    /** @brief One row: the kind, the title, the detail. */
+    /**
+     * @brief One row: the kind, the title, the detail.
+     * @param[in]     row       the row
+     * @param[in,out] g         the graphics context to draw into
+     * @param[in]     width     the row's width
+     * @param[in]     height    the row's height
+     * @param[in]     selected  true when the row is chosen
+     */
     void paintListBoxItem(int row, juce::Graphics& g, int width, int height, bool selected) override;
-    /** @brief A click runs it. */
+    /**
+     * @brief A click runs it.
+     * @param[in] row  the row clicked
+     * @param[in] e    the mouse event
+     */
     void listBoxItemClicked(int row, const juce::MouseEvent& e) override;
-    /** @brief Return runs the chosen one. */
+    /**
+     * @brief Return runs the chosen one.
+     * @param[in] row  the row chosen
+     */
     void returnKeyPressed(int row) override;
     /** @brief Typing filters. */
     void textEditorTextChanged(juce::TextEditor&) override;
@@ -1036,7 +1685,12 @@ private:
     void textEditorReturnKeyPressed(juce::TextEditor&) override;
     /** @brief Esc closes. */
     void textEditorEscapeKeyPressed(juce::TextEditor&) override;
-    /** @brief Up and down (and the page keys) in the search move the choice. */
+    /**
+     * @brief Up and down (and the page keys) in the search move the choice.
+     * @param[in]     key     the key pressed
+     * @param[in,out] origin  the component that had the focus
+     * @return true when the key was used
+     */
     bool keyPressed(const juce::KeyPress& key, juce::Component* origin) override;
 
     const Skin& m_skin;               ///< the colours it draws with
@@ -1057,7 +1711,11 @@ private:
  */
 class InfoLine final : public juce::Component, private juce::Timer {
 public:
-    /** @brief A line drawn with @p skin that follows the mouse over @p watched and everything in it. */
+    /**
+     * @brief A line drawn with @p skin that follows the mouse over @p watched and everything in it.
+     * @param[in]     skin     the skin it draws with
+     * @param[in,out] watched  the component whose controls it tells about
+     */
     InfoLine(const Skin& skin, juce::Component& watched);
     /** @brief Stops following the mouse. */
     ~InfoLine() override;
@@ -1066,11 +1724,20 @@ public:
      *        @p text; false for an id it does not know (the tooltip is shown then).
      */
     std::function<bool(int id, juce::String& name, juce::String& text)> m_describe;
-    /** @brief Tells about store id @p id without the mouse on it (the palette found it). */
+    /**
+     * @brief Tells about store id @p id without the mouse on it (the palette found it).
+     * @param[in] id  the store id
+     */
     void showControl(int id);
-    /** @brief Shows a line of its own (an Alt-drag's depth). */
+    /**
+     * @brief Shows a line of its own (an Alt-drag's depth).
+     * @param[in] text  the line
+     */
     void showText(const juce::String& text);
-    /** @brief The name in the accent, the rest dim. */
+    /**
+     * @brief The name in the accent, the rest dim.
+     * @param[in,out] g  the graphics context to draw into
+     */
     void paint(juce::Graphics& g) override;
     static constexpr int Height = 22;   ///< its height in a panel
 
@@ -1078,14 +1745,26 @@ private:
     /** @brief Follows the mouse over every component of the window (a listener of its own: the line is no parent of them). */
     struct Tracker final : public juce::MouseListener {
         InfoLine* m_line = nullptr;   ///< whose
-        /** @brief Over a component. */
+        /**
+         * @brief Over a component.
+         * @param[in] e  the mouse event
+         */
         void mouseMove(const juce::MouseEvent& e) override { m_line->over(e.eventComponent); }
-        /** @brief Into a component. */
+        /**
+         * @brief Into a component.
+         * @param[in] e  the mouse event
+         */
         void mouseEnter(const juce::MouseEvent& e) override { m_line->over(e.eventComponent); }
-        /** @brief Turning a knob: its value follows. */
+        /**
+         * @brief Turning a knob: its value follows.
+         * @param[in] e  the mouse event
+         */
         void mouseDrag(const juce::MouseEvent& e) override { m_line->over(e.eventComponent); }
     };
-    /** @brief The line for a component: a control's, or its tooltip. */
+    /**
+     * @brief The line for a component: a control's, or its tooltip.
+     * @param[in,out] c  the component under the mouse, or null
+     */
     void over(juce::Component* c);
     /** @brief The value anew while the mouse rests on a control. */
     void timerCallback() override;
@@ -1112,23 +1791,41 @@ public:
         juce::String m_title;                                     ///< its name
         juce::String m_text;                                      ///< what it does
     };
-    /** @brief A tour drawn with @p skin, not yet shown. */
+    /**
+     * @brief A tour drawn with @p skin, not yet shown.
+     * @param[in] skin  the skin it draws with
+     */
     explicit Tour(const Skin& skin);
     /** @brief Called when the tour ends (done or skipped). */
     std::function<void()> m_onDone;
-    /** @brief Begins it over its parent. */
+    /**
+     * @brief Begins it over its parent.
+     * @param[in] steps  the tour's steps
+     */
     void start(std::vector<Step> steps);
-    /** @brief Whether it is under way. */
+    /**
+     * @brief Whether it is under way.
+     * @return true while it is under way
+     */
     bool running() const { return isVisible() && !m_steps.empty(); }
-    /** @brief The dimmed window with the lit control and the bubble. */
+    /**
+     * @brief The dimmed window with the lit control and the bubble.
+     * @param[in,out] g  the graphics context to draw into
+     */
     void paint(juce::Graphics& g) override;
     /** @brief The bubble's buttons. */
     void resized() override;
 
 private:
-    /** @brief The lit control's rectangle in this component (empty when there is none). */
+    /**
+     * @brief The lit control's rectangle in this component (empty when there is none).
+     * @return the lit control's rectangle, empty when there is none
+     */
     juce::Rectangle<int> hole() const;
-    /** @brief The bubble's rectangle. */
+    /**
+     * @brief The bubble's rectangle.
+     * @return the bubble's rectangle
+     */
     juce::Rectangle<int> bubble() const;
     /** @brief The next step, or the end. */
     void next();
@@ -1170,23 +1867,45 @@ public:
         std::function<void()> m_endPreview;                     ///< the mark let go: back to the sound before
         std::function<void(const Entry&)> m_choose;             ///< takes a preset
     };
-    /** @brief A browser drawn with @p skin, keeping its lists in @p app's settings. */
+    /**
+     * @brief A browser drawn with @p skin, keeping its lists in @p app's settings.
+     * @param[in] skin  the skin it draws with
+     * @param[in] app   the instrument whose settings keep the lists
+     */
     PresetBrowser(const Skin& skin, const juce::String& app);
     /** @brief Lets go of the lists. */
     ~PresetBrowser() override;
-    /** @brief Opens it over its parent on @p bank. */
+    /**
+     * @brief Opens it over its parent on @p bank.
+     * @param[in] bank  the presets to show
+     */
     void open(Bank bank);
     /** @brief Closes it (a preset listened to is let go). */
     void close();
-    /** @brief Notes that preset @p name of bank @p key was played (the recent list; a preset chosen elsewhere too). */
+    /**
+     * @brief Notes that preset @p name of bank @p key was played (the recent list; a preset chosen elsewhere too).
+     * @param[in] app   the instrument
+     * @param[in] key   the bank's key
+     * @param[in] name  the preset's name
+     */
     static void played(const juce::String& app, const juce::String& key, const juce::String& name);
-    /** @brief The dimmed window and the panel. */
+    /**
+     * @brief The dimmed window and the panel.
+     * @param[in,out] g  the graphics context to draw into
+     */
     void paint(juce::Graphics& g) override;
     /** @brief The search, the categories, the list. */
     void resized() override;
-    /** @brief A click beside the panel closes it. */
+    /**
+     * @brief A click beside the panel closes it.
+     * @param[in] e  the mouse event
+     */
     void mouseDown(const juce::MouseEvent& e) override;
-    /** @brief Esc closes, Enter takes the chosen one. */
+    /**
+     * @brief Esc closes, Enter takes the chosen one.
+     * @param[in] key  the key pressed
+     * @return true when the key was used
+     */
     bool keyPressed(const juce::KeyPress& key) override;
 
 private:
@@ -1201,23 +1920,52 @@ private:
 
     /** @brief The entries that pass every filter, in order. */
     void filter();
-    /** @brief Takes a shown entry. */
+    /**
+     * @brief Takes a shown entry.
+     * @param[in] row  the row of the entry
+     */
     void choose(int row);
-    /** @brief The panel's rectangle. */
+    /**
+     * @brief The panel's rectangle.
+     * @return the panel's rectangle
+     */
     juce::Rectangle<int> panel() const;
-    /** @brief Whether @p name is a favourite. */
+    /**
+     * @brief Whether @p name is a favourite.
+     * @param[in] name  the preset's name
+     * @return true when it is a favourite
+     */
     bool favourite(const juce::String& name) const;
-    /** @brief Stars @p name or takes its star away. */
+    /**
+     * @brief Stars @p name or takes its star away.
+     * @param[in] name  the preset's name
+     * @param[in] on    true to star it
+     */
     void setFavourite(const juce::String& name, bool on);
-    /** @brief How many pass. */
+    /**
+     * @brief How many pass.
+     * @return how many entries pass the filter
+     */
     int getNumRows() override;
     /** @brief Unused: the rows are components (Row). */
     void paintListBoxItem(int, juce::Graphics&, int, int, bool) override {}
-    /** @brief A row's component. */
+    /**
+     * @brief A row's component.
+     * @param[in]     row       the row
+     * @param[in]     selected  true when the row is chosen
+     * @param[in,out] existing  the component the list had there, or null
+     * @return the row's component
+     */
     juce::Component* refreshComponentForRow(int row, bool selected, juce::Component* existing) override;
-    /** @brief Double-click takes it. */
+    /**
+     * @brief Double-click takes it.
+     * @param[in] row  the row
+     */
     void listBoxItemDoubleClicked(int row, const juce::MouseEvent&) override { choose(row); }
-    /** @brief Return takes it. */
+    /**
+     * @brief Return takes it.
+     * @param[in] row  the row chosen
+     */
     void returnKeyPressed(int row) override { choose(row); }
     /** @brief Typing filters. */
     void textEditorTextChanged(juce::TextEditor&) override { filter(); }
@@ -1276,15 +2024,29 @@ struct ModAccess {
 };
 
 namespace detail {
-/** @brief Letters and digits only, in lower case: two names compared loosely. */
+/**
+ * @brief Letters and digits only, in lower case: two names compared loosely.
+ * @param[in] s  the name
+ * @return its letters and digits in lower case
+ */
 inline juce::String loose(const juce::String& s) { return s.toLowerCase().retainCharacters("abcdefghijklmnopqrstuvwxyz0123456789"); }
-/** @brief Whether a source swings both ways (an LFO, the key, a random value) rather than 0 .. 1. */
+/**
+ * @brief Whether a source swings both ways (an LFO, the key, a random value) rather than 0 .. 1.
+ * @param[in] name  the source's name
+ * @return true when it swings both ways
+ */
 inline bool bipolarSource(const juce::String& name)
 {
     const juce::String l = name.toLowerCase();
     return l.contains("lfo") || l.contains("key") || l.contains("random");
 }
-/** @brief A source's colour by its kind: an LFO the motion's, an envelope the envelope's, the note's the source's, the rest the space's. */
+/**
+ * @brief A source's colour by its kind: an LFO the motion's, an envelope the envelope's, the note's the source's, the
+ *        rest the space's.
+ * @param[in] name  the source's name
+ * @param[in] skin  the skin
+ * @return the source's colour
+ */
 inline juce::Colour sourceColour(const juce::String& name, const Skin& skin)
 {
     const juce::String l = name.toLowerCase();
@@ -1293,7 +2055,11 @@ inline juce::Colour sourceColour(const juce::String& name, const Skin& skin)
     if (l.contains("vel") || l.contains("key") || l.contains("random") || l.contains("note")) return skin.family(FamilyE::SOURCE);
     return skin.family(FamilyE::SPACE);
 }
-/** @brief A source's section in the "Modulate with" menu. */
+/**
+ * @brief A source's section in the "Modulate with" menu.
+ * @param[in] name  the source's name
+ * @return its section in the menu
+ */
 inline juce::String sourceSection(const juce::String& name)
 {
     const juce::String l = name.toLowerCase();
@@ -1306,16 +2072,18 @@ inline juce::String sourceSection(const juce::String& name)
 
 /**
  * @brief ModAccess for a voice's own matrix as the generators have it (Ephemeris' Modulation.h, then Phosphene's and
- *        Parhelion's): per module instance eight (or more) slots of three knobs -- "mod<n>_src", "_dst", "_amount" (or
- *        "mx<n>_...") --, the source a menu of the sources, the destination a menu of the voice's targets. A knob is a
+ *        Parhelion's): per module instance eight (or more) slots of three knobs -- "mod\<n\>_src", "_dst", "_amount" (or
+ *        "mx\<n\>_...") --, the source a menu of the sources, the destination a menu of the voice's targets. A knob is a
  *        target where one of those targets is named as it is ("Cutoff", "Bow Pressure"); its rows are the slots on that
  *        target. A template, because each generator's ParamStore is its own (the same shape: count, desc, key, find,
  *        get, getInt).
- * @param store the parameters
- * @param set   sets a knob (store id, real value) as the panel does (through the host; inside begin/end one step)
- * @param begin opens an undo step
- * @param end   closes it
- * @param skin  the colours of the sources
+ * @param[in,out] store  the parameters
+ * @param[in]     set    sets a knob (store id, real value) as the panel does (through the host; inside begin/end one
+ *                       step)
+ * @param[in]     begin  opens an undo step
+ * @param[in]     end    closes it
+ * @param[in]     skin   the colours of the sources
+ * @return the access to the matrix
  */
 template <class StoreT>
 ModAccess slotMatrix(StoreT& store, std::function<void(int, float)> set, std::function<void(const juce::String&)> begin,
@@ -1441,15 +2209,35 @@ ModAccess slotMatrix(StoreT& store, std::function<void(int, float)> set, std::fu
  */
 class ModulationAtKnob {
 public:
-    /** @brief The modulation of @p access. */
+    /**
+     * @brief The modulation of @p access.
+     * @param[in] access  the matrix it works on
+     */
     explicit ModulationAtKnob(ModAccess access) : m_access(std::move(access)) {}
-    /** @brief Puts it into the controls' @p actions (more, altDrag) and the knobs' @p rings (the arcs). */
+    /**
+     * @brief Puts it into the controls' @p actions (more, altDrag) and the knobs' @p rings (the arcs).
+     * @param[in,out] actions  the controls' actions
+     * @param[in,out] rings    the knobs' rings, or null
+     */
     void install(ControlActions& actions, LiveRings* rings);
-    /** @brief The modulation items for store id @p id in a knob's menu (nothing for an id that is no target). */
+    /**
+     * @brief The modulation items for store id @p id in a knob's menu (nothing for an id that is no target).
+     * @param[in,out] m   the knob's menu, added to
+     * @param[in]     id  the knob's store id
+     */
     void addMenuItems(juce::PopupMenu& m, int id);
-    /** @brief An Alt-drag on store id @p id (ControlActions::altDrag): phase 0 the press, 1 each drag, 2 the release. */
+    /**
+     * @brief An Alt-drag on store id @p id (ControlActions::altDrag): phase 0 the press, 1 each drag, 2 the release.
+     * @param[in] id     the knob's store id
+     * @param[in] e      the mouse event
+     * @param[in] phase  0 the press, 1 a drag, 2 the release
+     * @return true when it took the drag
+     */
     bool altDrag(int id, const juce::MouseEvent& e, int phase);
-    /** @brief What it works on. */
+    /**
+     * @brief What it works on.
+     * @return the matrix it works on
+     */
     const ModAccess& access() const { return m_access; }
 
 private:

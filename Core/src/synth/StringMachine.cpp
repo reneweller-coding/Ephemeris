@@ -1,6 +1,7 @@
 /**
  * @file StringMachine.cpp
  * @brief Divide-down registers, the registration, the ensemble and the phaser.
+ * @author Rene Weller
  */
 #include "eph/synth/StringMachine.h"
 #include "eph/synth/Oscillator.h"   // polyBlep
@@ -38,7 +39,11 @@ const Registration RegTable[StringMachine::Registrations] = {
     { "Organ",   { 0.45f, 0.00f, 0.00f, 1.00f, 0.70f }, 0.90f, 0.885f },
 };
 
-/** @brief The fraction of @p x. */
+/**
+ * @brief The fraction of @p x.
+ * @param[in] x  the number
+ * @return its fraction, 0..1
+ */
 float frac(double x) { return static_cast<float>(x - std::floor(x)); }
 } // namespace
 

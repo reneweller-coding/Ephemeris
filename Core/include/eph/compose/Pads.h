@@ -11,6 +11,7 @@
  * A tape keyboard cannot hold a chord longer than its tapes: the writer re-strikes before the tape
  * ends (`restrikeSeconds`, less than TapeSeconds) and at every change of root, and staggers the keys of
  * a chord by a few milliseconds, as ten fingers do.
+ * @author Rene Weller
  */
 #pragma once
 #include "eph/Dsp.h"
@@ -39,10 +40,23 @@ struct PadPlan {
  * @brief The drone: the root in the second octave (E2 .. E3), held through each of @p roots (null: the score's,
  *        Score::rootShifts) between @p from and @p to. The composer hands in the keys alone, so the drone stays
  *        on the centre while the transposer moves the sequence (the style guide's 3.3 and 3.7).
+ * @param[in,out] score    the score written to
+ * @param[in]     keyRoot  the key's root note
+ * @param[in]     from     the first beat
+ * @param[in]     to       the end in beats
+ * @param[in]     roots    the (beat, semitones) root changes, or null for the score's
  */
 void writeDrone(Score& score, int keyRoot, double from, double to, const std::vector<std::pair<double, int>>* roots = nullptr);
 
-/** @brief Writes chords between two beats; returns the number of chords struck. */
+/**
+ * @brief Writes chords between two beats; returns the number of chords struck.
+ * @param[in,out] score  the score written to
+ * @param[in]     plan   the pads' plan
+ * @param[in]     from   the first beat
+ * @param[in]     to     the end in beats
+ * @param[in,out] rng    the random stream
+ * @return the number of chords struck
+ */
 int writeChords(Score& score, const PadPlan& plan, double from, double to, Rng& rng);
 
 } // namespace eph

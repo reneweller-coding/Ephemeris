@@ -1,6 +1,7 @@
 /**
  * @file Study.cpp
  * @brief The study of Phase 1.
+ * @author Rene Weller
  */
 #include "eph/Study.h"
 #include "eph/Rack.h"

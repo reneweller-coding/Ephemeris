@@ -1,6 +1,7 @@
 /**
  * @file Cue.cpp
  * @brief Score cues for a visualiser (Cue.h).
+ * @author Rene Weller
  */
 #include "eph/Cue.h"
 #include "eph/Dsp.h"
@@ -33,7 +34,11 @@ namespace {
 
 const char* const RootNames[12] = { "C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B" };   ///< the keys' names
 
-/** @brief The English name of a section, from the composer's German marker ("Aufbau 2" -> "BUILD"). */
+/**
+ * @brief The English name of a section, from the composer's German marker ("Aufbau 2" -> "BUILD").
+ * @param[in] marker  the composer's marker
+ * @return the section's English name
+ */
 const char* sectionOf(const std::string& marker)
 {
     struct Name { const char* m_de; const char* m_en; };
@@ -46,20 +51,32 @@ const char* sectionOf(const std::string& marker)
     return nullptr;
 }
 
-/** @brief Copies @p src into @p dst, cut at 15 characters and terminated. */
+/**
+ * @brief Copies @p src into @p dst, cut at 15 characters and terminated.
+ * @param[out] dst  receives the text
+ * @param[in]  src  the text
+ */
 void copyText(char (&dst)[16], const char* src)
 {
     std::strncpy(dst, src, sizeof(dst) - 1);
     dst[sizeof(dst) - 1] = 0;
 }
 
-/** @brief Appends @p v big-endian (OSC). */
+/**
+ * @brief Appends @p v big-endian (OSC).
+ * @param[in,out] out  the bytes, appended to
+ * @param[in]     v    the value
+ */
 void put32(std::vector<uint8_t>& out, uint32_t v)
 {
     for (int s = 24; s >= 0; s -= 8) out.push_back(static_cast<uint8_t>(v >> s));
 }
 
-/** @brief Appends @p s as an OSC string: terminated and padded to four bytes. */
+/**
+ * @brief Appends @p s as an OSC string: terminated and padded to four bytes.
+ * @param[in,out] out  the bytes, appended to
+ * @param[in]     s    the string
+ */
 void putString(std::vector<uint8_t>& out, const char* s)
 {
     const size_t n = std::strlen(s);

@@ -12,6 +12,7 @@
  *
  * It is still not the composer (Phase 4): the form is fixed, only its contents are drawn. It exists to
  * hear the parts of Phase 2 together, and as the reference piece of the tests.
+ * @author Rene Weller
  */
 #pragma once
 #include "eph/Params.h"

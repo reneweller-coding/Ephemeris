@@ -1,6 +1,7 @@
 /**
  * @file PluginEditor.cpp
  * @brief The plugin's panel.
+ * @author Rene Weller
  */
 #include "PluginEditor.h"
 #include "EditorMixer.h"
@@ -31,6 +32,8 @@ const juce::Colour Accent = ephui::colour::Amber;   ///< the sun: the accent
  * @brief Colour of a section by the first word of its marker: the families' colours, darkened -- the spaces (the
  *        atmosphere, the bridges, the fade) in the room's blue, the machine's stages from the sources' amber through the
  *        filter's copper at the peak, the breakdown in the teal of what moves by itself.
+ * @param[in] name  the marker's text
+ * @return the section's colour
  */
 juce::Colour sectionColour(const juce::String& name)
 {
@@ -47,14 +50,26 @@ juce::Colour sectionColour(const juce::String& name)
     return tone(Family::SPACE, 0.8f);
 }
 
-/** @brief A synth's name in the presets' folder and the browser: its parameters' key without the lane's number ("bass", "perc"). */
+/**
+ * @brief A synth's name in the presets' folder and the browser: its parameters' key without the lane's number ("bass",
+ *        "perc").
+ * @param[in] s  the parameters
+ * @param[in] m  the synth
+ * @return its name for the presets
+ */
 juce::String synthKey(const ParamStore& s, ModuleE m)
 {
     const std::string& k = s.key(s.id(m, 0, 0));
     return juce::String(k.substr(0, k.find('.'))).trimCharactersAtEnd("0123456789");
 }
 
-/** @brief "perc3.decay" -> "Perc 3", "kick.tune" -> "Kick": the module instance a store id belongs to, for the palette and the info line. */
+/**
+ * @brief "perc3.decay" -> "Perc 3", "kick.tune" -> "Kick": the module instance a store id belongs to, for the palette
+ *        and the info line.
+ * @param[in] s   the parameters
+ * @param[in] id  the store id
+ * @return the module instance's label
+ */
 juce::String moduleLabel(const ParamStore& s, int id)
 {
     const std::string& k = s.key(id);
@@ -65,7 +80,12 @@ juce::String moduleLabel(const ParamStore& s, int id)
     return digits.isEmpty() ? nice : nice + " " + digits;
 }
 
-/** @brief Whether the knobs stand where @p values put them (within a thousandth of each one's range). */
+/**
+ * @brief Whether the knobs stand where @p values put them (within a thousandth of each one's range).
+ * @param[in] s       the parameters
+ * @param[in] values  the knobs and their values
+ * @return true when every knob stands there
+ */
 bool knobsAt(const ParamStore& s, const std::vector<std::pair<int, float>>& values)
 {
     for (const auto& [id, v] : values) {
@@ -75,7 +95,11 @@ bool knobsAt(const ParamStore& s, const std::vector<std::pair<int, float>>& valu
     return true;
 }
 
-/** @brief The small tabs of a page: the page itself, or the first SubTabs inside it. */
+/**
+ * @brief The small tabs of a page: the page itself, or the first SubTabs inside it.
+ * @param[in,out] c  the page
+ * @return its small tabs, null when it has none
+ */
 frame::SubTabs* findSubTabs(juce::Component* c)
 {
     if (c == nullptr) return nullptr;
@@ -85,7 +109,15 @@ frame::SubTabs* findSubTabs(juce::Component* c)
     return nullptr;
 }
 
-/** @brief The knobs of menu id @p menuId of synth @p m on instance @p instance (a factory preset's index + 1, or 5001 + one of the player's). */
+/**
+ * @brief The knobs of menu id @p menuId of synth @p m on instance @p instance (a factory preset's index + 1, or 5001 +
+ *        one of the player's).
+ * @param[in,out] p         the processor
+ * @param[in]     m         the synth
+ * @param[in]     instance  its instance
+ * @param[in]     menuId    the menu id
+ * @return (parameter id, value) of the preset's knobs
+ */
 std::vector<std::pair<int, float>> knobsOf(EphemerisProcessor& p, ModuleE m, int instance, int menuId)
 {
     std::vector<std::pair<int, float>> out;
@@ -1098,6 +1130,8 @@ void ScrollingPage::fit(ParamPage& page, juce::Viewport& view, juce::Rectangle<i
 /**
  * @brief The logo (Deploy/make_icon.py, drawn as vectors): the Rack page's orrery -- a warm sun, orbits and their
  *        planets on a dark tile; two orbits up to 24 px, three up to 48, five above.
+ * @param[in,out] g  the graphics context to draw into
+ * @param[in]     r  where the logo goes
  */
 void drawLogo(juce::Graphics& g, juce::Rectangle<float> r)
 {
@@ -1125,10 +1159,16 @@ void drawLogo(juce::Graphics& g, juce::Rectangle<float> r)
 // ---------------------------------------------------------------------------------------------------
 
 namespace {
-/** @brief The documents folder of Ephemeris. */
+/**
+ * @brief The documents folder of Ephemeris.
+ * @return the folder
+ */
 juce::File documents() { return juce::File::getSpecialLocation(juce::File::userDocumentsDirectory).getChildFile("Ephemeris"); }
 
-/** @brief A tab of several pages (the frame's sub-tabs). */
+/**
+ * @brief A tab of several pages (the frame's sub-tabs).
+ * @return the sub-tabs
+ */
 std::unique_ptr<frame::SubTabs> subTabs() { return std::make_unique<frame::SubTabs>(ephui::skin()); }
 } // namespace
 
@@ -1707,7 +1747,7 @@ void EphemerisEditor::timerCallback()
     // EPH_SHOT_AT (a beat) moves the playhead there first, so the picture can show the middle of a piece.
     if (m_shotPath.isNotEmpty() && !m_proc.isComposing() && m_shotTicks == 0)
         if (const char* at = std::getenv("EPH_SHOT_AT")) m_proc.seekTo(std::atof(at));
-    // EPH_PAGE_REPORT=<file> (01.10.2026): how far every page reaches past the window, a line each (Frame.h, pageReport),
+    // EPH_PAGE_REPORT=\<file\> (01.10.2026): how far every page reaches past the window, a line each (Frame.h, pageReport),
     // then quit -- which page still scrolls at the usual size.
     if (const char* report = std::getenv("EPH_PAGE_REPORT"); report != nullptr && !m_proc.isComposing()) {
         static int reportTicks = 0;

@@ -19,6 +19,7 @@
  * draw from a stream of their own, so modulation never shifts the voice's drift.
  *
  * **Fade.** An LFO can come in over a few seconds after each note, as a player reaches for the wheel.
+ * @author Rene Weller
  */
 #pragma once
 #include "eph/Dsp.h"
@@ -42,7 +43,12 @@ enum class ModDestE : int { OFF, PITCH, PULSE_WIDTH, WAVE, TABLE_POS, CUTOFF, RE
 constexpr int ModSources = static_cast<int>(ModSourceE::COUNT);   ///< sources including Off
 constexpr int ModDests = static_cast<int>(ModDestE::COUNT);       ///< destinations including Off
 
-/** @brief Cycles per beat of an LFO's sync division (LfoSyncNames: free, 4, 2, 1 bars, 1/2 .. 1/16, 1/4T, 1/8T); 0: free. */
+/**
+ * @brief Cycles per beat of an LFO's sync division (LfoSyncNames: free, 4, 2, 1 bars, 1/2 .. 1/16, 1/4T, 1/8T); 0:
+ *        free.
+ * @param[in] sync  the sync division
+ * @return the cycles per beat, 0 for free
+ */
 inline double lfoCyclesPerBeat(int sync)
 {
     static const double k[10] = { 0.0, 1.0 / 16.0, 1.0 / 8.0, 1.0 / 4.0, 1.0 / 2.0, 1.0, 2.0, 4.0, 1.5, 3.0 };
@@ -73,7 +79,11 @@ struct ModSettings {
     ModSlot m_slot[ModSlots];   ///< the matrix
 };
 
-/** @brief The smaller matrix's destinations (the tape keys', the strings': ShortModDestNames) as ModDest. */
+/**
+ * @brief The smaller matrix's destinations (the tape keys', the strings': ShortModDestNames) as ModDest.
+ * @param[in] i  the destination in the smaller matrix
+ * @return the destination as ModDest
+ */
 inline int shortModDest(int i)
 {
     static const int k[5] = { 0, static_cast<int>(ModDestE::PITCH), static_cast<int>(ModDestE::CUTOFF), static_cast<int>(ModDestE::LEVEL),
@@ -81,7 +91,11 @@ inline int shortModDest(int i)
     return k[std::clamp(i, 0, 4)];
 }
 
-/** @brief The span of each destination for an amount of 1 (see the file comment); the pitch's amount is squared. */
+/**
+ * @brief The span of each destination for an amount of 1 (see the file comment); the pitch's amount is squared.
+ * @param[in] d  the destination
+ * @return its span for an amount of 1
+ */
 inline float modDestSpan(ModDestE d)
 {
     switch (d) {
@@ -102,7 +116,11 @@ inline float modDestSpan(ModDestE d)
  */
 class Modulator {
 public:
-    /** @brief The sample rate and the seed of the random shapes' stream. */
+    /**
+     * @brief The sample rate and the seed of the random shapes' stream.
+     * @param[in] sampleRate  the sample rate in Hz
+     * @param[in] seed        the seed of the random shapes
+     */
     void prepare(double sampleRate, uint64_t seed)
     {
         m_sr = sampleRate > 0.0 ? sampleRate : 48000.0;
@@ -116,7 +134,10 @@ public:
         m_noteAt = std::numeric_limits<int64_t>::min() / 2;
         set(m_);
     }
-    /** @brief Takes new settings; the LFOs run on. */
+    /**
+     * @brief Takes new settings; the LFOs run on.
+     * @param[in] m  the settings
+     */
     void set(const ModSettings& m)
     {
         m_ = m;
@@ -144,11 +165,23 @@ public:
             m_lfo[l].m_cpb = lfoCyclesPerBeat(m.m_lfo[l].m_sync);
         }
     }
-    /** @brief Whether any slot is live. */
+    /**
+     * @brief Whether any slot is live.
+     * @return true when any slot is live
+     */
     bool active() const { return m_live > 0; }
-    /** @brief Whether a live slot reaches @p d. */
+    /**
+     * @brief Whether a live slot reaches @p d.
+     * @param[in] d  the destination
+     * @return true when a live slot reaches it
+     */
     bool targets(ModDestE d) const { return ((m_dstMask >> static_cast<int>(d)) & 1u) != 0u; }
-    /** @brief A new note at sample @p at, beat @p beat: the envelope's attack, the retriggered LFOs from their start, the fades from 0. */
+    /**
+     * @brief A new note at sample @p at, beat @p beat: the envelope's attack, the retriggered LFOs from their start,
+     *        the fades from 0.
+     * @param[in] at    the note's sample
+     * @param[in] beat  its beat
+     */
     void noteOn(int64_t at, double beat)
     {
         m_env.noteOn();
@@ -170,8 +203,10 @@ public:
     void tick() { if (m_envUsed) m_env.process(); }
     /**
      * @brief The sums per destination at sample @p at, beat @p beat.
-     * @param ext the voice's own sources, indexed by ModSource (FilterEnv, Velocity, ModLane are read)
-     * @param out ModDests sums, overwritten
+     * @param[in]     at    the sample
+     * @param[in]     beat  the beat
+     * @param[in]     ext   the voice's own sources, indexed by ModSource (FilterEnv, Velocity, ModLane are read)
+     * @param[in,out] out   ModDests sums, overwritten
      */
     void evaluate(int64_t at, double beat, const float* ext, float* out)
     {
@@ -185,9 +220,17 @@ public:
         for (int d = 0; d < ModDests; ++d) out[d] = 0.0f;
         for (int i = 0; i < m_live; ++i) out[m_liveSlots[i].m_dst] += src[m_liveSlots[i].m_src] * m_liveSlots[i].m_amount;
     }
-    /** @brief The envelope's level (for tests). */
+    /**
+     * @brief The envelope's level (for tests).
+     * @return the envelope's level
+     */
     float envLevel() const { return m_env.level(); }
-    /** @brief @p sum of destination @p d where a slot reaches it, else nothing (for the synths' per-destination reads). */
+    /**
+     * @brief @p sum of destination @p d where a slot reaches it, else nothing (for the synths' per-destination reads).
+     * @param[in] sums  the sums per destination
+     * @param[in] d     the destination
+     * @return its sum where a slot reaches it, else 0
+     */
     float offset(const float* sums, ModDestE d) const { return active() && targets(d) ? sums[static_cast<int>(d)] : 0.0f; }
 
 private:
@@ -209,14 +252,23 @@ private:
         float m_amount = 0.0f;   ///< its amount, scaled by the destination's span
     };
 
-    /** @brief The free LFOs run on to sample @p at (read or not). */
+    /**
+     * @brief The free LFOs run on to sample @p at (read or not).
+     * @param[in] at  the sample to run on to
+     */
     void advance(int64_t at)
     {
         const double n = static_cast<double>(at - m_lastAt);
         for (LfoState& s : m_lfo) if (s.m_cpb <= 0.0) s.m_cyc += n * s.m_inc;
         m_lastAt = at;
     }
-    /** @brief LFO @p l's value at sample @p at, beat @p beat. */
+    /**
+     * @brief LFO @p l's value at sample @p at, beat @p beat.
+     * @param[in] l     the LFO
+     * @param[in] at    the sample
+     * @param[in] beat  the beat
+     * @return its value
+     */
     float value(int l, int64_t at, double beat)
     {
         LfoState& s = m_lfo[l];

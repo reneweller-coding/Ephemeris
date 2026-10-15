@@ -1,6 +1,7 @@
 /**
  * @file Lead.cpp
  * @brief Lead phrases by rule.
+ * @author Rene Weller
  */
 #include "eph/compose/Lead.h"
 #include "eph/Rack.h"
@@ -11,7 +12,12 @@ namespace eph {
 
 namespace {
 
-/** @brief Pitch classes (relative to the root) of the scale, and of the pentatonic within it. */
+/**
+ * @brief Pitch classes (relative to the root) of the scale, and of the pentatonic within it.
+ * @param[in]  scale       the scale
+ * @param[out] inScaleSet  twelve flags, true for the scale's pitch classes
+ * @param[out] pentatonic  twelve flags, true for the pentatonic's
+ */
 void pitchSets(int scale, bool* inScaleSet, bool* pentatonic)
 {
     for (int i = 0; i < 12; ++i) inScaleSet[i] = pentatonic[i] = false;
@@ -23,7 +29,14 @@ void pitchSets(int scale, bool* inScaleSet, bool* pentatonic)
     if (inScaleSet[9]) pentatonic[9] = true;
 }
 
-/** @brief The allowed pitches in the register, under a root. */
+/**
+ * @brief The allowed pitches in the register, under a root.
+ * @param[in] low     the register's lowest note
+ * @param[in] high    its highest note
+ * @param[in] rootPc  the root's pitch class
+ * @param[in] set     twelve flags of the allowed pitch classes above the root
+ * @return the allowed notes, rising
+ */
 std::vector<int> allowed(int low, int high, int rootPc, const bool* set)
 {
     std::vector<int> out;
@@ -32,7 +45,12 @@ std::vector<int> allowed(int low, int high, int rootPc, const bool* set)
     return out;
 }
 
-/** @brief The index of the pitch in @p v nearest @p pitch. */
+/**
+ * @brief The index of the pitch in @p v nearest @p pitch.
+ * @param[in] v      the pitches
+ * @param[in] pitch  the pitch
+ * @return the index of the nearest
+ */
 int nearestIndex(const std::vector<int>& v, int pitch)
 {
     int best = 0;
@@ -41,7 +59,14 @@ int nearestIndex(const std::vector<int>& v, int pitch)
     return best;
 }
 
-/** @brief A phrase's rhythm over @p span beats: lengths in beats, a negative entry a rest; the last note is held to the end. */
+/**
+ * @brief A phrase's rhythm over @p span beats: lengths in beats, a negative entry a rest; the last note is held to the
+ *        end.
+ * @param[in]     span       the phrase's length in beats
+ * @param[in]     intensity  how dense, 0..1
+ * @param[in,out] rng        the random stream
+ * @return the lengths in beats, negative for rests
+ */
 std::vector<double> drawRhythm(double span, float intensity, Rng& rng)
 {
     std::vector<double> rhythm;
@@ -62,7 +87,12 @@ std::vector<double> drawRhythm(double span, float intensity, Rng& rng)
     return rhythm;
 }
 
-/** @brief A step on the pentatonic: mostly up in the first half of a phrase, mostly down in the second, the odd leap. */
+/**
+ * @brief A step on the pentatonic: mostly up in the first half of a phrase, mostly down in the second, the odd leap.
+ * @param[in]     rising  true in the first half of a phrase
+ * @param[in,out] rng     the random stream
+ * @return the step in degrees of the pentatonic
+ */
 int drawStep(bool rising, Rng& rng)
 {
     const float u = rng.uniform();
@@ -72,7 +102,14 @@ int drawStep(bool rising, Rng& rng)
     return step;
 }
 
-/** @brief The nearest chord tone within four semitones, inside the register (@p pitch itself if there is none). */
+/**
+ * @brief The nearest chord tone within four semitones, inside the register (@p pitch itself if there is none).
+ * @param[in] pitch   the note
+ * @param[in] rootPc  the root's pitch class
+ * @param[in] chord   twelve flags of the chord's pitch classes above the root
+ * @param[in] plan    the lead's plan (its register)
+ * @return the chord tone, or the note itself
+ */
 int toChordTone(int pitch, int rootPc, const bool* chord, const LeadPlan& plan)
 {
     for (int d = 1; d < 5; ++d) {
@@ -85,6 +122,16 @@ int toChordTone(int pitch, int rootPc, const bool* chord, const LeadPlan& plan)
 /**
  * @brief One lead note; where @p glideSpot allows (a phrase's start, a long note) sometimes with a glide
  *        from the scale tone below (a whole tone, or a half where the scale has no whole).
+ * @param[in,out] score      the score written to
+ * @param[in]     plan       the lead's plan
+ * @param[in]     sc         twelve flags of the scale's pitch classes above the root
+ * @param[in]     rootPc     the root's pitch class
+ * @param[in]     pitch      the note
+ * @param[in]     beat       its start in beats
+ * @param[in]     len        the length of its slot in beats
+ * @param[in]     noteLen    the note's own length in beats
+ * @param[in]     glideSpot  true where a glide may come
+ * @param[in,out] rng        the random stream
  */
 void writeNote(Score& score, const LeadPlan& plan, const bool* sc, int rootPc, int pitch, double beat,
                double len, double noteLen, bool glideSpot, Rng& rng)

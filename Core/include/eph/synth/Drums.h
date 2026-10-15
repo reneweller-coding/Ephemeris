@@ -15,6 +15,7 @@
  * - **rim** and **shaker**: a click with a short tone, and band-passed noise with a soft attack.
  * Notes arrive as General MIDI numbers (36 kick, 38 snare, 42/46 hats, 45/48 toms, 37 rim, 70 shaker),
  * so the MIDI export and the render agree.
+ * @author Rene Weller
  */
 #pragma once
 #include "eph/Dsp.h"
@@ -32,12 +33,35 @@ struct DrumSettings {
 /** @brief The kit; stereo out. */
 class DrumKit {
 public:
-    void prepare(double sampleRate, uint64_t seed);   ///< sample rate and the noise's seed
-    void set(const DrumSettings& s);                  ///< call at every 32-sample cell
-    /** @brief Strikes the instrument of General MIDI note @p note; toms take @p tomHz as their pitch. */
+    /**
+     * sample rate and the noise's seed
+     * @param[in] sampleRate  the sample rate in Hz
+     * @param[in] seed        the noise's seed
+     */
+    void prepare(double sampleRate, uint64_t seed);
+    /**
+     * call at every 32-sample cell
+     * @param[in] s  the settings
+     */
+    void set(const DrumSettings& s);
+    /**
+     * @brief Strikes the instrument of General MIDI note @p note; toms take @p tomHz as their pitch.
+     * @param[in] note      the General MIDI note
+     * @param[in] velocity  the velocity, 0..1
+     * @param[in] tomHz     the toms' pitch in Hz
+     */
     void hit(int note, float velocity, float tomHz);
-    bool active() const;                              ///< whether anything still rings
-    /** @brief Renders @p n samples into @p L and @p R (overwritten). */
+    /**
+     * whether anything still rings
+     * @return true while anything rings
+     */
+    bool active() const;
+    /**
+     * @brief Renders @p n samples into @p L and @p R (overwritten).
+     * @param[out] L  receives the left channel (overwritten)
+     * @param[out] R  receives the right channel (overwritten)
+     * @param[in]  n  how many samples
+     */
     void process(float* L, float* R, int n);
 
 private:
@@ -52,7 +76,10 @@ private:
         float m_hz = 100.0f;   ///< its pitch, Hz
         Svf m_bp;   ///< its noise's band pass
     };
-    /** @brief White noise, -1 .. 1. */
+    /**
+     * @brief White noise, -1 .. 1.
+     * @return a white noise sample, -1 .. 1
+     */
     float noise() { return m_rng.bipolar(); }
     double m_sr = 48000.0;   ///< the sample rate, Hz
     DrumSettings m_s;   ///< the settings

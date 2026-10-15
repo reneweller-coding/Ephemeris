@@ -9,8 +9,9 @@
  * takes the track's tempo. In a DAW the host's transport rules and Link is not used. Ableton Link is free software
  * (GPL-2.0-or-later, github.com/Ableton/link), compiled in through cmake/Family.cmake (family_link).
  *
- * For tests and diagnostics: FAMILY_LINK=1 switches it on without touching the settings, FAMILY_LINK_REPORT=<file>
+ * For tests and diagnostics: FAMILY_LINK=1 switches it on without touching the settings, FAMILY_LINK_REPORT=\<file\>
  * appends a line a second with what the session says (tick()).
+ * @author Rene Weller
  */
 #pragma once
 #include <atomic>
@@ -32,21 +33,54 @@ public:
 
     LinkClock();
     ~LinkClock();
-    /** @brief Joins or leaves the session (message thread). */
+    /**
+     * @brief Joins or leaves the session (message thread).
+     * @param[in] on  true to join the session
+     * @pre called on the message thread
+     */
     void setEnabled(bool on);
-    /** @brief Whether it is in the session. */
+    /**
+     * @brief Whether it is in the session.
+     * @return true while it is in the session
+     */
     bool enabled() const { return m_enabled.load(std::memory_order_relaxed); }
-    /** @brief How many other apps are in the session (any thread). */
+    /**
+     * @brief How many other apps are in the session (any thread).
+     * @return how many other apps are in the session
+     */
     int peers() const;
-    /** @brief The session at the moment a block starting now is heard, @p latencySeconds from now (audio thread). */
+    /**
+     * @brief The session at the moment a block starting now is heard, @p latencySeconds from now (audio thread).
+     * @param[in] latencySeconds  the output latency in seconds
+     * @param[in] quantum         the bar's length in beats
+     * @return the session at that moment
+     * @pre called on the audio thread
+     */
     Now capture(double latencySeconds, double quantum) const;
-    /** @brief Proposes @p bpm to the session -- the app alone in it leads (audio thread). */
+    /**
+     * @brief Proposes @p bpm to the session -- the app alone in it leads (audio thread).
+     * @param[in] bpm             the tempo
+     * @param[in] latencySeconds  the output latency in seconds
+     * @pre called on the audio thread
+     */
     void proposeTempo(double bpm, double latencySeconds);
-    /** @brief Starts or stops the session's transport; a start lines beat 0 up with the next bar (audio thread). */
+    /**
+     * @brief Starts or stops the session's transport; a start lines beat 0 up with the next bar (audio thread).
+     * @param[in] playing         true to start, false to stop
+     * @param[in] latencySeconds  the output latency in seconds
+     * @param[in] quantum         the bar's length in beats
+     * @pre called on the audio thread
+     */
     void setPlaying(bool playing, double latencySeconds, double quantum);
-    /** @brief Whether FAMILY_LINK=1 asks for Link whatever the settings say (tests). */
+    /**
+     * @brief Whether FAMILY_LINK=1 asks for Link whatever the settings say (tests).
+     * @return true when FAMILY_LINK=1 is set
+     */
     static bool forcedOn();
-    /** @brief Message thread, on the owner's timer: with FAMILY_LINK_REPORT set, a line a second on the session. */
+    /**
+     * @brief Message thread, on the owner's timer: with FAMILY_LINK_REPORT set, a line a second on the session.
+     * @pre called on the message thread
+     */
     void tick();
 
 private:

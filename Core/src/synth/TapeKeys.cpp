@@ -1,6 +1,7 @@
 /**
  * @file TapeKeys.cpp
  * @brief The tape keyboard.
+ * @author Rene Weller
  */
 #include "eph/synth/TapeKeys.h"
 #include <algorithm>
@@ -22,7 +23,11 @@ constexpr float OohG[5] = { 0.0f, -10.0f, -26.0f, -32.0f, -36.0f };   ///< "ooh"
 
 constexpr int StringSaws = 5;   ///< saws of a strings tape
 
-/** @brief The pressure pad's rise time constant for tape set @p set, s. */
+/**
+ * @brief The pressure pad's rise time constant for tape set @p set, s.
+ * @param[in] set  the tape set
+ * @return the rise time constant in seconds
+ */
 double riseTau(TapeSetE set) { return set == TapeSetE::STRINGS ? 0.08 : (set == TapeSetE::FLUTE ? 0.05 : 0.06); }
 
 } // namespace

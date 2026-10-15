@@ -25,6 +25,7 @@
  * **Threads.** The audio thread posts (lead) and reads (follow) through wait-free rings and atomics; the bus's own
  * thread owns the socket, sends what was posted and decodes what arrives. Nothing here allocates or locks on the
  * audio thread, and a network that is down only means that nobody is heard.
+ * @author Rene Weller
  */
 #include "Frame.h"
 #include <juce_core/juce_core.h>
@@ -38,16 +39,20 @@ namespace frame {
 /** @brief The kinds of section the jam knows (the score cues' table in KaleidoscopeEnhanced, without its two extras). */
 enum class JamSectionE : uint8_t { INTRO, GROOVE, BUILD, DROP, BREAK, OUTRO };
 
-/** @brief A section kind's name on the wire ("Intro" ... "Outro"). @param s the kind */
+/**
+ * @brief A section kind's name on the wire ("Intro" ... "Outro").
+ * @param[in] s  the kind
+ * @return the section's name
+ */
 const char* jamSectionName(JamSectionE s);
 
 /**
  * @brief Maps an instrument's own name of a section to the jam's table: Totality's blocks ("Block 3", "Reduction",
  *        "Return"), Parhelion's sections ("Breakdown", "Main drop"), Ephemeris' phases ("ENTRY", "PEAK") and the jam's
  *        own names. Anything else is a groove.
- * @param name   the instrument's name of the section
- * @param energy receives its energy (0..1)
- * @param drop   receives whether it lands as a drop
+ * @param[in]  name    the instrument's name of the section
+ * @param[out] energy  receives its energy (0..1)
+ * @param[out] drop    receives whether it lands as a drop
  * @return its kind
  */
 JamSectionE jamSectionOf(const char* name, float& energy, bool& drop);
@@ -65,44 +70,69 @@ public:
     static constexpr const char* Group = "239.255.77.77";   ///< the multicast group
     static constexpr int Port = 9177;                        ///< its port
 
-    /** @brief A bus for instrument @p app; it opens nothing until a role is set. */
+    /**
+     * @brief A bus for instrument @p app; it opens nothing until a role is set.
+     * @param[in] app  the instrument's name
+     */
     explicit JamBus(const juce::String& app);
     /** @brief Stops the thread and closes the socket. */
     ~JamBus() override;
 
-    /** @brief Message thread: the role from the settings; Off closes the socket and forgets the leader. */
+    /**
+     * @brief Message thread: the role from the settings; Off closes the socket and forgets the leader.
+     * @param[in] r  the role
+     * @pre called on the message thread
+     */
     void setRole(Settings::JamRoleE r);
-    /** @brief The role set last. */
+    /**
+     * @brief The role set last.
+     * @return the role set last
+     */
     Settings::JamRoleE role() const { return static_cast<Settings::JamRoleE>(m_role.load(std::memory_order_relaxed)); }
 
     // ---- leading: the audio thread posts, the bus's thread sends
     /**
      * @brief Audio thread: a section of this instrument begins.
-     * @param s      its kind
-     * @param energy its energy (0..1)
-     * @param drop   whether it lands as a drop
-     * @param bar    the shared bar it begins on (-1: now)
+     * @param[in] s       its kind
+     * @param[in] energy  its energy (0..1)
+     * @param[in] drop    whether it lands as a drop
+     * @param[in] bar     the shared bar it begins on (-1: now)
+     * @pre called on the audio thread
      */
     void postSection(JamSectionE s, float energy, bool drop, int64_t bar);
     /**
      * @brief Audio thread: this instrument's key from now on.
-     * @param root its root (pitch class 0..11)
-     * @param mode its mode or scale ("Aeolian"; truncated to 23 characters)
+     * @param[in] root  its root (pitch class 0..11)
+     * @param[in] mode  its mode or scale ("Aeolian"; truncated to 23 characters)
+     * @pre called on the audio thread
      */
     void postKey(int root, const char* mode);
 
     // ---- following: the bus's thread receives, the audio thread reads
     /**
      * @brief Audio thread, once a block: the leader's state as it stands at @p sharedBeat.
-     * @param sharedBeat the shared timeline's beat at the block's start, or a negative number when there is none
-     *                   (then whatever arrived counts at once)
+     * @param[in] sharedBeat  the shared timeline's beat at the block's start, or a negative number when there is none
+     *                        (then whatever arrived counts at once)
+     * @return the leader's state at that beat
+     * @pre called on the audio thread
      */
     JamState stateAt(double sharedBeat);
-    /** @brief Message thread: the leader's mode as it said it last ("" when none), for the key it composes next. */
+    /**
+     * @brief Message thread: the leader's mode as it said it last ("" when none), for the key it composes next.
+     * @return the leader's mode, empty when none was heard
+     * @pre called on the message thread
+     */
     juce::String leaderMode() const;
-    /** @brief The leader's root as it said it last (pitch class), or -1 while none is heard. */
+    /**
+     * @brief The leader's root as it said it last (pitch class), or -1 while none is heard.
+     * @return the leader's root as a pitch class, -1 while none is heard
+     */
     int leaderRoot() const { return leaderGone(juce::Time::currentTimeMillis()) ? -1 : m_leaderRoot.load(std::memory_order_relaxed); }
-    /** @brief Message thread: the line the settings menu shows (who leads, who follows, what is heard). */
+    /**
+     * @brief Message thread: the line the settings menu shows (who leads, who follows, what is heard).
+     * @return the line
+     * @pre called on the message thread
+     */
     juce::String status() const;
 
 private:
@@ -129,7 +159,11 @@ private:
         std::array<T, N> m_items{};               ///< the slots
         std::atomic<uint32_t> m_head { 0 };       ///< the next slot to write (the writer's)
         std::atomic<uint32_t> m_tail { 0 };       ///< the next slot to read (the reader's)
-        /** @brief Writes @p t; false when full. */
+        /**
+         * @brief Writes @p t; false when full.
+         * @param[in] t  the item
+         * @return false when the ring is full
+         */
         bool push(const T& t)
         {
             const uint32_t h = m_head.load(std::memory_order_relaxed);
@@ -138,7 +172,11 @@ private:
             m_head.store(h + 1, std::memory_order_release);
             return true;
         }
-        /** @brief Reads into @p t; false when empty. */
+        /**
+         * @brief Reads into @p t; false when empty.
+         * @param[out] t  receives the item
+         * @return false when the ring is empty
+         */
         bool pop(T& t)
         {
             const uint32_t tl = m_tail.load(std::memory_order_relaxed);
@@ -151,13 +189,27 @@ private:
 
     /** @brief The bus's thread: sends what was posted, reads what arrives, says hello every second. */
     void run() override;
-    /** @brief Opens the socket on the group's port; false when it cannot. */
+    /**
+     * @brief Opens the socket on the group's port; false when it cannot.
+     * @return false when the socket cannot be opened
+     */
     bool open();
-    /** @brief Sends one OSC message @p bytes to the group. */
+    /**
+     * @brief Sends one OSC message @p bytes to the group.
+     * @param[in] bytes  the OSC message
+     */
     void send(const juce::MemoryBlock& bytes);
-    /** @brief Decodes one datagram and takes what a follower needs from it. */
+    /**
+     * @brief Decodes one datagram and takes what a follower needs from it.
+     * @param[in] data  the datagram
+     * @param[in] size  its length in bytes
+     */
     void receive(const char* data, int size);
-    /** @brief Whether the leader has not been heard for a while at @p now (ms): another may take its place. */
+    /**
+     * @brief Whether the leader has not been heard for a while at @p now (ms): another may take its place.
+     * @param[in] now  the time in milliseconds
+     * @return true when the leader has not been heard for a while
+     */
     bool leaderGone(int64_t now) const;
 
     juce::String m_app;                                   ///< the instrument's name

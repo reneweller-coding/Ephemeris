@@ -7,6 +7,7 @@
  * theta-function series. Correctness is not taken on trust: Tests/selftest.cpp measures the
  * passband and the image rejection of the designed filters.
  * @note Copied from Phosphene `Core/src/Halfband.cpp` at 9a2f615 (24.09.2026); namespace eph, prefix EPH_.
+ * @author Rene Weller
  */
 #include "eph/Halfband.h"
 #include <cmath>
@@ -17,7 +18,12 @@ namespace {
 
 constexpr double PiD = 3.14159265358979323846;   ///< pi
 
-/** @brief The elliptic modulus @p k and the nome @p q of a half-band filter with transition band @p transition. */
+/**
+ * @brief The elliptic modulus @p k and the nome @p q of a half-band filter with transition band @p transition.
+ * @param[in]  transition  the transition band's width, normalised
+ * @param[out] k           receives the elliptic modulus
+ * @param[out] q           receives the nome
+ */
 void transitionParams(double transition, double& k, double& q)
 {
     k = std::tan((1.0 - transition * 2.0) * PiD / 4.0);
@@ -29,7 +35,13 @@ void transitionParams(double transition, double& k, double& q)
     q = e * (1.0 + e4 * (2.0 + e4 * (15.0 + 150.0 * e4)));
 }
 
-/** @brief The numerator's series of the c-th coefficient of an @p order filter with nome @p q. */
+/**
+ * @brief The numerator's series of the c-th coefficient of an @p order filter with nome @p q.
+ * @param[in] q      the nome
+ * @param[in] order  the filter's order
+ * @param[in] c      the coefficient
+ * @return the numerator's series
+ */
 double accNum(double q, int order, int c)
 {
     double acc = 0.0, term = 0.0;
@@ -43,7 +55,13 @@ double accNum(double q, int order, int c)
     return acc;
 }
 
-/** @brief The denominator's series of it. */
+/**
+ * @brief The denominator's series of it.
+ * @param[in] q      the nome
+ * @param[in] order  the filter's order
+ * @param[in] c      the coefficient
+ * @return the denominator's series
+ */
 double accDen(double q, int order, int c)
 {
     double acc = 0.0, term = 0.0;

@@ -21,6 +21,7 @@
  * the CueSender's own thread pops, waits for the due instant and calls sendto(). No socket, no allocation and
  * no lock touch the audio thread. **Failure is silence**: a host nobody listens on, a socket that cannot be
  * opened, a full ring -- all counted (CueSender::dropped) and otherwise ignored.
+ * @author Rene Weller
  */
 #pragma once
 #include "eph/Score.h"
@@ -58,13 +59,19 @@ struct Cue {
  * @brief The marks of a score: its sections (the markers, in English), the roots the transposer moves to,
  *        and the conjunctions of its rows (every step where two or more running rows are on their first
  *        step together). In beat order.
+ * @param[in] score  the score
+ * @return the cue marks
  */
 std::vector<CueMark> cueMarksOf(const Score& score);
 
 /** @brief Single-producer single-consumer ring of cues: the audio thread pushes, the sender pops. Wait-free. */
 class CueRing {
 public:
-    /** @brief Adds a cue; false when full (the cue is dropped). */
+    /**
+     * @brief Adds a cue; false when full (the cue is dropped).
+     * @param[in] c  the cue
+     * @return false when the ring is full and the cue is dropped
+     */
     bool push(const Cue& c)
     {
         const uint32_t w = m_write.load(std::memory_order_relaxed);
@@ -73,7 +80,11 @@ public:
         m_write.store(w + 1, std::memory_order_release);
         return true;
     }
-    /** @brief Takes the oldest cue; false when empty. */
+    /**
+     * @brief Takes the oldest cue; false when empty.
+     * @param[out] c  receives the oldest cue
+     * @return false when the ring is empty
+     */
     bool pop(Cue& c)
     {
         const uint32_t r = m_read.load(std::memory_order_relaxed);
@@ -95,14 +106,14 @@ class CueTap {
 public:
     /**
      * @brief Emits the beats and the marks in [@p from, @p to).
-     * @param marks      Engine::cueMarks() of the score that plays
-     * @param from       beat at the block's first sample
-     * @param to         beat just past its last sample
-     * @param bpm        the tempo, for the beat message
-     * @param nowNanos   the steady clock now
-     * @param leadNanos  how much later the block's first sample is heard (output latency, lookahead)
-     * @param blockNanos the block's duration
-     * @param ring       where the cues go
+     * @param[in]  marks       Engine::cueMarks() of the score that plays
+     * @param[in]  from        beat at the block's first sample
+     * @param[in]  to          beat just past its last sample
+     * @param[in]  bpm         the tempo, for the beat message
+     * @param[in]  nowNanos    the steady clock now
+     * @param[in]  leadNanos   how much later the block's first sample is heard (output latency, lookahead)
+     * @param[in]  blockNanos  the block's duration
+     * @param[out] ring        where the cues go
      * @return the cues that did not fit
      */
     int scan(const std::vector<CueMark>& marks, double from, double to, float bpm, int64_t nowNanos,
@@ -117,11 +128,20 @@ private:
 /**
  * @brief Encodes one OSC 1.0 message: the address, the type tags, the arguments, each padded to four bytes,
  *        numbers big-endian. @p tags are the argument types without the comma ("if", "s", "si").
+ * @param[in] address  the OSC address
+ * @param[in] tags     the type tags
+ * @param[in] ints     the int arguments
+ * @param[in] floats   the float arguments
+ * @param[in] strings  the string arguments
  * @return the bytes
  */
 std::vector<uint8_t> oscMessage(const char* address, const char* tags, const int32_t* ints, const float* floats, const char* const* strings);
 
-/** @brief The bytes of a cue as its OSC message (CueKind decides the address and the arguments). */
+/**
+ * @brief The bytes of a cue as its OSC message (CueKind decides the address and the arguments).
+ * @param[in] c  the cue
+ * @return its OSC message
+ */
 std::vector<uint8_t> oscOf(const Cue& c);
 
 /** @brief The UDP sender: a thread that pops cues, waits for their instant and sends them. */
@@ -131,17 +151,34 @@ public:
     CueSender(const CueSender&) = delete;
     CueSender& operator=(const CueSender&) = delete;
     ~CueSender() { stop(); }
-    /** @brief Opens the socket to @p host (an IPv4 address or a name) and @p port and starts the thread. */
+    /**
+     * @brief Opens the socket to @p host (an IPv4 address or a name) and @p port and starts the thread.
+     * @param[in] host  an IPv4 address or a host name
+     * @param[in] port  the UDP port
+     * @return false when the socket cannot be opened
+     */
     bool start(const std::string& host, int port);
     /** @brief Stops the thread and closes the socket. */
     void stop();
-    /** @brief Whether the thread runs. */
+    /**
+     * @brief Whether the thread runs.
+     * @return true while the sending thread runs
+     */
     bool running() const { return m_running.load(std::memory_order_acquire); }
-    /** @brief The ring the audio thread fills. */
+    /**
+     * @brief The ring the audio thread fills.
+     * @return the ring the audio thread fills
+     */
     CueRing& ring() { return m_ring; }
-    /** @brief Cues that could not be sent. */
+    /**
+     * @brief Cues that could not be sent.
+     * @return how many cues could not be sent
+     */
     uint64_t dropped() const { return m_dropped.load(std::memory_order_relaxed); }
-    /** @brief The steady clock in nanoseconds, the time base of the cues. */
+    /**
+     * @brief The steady clock in nanoseconds, the time base of the cues.
+     * @return the steady clock in nanoseconds
+     */
     static int64_t nowNanos();
 
 private:

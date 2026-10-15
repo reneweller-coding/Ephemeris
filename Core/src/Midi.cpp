@@ -1,6 +1,7 @@
 /**
  * @file Midi.cpp
  * @brief Standard MIDI File writer.
+ * @author Rene Weller
  */
 #include "eph/Midi.h"
 #include <algorithm>
@@ -19,10 +20,18 @@ struct Ev {
     std::vector<uint8_t> m_bytes;   ///< the status and data bytes
 };
 
-/** @brief Beat @p beat in ticks (MidiPpq per beat). */
+/**
+ * @brief Beat @p beat in ticks (MidiPpq per beat).
+ * @param[in] beat  the position in beats
+ * @return the position in ticks
+ */
 int64_t toTick(double beat) { return static_cast<int64_t>(std::llround(beat * MidiPpq)); }
 
-/** @brief Appends @p v as a variable-length quantity. */
+/**
+ * @brief Appends @p v as a variable-length quantity.
+ * @param[in,out] out  the bytes, appended to
+ * @param[in]     v    the value
+ */
 void putVarLen(std::vector<uint8_t>& out, uint32_t v)
 {
     uint8_t buf[5];
@@ -32,13 +41,23 @@ void putVarLen(std::vector<uint8_t>& out, uint32_t v)
     while (n > 0) out.push_back(buf[--n]);
 }
 
-/** @brief Appends @p v big-endian. */
+/**
+ * @brief Appends @p v big-endian.
+ * @param[in,out] out  the bytes, appended to
+ * @param[in]     v    the value
+ */
 void put32(std::vector<uint8_t>& out, uint32_t v)
 {
     for (int s = 24; s >= 0; s -= 8) out.push_back(static_cast<uint8_t>((v >> s) & 0xFF));
 }
 
-/** @brief A meta event of @p type with @p data at @p tick. */
+/**
+ * @brief A meta event of @p type with @p data at @p tick.
+ * @param[in] tick  the position in ticks
+ * @param[in] type  the meta event's type
+ * @param[in] data  its data
+ * @return the event
+ */
 Ev meta(int64_t tick, uint8_t type, const std::vector<uint8_t>& data)
 {
     Ev e{ tick, 0, { 0xFF, type } };
@@ -47,20 +66,35 @@ Ev meta(int64_t tick, uint8_t type, const std::vector<uint8_t>& data)
     return e;
 }
 
-/** @brief A text meta event of @p type (a marker, a track name) at @p tick. */
+/**
+ * @brief A text meta event of @p type (a marker, a track name) at @p tick.
+ * @param[in] tick  the position in ticks
+ * @param[in] type  the meta event's type
+ * @param[in] s     its text
+ * @return the event
+ */
 Ev metaText(int64_t tick, uint8_t type, const std::string& s)
 {
     return meta(tick, type, std::vector<uint8_t>(s.begin(), s.end()));
 }
 
-/** @brief A tempo meta event of @p bpm at @p tick. */
+/**
+ * @brief A tempo meta event of @p bpm at @p tick.
+ * @param[in] tick  the position in ticks
+ * @param[in] bpm   the tempo
+ * @return the event
+ */
 Ev tempoEvent(int64_t tick, double bpm)
 {
     const uint32_t us = static_cast<uint32_t>(std::llround(60.0e6 / bpm));
     return meta(tick, 0x51, { static_cast<uint8_t>(us >> 16), static_cast<uint8_t>(us >> 8), static_cast<uint8_t>(us) });
 }
 
-/** @brief Sharps (+) or flats (-) of the minor key on @p root (A minor = 0). */
+/**
+ * @brief Sharps (+) or flats (-) of the minor key on @p root (A minor = 0).
+ * @param[in] root  the key's root, 0 .. 11
+ * @return its sharps (positive) or flats (negative)
+ */
 int minorKeySharps(int root)
 {
     // Relative major is three semitones up; the circle of fifths from C major.
@@ -68,7 +102,11 @@ int minorKeySharps(int root)
     return MajorSharps[((root % 12) + 12 + 3) % 12];
 }
 
-/** @brief Sorts @p evs and appends them to @p file as a track chunk (delta times, end of track). */
+/**
+ * @brief Sorts @p evs and appends them to @p file as a track chunk (delta times, end of track).
+ * @param[in,out] file  the file's bytes, appended to
+ * @param[in,out] evs   the track's events, sorted here
+ */
 void appendTrack(std::vector<uint8_t>& file, std::vector<Ev>& evs)
 {
     std::stable_sort(evs.begin(), evs.end(), [](const Ev& a, const Ev& b) {
@@ -87,7 +125,14 @@ void appendTrack(std::vector<uint8_t>& file, std::vector<Ev>& evs)
     file.insert(file.end(), body.begin(), body.end());
 }
 
-/** @brief Where a knob's gestures go in the file: a part (or none: the controls track) and a CC. */
+/**
+ * @brief Where a knob's gestures go in the file: a part (or none: the controls track) and a CC.
+ * @param[in]  p     the parameters
+ * @param[in]  id    the knob
+ * @param[out] part  receives the part, -1 for the controls track
+ * @param[out] cc    receives the controller
+ * @return false when the knob has no controller
+ */
 bool ccFor(const ParamStore& p, int id, int& part, int& cc)
 {
     const std::string& key = p.key(id);

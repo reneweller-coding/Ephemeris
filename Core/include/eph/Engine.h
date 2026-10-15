@@ -19,6 +19,7 @@
  * audio thread; the plugin loads on the message thread with processing suspended (Plugin/). A composer
  * thread feeding a lock-free event ring, as in Phosphene, is not needed while a piece is composed in
  * seconds; seek() lets a host move the playhead.
+ * @author Rene Weller
  */
 #pragma once
 #include <array>
@@ -48,29 +49,44 @@ namespace eph {
 /** @brief Plays a score. Not thread-safe except for parameter writes (ParamStore is atomic). */
 class Engine {
 public:
-    /** @brief The parameters; any thread may write them. */
+    /**
+     * @brief The parameters; any thread may write them.
+     * @return the parameters
+     */
     ParamStore& params() { return m_params; }
-    /** @brief The parameters, read-only. */
+    /**
+     * @brief The parameters, read-only.
+     * @return the parameters
+     */
     const ParamStore& params() const { return m_params; }
 
-    /** @brief Sets the sample rate and the largest block; call before load(). */
+    /**
+     * @brief Sets the sample rate and the largest block; call before load().
+     * @param[in] sampleRate  the sample rate in Hz
+     * @param[in] maxBlock    the largest block process() will be asked for
+     * @pre called before load()
+     */
     void prepare(double sampleRate, int maxBlock);
     /**
      * @brief Replaces the score (not from the audio thread) and returns to its start.
-     * @param sounds put the knob settings of the score's start (Score::knobs, the composer's sounds) on the knobs
-     *               now; false where the knobs already hold them (the plugin decides which synths take a new sound,
-     *               a restored state or a loaded set already has them). Later ones -- a concert's next pieces -- the
-     *               engine puts on the knobs where they begin, on the sample.
+     * @param[in] score   the score
+     * @param[in] sounds  put the knob settings of the score's start (Score::knobs, the composer's sounds) on the knobs
+     *                    now; false where the knobs already hold them (the plugin decides which synths take a new
+     *                    sound, a restored state or a loaded set already has them). Later ones -- a concert's next
+     *                    pieces -- the engine puts on the knobs where they begin, on the sample.
+     * @pre not called on the audio thread
      */
     void load(const Score& score, bool sounds = true);
     /**
      * @brief The quality level's one setting so far: the singers per choir key (TapeKeys::setSingers), 6 on
      *        the desktop, 3 on the Quest. Kept across load().
+     * @param[in] n  the singers per choir key
      */
     void setTapeSingers(int n) { m_tapeSingers = n; m_tape.setSingers(n); }
     /**
      * @brief Live play (01.10.2026; the plugin's engine): the keyboard and the composer switch act. Off (renders, exports,
      *        the measuring engines, the default): the piece plays as it was composed.
+     * @param[in] on  true for live play
      */
     void setLive(bool on) { m_live = on; }
     /**
@@ -82,10 +98,19 @@ public:
     /**
      * @brief Queues a key for the next process() call, @p offset samples into it: it is played on that sample. The
      *        rendering thread, before process().
-     * @param pitch MIDI note; @param velocity 1..127; @param channel 0..15 (by channel); @param on false: its release
+     * @param[in] offset    the sample within the next block the key is played at
+     * @param[in] pitch     MIDI note;
+     * @param[in] velocity  1..127;
+     * @param[in] channel   0..15 (by channel);
+     * @param[in] on        false: its release
+     * @param[in] target    the perform::keys value it plays, -1 for the keyboard part of its channel
      */
     void queueLive(int offset, int pitch, int velocity, int channel, bool on, int target = -1);
-    /** @brief The target a key on @p channel plays when it names none (perform.keyboard_part; perform::keys). */
+    /**
+     * @brief The target a key on @p channel plays when it names none (perform.keyboard_part; perform::keys).
+     * @param[in] channel  the MIDI channel
+     * @return the target its keys play (perform::keys)
+     */
     int keyTargetFor(int channel) const { return keyboardTarget(channel); }
     /** @brief Releases every played key and forgets the queued ones (a stop, another keyboard target). */
     void liveAllOff();
@@ -93,71 +118,116 @@ public:
 
     /**
      * @brief Renders @p n samples into @p L and @p R (overwritten) and advances the position.
+     * @param[out] L  receives the left channel (overwritten)
+     * @param[out] R  receives the right channel (overwritten)
+     * @param[in]  n  how many samples
      * @return false once the position has passed the end of the score (the echo still rings)
      */
     bool process(float* L, float* R, int n);
     /**
      * @brief Jumps to @p beat (a host moved its playhead): every voice falls silent, the next note and
      *        gesture are found again, the settings are read at once. The rooms ring on.
+     * @param[in] beat  the position to jump to, in beats
      */
     void seek(double beat);
     /**
      * @brief The loudness corrections of the score playing (a trim per LevelMark, Leveler.h), found after it began: the
      *        plugin and the Quest measure a piece while it already plays. The difference to what played glides in over
      *        a few seconds. Writes a few numbers, allocates nothing; not while process() runs.
+     * @param[in] trims  one loudness trim per LevelMark of deck A's score
      */
     void setLevelTrims(const std::vector<float>& trims);
-    /** @brief Counts the knob settings the engine has put on the knobs while playing or seeking (a concert's next
-     *         piece): the plugin tells the host and the pages when it moves. */
+    /**
+     * @brief Counts the knob settings the engine has put on the knobs while playing or seeking (a concert's next
+     *         piece): the plugin tells the host and the pages when it moves.
+     * @return how many times a track's knob settings were written onto the knobs
+     */
     uint32_t soundsVersion() const { return m_soundsVersion.load(std::memory_order_relaxed); }
-    /** @brief The beat of the knob settings that hold (0: the first piece's; -1: none). */
+    /**
+     * @brief The beat of the knob settings that hold (0: the first piece's; -1: none).
+     * @return the beat of the knob settings that hold, -1 for none
+     */
     double soundGroup() const { return m_soundGroup.load(std::memory_order_relaxed); }
 
-    /** @brief The score being played. */
+    /**
+     * @brief The score being played.
+     * @return the score deck A plays
+     */
     const Score& score() const { return m_score; }
-    /** @brief Current position in seconds. */
+    /**
+     * @brief Current position in seconds.
+     * @return the current position in seconds
+     */
     double seconds() const { return static_cast<double>(m_sample) / m_sampleRate; }
-    /** @brief Current position in samples (the clock of NoteTap's notes). */
+    /**
+     * @brief Current position in samples (the clock of NoteTap's notes).
+     * @return the current position in samples
+     */
     int64_t samplePosition() const { return m_sample; }
-    /** @brief From now on every composer note it plays is also written to @p tap (null: stops; NoteTap.h, MIDI out). */
+    /**
+     * @brief From now on every composer note it plays is also written to @p tap (null: stops; NoteTap.h, MIDI out).
+     * @param[out] tap  where the notes go, null to stop
+     */
     void setNoteTap(NoteTap* tap) { m_noteTap = tap; }
     /**
      * @brief The family jam (02.10.2026, the plugin's Jam.h), live only: the composer's notes @p transpose semitones
      *        further (on top of perform.transpose, from the next note on), the leader's @p energy (0..1; negative: none)
      *        on the rows' filters while the performer's hand rests, and with @p rhythmOut the drums out for its break.
+     * @param[in] transpose  semitones the pitched parts move
+     * @param[in] energy     the leader's energy, 0..1; negative for none
+     * @param[in] rhythmOut  true to leave out the rhythm's foundation
      */
     void setJam(int transpose, float energy, bool rhythmOut) { m_jamTranspose = transpose; m_jamEnergy = energy; m_jamDrumsOut = rhythmOut; }
-    /** @brief Current position in beats. */
+    /**
+     * @brief Current position in beats.
+     * @return the current position in beats
+     */
     double beat() const { return m_score.m_tempo.beatAt(seconds()); }
-    /** @brief Length of the score in seconds. */
+    /**
+     * @brief Length of the score in seconds.
+     * @return the length of the track or set in seconds
+     */
     double lengthSeconds() const { return m_score.m_tempo.secondsAt(m_score.m_lengthBeats); }
-    /** @brief Sample rate set by prepare(). */
+    /**
+     * @brief Sample rate set by prepare().
+     * @return the sample rate in Hz
+     */
     double sampleRate() const { return m_sampleRate; }
     /**
      * @brief The value of parameter @p id as the engine plays it: the knob plus the score's gesture
      *        offset at the current cell, in real units.
+     * @param[in] id  the parameter
+     * @return its value as deck A plays it
      */
     float played(int id) const;
     /**
      * @brief As played(), without its cache (01.10.2026): the panel's live rings read it on the message thread while the
      *        audio thread plays -- reading only, so the cache the audio thread keeps is never written from two threads.
+     * @param[in] id  the parameter
+     * @return its value as played
+     * @pre called on the message thread
      */
     float playedNow(int id) const;
 
     /** @brief The channel strips, in the order they are mixed: the eight rows, the lead, the drone, the tape
      *         keys, the string machine, the drums, the atmosphere. */
     static constexpr int Channels = Rows + 7;
-    /** @brief Name of channel @p c, for a display. */
+    /**
+     * @brief Name of channel @p c, for a display.
+     * @param[in] c  the channel
+     * @return its name
+     */
     static const char* channelName(int c);
     /**
      * @brief Gathers each channel's peak and mean square from now on: what the channel puts into the mix,
      *        after its fader and pan. Off unless switched on, and reading only: the mix is the same to the bit.
+     * @param[in] on  true to gather the meters
      */
     void setMetering(bool on) { m_metering = on; }
     /**
      * @brief Hands over and clears what was gathered since the last call.
-     * @param peak  Channels peaks (linear, the louder side)
-     * @param sumSq Channels sums of squares (the mean of both sides per sample)
+     * @param[in,out] peak   Channels peaks (linear, the louder side)
+     * @param[in,out] sumSq  Channels sums of squares (the mean of both sides per sample)
      * @return the number of samples gathered
      */
     int takeMeters(float* peak, double* sumSq);
@@ -167,11 +237,19 @@ public:
      *        rooms' return (tape echo, springs, hall). Each buffer holds at least the block of the call. The
      *        sum of the stems is the mix before the master (level, compressor, limiter). Null switches them off;
      *        reading only, the mix is the same to the bit.
+     * @param[in] left   per stem its left channel buffer, null to switch the stems off
+     * @param[in] right  per stem its right channel buffer
      */
     void setStems(float* const* left, float* const* right) { m_stemL = left; m_stemR = right; }
-    /** @brief The true-peak limiter on (default) or off: an archive master without a limiter (the addon's 9). */
+    /**
+     * @brief The true-peak limiter on (default) or off: an archive master without a limiter (the addon's 9).
+     * @param[in] on  true for the limiter
+     */
     void setLimiter(bool on) { m_limiterOn = on; }
-    /** @brief The score's cue marks (Cue.h), built by load(); the audio thread may read them between loads. */
+    /**
+     * @brief The score's cue marks (Cue.h), built by load(); the audio thread may read them between loads.
+     * @return the cue marks of what is loaded
+     */
     const std::vector<CueMark>& cueMarks() const { return m_cueMarks; }
 
 private:
@@ -195,7 +273,10 @@ private:
         float m_bright = 0.0f;   ///< the note's cutoff offset in octaves (NoteEvent::bright)
         float m_decay = 0.0f;    ///< the note's filter decay in octaves of its time (NoteEvent::decay)
     };
-    /** @brief Hands event @p e to its source. */
+    /**
+     * @brief Hands event @p e to its source.
+     * @param[in] e  the note event
+     */
     void dispatch(const Ev& e);
     /** @brief The gestures on one parameter, in time order, with a cursor. */
     struct Track {
@@ -254,23 +335,65 @@ private:
     /**
      * @brief Renders @p n samples into @p L and @p R within one raster cell, up to the next note: the sources through their
      *        strips, the rooms, the mix bus.
+     * @param[in,out] L  the left channel, added to
+     * @param[in,out] R  the right channel, added to
+     * @param[in]     n  how many samples
      */
     void renderSpan(float* L, float* R, int n);
-    /** @brief A voice's settings from a module laid out like the voice table (voice, lead, drone). */
+    /**
+     * @brief A voice's settings from a module laid out like the voice table (voice, lead, drone).
+     * @param[in] m         the module
+     * @param[in] instance  its instance
+     * @param[in] vibrato   true when the module has a vibrato
+     * @return the voice's settings
+     */
     VoiceSettings voiceSettings(ModuleE m, int instance, bool vibrato) const;
     /**
      * @brief A synth's modulation from its parameters (Modulation.h), as played (the composer's sounds arrive as offsets): the
      *        modulation envelope at @p env (-1: none; its times times @p envToMs), @p lfos LFOs from @p lfo, @p slots
      *        slots from @p slot; @p shortMatrix: the destinations of the smaller matrix (shortModDest).
+     * @param[in] m            the module
+     * @param[in] instance     its instance
+     * @param[in] env          the index of its envelope's first knob
+     * @param[in] envToMs      the factor of the envelope's times to milliseconds
+     * @param[in] lfo          the index of its first LFO's knob
+     * @param[in] lfos         how many LFOs it has
+     * @param[in] slot         the index of its first matrix slot's knob
+     * @param[in] slots        how many slots it has
+     * @param[in] shortMatrix  true for the smaller matrix's destinations
+     * @return the synth's modulation settings
      */
     ModSettings modSettings(ModuleE m, int instance, int env, float envToMs, int lfo, int lfos, int slot, int slots, bool shortMatrix) const;
-    /** @brief Level, equal-power pan (times @p width) and sends of strip @p s. */
+    /**
+     * @brief Level, equal-power pan (times @p width) and sends of strip @p s.
+     * @param[in] s         the strip
+     * @param[in] levelDb   the level in dB
+     * @param[in] pan       the pan, -1..1
+     * @param[in] echo      the echo send, 0..1
+     * @param[in] reverb    the reverb send, 0..1
+     * @param[in] width     the stereo width
+     * @param[in] echo2     the second echo's send, 0..1
+     * @param[in] distance  the distance, 0..1
+     */
     void setStrip(int s, float levelDb, float pan, float echo, float reverb, float width = 1.0f, float echo2 = 0.0f,
                   float distance = 0.0f);
-    /** @brief The strip's low cut (a second-order Butterworth high pass), @p hz 0 for none. */
+    /**
+     * @brief The strip's low cut (a second-order Butterworth high pass), @p hz 0 for none.
+     * @param[in] s   the strip
+     * @param[in] hz  the corner in Hz, 0 for none
+     */
     void setLowCut(int s, float hz);
-    /** @brief Adds source @p source's output through its strip to the buses (and the meter); @p echoSend false
-     *         leaves the echo send alone. */
+    /**
+     * @brief Adds source @p source's output through its strip to the buses (and the meter); @p echoSend false
+     *         leaves the echo send alone.
+     * @param[in] source    the source
+     * @param[in] xl        its left output
+     * @param[in] xr        its right output
+     * @param[in] n         how many samples
+     * @param[in] b         the buses, added to
+     * @param[in] echoSend  true to feed the echo
+     * @param[in] midGain   per sample the ducker's mid gain, or null
+     */
     void mix(int source, const float* xl, const float* xr, int n, const Buses& b, bool echoSend = true,
              const float* midGain = nullptr);
 
@@ -283,15 +406,26 @@ private:
     size_t m_knobCursor = 0;    ///< the next of the score's knob settings to put on the knobs
     std::atomic<double> m_soundGroup { -1.0 };   ///< the beat of the knob settings that hold (the piece whose sounds these are)
     float m_lateDb = 0.0f;                        ///< setLevelTrims: what is left of the step to the new correction, dB
-    /** @brief The loudness correction the score sets at @p beat, dB (its LevelMarks, gliding from one to the next). */
+    /**
+     * @brief The loudness correction the score sets at @p beat, dB (its LevelMarks, gliding from one to the next).
+     * @param[in] beat  the position in beats
+     * @return the correction in dB
+     */
     float trimAt(double beat) const;
     std::atomic<uint32_t> m_soundsVersion { 0 };   ///< soundsVersion()
-    /** @brief Puts the score's knob settings up to @p beat on the knobs, from the cursor on. */
+    /**
+     * @brief Puts the score's knob settings up to @p beat on the knobs, from the cursor on.
+     * @param[in] beat  the position up to which the settings are taken
+     */
     void applyKnobs(double beat);
     std::vector<int64_t> m_offAt;   ///< every note's off sample, by its id (a seek chases the notes that sound on)
     NoteTap* m_noteTap = nullptr;   ///< where the composer's played notes go for MIDI out (setNoteTap), or null
     std::vector<uint8_t> m_tapPitch;   ///< by note id: the pitch its on went out with (0xFF: none sounds), for its off
-    /** @brief The Part a source plays (the MIDI export's channel of its notes). */
+    /**
+     * @brief The Part a source plays (the MIDI export's channel of its notes).
+     * @param[in] source  the source
+     * @return the part it plays
+     */
     static PartE partOf(int source);
     std::vector<Ev> m_events;   ///< the score's notes on the sample grid, in time order
     size_t m_evCursor = 0;   ///< index of the next event not yet played
@@ -413,11 +547,35 @@ private:
     int m_liveCount = 0;   ///< how many keys are queued
     int m_liveCursor = 0;   ///< index of the next queued key not yet played
     uint8_t m_liveTarget[128] = {};   ///< per key: the target it plays + 1 (0: not held)
-    int keyboardTarget(int channel) const;   ///< perform.keyboard_part for a key on @p channel (perform::keys; Off: none)
-    static int sourceOf(int target);          ///< the Source a keyboard target plays (-1 none)
-    static int targetOf(int source);          ///< the keyboard target a Source belongs to (perform::keys; Off: none)
-    bool silenced(int source) const;          ///< the composer's note-ons of @p source are left out
-    void playLive(const LiveKey& k);          ///< a queued key (or its release), now
+    /**
+     * perform.keyboard_part for a key on @p channel (perform::keys; Off: none)
+     * @param[in] channel  the MIDI channel
+     * @return the target a key there plays (perform::keys), Off for none
+     */
+    int keyboardTarget(int channel) const;
+    /**
+     * the Source a keyboard target plays (-1 none)
+     * @param[in] target  the keyboard target
+     * @return the source it plays, -1 for none
+     */
+    static int sourceOf(int target);
+    /**
+     * the keyboard target a Source belongs to (perform::keys; Off: none)
+     * @param[in] source  the source
+     * @return the keyboard target it belongs to (perform::keys), Off for none
+     */
+    static int targetOf(int source);
+    /**
+     * the composer's note-ons of @p source are left out
+     * @param[in] source  the source
+     * @return true when its composed note-ons are left out
+     */
+    bool silenced(int source) const;
+    /**
+     * a queued key (or its release), now
+     * @param[in] k  the queued key
+     */
+    void playLive(const LiveKey& k);
     int m_tapeSingers = Singers;   ///< setTapeSingers()
     float* const* m_stemL = nullptr;   ///< setStems(), left
     float* const* m_stemR = nullptr;   ///< setStems(), right

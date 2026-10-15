@@ -5,6 +5,7 @@
  * Sections are registered in the table at the bottom; `eph_selftest --list` prints their names (ctest
  * registers one test per name) and `--only a,b` runs the named ones. Only checks that protect
  * something real belong here (the user's rule, 24.09.2026): no test of what cannot break.
+ * @author Rene Weller
  */
 #include "eph/Clock.h"
 #include "eph/compose/Composer.h"
@@ -73,7 +74,13 @@ using namespace ephtest;
 
 namespace {
 
-/** @brief Knob @p id where piece @p s begins: its setting on the knob (Score::knobs, 26.09.2026), else the knob in @p p. */
+/**
+ * @brief Knob @p id where piece @p s begins: its setting on the knob (Score::knobs, 26.09.2026), else the knob in @p p.
+ * @param[in] p   the parameters
+ * @param[in] s   the piece
+ * @param[in] id  the knob
+ * @return the knob's value where the piece begins
+ */
 float knobAt(const ParamStore& p, const Score& s, int id)
 {
     float v = p.get(id);
@@ -3191,7 +3198,12 @@ const TestSection Sections[] = {
 
 } // namespace
 
-/** @brief Runs every section, or those the command line names; the exit code is the number of failures. */
+/**
+ * @brief Runs every section, or those the command line names; the exit code is the number of failures.
+ * @param[in]     argc  the number of arguments
+ * @param[in,out] argv  the arguments: sections to run
+ * @return the number of failures
+ */
 int main(int argc, char** argv)
 {
     std::string only;

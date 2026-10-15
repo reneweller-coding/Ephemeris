@@ -19,6 +19,7 @@
  * channel 16, CC 12 to 25 and 7 (the table in Midi.cpp).
  *
  * Not yet: a reader.
+ * @author Rene Weller
  */
 #pragma once
 #include "eph/Score.h"
@@ -30,13 +31,30 @@ namespace eph {
 
 constexpr int MidiPpq = 960;   ///< ticks per quarter note in exported files
 
-/** @brief MIDI channel (0-based) a part is written to. */
+/**
+ * @brief MIDI channel (0-based) a part is written to.
+ * @param[in] part  the part
+ * @return its MIDI channel, 0 .. 15
+ */
 int midiChannelOf(PartE part);
 
-/** @brief Encodes a score as a Standard MIDI File (format 1). Notes need not be sorted. */
+/**
+ * @brief Encodes a score as a Standard MIDI File (format 1). Notes need not be sorted.
+ * @param[in] score   the score
+ * @param[in] title   the file's title
+ * @param[in] params  the knobs, or null
+ * @return the file's bytes
+ */
 std::vector<uint8_t> encodeMidi(const Score& score, const char* title = "Ephemeris", const ParamStore* params = nullptr);
 
-/** @brief Writes encodeMidi() to a file; false if it cannot be written. */
+/**
+ * @brief Writes encodeMidi() to a file; false if it cannot be written.
+ * @param[in] score   the score
+ * @param[in] path    the file
+ * @param[in] title   the file's title
+ * @param[in] params  the knobs, or null
+ * @return false when the file cannot be written
+ */
 bool writeMidiFile(const Score& score, const char* path, const char* title = "Ephemeris", const ParamStore* params = nullptr);
 
 } // namespace eph

@@ -1,6 +1,7 @@
 /**
  * @file PluginProcessor.cpp
  * @brief The plugin's processor.
+ * @author Rene Weller
  */
 #include "PluginProcessor.h"
 #include "eph/Leveler.h"
@@ -325,7 +326,7 @@ void EphemerisProcessor::timerCallback()
         m_jamComposeKey = -1;
         m_jamComposeScale = -1;
     }
-    // FAMILY_JAM_LOG=<file>: what the jam does here, a line whenever it changes (a test aid).
+    // FAMILY_JAM_LOG=\<file\>: what the jam does here, a line whenever it changes (a test aid).
     if (const char* logFile = std::getenv("FAMILY_JAM_LOG")) {
         const juce::String line = m_jam.status() + "; transposed " + juce::String(m_jamTransposeOut.load());
         if (line != m_jamLogged) {
@@ -952,7 +953,11 @@ void EphemerisProcessor::applyPreset(ModuleE module, int instance, int index)
 }
 
 namespace {
-/** @brief Where a synth's user presets live: <application data>/Ephemeris/Presets/<synth>. */
+/**
+ * @brief Where a synth's user presets live: \<application data\>/Ephemeris/Presets/\<synth\>.
+ * @param[in] module  the synth
+ * @return the folder of its user presets
+ */
 juce::File presetFolder(ModuleE module)
 {
     const char* name = module == ModuleE::VOICE ? "Voices" : module == ModuleE::LEAD ? "Lead" : module == ModuleE::DRONE ? "Drone"
@@ -1246,5 +1251,8 @@ void EphemerisProcessor::pollHeadset()
 
 juce::AudioProcessorEditor* EphemerisProcessor::createEditor() { return new EphemerisEditor(*this); }
 
-/** @brief The plugin's factory, called by the JUCE wrappers. */
+/**
+ * @brief The plugin's factory, called by the JUCE wrappers.
+ * @return a new processor
+ */
 juce::AudioProcessor* JUCE_CALLTYPE createPluginFilter() { return new EphemerisProcessor(); }

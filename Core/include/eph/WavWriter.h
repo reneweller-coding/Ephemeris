@@ -11,6 +11,7 @@
  * a `LIST/INFO` tag (INAM title, IART artist, IGNR genre, ICMT comment, ISFT software). Both are written after the
  * audio when the file is closed, so a file that never gets any stays exactly what it was.
  * @note Copied from Phosphene `Core/include/phos/WavWriter.h` at 9a2f615 (24.09.2026); namespace eph, prefix EPH_.
+ * @author Rene Weller
  */
 #pragma once
 #include <cstdint>
@@ -34,18 +35,30 @@ public:
 
     /**
      * @brief Creates the file and writes a provisional header.
-     * @param path       file name
-     * @param sampleRate frames per second
-     * @param channels   1 or 2
-     * @param format     sample format
+     * @param[in] path        file name
+     * @param[in] sampleRate  frames per second
+     * @param[in] channels    1 or 2
+     * @param[in] format      sample format
      * @return false if the file cannot be created
      */
     bool open(const char* path, int sampleRate, int channels, WavFormatE format);
-    /** @brief Appends @p n frames; @p R is ignored for mono and may be null. */
+    /**
+     * @brief Appends @p n frames; @p R is ignored for mono and may be null.
+     * @param[in] L  the left (or only) channel
+     * @param[in] R  the right channel, ignored for mono; may be null
+     * @param[in] n  how many frames
+     * @return false on a write error
+     */
     bool write(const float* L, const float* R, int n);
-    /** @brief Finalises the header and closes the file. */
+    /**
+     * @brief Finalises the header and closes the file.
+     * @return false on a write error
+     */
     bool close();
-    /** @brief Frames written so far. */
+    /**
+     * @brief Frames written so far.
+     * @return the frames written so far
+     */
     uint64_t frames() const { return m_frames; }
     /**
      * @brief TPDF dither for 24-bit files (23.09.2026; on by default, ignored for float).
@@ -57,22 +70,42 @@ public:
      * noise sits at about -141 dBFS. It is reproducible -- the generator is seeded at open(), so the same
      * render writes the same file -- and a sample that is exactly 0 stays 0, so digital silence stays silent.
      * Call before open().
+     * @param[in] on  true for dither
+     * @pre called before open()
      */
     void setDither(bool on) { m_dither = on; }
-    /** @brief A marker at @p frame named @p label, written at close() (a `cue ` point with its `labl`). */
+    /**
+     * @brief A marker at @p frame named @p label, written at close() (a `cue ` point with its `labl`).
+     * @param[in] frame  the marker's frame
+     * @param[in] label  its name
+     */
     void addCue(uint64_t frame, const std::string& label) { m_cues.emplace_back(frame, label); }
-    /** @brief A `LIST/INFO` tag, e.g. setInfo("INAM", "title"); written at close(). */
+    /**
+     * @brief A `LIST/INFO` tag, e.g. setInfo("INAM", "title"); written at close().
+     * @param[in] id    the four-letter tag id
+     * @param[in] text  its text
+     */
     void setInfo(const char* id, const std::string& text) { m_info.emplace_back(std::string(id, 4), text); }
 
 private:
-    /** @brief The cue and tag chunks, as bytes, for close(). */
+    /**
+     * @brief The cue and tag chunks, as bytes, for close().
+     * @return the cue and tag chunks as bytes
+     */
     std::vector<uint8_t> trailingChunks() const;
     std::vector<std::pair<uint64_t, std::string>> m_cues;   ///< frame, label
     std::vector<std::pair<std::string, std::string>> m_info; ///< four-letter id, text
     uint64_t m_trailing = 0;                                  ///< bytes after the data chunk (pad byte included)
-    /** @brief Writes the RIFF header (@p final: with the sizes and the chunks after the data); false on a write error. */
+    /**
+     * @brief Writes the RIFF header (@p final: with the sizes and the chunks after the data); false on a write error.
+     * @param[in] final  true for the final header with the sizes and the trailing chunks
+     * @return false on a write error
+     */
     bool writeHeader(bool final);
-    /** @brief The dither's uniform draw in [0, 1) (xorshift64*). */
+    /**
+     * @brief The dither's uniform draw in [0, 1) (xorshift64*).
+     * @return a uniform value in [0, 1)
+     */
     double uniform()
     {
         m_rng ^= m_rng >> 12; m_rng ^= m_rng << 25; m_rng ^= m_rng >> 27;

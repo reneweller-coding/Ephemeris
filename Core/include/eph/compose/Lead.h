@@ -18,6 +18,7 @@
  *   to the new root -- the motif a listener recognises.
  * Monophonic by construction: a note ends before the next begins, except the glide from below, which
  * overlaps so the voice slides instead of retriggering.
+ * @author Rene Weller
  */
 #pragma once
 #include "eph/Dsp.h"
@@ -40,15 +41,21 @@ struct LeadPlan {
 
 /**
  * @brief Writes lead phrases between two beats.
- * @param score the score (notes appended, part Lead)
- * @param plan  register, key, roots and intensity
- * @param from  first beat (rounded up to a bar)
- * @param to    last beat; no note reaches past it
- * @param rng   the lead's stream
+ * @param[in,out] score  the score (notes appended, part Lead)
+ * @param[in]     plan   register, key, roots and intensity
+ * @param[in]     from   first beat (rounded up to a bar)
+ * @param[in]     to     last beat; no note reaches past it
+ * @param[in,out] rng    the lead's stream
  */
 void writeLead(Score& score, const LeadPlan& plan, double from, double to, Rng& rng);
 
-/** @brief Whether @p pitch belongs to the scale on root @p rootPc (for the tests). */
+/**
+ * @brief Whether @p pitch belongs to the scale on root @p rootPc (for the tests).
+ * @param[in] pitch   the note
+ * @param[in] rootPc  the root's pitch class
+ * @param[in] scale   the scale
+ * @return true when the note is in the scale
+ */
 bool inScale(int pitch, int rootPc, int scale);
 
 } // namespace eph

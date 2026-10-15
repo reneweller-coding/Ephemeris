@@ -5,6 +5,7 @@
  *        row shows the version with a link to its page. The check can be switched off (the application's settings,
  *        not the project's: Ephemeris/Ephemeris.updates in the user's application data). One check is shared by every
  *        instance of the plugin in a host.
+ * @author Rene Weller
  */
 #pragma once
 #include <juce_core/juce_core.h>
@@ -16,11 +17,32 @@ class UpdateCheck final : private juce::Thread {
 public:
     UpdateCheck();                                ///< reads the settings and asks GitHub if a day has passed
     ~UpdateCheck() override;                      ///< waits for a question on its way
-    bool enabled() const;                         ///< whether the check runs
-    void setEnabled(bool on);                     ///< switches it (asks at once when switched on and due)
-    juce::String newer() const;                   ///< a newer version found ("1.1.0"), empty if none
-    juce::String page() const;                    ///< its release page
-    /** @brief Whether version @p a ("v1.2.3", "1.2") is later than @p b. */
+    /**
+     * whether the check runs
+     * @return true when the check runs
+     */
+    bool enabled() const;
+    /**
+     * switches it (asks at once when switched on and due)
+     * @param[in] on  true to run the check
+     */
+    void setEnabled(bool on);
+    /**
+     * a newer version found ("1.1.0"), empty if none
+     * @return the newer version found, empty if none
+     */
+    juce::String newer() const;
+    /**
+     * its release page
+     * @return its release page
+     */
+    juce::String page() const;
+    /**
+     * @brief Whether version @p a ("v1.2.3", "1.2") is later than @p b.
+     * @param[in] a  a version
+     * @param[in] b  another version
+     * @return true when a is later than b
+     */
     static bool later(const juce::String& a, const juce::String& b);
 
 private:

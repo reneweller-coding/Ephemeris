@@ -11,6 +11,7 @@
  *
  * The tape echoes of the seventies that players of this music used had springs built in; here the
  * spring takes the echo's send, so a row sent to the echo is also sent to the spring.
+ * @author Rene Weller
  */
 #pragma once
 #include "eph/Dsp.h"
@@ -22,11 +23,25 @@ namespace eph {
 class Spring {
 public:
     static constexpr int Stages = 48;   ///< all-passes per spring: the chirp's strength
-    /** @brief Sample rate; allocates the loop delays. */
+    /**
+     * @brief Sample rate; allocates the loop delays.
+     * @param[in] sampleRate  the sample rate in Hz
+     */
     void prepare(double sampleRate);
-    /** @brief Decay time (T60) and the loop's low pass; call at every 32-sample cell. */
+    /**
+     * @brief Decay time (T60) and the loop's low pass; call at every 32-sample cell.
+     * @param[in] decaySeconds  the decay time T60 in seconds
+     * @param[in] toneHz        the loop's low-pass corner in Hz
+     */
     void set(float decaySeconds, float toneHz);
-    /** @brief Adds the springs' return of @p inL, @p inR to @p outL, @p outR. */
+    /**
+     * @brief Adds the springs' return of @p inL, @p inR to @p outL, @p outR.
+     * @param[in]     inL   the left input
+     * @param[in]     inR   the right input
+     * @param[in,out] outL  the left output, added to
+     * @param[in,out] outR  the right output, added to
+     * @param[in]     n     how many samples
+     */
     void process(const float* inL, const float* inR, float* outL, float* outR, int n);
 
 private:

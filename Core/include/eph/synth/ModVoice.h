@@ -47,6 +47,7 @@
  * sample raster, which saves two exponentials, an exp2 and a tan on three of four samples. The
  * ladder's zero-delay form takes the steps of its coefficient without clicks; the fastest thing it
  * follows, the 1.5 ms attack of the filter envelope, still gets 18 steps.
+ * @author Rene Weller
  */
 #pragma once
 #include "eph/Dsp.h"
@@ -107,7 +108,14 @@ struct VoiceSettings {
  */
 struct OuProcess {
     double m_x = 0.0;   ///< current value
-    /** @brief One step of @p dt seconds with time constant @p tau and spread @p sigma, noise from @p rng. */
+    /**
+     * @brief One step of @p dt seconds with time constant @p tau and spread @p sigma, noise from @p rng.
+     * @param[in]     dt     the step in seconds
+     * @param[in]     tau    the time constant in seconds
+     * @param[in]     sigma  the spread
+     * @param[in,out] rng    the noise's stream
+     * @return the new value
+     */
     double step(double dt, double tau, double sigma, Rng& rng)
     {
         const double a = std::exp(-dt / tau);
@@ -121,48 +129,76 @@ class ModVoiceBank {
 public:
     /**
      * @brief Sets the output sample rate (the audio path runs at twice it) and each voice's own seed.
-     * @param sampleRate output rate
-     * @param seeds      one seed per voice, BankVoices of them
+     * @param[in] sampleRate  output rate
+     * @param[in] seeds       one seed per voice, BankVoices of them
      */
     void prepare(double sampleRate, const uint64_t* seeds);
     /** @brief Silences every voice and clears every state except the drift and the oscillators' phases. */
     void reset();
-    /** @brief Takes voice @p v's settings for the following samples; call at every 32-sample cell. */
+    /**
+     * @brief Takes voice @p v's settings for the following samples; call at every 32-sample cell.
+     * @param[in] v  the voice
+     * @param[in] s  its settings
+     */
     void set(int v, const VoiceSettings& s);
     /**
      * @brief Starts a note on voice @p v.
-     * @param v        the voice
-     * @param pitch    MIDI note
-     * @param velocity 0..1
-     * @param accent   accented step
-     * @param legato   glide from the sounding pitch without retriggering the envelopes
-     * @param id       pairs the note with its noteOff()
+     * @param[in] v         the voice
+     * @param[in] pitch     MIDI note
+     * @param[in] velocity  0..1
+     * @param[in] accent    accented step
+     * @param[in] legato    glide from the sounding pitch without retriggering the envelopes
+     * @param[in] id        pairs the note with its noteOff()
+     * @param[in] bright    the note's brightness offset
+     * @param[in] decay     the note's decay offset
      */
     void noteOn(int v, int pitch, float velocity, bool accent, bool legato, int id, float bright = 0.0f, float decay = 0.0f);
     /**
      * @brief Releases the note @p id on voice @p v if it is the one held. A mono voice ignores the off
      *        of a note a later one has already taken over -- by id, not by pitch, because two slides on
      *        the same pitch overlap.
+     * @param[in] v   the voice
+     * @param[in] id  the note's id
      */
     void noteOff(int v, int id);
-    /** @brief Whether voice @p v makes sound or is about to. */
+    /**
+     * @brief Whether voice @p v makes sound or is about to.
+     * @param[in] v  the voice
+     * @return true while it sounds or is about to
+     */
     bool active(int v) const { return m_ctl[v].m_amp.isActive(); }
-    /** @brief Whether a key is held on voice @p v (a note is on and not yet released). */
+    /**
+     * @brief Whether a key is held on voice @p v (a note is on and not yet released).
+     * @param[in] v  the voice
+     * @return true while a key is held on it
+     */
     bool held(int v) const { return m_ctl[v].m_held >= 0; }
     /**
      * @brief Renders @p n samples (at most BankSpan) of every voice with @p run set; afterwards
      *        output(v) holds them. The whole bank runs when any voice does, a decision taken from
      *        @p run alone, so it is the same on every vector path and for every host block size.
+     * @param[in] run  per voice whether it runs
+     * @param[in] n    how many samples, at most BankSpan
      */
     void process(const bool* run, int n);
-    /** @brief Voice @p v's last rendered samples (valid for the voices that ran). */
+    /**
+     * @brief Voice @p v's last rendered samples (valid for the voices that ran).
+     * @param[in] v  the voice
+     * @return its last rendered samples
+     */
     const float* output(int v) const { return m_out[v]; }
     /**
      * @brief The piece's clock for the synced LFOs: @p beat at the next sample to render, @p beatsPerSample from there.
      *        Call at every cell, before its notes.
+     * @param[in] beat            the beat at the next sample
+     * @param[in] beatsPerSample  beats per sample from there
      */
     void setClock(double beat, double beatsPerSample) { m_beat0 = beat; m_bps = beatsPerSample; m_clockAt = m_count; }
-    /** @brief Voice @p v's pan offset from its modulation matrix (-1..1; the engine adds it to the strip's pan). */
+    /**
+     * @brief Voice @p v's pan offset from its modulation matrix (-1..1; the engine adds it to the strip's pan).
+     * @param[in] v  the voice
+     * @return its pan offset, -1..1
+     */
     float panMod(int v) const
     {
         const Control& c = m_ctl[v];
@@ -221,13 +257,27 @@ private:
         OuProcess m_jitter2;   ///< the second's
         Rng m_jrng;                    ///< its own stream (the drift's stays as it was)
     };
-    /** @brief Voice @p v's scalar side for sample @p i of the span, written into the lanes. */
+    /**
+     * @brief Voice @p v's scalar side for sample @p i of the span, written into the lanes.
+     * @param[in] v  the voice
+     * @param[in] i  the sample within the span
+     */
     void control(int v, int i);
-    /** @brief Voice @p v's per-sample values (Control::wv ..) from its knobs and its matrix's last sums. */
+    /**
+     * @brief Voice @p v's per-sample values (Control::wv ..) from its knobs and its matrix's last sums.
+     * @param[in] v  the voice
+     */
     void shape(int v);
-    /** @brief The filter envelope's times from the knobs and the note's decay factor. */
+    /**
+     * @brief The filter envelope's times from the knobs and the note's decay factor.
+     * @param[in,out] c  the voice's control state
+     */
     static void filterTimes(Control& c);
-    /** @brief The piece's beat at sample @p at (setClock). */
+    /**
+     * @brief The piece's beat at sample @p at (setClock).
+     * @param[in] at  the sample
+     * @return the beat there
+     */
     double beatAt(int64_t at) const { return m_beat0 + static_cast<double>(at - m_clockAt) * m_bps; }
 
     double m_sr = 48000.0;   ///< the sample rate, Hz

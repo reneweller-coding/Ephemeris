@@ -39,6 +39,7 @@
  * VCA. The VCA comes last, after the AC coupling: the filters then always carry the running
  * oscillators, never a decaying tail, so no state sinks into denormals while a voice is silent, and a
  * note starts on a signal without DC.
+ * @author Rene Weller
  */
 #pragma once
 #include "eph/Halfband.h"
@@ -109,7 +110,10 @@ struct VoiceLanes {
     float m_combLp[BankLanes] = {};                                       ///< ... the damping in their loops
     /** @} */
 
-    /** @brief Clears lane @p l's filter: its nodes, its states, its comb (a new model starts from rest). */
+    /**
+     * @brief Clears lane @p l's filter: its nodes, its states, its comb (a new model starts from rest).
+     * @param[in] l  the lane
+     */
     void clearFilter(int l)
     {
         for (int j = 0; j < 4; ++j) m_fv[j][l] = m_fs[j][l] = 0.0f;
@@ -128,7 +132,13 @@ struct VoiceLanes {
     }
 };
 
-/** @brief PolyBLEP residual at phase @p t for step @p dt (1/dt = @p inv), branch-free. */
+/**
+ * @brief PolyBLEP residual at phase @p t for step @p dt (1/dt = @p inv), branch-free.
+ * @param[in] t    the phase
+ * @param[in] dt   the phase step
+ * @param[in] inv  1 / dt
+ * @return the residual
+ */
 template <class VT>
 EPH_FORCE_INLINE VT laneBlep(VT t, VT dt, VT inv)
 {
@@ -139,7 +149,16 @@ EPH_FORCE_INLINE VT laneBlep(VT t, VT dt, VT inv)
     return r + vselect(vgt(t, one - dt), b * b + b + b + one, zero);
 }
 
-/** @brief One VCO sample (saw blended into the inverted pulse, as Oscillator.h), then the phase steps. */
+/**
+ * @brief One VCO sample (saw blended into the inverted pulse, as Oscillator.h), then the phase steps.
+ * @param[in,out] ph     the phase, stepped on
+ * @param[in]     dt     the phase step
+ * @param[in]     inv    1 / dt
+ * @param[in]     wave   the blend of saw and pulse, 0..1
+ * @param[in]     pw     the pulse width
+ * @param[in]     pulse  true when the pulse is in the blend
+ * @return the sample
+ */
 template <class VT>
 EPH_FORCE_INLINE VT laneVco(VT& ph, VT dt, VT inv, VT wave, VT pw, bool pulse)
 {
@@ -159,23 +178,25 @@ EPH_FORCE_INLINE VT laneVco(VT& ph, VT dt, VT inv, VT wave, VT pw, bool pulse)
 }
 
 /**
- * @brief Renders @p n samples of the lanes [lane, lane + R laneWidth<V>()).
+ * @brief Renders @p n samples of the lanes [lane, lane + R laneWidth\<V\>()).
  *
  * The @p R registers run through each stage side by side: their dependency chains -- the ladder's
  * divisions and square roots, sample after sample -- are independent, so the processor overlaps them.
  * One register alone waits on its own chain most of the time.
- *
+ * @param[in,out] s       the lanes' state and coefficients
+ * @param[in]     hbd     the decimator's coefficients
+ * @param[in]     lane    the first lane of this call
+ * @param[in]     n       samples, at most BankSpan
+ * @param[in]     pulse   whether any lane mixes in the pulse (decided for the whole bank, so every path runs the same
+ *                        arithmetic; a lane with wave 0 gets exactly its saw either way)
+ * @param[in,out] out     per sample and lane (index i * BankLanes + lane)
+ * @param[in]     table   true for the wavetable oscillators
+ * @param[in]     models  per register of this call: the filter models its lanes use, as bits (26.09.2026: a register
+ *                        computes only its own models -- a lane takes its own model's output either way, so the lanes
+ *                        stay the same to the bit)
+ * @param[in]     fm      true for the FM model
  * @tparam V    lane type
  * @tparam R    registers per call
- * @param s     the lanes' state and coefficients
- * @param hbd   the decimator's coefficients
- * @param lane  the first lane of this call
- * @param n     samples, at most BankSpan
- * @param pulse whether any lane mixes in the pulse (decided for the whole bank, so every path runs the
- *              same arithmetic; a lane with wave 0 gets exactly its saw either way)
- * @param out   per sample and lane (index i * BankLanes + lane)
- * @param models per register of this call: the filter models its lanes use, as bits (26.09.2026: a register computes only
- *              its own models -- a lane takes its own model's output either way, so the lanes stay the same to the bit)
  */
 template <class VT, int R>
 void voiceKernel(VoiceLanes& s, const HalfbandDesign& hbd, int lane, int n, bool pulse, float* out, bool table,

@@ -1,6 +1,7 @@
 /**
  * @file EditorPerform.cpp
  * @brief The perform page (EditorPerform.h).
+ * @author Rene Weller
  */
 #include "EditorPerform.h"
 #include "EditorTheme.h"

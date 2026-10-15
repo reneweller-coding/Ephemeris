@@ -1,6 +1,7 @@
 /**
  * @file Bbd.cpp
  * @brief The bucket-brigade delay (Bbd.h).
+ * @author Rene Weller
  */
 #include "eph/fx/Bbd.h"
 #include <algorithm>

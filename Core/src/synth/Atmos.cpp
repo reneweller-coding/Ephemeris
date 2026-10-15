@@ -1,6 +1,7 @@
 /**
  * @file Atmos.cpp
  * @brief Wind, sweeps, bleeps.
+ * @author Rene Weller
  */
 #include "eph/synth/Atmos.h"
 #include "eph/Rack.h"

@@ -1,6 +1,7 @@
 /**
  * @file Score.cpp
  * @brief Gesture curves and score housekeeping.
+ * @author Rene Weller
  */
 #include "eph/Score.h"
 #include <algorithm>

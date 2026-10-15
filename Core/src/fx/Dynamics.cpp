@@ -2,6 +2,7 @@
  * @file Dynamics.cpp
  * @brief True-peak interpolator and lookahead limiter.
  * @note Copied from Phosphene `Core/src/Dynamics.cpp` at 9a2f615 (24.09.2026); namespace eph, prefix EPH_.
+ * @author Rene Weller
  */
 #include "eph/fx/Dynamics.h"
 #include <algorithm>
@@ -12,7 +13,11 @@ namespace eph {
 namespace {
 constexpr double PiD = 3.141592653589793;   ///< pi
 
-/** @brief Modified Bessel function of the first kind, order zero (power series). */
+/**
+ * @brief Modified Bessel function of the first kind, order zero (power series).
+ * @param[in] x  the argument
+ * @return I0(x)
+ */
 double besselI0(double x)
 {
     double sum = 1.0, term = 1.0;

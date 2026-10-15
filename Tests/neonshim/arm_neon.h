@@ -1,6 +1,6 @@
 /**
  * @file arm_neon.h
- * @brief NOT the real <arm_neon.h>: the AArch64 NEON intrinsics Phosphene uses, written out lane
+ * @brief NOT the real \<arm_neon.h\>: the AArch64 NEON intrinsics Phosphene uses, written out lane
  *        by lane after their ACLE definitions, so an x86 test build (EPH_NEON_SHIM) runs the NEON
  *        code paths instead of skipping them.
  *
@@ -12,6 +12,7 @@
  *
  * @note Extended from Noctuary `Tests/neonshim/arm_neon.h` at b60a2fe (15.09.2026): masks,
  *       division, square root, absolute value, negation and floor added.
+ * @author Rene Weller
  */
 #pragma once
 #include <cmath>
