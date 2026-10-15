@@ -25,22 +25,25 @@
 #include <cstdint>
 #include <vector>
 
-namespace eph {
+namespace eph
+{
 
 /** @brief Settings of the echo for the following samples. */
-struct EchoSettings {
+struct EchoSettings
+{
     double m_delaySeconds = 0.3;   ///< nominal delay
-    float m_feedback = 0.45f;      ///< loop gain (above 1 runs into saturation)
-    float m_toneHz = 3500.0f;      ///< loop low pass
-    float m_wowMs = 0.6f;          ///< depth of the slow wander
-    float m_flutterMs = 0.06f;     ///< depth of the fast wander
-    float m_driveDb = 4.0f;        ///< saturation drive in the loop
-    bool m_pingPong = true;        ///< cross the loops
-    float m_lowCutHz = 70.0f;      ///< the loop's high pass: each repeat thinner (the production guide's 5.4)
+    float  m_feedback = 0.45f;     ///< loop gain (above 1 runs into saturation)
+    float  m_toneHz = 3500.0f;     ///< loop low pass
+    float  m_wowMs = 0.6f;         ///< depth of the slow wander
+    float  m_flutterMs = 0.06f;    ///< depth of the fast wander
+    float  m_driveDb = 4.0f;       ///< saturation drive in the loop
+    bool   m_pingPong = true;      ///< cross the loops
+    float  m_lowCutHz = 70.0f;     ///< the loop's high pass: each repeat thinner (the production guide's 5.4)
 };
 
 /** @brief A stereo tape echo; returns only the wet signal. */
-class TapeEcho {
+class TapeEcho
+{
 public:
     /**
      * @brief Allocates for up to @p maxSeconds of delay.
@@ -48,7 +51,7 @@ public:
      * @param[in] maxSeconds  the longest delay in seconds
      * @param[in] seed        the seed of the wow and flutter
      */
-    void prepare(double sampleRate, double maxSeconds, uint64_t seed);
+    void prepare( double sampleRate, double maxSeconds, uint64_t seed );
     /** @brief Clears the tape. */
     void reset();
     /**
@@ -56,7 +59,7 @@ public:
      *         puts the tape at its speed at once; later changes of time glide, as a tape's speed does.
      * @param[in] s  the settings
      */
-    void set(const EchoSettings& s);
+    void set( const EchoSettings &s );
     /**
      * @brief Adds the echo of @p inL, @p inR to @p outL, @p outR.
      * @param[in]     inL   the left input
@@ -65,7 +68,7 @@ public:
      * @param[in,out] outR  the right output, added to
      * @param[in]     n     how many samples
      */
-    void process(const float* inL, const float* inR, float* outL, float* outR, int n);
+    void process( const float *inL, const float *inR, float *outL, float *outR, int n );
 
 private:
     /**
@@ -74,28 +77,28 @@ private:
      * @param[in] delaySamples  how many samples ago, fractional
      * @return the interpolated sample
      */
-    float read(const std::vector<float>& buf, double delaySamples) const;
-    double m_sr = 48000.0;   ///< the sample rate, Hz
-    std::vector<float> m_bufL;   ///< the tape, left
-    std::vector<float> m_bufR;   ///< the tape, right
-    size_t m_mask = 0;   ///< its size - 1
-    size_t m_write = 0;   ///< where the next sample goes
-    EchoSettings m_s;   ///< the settings
-    Smoother m_delay;             ///< the tape speed: the delay in samples glides to its target
-    double m_target = 0.0;   ///< the delay asked for, samples
-    bool m_fresh = true;          ///< no settings taken since prepare() or reset()
-    double m_wowPhase = 0.0;   ///< the wow's phase, cycles
-    double m_flutterPhase = 0.0;   ///< the flutter's phase, cycles
-    double m_drift = 0.0;   ///< the slow drift of the speed, -1..1
-    double m_driftTarget = 0.0;   ///< where it drifts to (a new one every 32768 samples)
-    int64_t m_count = 0;   ///< samples processed
-    Svf m_lpL;   ///< the feedback's low pass, left
-    Svf m_lpR;   ///< ... right
-    Svf m_hpL;   ///< the feedback's high pass, left
-    Svf m_hpR;   ///< ... right
-    float m_drive = 1.5f;   ///< the tape's drive
-    float m_driveNorm = 0.66f;   ///< the gain that keeps the level after it
-    Rng m_rng;   ///< the drift's random stream
+    float read( const std::vector<float> &buf, double delaySamples ) const;
+    double             m_sr = 48000.0;         ///< the sample rate, Hz
+    std::vector<float> m_bufL;                 ///< the tape, left
+    std::vector<float> m_bufR;                 ///< the tape, right
+    size_t             m_mask = 0;             ///< its size - 1
+    size_t             m_write = 0;            ///< where the next sample goes
+    EchoSettings       m_s;                    ///< the settings
+    Smoother           m_delay;                ///< the tape speed: the delay in samples glides to its target
+    double             m_target = 0.0;         ///< the delay asked for, samples
+    bool               m_fresh = true;         ///< no settings taken since prepare() or reset()
+    double             m_wowPhase = 0.0;       ///< the wow's phase, cycles
+    double             m_flutterPhase = 0.0;   ///< the flutter's phase, cycles
+    double             m_drift = 0.0;          ///< the slow drift of the speed, -1..1
+    double             m_driftTarget = 0.0;    ///< where it drifts to (a new one every 32768 samples)
+    int64_t            m_count = 0;            ///< samples processed
+    Svf                m_lpL;                  ///< the feedback's low pass, left
+    Svf                m_lpR;                  ///< ... right
+    Svf                m_hpL;                  ///< the feedback's high pass, left
+    Svf                m_hpR;                  ///< ... right
+    float              m_drive = 1.5f;         ///< the tape's drive
+    float              m_driveNorm = 0.66f;    ///< the gain that keeps the level after it
+    Rng                m_rng;                  ///< the drift's random stream
 };
 
-} // namespace eph
+}   // namespace eph

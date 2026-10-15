@@ -27,28 +27,31 @@
 #include <functional>
 #include <vector>
 
-namespace eph {
+namespace eph
+{
 
 /** @brief One knob the hands may move, with its range in offsets of the normalised knob. */
-struct HandKnob {
-    int m_param = -1;           ///< parameter id
-    float m_low = -0.4f;        ///< lowest offset a hand takes it to
-    float m_high = 0.4f;        ///< highest offset
-    float m_weight = 1.0f;      ///< how often it is chosen
-    float m_atRest = 0.0f;      ///< its centre at energy 0
-    float m_atPeak = 0.0f;      ///< its centre at energy 1
-    float m_scatter = 0.12f;    ///< spread of targets around the centre
-    bool m_throws = false;      ///< moved in quick throws and caught again (an echo's feedback)
+struct HandKnob
+{
+    int    m_param = -1;        ///< parameter id
+    float  m_low = -0.4f;       ///< lowest offset a hand takes it to
+    float  m_high = 0.4f;       ///< highest offset
+    float  m_weight = 1.0f;     ///< how often it is chosen
+    float  m_atRest = 0.0f;     ///< its centre at energy 0
+    float  m_atPeak = 0.0f;     ///< its centre at energy 1
+    float  m_scatter = 0.12f;   ///< spread of targets around the centre
+    bool   m_throws = false;    ///< moved in quick throws and caught again (an echo's feedback)
     double m_from = 0.0;        ///< beat before which nobody touches it (a row that has not started yet)
 };
 
 /** @brief The timing of the hands. */
-struct HandStyle {
-    double m_medianSeconds = 8.0;     ///< median duration of a movement
-    double m_spread = 0.7;            ///< log-normal sigma of the durations
-    double m_longChance = 0.12;       ///< chance of a long sweep (4 to 10 times the median)
-    double m_quickChance = 0.10;      ///< chance of a quick twist (1 to 2 s)
-    double m_restSeconds = 14.0;      ///< median rest between two movements of one hand (two hands: ~4 a minute together)
+struct HandStyle
+{
+    double m_medianSeconds = 8.0;   ///< median duration of a movement
+    double m_spread = 0.7;          ///< log-normal sigma of the durations
+    double m_longChance = 0.12;     ///< chance of a long sweep (4 to 10 times the median)
+    double m_quickChance = 0.10;    ///< chance of a quick twist (1 to 2 s)
+    double m_restSeconds = 14.0;    ///< median rest between two movements of one hand (two hands: ~4 a minute together)
 };
 
 /**
@@ -61,7 +64,7 @@ struct HandStyle {
  * @param[in]     end     last beat; no movement runs past it
  * @param[in,out] rng     the stream of the hands
  */
-void playHands(Score& score, const std::vector<HandKnob>& knobs, const HandStyle& style,
-               const std::function<float(double)>& energy, double start, double end, Rng& rng);
+void playHands( Score &score, const std::vector<HandKnob> &knobs, const HandStyle &style,
+                const std::function<float( double )> &energy, double start, double end, Rng &rng );
 
-} // namespace eph
+}   // namespace eph

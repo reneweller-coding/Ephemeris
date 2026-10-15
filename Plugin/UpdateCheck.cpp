@@ -6,9 +6,11 @@
 #include "UpdateCheck.h"
 #include <cstdlib>
 
-namespace {
-const char* const Releases = "https://api.github.com/repos/reneweller-coding/Ephemeris/releases/latest";   ///< GitHub's API for the latest release
-constexpr juce::int64 Day = 24 * 60 * 60 * 1000;   ///< a day, ms
+namespace
+{
+const char *const Releases =
+    "https://api.github.com/repos/reneweller-coding/Ephemeris/releases/latest";   ///< GitHub's API for the latest release
+constexpr juce::int64 Day = 24 * 60 * 60 * 1000;                                  ///< a day, ms
 
 /**
  * @brief The check's settings file: Ephemeris.updates beside the standalone's settings.
@@ -23,35 +25,38 @@ juce::PropertiesFile::Options options()
     o.osxLibrarySubFolder = "Application Support";
     return o;
 }
-} // namespace
+}   // namespace
 
-UpdateCheck::UpdateCheck() : juce::Thread("Ephemeris update check"), m_settings(std::make_unique<juce::PropertiesFile>(options()))
+UpdateCheck::UpdateCheck()
+    : juce::Thread( "Ephemeris update check" ), m_settings( std::make_unique<juce::PropertiesFile>( options() ) )
 {
     // What the last check found, until the next one.
-    const juce::String latest = m_settings->getValue("latest");
-    if (later(latest, EPH_VERSION)) {
-        m_newer = latest.trimCharactersAtStart("vV");
-        m_page = m_settings->getValue("page");
+    const juce::String latest = m_settings->getValue( "latest" );
+    if ( later( latest, EPH_VERSION ) )
+    {
+        m_newer = latest.trimCharactersAtStart( "vV" );
+        m_page = m_settings->getValue( "page" );
     }
     askIfDue();
 }
 
 UpdateCheck::~UpdateCheck()
 {
-    stopThread(10000);
+    stopThread( 10000 );
 }
 
 bool UpdateCheck::enabled() const
 {
-    return m_settings->getBoolValue("check", true);
+    return m_settings->getBoolValue( "check", true );
 }
 
-void UpdateCheck::setEnabled(bool on)
+void UpdateCheck::setEnabled( bool on )
 {
-    m_settings->setValue("check", on);
+    m_settings->setValue( "check", on );
     m_settings->saveIfNeeded();
-    if (!on) {
-        const juce::ScopedLock g(m_lock);
+    if ( !on )
+    {
+        const juce::ScopedLock g( m_lock );
         m_newer.clear();
     }
     askIfDue();
@@ -59,57 +64,66 @@ void UpdateCheck::setEnabled(bool on)
 
 juce::String UpdateCheck::newer() const
 {
-    const juce::ScopedLock g(m_lock);
+    const juce::ScopedLock g( m_lock );
     return m_newer;
 }
 
 juce::String UpdateCheck::page() const
 {
-    const juce::ScopedLock g(m_lock);
+    const juce::ScopedLock g( m_lock );
     return m_page;
 }
 
-bool UpdateCheck::later(const juce::String& a, const juce::String& b)
+bool UpdateCheck::later( const juce::String &a, const juce::String &b )
 {
-    auto parts = [](const juce::String& v) {
-        juce::StringArray p = juce::StringArray::fromTokens(v.trim().trimCharactersAtStart("vV").upToFirstOccurrenceOf("-", false, false), ".", "");
+    auto parts = []( const juce::String &v )
+    {
+        juce::StringArray p = juce::StringArray::fromTokens(
+            v.trim().trimCharactersAtStart( "vV" ).upToFirstOccurrenceOf( "-", false, false ), ".", "" );
         std::array<int, 3> n = { 0, 0, 0 };
-        for (int i = 0; i < 3 && i < p.size(); ++i) n[static_cast<size_t>(i)] = p[i].getIntValue();
+        for ( int i = 0; i < 3 && i < p.size(); ++i ) n[static_cast<size_t>( i )] = p[i].getIntValue();
         return n;
     };
-    if (a.trim().isEmpty()) return false;
-    return parts(a) > parts(b);
+    if ( a.trim().isEmpty() ) return false;
+    return parts( a ) > parts( b );
 }
 
 void UpdateCheck::askIfDue()
 {
-    if (!enabled() || isThreadRunning()) return;
-    const juce::int64 last = m_settings->getValue("lastCheck", "0").getLargeIntValue();
-    if (juce::Time::currentTimeMillis() - last < Day) return;
-    startThread(juce::Thread::Priority::low);
+    if ( !enabled() || isThreadRunning() ) return;
+    const juce::int64 last = m_settings->getValue( "lastCheck", "0" ).getLargeIntValue();
+    if ( juce::Time::currentTimeMillis() - last < Day ) return;
+    startThread( juce::Thread::Priority::low );
 }
 
 void UpdateCheck::run()
 {
-    m_settings->setValue("lastCheck", juce::String(juce::Time::currentTimeMillis()));
+    m_settings->setValue( "lastCheck", juce::String( juce::Time::currentTimeMillis() ) );
     m_settings->saveIfNeeded();
     // EPH_UPDATE_URL points the question elsewhere (a test aid: another repository's releases).
-    const char* other = std::getenv("EPH_UPDATE_URL");
-    const auto request = juce::URL(other != nullptr ? juce::String(other) : juce::String(Releases)).createInputStream(juce::URL::InputStreamOptions(juce::URL::ParameterHandling::inAddress)
-        .withConnectionTimeoutMs(8000)
-        .withExtraHeaders(juce::String("User-Agent: Ephemeris/") + EPH_VERSION + "\r\nAccept: application/vnd.github+json"));
-    if (request == nullptr || threadShouldExit()) return;
-    const juce::var release = juce::JSON::parse(request->readEntireStreamAsString());
-    const juce::String tag = release.getProperty("tag_name", "").toString(), url = release.getProperty("html_url", "").toString();
-    if (tag.isEmpty()) return;   // no release yet, or the repository not public
-    m_settings->setValue("latest", tag);
-    m_settings->setValue("page", url);
+    const char *other = std::getenv( "EPH_UPDATE_URL" );
+    const auto  request =
+        juce::URL( other != nullptr ? juce::String( other ) : juce::String( Releases ) )
+            .createInputStream( juce::URL::InputStreamOptions( juce::URL::ParameterHandling::inAddress )
+                                    .withConnectionTimeoutMs( 8000 )
+                                    .withExtraHeaders( juce::String( "User-Agent: Ephemeris/" ) + EPH_VERSION +
+                                                       "\r\nAccept: application/vnd.github+json" ) );
+    if ( request == nullptr || threadShouldExit() ) return;
+    const juce::var    release = juce::JSON::parse( request->readEntireStreamAsString() );
+    const juce::String tag = release.getProperty( "tag_name", "" ).toString(),
+                       url = release.getProperty( "html_url", "" ).toString();
+    if ( tag.isEmpty() ) return;   // no release yet, or the repository not public
+    m_settings->setValue( "latest", tag );
+    m_settings->setValue( "page", url );
     m_settings->saveIfNeeded();
-    const juce::ScopedLock g(m_lock);
-    if (later(tag, EPH_VERSION)) {
-        m_newer = tag.trimCharactersAtStart("vV");
+    const juce::ScopedLock g( m_lock );
+    if ( later( tag, EPH_VERSION ) )
+    {
+        m_newer = tag.trimCharactersAtStart( "vV" );
         m_page = url;
-    } else {
+    }
+    else
+    {
         m_newer.clear();
     }
 }

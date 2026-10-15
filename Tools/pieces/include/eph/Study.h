@@ -16,7 +16,8 @@
 #include "eph/Score.h"
 #include <cstdint>
 
-namespace eph {
+namespace eph
+{
 
 /**
  * @brief Writes the study.
@@ -25,6 +26,6 @@ namespace eph {
  * @param[in] minutes  length
  * @return the study's score
  */
-Score buildStudy(const ParamStore& p, uint64_t seed, double minutes);
+Score buildStudy( const ParamStore &p, uint64_t seed, double minutes );
 
-} // namespace eph
+}   // namespace eph

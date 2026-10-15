@@ -38,14 +38,25 @@
 #include <algorithm>
 #include <cmath>
 
-namespace eph {
+namespace eph
+{
 
 /** @brief The VCO models (VcoNames). */
-enum class VcoModelE : int { ANALOG, MOOG921, PROPHET5, SEM, ARP2600, EMU, COUNT };
-constexpr int VcoModels = static_cast<int>(VcoModelE::COUNT);   ///< how many VCO models there are
+enum class VcoModelE : int
+{
+    ANALOG,
+    MOOG921,
+    PROPHET5,
+    SEM,
+    ARP2600,
+    EMU,
+    COUNT
+};
+constexpr int VcoModels = static_cast<int>( VcoModelE::COUNT );   ///< how many VCO models there are
 
 /** @brief A model's circuit: the ramp's bow and knee, and its drift against the voice's. */
-struct VcoProfile {
+struct VcoProfile
+{
     float m_bow;           ///< c of the ramp 2t - 1 + c t (1 - t) - a t^8: the core's leakage
     float m_knee;          ///< a: the reset's knee
     float m_driftSpread;   ///< times the Drift knob's spread
@@ -59,23 +70,24 @@ struct VcoProfile {
  * @param[in] m  the model
  * @return its profile
  */
-inline const VcoProfile& vcoProfile(int m)
+inline const VcoProfile &vcoProfile( int m )
 {
     static const VcoProfile k[VcoModels] = {
-        { 0.0f, 0.0f, 1.0f, 1.0f, 1.0f, 0.0f },       // Analog: the voices' own oscillators, ideal ramps
-        { 0.1f, 0.2f, 1.4f, 0.7f, 1.5f, 0.6f },       // Moog 921: a discrete reset with a soft knee; wanders, warm
-        { 0.05f, 0.04f, 0.8f, 1.0f, 0.8f, 0.3f },     // Prophet-5 (SSM2030): an integrated, nearly ideal core
-        { 1.0f, 0.08f, 1.3f, 0.8f, 1.2f, 0.5f },      // Oberheim SEM: the discrete core's leakage, a round ramp
-        { -0.15f, 0.0f, 1.0f, 0.6f, 1.0f, 0.8f },     // ARP 2600 (4027): a fast reset, the ramp speeding up a little
-        { 0.0f, 0.0f, 0.4f, 1.5f, 0.5f, 0.1f },       // E-mu modular: precise and stable
+        { 0.0f, 0.0f, 1.0f, 1.0f, 1.0f, 0.0f },     // Analog: the voices' own oscillators, ideal ramps
+        { 0.1f, 0.2f, 1.4f, 0.7f, 1.5f, 0.6f },     // Moog 921: a discrete reset with a soft knee; wanders, warm
+        { 0.05f, 0.04f, 0.8f, 1.0f, 0.8f, 0.3f },   // Prophet-5 (SSM2030): an integrated, nearly ideal core
+        { 1.0f, 0.08f, 1.3f, 0.8f, 1.2f, 0.5f },    // Oberheim SEM: the discrete core's leakage, a round ramp
+        { -0.15f, 0.0f, 1.0f, 0.6f, 1.0f, 0.8f },   // ARP 2600 (4027): a fast reset, the ramp speeding up a little
+        { 0.0f, 0.0f, 0.4f, 1.5f, 0.5f, 0.1f },     // E-mu modular: precise and stable
     };
-    return k[std::clamp(m, 0, VcoModels - 1)];
+    return k[std::clamp( m, 0, VcoModels - 1 )];
 }
 
 /** @brief One oscillator after a model: its phase and the residuals it owes the next sample. */
-struct VcoOsc {
-    double m_ph = 0.0;          ///< phase in cycles, [0, 1)
-    float m_pending = 0.0f;     ///< residuals of the events since the last sample, for the next
+struct VcoOsc
+{
+    double m_ph = 0.0;         ///< phase in cycles, [0, 1)
+    float  m_pending = 0.0f;   ///< residuals of the events since the last sample, for the next
 
     /**
      * @brief The waveform at phase @p t: the model's ramp blended into the pulse (-1 below @p pw, +1 above).
@@ -85,11 +97,11 @@ struct VcoOsc {
      * @param[in] t     the phase in [0, 1)
      * @return the waveform's value
      */
-    static float value(const VcoProfile& p, float wave, float pw, double t)
+    static float value( const VcoProfile &p, float wave, float pw, double t )
     {
-        const float x = static_cast<float>(t), x2 = x * x, x4 = x2 * x2;
-        const float ramp = 2.0f * x - 1.0f + p.m_bow * x * (1.0f - x) - p.m_knee * x4 * x4;
-        return ramp + wave * ((x < pw ? -1.0f : 1.0f) - ramp);
+        const float x = static_cast<float>( t ), x2 = x * x, x4 = x2 * x2;
+        const float ramp = 2.0f * x - 1.0f + p.m_bow * x * ( 1.0f - x ) - p.m_knee * x4 * x4;
+        return ramp + wave * ( ( x < pw ? -1.0f : 1.0f ) - ramp );
     }
     /**
      * @brief Its slope per cycle at @p t (the pulse's is zero between its edges).
@@ -98,10 +110,10 @@ struct VcoOsc {
      * @param[in] t     the phase in [0, 1)
      * @return the slope per cycle
      */
-    static float slope(const VcoProfile& p, float wave, double t)
+    static float slope( const VcoProfile &p, float wave, double t )
     {
-        const float x = static_cast<float>(t), x2 = x * x, x3 = x2 * x;
-        return (1.0f - wave) * (2.0f + p.m_bow * (1.0f - 2.0f * x) - 8.0f * p.m_knee * x3 * x3 * x);
+        const float x = static_cast<float>( t ), x2 = x * x, x3 = x2 * x;
+        return ( 1.0f - wave ) * ( 2.0f + p.m_bow * ( 1.0f - 2.0f * x ) - 8.0f * p.m_knee * x3 * x3 * x );
     }
 
     /**
@@ -114,47 +126,66 @@ struct VcoOsc {
      * @param[in,out] wrapAt  if not null: where in this step this oscillator completed its cycle (negative: it did not)
      * @return the sample at the present phase
      */
-    float step(double dt, const VcoProfile& p, float wave, float pw, double syncAt, double* wrapAt)
+    float step( double dt, const VcoProfile &p, float wave, float pw, double syncAt, double *wrapAt )
     {
-        float y = value(p, wave, pw, m_ph) + m_pending;
+        float y = value( p, wave, pw, m_ph ) + m_pending;
         m_pending = 0.0f;
-        if (wrapAt != nullptr) *wrapAt = -1.0;
-        const float bendScale = static_cast<float>(dt);
-        double s = 0.0, t = m_ph;   // how much of the step has gone, and the phase there
-        for (int guard = 0; guard < 6; ++guard) {
+        if ( wrapAt != nullptr ) *wrapAt = -1.0;
+        const float bendScale = static_cast<float>( dt );
+        double      s = 0.0, t = m_ph;   // how much of the step has gone, and the phase there
+        for ( int guard = 0; guard < 6; ++guard )
+        {
             // The next event in (s, 1]: the end of the cycle, the pulse's edge, the restart by sync.
-            double next = 2.0;
-            int kind = 0;
-            const double toEnd = s + (1.0 - t) / dt;
-            if (toEnd <= 1.0) { next = toEnd; kind = 1; }
-            if (wave > 0.0f && t < static_cast<double>(pw)) {
-                const double e = s + (static_cast<double>(pw) - t) / dt;
-                if (e <= 1.0 && e < next) { next = e; kind = 2; }
+            double       next = 2.0;
+            int          kind = 0;
+            const double toEnd = s + ( 1.0 - t ) / dt;
+            if ( toEnd <= 1.0 )
+            {
+                next = toEnd;
+                kind = 1;
             }
-            if (syncAt > s && syncAt <= 1.0 && syncAt <= next) { next = syncAt; kind = 3; }
-            if (kind == 0) break;
-            const double at = std::min(1.0, t + (next - s) * dt);   // the phase at the event
-            float jump = 0.0f, bend = 0.0f;
-            if (kind == 2) {
+            if ( wave > 0.0f && t < static_cast<double>( pw ) )
+            {
+                const double e = s + ( static_cast<double>( pw ) - t ) / dt;
+                if ( e <= 1.0 && e < next )
+                {
+                    next = e;
+                    kind = 2;
+                }
+            }
+            if ( syncAt > s && syncAt <= 1.0 && syncAt <= next )
+            {
+                next = syncAt;
+                kind = 3;
+            }
+            if ( kind == 0 ) break;
+            const double at = std::min( 1.0, t + ( next - s ) * dt );   // the phase at the event
+            float        jump = 0.0f, bend = 0.0f;
+            if ( kind == 2 )
+            {
                 jump = 2.0f * wave;   // the pulse from -1 to +1
-                t = static_cast<double>(pw);
-            } else {
+                t = static_cast<double>( pw );
+            }
+            else
+            {
                 // The end of the cycle or a restart: from the value and slope there to those at the start.
-                jump = value(p, wave, pw, 0.0) - (kind == 1 ? value(p, wave, 0.0f, 1.0) : value(p, wave, pw, at));   // at the cycle's end the pulse is high
-                bend = (slope(p, wave, 0.0) - slope(p, wave, at)) * bendScale;
-                if (kind == 1 && wrapAt != nullptr) *wrapAt = next;
+                jump = value( p, wave, pw, 0.0 ) -
+                       ( kind == 1 ? value( p, wave, 0.0f, 1.0 )
+                                   : value( p, wave, pw, at ) );   // at the cycle's end the pulse is high
+                bend = ( slope( p, wave, 0.0 ) - slope( p, wave, at ) ) * bendScale;
+                if ( kind == 1 && wrapAt != nullptr ) *wrapAt = next;
                 t = 0.0;
             }
             // The residuals of a step and of a bend at `next` of the way from this sample to the next one.
-            const float d = static_cast<float>(next), e = 1.0f - d;
-            y += jump * 0.5f * e * e + bend * e * e * e * (1.0f / 6.0f);
-            m_pending += -jump * 0.5f * d * d + bend * d * d * d * (1.0f / 6.0f);
+            const float d = static_cast<float>( next ), e = 1.0f - d;
+            y += jump * 0.5f * e * e + bend * e * e * e * ( 1.0f / 6.0f );
+            m_pending += -jump * 0.5f * d * d + bend * d * d * d * ( 1.0f / 6.0f );
             s = next;
         }
-        m_ph = t + (1.0 - s) * dt;
-        if (m_ph >= 1.0) m_ph -= 1.0;
+        m_ph = t + ( 1.0 - s ) * dt;
+        if ( m_ph >= 1.0 ) m_ph -= 1.0;
         return y;
     }
 };
 
-} // namespace eph
+}   // namespace eph

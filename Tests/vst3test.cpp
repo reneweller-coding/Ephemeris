@@ -22,25 +22,27 @@
 #include <memory>
 #include <thread>
 
-namespace {
+namespace
+{
 
 int failures = 0;   ///< checks that failed
-int checks = 0;   ///< checks made
+int checks = 0;     ///< checks made
 
 /**
  * @brief Records one check's result and prints it.
  * @param[in] ok    the check's result
  * @param[in] what  what it checked
  */
-void check(bool ok, const juce::String& what)
+void check( bool ok, const juce::String &what )
 {
     ++checks;
-    std::printf("  [%s] %s\n", ok ? " ok " : "FAIL", what.toRawUTF8());
-    if (!ok) ++failures;
+    std::printf( "  [%s] %s\n", ok ? " ok " : "FAIL", what.toRawUTF8() );
+    if ( !ok ) ++failures;
 }
 
 /** @brief A transport a host would offer: playing, at a tempo, from a position. */
-class TestPlayHead final : public juce::AudioPlayHead {
+class TestPlayHead final : public juce::AudioPlayHead
+{
 public:
     /**
      * @brief The transport as it stands: playing, at bpm, at ppq and samples.
@@ -49,22 +51,26 @@ public:
     juce::Optional<PositionInfo> getPosition() const override
     {
         PositionInfo info;
-        info.setBpm(m_bpm);
-        info.setPpqPosition(m_ppq);
-        info.setTimeInSamples(static_cast<juce::int64>(m_samples));
-        info.setTimeInSeconds(m_samples / m_sampleRate);
-        info.setIsPlaying(true);
+        info.setBpm( m_bpm );
+        info.setPpqPosition( m_ppq );
+        info.setTimeInSamples( static_cast<juce::int64>( m_samples ) );
+        info.setTimeInSeconds( m_samples / m_sampleRate );
+        info.setIsPlaying( true );
         return info;
     }
     /**
      * moves on by @p n samples
      * @param[in] n  how many samples
      */
-    void advance(int n) { m_samples += n; m_ppq += n * m_bpm / (60.0 * m_sampleRate); }
-    double m_bpm = 120.0;   ///< the tempo
-    double m_ppq = 0.0;   ///< the position, quarter notes
+    void advance( int n )
+    {
+        m_samples += n;
+        m_ppq += n * m_bpm / ( 60.0 * m_sampleRate );
+    }
+    double m_bpm = 120.0;            ///< the tempo
+    double m_ppq = 0.0;              ///< the position, quarter notes
     double m_sampleRate = 48000.0;   ///< the sample rate, Hz
-    double m_samples = 0.0;   ///< the position, samples
+    double m_samples = 0.0;          ///< the position, samples
 };
 
 /**
@@ -76,24 +82,26 @@ public:
  * @param[out]    finite   receives whether every sample was finite, or null
  * @return the peak of what played
  */
-double play(juce::AudioPluginInstance& p, TestPlayHead& head, double seconds, int block, bool* finite = nullptr)
+double play( juce::AudioPluginInstance &p, TestPlayHead &head, double seconds, int block, bool *finite = nullptr )
 {
-    juce::AudioBuffer<float> buf(2, block);
-    juce::MidiBuffer midi;
-    double peak = 0.0;
-    const int blocks = static_cast<int>(seconds * head.m_sampleRate / block);
-    for (int i = 0; i < blocks; ++i) {
-        if (i % 16 == 0) juce::MessageManager::getInstance()->runDispatchLoopUntil(5);
+    juce::AudioBuffer<float> buf( 2, block );
+    juce::MidiBuffer         midi;
+    double                   peak = 0.0;
+    const int                blocks = static_cast<int>( seconds * head.m_sampleRate / block );
+    for ( int i = 0; i < blocks; ++i )
+    {
+        if ( i % 16 == 0 ) juce::MessageManager::getInstance()->runDispatchLoopUntil( 5 );
         buf.clear();
         midi.clear();
-        p.processBlock(buf, midi);
-        for (int c = 0; c < 2; ++c)
-            for (int s = 0; s < block; ++s) {
-                const float v = buf.getReadPointer(c)[s];
-                if (finite != nullptr && !std::isfinite(v)) *finite = false;
-                peak = juce::jmax(peak, static_cast<double>(std::fabs(v)));
+        p.processBlock( buf, midi );
+        for ( int c = 0; c < 2; ++c )
+            for ( int s = 0; s < block; ++s )
+            {
+                const float v = buf.getReadPointer( c )[s];
+                if ( finite != nullptr && !std::isfinite( v ) ) *finite = false;
+                peak = juce::jmax( peak, static_cast<double>( std::fabs( v ) ) );
             }
-        head.advance(block);
+        head.advance( block );
     }
     return peak;
 }
@@ -104,11 +112,11 @@ double play(juce::AudioPluginInstance& p, TestPlayHead& head, double seconds, in
  */
 int finish()
 {
-    std::printf("%d checks, %d failures\n", checks, failures);
+    std::printf( "%d checks, %d failures\n", checks, failures );
     return failures == 0 ? 0 : 1;
 }
 
-} // namespace
+}   // namespace
 
 /**
  * @brief Loads the built VST3 as a host would and runs the checks.
@@ -116,242 +124,275 @@ int finish()
  * @param[in,out] argv  the arguments: sections to run
  * @return the number of failures
  */
-int main(int argc, char** argv)
+int main( int argc, char **argv )
 {
     juce::ScopedJuceInitialiser_GUI juceInit;
-    if (argc < 2) { std::printf("usage: eph_vst3test <path to Ephemeris.vst3>\n"); return 2; }
-    const juce::File plugin(juce::String::fromUTF8(argv[1]));
-    std::printf("Ephemeris VST3 test: %s\n", plugin.getFullPathName().toRawUTF8());
-    check(plugin.exists(), "the built VST3 is where the build says it is");
-    if (!plugin.exists()) return finish();
+    if ( argc < 2 )
+    {
+        std::printf( "usage: eph_vst3test <path to Ephemeris.vst3>\n" );
+        return 2;
+    }
+    const juce::File plugin( juce::String::fromUTF8( argv[1] ) );
+    std::printf( "Ephemeris VST3 test: %s\n", plugin.getFullPathName().toRawUTF8() );
+    check( plugin.exists(), "the built VST3 is where the build says it is" );
+    if ( !plugin.exists() ) return finish();
 
     // ---------------------------------------------------------------- the module and its factory
-    juce::VST3PluginFormat format;
+    juce::VST3PluginFormat                    format;
     juce::OwnedArray<juce::PluginDescription> found;
-    format.findAllTypesForFile(found, plugin.getFullPathName());
-    check(found.size() == 1, "the module holds exactly one plugin (" + juce::String(found.size()) + ")");
-    if (found.isEmpty()) return finish();
-    const juce::PluginDescription& desc = *found[0];
-    std::printf("  %s %s by %s\n", desc.name.toRawUTF8(), desc.version.toRawUTF8(), desc.manufacturerName.toRawUTF8());
-    check(desc.name == "Ephemeris", "it calls itself Ephemeris");
-    check(desc.isInstrument, "it says it is an instrument");
+    format.findAllTypesForFile( found, plugin.getFullPathName() );
+    check( found.size() == 1, "the module holds exactly one plugin (" + juce::String( found.size() ) + ")" );
+    if ( found.isEmpty() ) return finish();
+    const juce::PluginDescription &desc = *found[0];
+    std::printf( "  %s %s by %s\n", desc.name.toRawUTF8(), desc.version.toRawUTF8(),
+                 desc.manufacturerName.toRawUTF8() );
+    check( desc.name == "Ephemeris", "it calls itself Ephemeris" );
+    check( desc.isInstrument, "it says it is an instrument" );
 
     // ---------------------------------------------------------------- an instance
     juce::AudioPluginFormatManager formats;
-    formats.addFormat(std::make_unique<juce::VST3PluginFormat>());
-    juce::String error;
-    std::unique_ptr<juce::AudioPluginInstance> instance(formats.createPluginInstance(desc, 48000.0, 256, error));
-    check(instance != nullptr, "the host can create an instance" + (error.isEmpty() ? juce::String() : ": " + error));
-    if (instance == nullptr) return finish();
-    const auto& params = instance->getParameters();
-    std::printf("  %d parameters, latency %d samples\n", params.size(), instance->getLatencySamples());
-    check(params.size() > 150, "the whole parameter set reaches the host (" + juce::String(params.size()) + ")");
+    formats.addFormat( std::make_unique<juce::VST3PluginFormat>() );
+    juce::String                               error;
+    std::unique_ptr<juce::AudioPluginInstance> instance( formats.createPluginInstance( desc, 48000.0, 256, error ) );
+    check( instance != nullptr,
+           "the host can create an instance" + ( error.isEmpty() ? juce::String() : ": " + error ) );
+    if ( instance == nullptr ) return finish();
+    const auto &params = instance->getParameters();
+    std::printf( "  %d parameters, latency %d samples\n", params.size(), instance->getLatencySamples() );
+    check( params.size() > 150, "the whole parameter set reaches the host (" + juce::String( params.size() ) + ")" );
     bool named = true;
-    for (auto* p : params) named = named && p->getName(128).isNotEmpty();
-    check(named, "every parameter has a name");
+    for ( auto *p : params ) named = named && p->getName( 128 ).isNotEmpty();
+    check( named, "every parameter has a name" );
 
     // ---------------------------------------------------------------- playing under a transport
-    instance->setPlayConfigDetails(0, 2, 48000.0, 256);
-    instance->prepareToPlay(48000.0, 256);
-    check(instance->getTotalNumInputChannels() == 0 && instance->getTotalNumOutputChannels() == 2,
-          "the instance has no inputs and a stereo output");
+    instance->setPlayConfigDetails( 0, 2, 48000.0, 256 );
+    instance->prepareToPlay( 48000.0, 256 );
+    check( instance->getTotalNumInputChannels() == 0 && instance->getTotalNumOutputChannels() == 2,
+           "the instance has no inputs and a stereo output" );
     TestPlayHead head;
-    head.m_bpm = 97.0;     // not a tempo a style draws: the piece has to take the host's
-    head.m_ppq = 256.0;    // past the atmosphere at the start, where the rows play
+    head.m_bpm = 97.0;    // not a tempo a style draws: the piece has to take the host's
+    head.m_ppq = 256.0;   // past the atmosphere at the start, where the rows play
     head.m_samples = head.m_ppq * 60.0 / head.m_bpm * 48000.0;
-    instance->setPlayHead(&head);
+    instance->setPlayHead( &head );
     // The first piece is composed on the composer thread and loaded by the message thread: give it time.
-    bool finite = true;
+    bool   finite = true;
     double peak = 0.0;
-    for (int tries = 0; tries < 30 && peak <= 0.05; ++tries) peak = play(*instance, head, 1.0, 256, &finite);
-    peak = juce::jmax(peak, play(*instance, head, 8.0, 256, &finite));
-    check(finite, "seconds through the wrapper stay finite");
-    check(peak > 0.05, "it sounds when the host transport runs (peak " + juce::String(peak, 3) + ")");
-    check(peak <= 1.01, "and it never leaves the ceiling (peak " + juce::String(peak, 3) + ")");
+    for ( int tries = 0; tries < 30 && peak <= 0.05; ++tries ) peak = play( *instance, head, 1.0, 256, &finite );
+    peak = juce::jmax( peak, play( *instance, head, 8.0, 256, &finite ) );
+    check( finite, "seconds through the wrapper stay finite" );
+    check( peak > 0.05, "it sounds when the host transport runs (peak " + juce::String( peak, 3 ) + ")" );
+    check( peak <= 1.01, "and it never leaves the ceiling (peak " + juce::String( peak, 3 ) + ")" );
     // A new host tempo: the score is loaded again at it, on the message thread, and the piece goes on.
     head.m_bpm = 131.0;
-    const double afterTempo = play(*instance, head, 4.0, 256, &finite);
-    check(finite && afterTempo > 0.05, "a new host tempo, and it plays on (peak " + juce::String(afterTempo, 3) + ")");
+    const double afterTempo = play( *instance, head, 4.0, 256, &finite );
+    check( finite && afterTempo > 0.05,
+           "a new host tempo, and it plays on (peak " + juce::String( afterTempo, 3 ) + ")" );
     // The performer's MIDI (PluginProcessor.h): a key transposes by its distance from middle C, controller
     // 74 grabs the filters (01.10.2026: the same controllers in every generator; the mod wheel is left free). What the processor made of it is read back from the host's parameters.
     {
-        juce::AudioProcessorParameter* transpose = nullptr;
-        juce::AudioProcessorParameter* filter = nullptr;
-        for (auto* p : params) {
-            const juce::String name = p->getName(64);
-            if (name.startsWith("perform transpose")) transpose = p;
-            if (name.startsWith("perform filter")) filter = p;
+        juce::AudioProcessorParameter *transpose = nullptr;
+        juce::AudioProcessorParameter *filter = nullptr;
+        for ( auto *p : params )
+        {
+            const juce::String name = p->getName( 64 );
+            if ( name.startsWith( "perform transpose" ) ) transpose = p;
+            if ( name.startsWith( "perform filter" ) ) filter = p;
         }
-        juce::AudioBuffer<float> buf(2, 256);
-        juce::MidiBuffer midi;
-        midi.addEvent(juce::MidiMessage::noteOn(1, 67, 0.8f), 10);
-        midi.addEvent(juce::MidiMessage::controllerEvent(1, 74, 127), 20);
-        instance->processBlock(buf, midi);
-        juce::MessageManager::getInstance()->runDispatchLoopUntil(30);
-        const juce::String t = transpose != nullptr ? transpose->getCurrentValueAsText() : juce::String("?");
-        const juce::String f = filter != nullptr ? filter->getCurrentValueAsText() : juce::String("?");
-        check(transpose != nullptr && t.getFloatValue() == 7.0f, "a MIDI key transposes by its distance from middle C (G: " + t + ")");
-        check(filter != nullptr && f.getFloatValue() > 1.9f, "controller 74 grabs the filters (" + f + ")");
+        juce::AudioBuffer<float> buf( 2, 256 );
+        juce::MidiBuffer         midi;
+        midi.addEvent( juce::MidiMessage::noteOn( 1, 67, 0.8f ), 10 );
+        midi.addEvent( juce::MidiMessage::controllerEvent( 1, 74, 127 ), 20 );
+        instance->processBlock( buf, midi );
+        juce::MessageManager::getInstance()->runDispatchLoopUntil( 30 );
+        const juce::String t = transpose != nullptr ? transpose->getCurrentValueAsText() : juce::String( "?" );
+        const juce::String f = filter != nullptr ? filter->getCurrentValueAsText() : juce::String( "?" );
+        check( transpose != nullptr && t.getFloatValue() == 7.0f,
+               "a MIDI key transposes by its distance from middle C (G: " + t + ")" );
+        check( filter != nullptr && f.getFloatValue() > 1.9f, "controller 74 grabs the filters (" + f + ")" );
         midi.clear();
-        midi.addEvent(juce::MidiMessage::noteOn(1, 60, 0.8f), 0);
-        midi.addEvent(juce::MidiMessage::controllerEvent(1, 74, 64), 1);
-        instance->processBlock(buf, midi);
+        midi.addEvent( juce::MidiMessage::noteOn( 1, 60, 0.8f ), 0 );
+        midi.addEvent( juce::MidiMessage::controllerEvent( 1, 74, 64 ), 1 );
+        instance->processBlock( buf, midi );
     }
     // A jump of the host's playhead.
     head.m_ppq = 512.0;
     head.m_samples = head.m_ppq * 60.0 / head.m_bpm * 48000.0;
-    const double afterJump = play(*instance, head, 4.0, 256, &finite);
-    check(finite && afterJump > 0.05, "a jump of the playhead, and it plays on (peak " + juce::String(afterJump, 3) + ")");
+    const double afterJump = play( *instance, head, 4.0, 256, &finite );
+    check( finite && afterJump > 0.05,
+           "a jump of the playhead, and it plays on (peak " + juce::String( afterJump, 3 ) + ")" );
 
     // ---------------------------------------------------------------- and in real time
     {
-        juce::AudioBuffer<float> buf(2, 256);
-        juce::MidiBuffer midi;
-        double livePeak = 0.0;
-        const auto started = std::chrono::steady_clock::now();
-        const int blocks = static_cast<int>(2.0 * 48000.0 / 256.0);
-        for (int i = 0; i < blocks; ++i) {
+        juce::AudioBuffer<float> buf( 2, 256 );
+        juce::MidiBuffer         midi;
+        double                   livePeak = 0.0;
+        const auto               started = std::chrono::steady_clock::now();
+        const int                blocks = static_cast<int>( 2.0 * 48000.0 / 256.0 );
+        for ( int i = 0; i < blocks; ++i )
+        {
             buf.clear();
             midi.clear();
-            instance->processBlock(buf, midi);
-            livePeak = juce::jmax(livePeak, static_cast<double>(buf.getMagnitude(0, 256)));
-            head.advance(256);
-            std::this_thread::sleep_until(started + std::chrono::microseconds(static_cast<long long>((i + 1) * 256 * 1.0e6 / 48000.0)));
+            instance->processBlock( buf, midi );
+            livePeak = juce::jmax( livePeak, static_cast<double>( buf.getMagnitude( 0, 256 ) ) );
+            head.advance( 256 );
+            std::this_thread::sleep_until(
+                started + std::chrono::microseconds( static_cast<long long>( ( i + 1 ) * 256 * 1.0e6 / 48000.0 ) ) );
         }
-        check(livePeak > 0.05, "and it sounds in real time as well (peak " + juce::String(livePeak, 3) + ")");
+        check( livePeak > 0.05, "and it sounds in real time as well (peak " + juce::String( livePeak, 3 ) + ")" );
     }
-    instance->setPlayHead(nullptr);
+    instance->setPlayHead( nullptr );
 
     // ---------------------------------------------------------------- state through the wrapper
     {
-        juce::Array<juce::AudioProcessorParameter*> ours;
-        for (auto* p : params) if (p->getName(64) != "Bypass") ours.add(p);
-        juce::AudioBuffer<float> buf(2, 256);
-        juce::MidiBuffer midi;
+        juce::Array<juce::AudioProcessorParameter *> ours;
+        for ( auto *p : params )
+            if ( p->getName( 64 ) != "Bypass" ) ours.add( p );
+        juce::AudioBuffer<float> buf( 2, 256 );
+        juce::MidiBuffer         midi;
         // A value a host sets reaches the processor through the parameter queues of the next process call.
-        auto settle = [&] {
-            juce::MessageManager::getInstance()->runDispatchLoopUntil(60);
-            for (int i = 0; i < 4; ++i) { buf.clear(); midi.clear(); instance->processBlock(buf, midi); }
+        auto settle = [&]
+        {
+            juce::MessageManager::getInstance()->runDispatchLoopUntil( 60 );
+            for ( int i = 0; i < 4; ++i )
+            {
+                buf.clear();
+                midi.clear();
+                instance->processBlock( buf, midi );
+            }
         };
-        juce::Random rng(7);
-        for (auto* p : ours) p->setValueNotifyingHost(rng.nextFloat());
+        juce::Random rng( 7 );
+        for ( auto *p : ours ) p->setValueNotifyingHost( rng.nextFloat() );
         settle();
         juce::MemoryBlock state;
-        instance->getStateInformation(state);
-        check(state.getSize() > 1000, "the state has the whole parameter set in it (" + juce::String(static_cast<int>(state.getSize())) + " bytes)");
-        for (auto* p : ours) p->setValueNotifyingHost(0.25f);
+        instance->getStateInformation( state );
+        check( state.getSize() > 1000, "the state has the whole parameter set in it (" +
+                                           juce::String( static_cast<int>( state.getSize() ) ) + " bytes)" );
+        for ( auto *p : ours ) p->setValueNotifyingHost( 0.25f );
         settle();
         juce::MemoryBlock other;
-        instance->getStateInformation(other);
-        check(other != state, "writing over the parameters really changes the state");
-        instance->setStateInformation(state.getData(), static_cast<int>(state.getSize()));
+        instance->getStateInformation( other );
+        check( other != state, "writing over the parameters really changes the state" );
+        instance->setStateInformation( state.getData(), static_cast<int>( state.getSize() ) );
         settle();
         juce::MemoryBlock again;
-        instance->getStateInformation(again);
-        check(again == state, "the state comes back through the wrapper, byte for byte");
+        instance->getStateInformation( again );
+        check( again == state, "the state comes back through the wrapper, byte for byte" );
         // Back to the defaults: random levels would leave nothing to hear in the checks below.
-        for (auto* p : ours) p->setValueNotifyingHost(p->getDefaultValue());
+        for ( auto *p : ours ) p->setValueNotifyingHost( p->getDefaultValue() );
         settle();
     }
 
     // ---------------------------------------------------------------- rates, and a second instance
     {
-        for (double sr : { 44100.0, 96000.0 }) {
+        for ( double sr : { 44100.0, 96000.0 } )
+        {
             instance->releaseResources();
-            instance->setPlayConfigDetails(0, 2, sr, 128);
-            instance->prepareToPlay(sr, 128);
+            instance->setPlayConfigDetails( 0, 2, sr, 128 );
+            instance->prepareToPlay( sr, 128 );
             TestPlayHead h;
             h.m_sampleRate = sr;
             h.m_ppq = 300.0;
-            instance->setPlayHead(&h);
-            bool ok = true;
+            instance->setPlayHead( &h );
+            bool   ok = true;
             double pk = 0.0;
-            for (int tries = 0; tries < 10 && pk <= 0.05; ++tries) pk = play(*instance, h, 1.0, 128, &ok);
-            instance->setPlayHead(nullptr);
-            check(ok && pk > 0.05, "the wrapper plays at " + juce::String(static_cast<int>(sr)) + " Hz, block 128 (peak " + juce::String(pk, 3) + ")");
+            for ( int tries = 0; tries < 10 && pk <= 0.05; ++tries ) pk = play( *instance, h, 1.0, 128, &ok );
+            instance->setPlayHead( nullptr );
+            check( ok && pk > 0.05, "the wrapper plays at " + juce::String( static_cast<int>( sr ) ) +
+                                        " Hz, block 128 (peak " + juce::String( pk, 3 ) + ")" );
         }
-        juce::String err2;
-        std::unique_ptr<juce::AudioPluginInstance> second(formats.createPluginInstance(desc, 48000.0, 256, err2));
-        check(second != nullptr, "a second instance loads beside the first" + (err2.isEmpty() ? juce::String() : ": " + err2));
-        if (second != nullptr) {
-            second->setPlayConfigDetails(0, 2, 48000.0, 256);
-            second->prepareToPlay(48000.0, 256);
+        juce::String                               err2;
+        std::unique_ptr<juce::AudioPluginInstance> second( formats.createPluginInstance( desc, 48000.0, 256, err2 ) );
+        check( second != nullptr,
+               "a second instance loads beside the first" + ( err2.isEmpty() ? juce::String() : ": " + err2 ) );
+        if ( second != nullptr )
+        {
+            second->setPlayConfigDetails( 0, 2, 48000.0, 256 );
+            second->prepareToPlay( 48000.0, 256 );
             TestPlayHead head2;
             head2.m_ppq = 256.0;
-            second->setPlayHead(&head2);
+            second->setPlayHead( &head2 );
             double peak2 = 0.0;
-            for (int tries = 0; tries < 30 && peak2 <= 0.05; ++tries) peak2 = play(*second, head2, 1.0, 256);
-            second->setPlayHead(nullptr);
-            check(peak2 > 0.05, "and it plays on its own (peak " + juce::String(peak2, 3) + ")");
+            for ( int tries = 0; tries < 30 && peak2 <= 0.05; ++tries ) peak2 = play( *second, head2, 1.0, 256 );
+            second->setPlayHead( nullptr );
+            check( peak2 > 0.05, "and it plays on its own (peak " + juce::String( peak2, 3 ) + ")" );
             second->releaseResources();
             second.reset();
-            check(true, "and goes away again without taking the first with it");
+            check( true, "and goes away again without taking the first with it" );
         }
     }
 
     // ---------------------------------------------------------------- the stems' outputs (02.10.2026)
     {
         // A stereo output per stem besides the main one, off by default; switched on, each carries its stem.
-        const int buses = instance->getBusCount(false);
-        check(buses > 1, "the stems have outputs of their own (" + juce::String(buses - 1) + ")");
+        const int buses = instance->getBusCount( false );
+        check( buses > 1, "the stems have outputs of their own (" + juce::String( buses - 1 ) + ")" );
         juce::AudioProcessor::BusesLayout layout = instance->getBusesLayout();
-        for (int b = 1; b < buses; ++b) layout.outputBuses.getReference(b) = juce::AudioChannelSet::stereo();
+        for ( int b = 1; b < buses; ++b ) layout.outputBuses.getReference( b ) = juce::AudioChannelSet::stereo();
         instance->releaseResources();
-        check(instance->setBusesLayout(layout), "the host can switch every stem's output on");
-        instance->prepareToPlay(48000.0, 256);
+        check( instance->setBusesLayout( layout ), "the host can switch every stem's output on" );
+        instance->prepareToPlay( 48000.0, 256 );
         TestPlayHead h;   // the rates' section left the instance without a transport
         h.m_ppq = 300.0;
-        instance->setPlayHead(&h);
-        const int channels = instance->getTotalNumOutputChannels();
-        juce::AudioBuffer<float> buf(channels, 256);
-        juce::MidiBuffer midi;
-        std::vector<double> peak(static_cast<size_t>(buses), 0.0);
-        bool finite = true;
-        for (int i = 0; i < 48000 * 6 / 256; ++i) {
-            if (i % 16 == 0) juce::MessageManager::getInstance()->runDispatchLoopUntil(5);
+        instance->setPlayHead( &h );
+        const int                channels = instance->getTotalNumOutputChannels();
+        juce::AudioBuffer<float> buf( channels, 256 );
+        juce::MidiBuffer         midi;
+        std::vector<double>      peak( static_cast<size_t>( buses ), 0.0 );
+        bool                     finite = true;
+        for ( int i = 0; i < 48000 * 6 / 256; ++i )
+        {
+            if ( i % 16 == 0 ) juce::MessageManager::getInstance()->runDispatchLoopUntil( 5 );
             buf.clear();
             midi.clear();
-            instance->processBlock(buf, midi);
-            for (int b = 0; b < buses; ++b) {
-                auto bus = instance->getBusBuffer(buf, false, b);
-                for (int c = 0; c < bus.getNumChannels(); ++c)
-                    for (int s = 0; s < 256; ++s) {
-                        const float v = bus.getReadPointer(c)[s];
-                        if (!std::isfinite(v)) finite = false;
-                        peak[static_cast<size_t>(b)] = juce::jmax(peak[static_cast<size_t>(b)], static_cast<double>(std::fabs(v)));
+            instance->processBlock( buf, midi );
+            for ( int b = 0; b < buses; ++b )
+            {
+                auto bus = instance->getBusBuffer( buf, false, b );
+                for ( int c = 0; c < bus.getNumChannels(); ++c )
+                    for ( int s = 0; s < 256; ++s )
+                    {
+                        const float v = bus.getReadPointer( c )[s];
+                        if ( !std::isfinite( v ) ) finite = false;
+                        peak[static_cast<size_t>( b )] =
+                            juce::jmax( peak[static_cast<size_t>( b )], static_cast<double>( std::fabs( v ) ) );
                     }
             }
-            h.advance(256);
+            h.advance( 256 );
         }
-        instance->setPlayHead(nullptr);
+        instance->setPlayHead( nullptr );
         int sounding = 0;
-        for (int b = 1; b < buses; ++b) if (peak[static_cast<size_t>(b)] > 0.001) ++sounding;
-        check(finite && peak[0] > 0.05, "with every stem's output on, the main output plays on (peak " + juce::String(peak[0], 3) + ")");
-        check(sounding >= 3, "and the stems' outputs carry their stems (" + juce::String(sounding) + " of " + juce::String(buses - 1) + " sound)");
-        for (int b = 1; b < buses; ++b) layout.outputBuses.getReference(b) = juce::AudioChannelSet::disabled();
+        for ( int b = 1; b < buses; ++b )
+            if ( peak[static_cast<size_t>( b )] > 0.001 ) ++sounding;
+        check( finite && peak[0] > 0.05,
+               "with every stem's output on, the main output plays on (peak " + juce::String( peak[0], 3 ) + ")" );
+        check( sounding >= 3, "and the stems' outputs carry their stems (" + juce::String( sounding ) + " of " +
+                                  juce::String( buses - 1 ) + " sound)" );
+        for ( int b = 1; b < buses; ++b ) layout.outputBuses.getReference( b ) = juce::AudioChannelSet::disabled();
         instance->releaseResources();
-        instance->setBusesLayout(layout);
-        instance->prepareToPlay(48000.0, 256);
+        instance->setBusesLayout( layout );
+        instance->prepareToPlay( 48000.0, 256 );
     }
 
     // ---------------------------------------------------------------- the editor, and away again
     {
-        check(instance->hasEditor(), "the wrapper offers an editor");
-        std::unique_ptr<juce::AudioProcessorEditor> editor(instance->createEditorAndMakeActive());
-        check(editor != nullptr, "the editor opens through the wrapper");
-        if (editor != nullptr) {
-            check(editor->getWidth() >= 960 && editor->getHeight() >= 640,
-                  "and has its size (" + juce::String(editor->getWidth()) + " x " + juce::String(editor->getHeight()) + ")");
-            juce::MessageManager::getInstance()->runDispatchLoopUntil(200);   // the meter timer, the arrange view
-            juce::Image img(juce::Image::ARGB, editor->getWidth(), editor->getHeight(), true);
-            juce::Graphics g(img);
-            editor->paintEntireComponent(g, true);
-            check(img.isValid(), "and paints");
+        check( instance->hasEditor(), "the wrapper offers an editor" );
+        std::unique_ptr<juce::AudioProcessorEditor> editor( instance->createEditorAndMakeActive() );
+        check( editor != nullptr, "the editor opens through the wrapper" );
+        if ( editor != nullptr )
+        {
+            check( editor->getWidth() >= 960 && editor->getHeight() >= 640,
+                   "and has its size (" + juce::String( editor->getWidth() ) + " x " +
+                       juce::String( editor->getHeight() ) + ")" );
+            juce::MessageManager::getInstance()->runDispatchLoopUntil( 200 );   // the meter timer, the arrange view
+            juce::Image    img( juce::Image::ARGB, editor->getWidth(), editor->getHeight(), true );
+            juce::Graphics g( img );
+            editor->paintEntireComponent( g, true );
+            check( img.isValid(), "and paints" );
         }
         editor.reset();
     }
     instance->releaseResources();
     instance.reset();
-    check(true, "the instance is destroyed without a crash");
+    check( true, "the instance is destroyed without a crash" );
     return finish();
 }

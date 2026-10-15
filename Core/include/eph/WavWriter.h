@@ -20,18 +20,24 @@
 #include <utility>
 #include <vector>
 
-namespace eph {
+namespace eph
+{
 
 /** @brief Sample format of a written file. */
-enum class WavFormatE { FLOAT32, PCM24 };
+enum class WavFormatE
+{
+    FLOAT32,
+    PCM24
+};
 
 /** @brief Streaming stereo or mono WAV writer. */
-class WavWriter {
+class WavWriter
+{
 public:
     WavWriter() = default;
     ~WavWriter() { close(); }
-    WavWriter(const WavWriter&) = delete;
-    WavWriter& operator=(const WavWriter&) = delete;
+    WavWriter( const WavWriter & ) = delete;
+    WavWriter &operator=( const WavWriter & ) = delete;
 
     /**
      * @brief Creates the file and writes a provisional header.
@@ -41,7 +47,7 @@ public:
      * @param[in] format      sample format
      * @return false if the file cannot be created
      */
-    bool open(const char* path, int sampleRate, int channels, WavFormatE format);
+    bool open( const char *path, int sampleRate, int channels, WavFormatE format );
     /**
      * @brief Appends @p n frames; @p R is ignored for mono and may be null.
      * @param[in] L  the left (or only) channel
@@ -49,7 +55,7 @@ public:
      * @param[in] n  how many frames
      * @return false on a write error
      */
-    bool write(const float* L, const float* R, int n);
+    bool write( const float *L, const float *R, int n );
     /**
      * @brief Finalises the header and closes the file.
      * @return false on a write error
@@ -73,19 +79,19 @@ public:
      * @param[in] on  true for dither
      * @pre called before open()
      */
-    void setDither(bool on) { m_dither = on; }
+    void setDither( bool on ) { m_dither = on; }
     /**
      * @brief A marker at @p frame named @p label, written at close() (a `cue ` point with its `labl`).
      * @param[in] frame  the marker's frame
      * @param[in] label  its name
      */
-    void addCue(uint64_t frame, const std::string& label) { m_cues.emplace_back(frame, label); }
+    void addCue( uint64_t frame, const std::string &label ) { m_cues.emplace_back( frame, label ); }
     /**
      * @brief A `LIST/INFO` tag, e.g. setInfo("INAM", "title"); written at close().
      * @param[in] id    the four-letter tag id
      * @param[in] text  its text
      */
-    void setInfo(const char* id, const std::string& text) { m_info.emplace_back(std::string(id, 4), text); }
+    void setInfo( const char *id, const std::string &text ) { m_info.emplace_back( std::string( id, 4 ), text ); }
 
 private:
     /**
@@ -93,32 +99,34 @@ private:
      * @return the cue and tag chunks as bytes
      */
     std::vector<uint8_t> trailingChunks() const;
-    std::vector<std::pair<uint64_t, std::string>> m_cues;   ///< frame, label
-    std::vector<std::pair<std::string, std::string>> m_info; ///< four-letter id, text
-    uint64_t m_trailing = 0;                                  ///< bytes after the data chunk (pad byte included)
+    std::vector<std::pair<uint64_t, std::string>>    m_cues;   ///< frame, label
+    std::vector<std::pair<std::string, std::string>> m_info;   ///< four-letter id, text
+    uint64_t m_trailing = 0;                                   ///< bytes after the data chunk (pad byte included)
     /**
      * @brief Writes the RIFF header (@p final: with the sizes and the chunks after the data); false on a write error.
      * @param[in] final  true for the final header with the sizes and the trailing chunks
      * @return false on a write error
      */
-    bool writeHeader(bool final);
+    bool writeHeader( bool final );
     /**
      * @brief The dither's uniform draw in [0, 1) (xorshift64*).
      * @return a uniform value in [0, 1)
      */
     double uniform()
     {
-        m_rng ^= m_rng >> 12; m_rng ^= m_rng << 25; m_rng ^= m_rng >> 27;
-        return static_cast<double>((m_rng * 2685821657736338717ull) >> 11) * (1.0 / 9007199254740992.0);
+        m_rng ^= m_rng >> 12;
+        m_rng ^= m_rng << 25;
+        m_rng ^= m_rng >> 27;
+        return static_cast<double>( ( m_rng * 2685821657736338717ull ) >> 11 ) * ( 1.0 / 9007199254740992.0 );
     }
-    bool m_dither = true;   ///< TPDF dither on the integer formats
-    uint64_t m_rng = 0x9E3779B97F4A7C15ull;   ///< the dither's state
-    FILE* m_f = nullptr;   ///< the file, null while closed
-    int m_sampleRate = 48000;   ///< the sample rate, Hz
-    int m_channels = 2;   ///< how many channels
+    bool       m_dither = true;                  ///< TPDF dither on the integer formats
+    uint64_t   m_rng = 0x9E3779B97F4A7C15ull;    ///< the dither's state
+    FILE      *m_f = nullptr;                    ///< the file, null while closed
+    int        m_sampleRate = 48000;             ///< the sample rate, Hz
+    int        m_channels = 2;                   ///< how many channels
     WavFormatE m_format = WavFormatE::FLOAT32;   ///< the sample format
-    uint64_t m_frames = 0;   ///< frames written
-    uint32_t m_clipped = 0;   ///< samples clipped on the way to an integer format
+    uint64_t   m_frames = 0;                     ///< frames written
+    uint32_t   m_clipped = 0;                    ///< samples clipped on the way to an integer format
 };
 
-} // namespace eph
+}   // namespace eph

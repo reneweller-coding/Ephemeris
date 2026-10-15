@@ -57,21 +57,23 @@
 #include <cstdint>
 #include <vector>
 
-namespace eph {
+namespace eph
+{
 
 constexpr int MaxSteps = 32;   ///< longest row
 
 /** @brief One step of a row. */
-struct Step {
-    int m_degree = 0;          ///< scale degree above the row's root (may leave the octave)
-    int m_octave = 0;          ///< octave offset of this step
-    bool m_gate = true;        ///< plays at all
+struct Step
+{
+    int   m_degree = 0;        ///< scale degree above the row's root (may leave the octave)
+    int   m_octave = 0;        ///< octave offset of this step
+    bool  m_gate = true;       ///< plays at all
     float m_velocity = 0.8f;   ///< 0..1
-    bool m_accent = false;     ///< accented
-    bool m_slide = false;      ///< glides into the next step (legato)
-    int m_ratchet = 1;         ///< triggers the step is split into (RackOp::Ratchet)
+    bool  m_accent = false;    ///< accented
+    bool  m_slide = false;     ///< glides into the next step (legato)
+    int   m_ratchet = 1;       ///< triggers the step is split into (RackOp::Ratchet)
     float m_chance = 1.0f;     ///< chance that the step sounds each time it comes round (a probability gate)
-    bool m_random = false;     ///< a new note each time it comes round, through a quantiser on the mode (4.6)
+    bool  m_random = false;    ///< a new note each time it comes round, through a quantiser on the mode (4.6)
 };
 
 /**
@@ -81,27 +83,40 @@ struct Step {
  *        push (D Eb D A D Eb D C), the arpeggio spiral (i, then VI), the canon (the row before, three steps
  *        later or a fifth up).
  */
-enum class FigureE : int { CLASSIC, OCTAVE_PENDULUM, FIFTH_ANCHOR, THREE_PLUS_ONE, STAIRS_UP, STAIRS_DOWN, COLOUR,
-                          PHRYGIAN_PUSH, SPIRAL, CANON, COUNT };
+enum class FigureE : int
+{
+    CLASSIC,
+    OCTAVE_PENDULUM,
+    FIFTH_ANCHOR,
+    THREE_PLUS_ONE,
+    STAIRS_UP,
+    STAIRS_DOWN,
+    COLOUR,
+    PHRYGIAN_PUSH,
+    SPIRAL,
+    CANON,
+    COUNT
+};
 /**
  * @brief The name of a figure ("Classic", "Octave Pendulum", ...).
  * @param[in] f  the figure
  * @return its name
  */
-const char* figureName(FigureE f);
+const char *figureName( FigureE f );
 /**
  * @brief The degree that makes a mode heard (Aeolian b6, Dorian 6, Phrygian b2, Lydian #4 ...; the style guide's 3.2).
  * @param[in] scale  the scale (compose.scale order)
  * @return its characteristic degree
  */
-int characterDegree(int scale);
+int characterDegree( int scale );
 
 /** @brief How a row's steps are drawn when it is generated. */
-enum class RowRoleE : int {
-    BASS,      ///< the Berlin bass: root-heavy, octave jumps, the odd fifth or seventh, accents on the downbeats
-    COUNTER,   ///< an arpeggio of chord tones an octave up, for odd lengths against the bass
-    WALK,      ///< stepwise through the scale with the occasional leap
-    TRANSPOSER,///< the roots of the style's progression (Harmony.h); `degree` holds semitones
+enum class RowRoleE : int
+{
+    BASS,         ///< the Berlin bass: root-heavy, octave jumps, the odd fifth or seventh, accents on the downbeats
+    COUNTER,      ///< an arpeggio of chord tones an octave up, for odd lengths against the bass
+    WALK,         ///< stepwise through the scale with the occasional leap
+    TRANSPOSER,   ///< the roots of the style's progression (Harmony.h); `degree` holds semitones
 };
 
 /** @brief Number of scales (compose.scale): Aeolian, Dorian, Phrygian, Harmonic Minor, Minor Pentatonic,
@@ -113,60 +128,61 @@ constexpr int Scales = 8;
  * @param[in] degree  the degree, any integer
  * @return its semitones above the root
  */
-int scaleSemitones(int scale, int degree);
+int scaleSemitones( int scale, int degree );
 /**
  * @brief Number of degrees in an octave of scale @p scale.
  * @param[in] scale  the scale (compose.scale order)
  * @return the number of degrees in an octave
  */
-int scaleSize(int scale);
+int scaleSize( int scale );
 /**
  * @brief Steps after which rows of lengths @p a and @p b (same division) are both on step 0 again.
  * @param[in] a  the first row's length in steps
  * @param[in] b  the second row's length in steps
  * @return the steps until both are on step 0 again
  */
-int conjunctionSteps(int a, int b);
+int conjunctionSteps( int a, int b );
 
 /** @brief The rack: rows, their patterns and their running state. */
-class Rack {
+class Rack
+{
 public:
     /**
      * @brief Takes the row settings from the parameters and seeds every row.
      * @param[in] p     parameters (row module, compose.key and compose.scale)
      * @param[in] seed  the piece's seed; each row gets its own stream
      */
-    void setup(const ParamStore& p, uint64_t seed);
+    void setup( const ParamStore &p, uint64_t seed );
     /**
      * @brief Draws a new pattern for row @p row from the rules of @p role (uses the row's stream).
      * @param[in] row   the row
      * @param[in] role  its role
      */
-    void generate(int row, RowRoleE role);
+    void generate( int row, RowRoleE role );
     /**
      * @brief The pattern of a row, for inspection and for locking.
      * @param[in] row  the row
      * @return its pattern
      */
-    const Step* steps(int row) const { return m_rows[row].m_steps; }
+    const Step *steps( int row ) const { return m_rows[row].m_steps; }
     /**
      * @brief Current length of a row in steps.
      * @param[in] row  the row
      * @return its length in steps
      */
-    int length(int row) const { return m_rows[row].m_length; }
+    int length( int row ) const { return m_rows[row].m_length; }
     /**
      * @brief The figure a row was last drawn from.
      * @param[in] row  the row
      * @return the figure it was last drawn from
      */
-    FigureE figure(int row) const { return m_rows[row].m_figure; }
+    FigureE figure( int row ) const { return m_rows[row].m_figure; }
     /**
      * @brief Mutations a row has made since setup().
      * @param[in] row  the row
      * @return how many mutations it has made
      */
-    int mutations(int row) const { return m_rows[row].m_mutations; }
+    int mutations( int row ) const { return m_rows[row].m_mutations; }
     /**
      * @brief The transposer's current offset in semitones.
      * @return the offset in semitones
@@ -176,12 +192,12 @@ public:
      * @brief Every change of the transposer's offset so far, as (beat, semitones), for the lead to follow.
      * @return the changes as (beat, semitones)
      */
-    const std::vector<std::pair<double, int>>& shifts() const { return m_shiftLog; }
+    const std::vector<std::pair<double, int>> &shifts() const { return m_shiftLog; }
     /**
      * @brief Every change of the scale so far, as (beat, scale), starting with compose.scale at beat 0.
      * @return the changes as (beat, scale)
      */
-    const std::vector<std::pair<double, int>>& scales() const { return m_scaleLog; }
+    const std::vector<std::pair<double, int>> &scales() const { return m_scaleLog; }
     /** @brief The key's pitch class and the scale (compose.scale order) the rack plays in. */
     /**
      * the key's pitch class
@@ -198,7 +214,7 @@ public:
      * @param[in] row  the row
      * @return its division in beats
      */
-    double divisionBeats(int row) const { return m_rows[row].m_divBeats; }
+    double divisionBeats( int row ) const { return m_rows[row].m_divBeats; }
 
     /**
      * @brief Plays the rack from its current position up to @p endBeat and writes the notes.
@@ -209,51 +225,52 @@ public:
      * @param[in,out] score    the score, written to
      * @param[in]     endBeat  the beat to play up to
      */
-    void run(Score& score, double endBeat);
+    void run( Score &score, double endBeat );
 
 private:
     /** @brief One row of the rack: its pattern, its settings, where it is, its lanes and its streams. */
-    struct Row {
-        Step m_steps[MaxSteps];   ///< the pattern
-        int m_length = 16;   ///< its length, steps
-        double m_divBeats = 0.25;   ///< beats a step
+    struct Row
+    {
+        Step          m_steps[MaxSteps];                      ///< the pattern
+        int           m_length = 16;                          ///< its length, steps
+        double        m_divBeats = 0.25;                      ///< beats a step
         RowDirectionE m_direction = RowDirectionE::FORWARD;   ///< how it runs through the pattern
-        int m_octave = 0;   ///< its octave offset
-        int m_transpose = 0;   ///< its transposition, semitones
-        int m_chord = 0;            ///< degrees the steps move by (RackOp::Chord)
-        float m_mutation = 0.0f;   ///< how much it mutates (row.mutation)
-        float m_gate = 0.5f;   ///< a step's length, a share of the step
-        bool m_running = false;   ///< it plays
-        double m_startBeat = 0.0;   ///< beat of step 0 of the current run
-        int64_t m_step = 0;         ///< steps played since startBeat
-        int m_pos = 0;              ///< index of the next step to play
-        int m_dir = 1;              ///< pendulum direction
-        int m_mutations = 0;   ///< mutations since setup()
-        bool m_transposer = false;  ///< row.mode = Transposer
-        double m_nextMutation = 64.0;   ///< the next 16-bar mark a mutation may fall on
-        bool m_thinned[MaxSteps] = {}; ///< steps a thinning silenced (RackOp::Thin), which a Fill may bring back
+        int           m_octave = 0;                           ///< its octave offset
+        int           m_transpose = 0;                        ///< its transposition, semitones
+        int           m_chord = 0;                            ///< degrees the steps move by (RackOp::Chord)
+        float         m_mutation = 0.0f;                      ///< how much it mutates (row.mutation)
+        float         m_gate = 0.5f;                          ///< a step's length, a share of the step
+        bool          m_running = false;                      ///< it plays
+        double        m_startBeat = 0.0;                      ///< beat of step 0 of the current run
+        int64_t       m_step = 0;                             ///< steps played since startBeat
+        int           m_pos = 0;                              ///< index of the next step to play
+        int           m_dir = 1;                              ///< pendulum direction
+        int           m_mutations = 0;                        ///< mutations since setup()
+        bool          m_transposer = false;                   ///< row.mode = Transposer
+        double        m_nextMutation = 64.0;                  ///< the next 16-bar mark a mutation may fall on
+        bool m_thinned[MaxSteps] = {};   ///< steps a thinning silenced (RackOp::Thin), which a Fill may bring back
         // The modulation sequencer (25.09.2026, after Stuertzer's Stepic "8 Modulationssequencer mit
         // unterschiedlichen Laengen"): a lane of cutoff offsets with a length of its own, stepping with the row.
         float m_mod[MaxSteps] = {};   ///< the modulation lane: a cutoff offset per step
-        int m_modLength = 1;   ///< the lane's own length
-        int m_modPos = 0;   ///< where in it the row is
+        int   m_modLength = 1;        ///< the lane's own length
+        int   m_modPos = 0;           ///< where in it the row is
         /// The second lane (25.09.2026, the style guide's 4.3 "Hüllkurven-Modulation"): the filter envelope's decay
         /// per step, in octaves of its time, a length of its own again.
-        float m_decay[MaxSteps] = {};
-        int m_decayLength = 1;   ///< the second lane's own length
-        int m_decayPos = 0;   ///< where in it the row is
-        Step m_theme[MaxSteps];    ///< the pattern as drawn (RackOp::Theme brings it back)
-        Rng m_lanes;                ///< the second lane's stream, apart from the patterns and the dice
+        float   m_decay[MaxSteps] = {};
+        int     m_decayLength = 1;             ///< the second lane's own length
+        int     m_decayPos = 0;                ///< where in it the row is
+        Step    m_theme[MaxSteps];             ///< the pattern as drawn (RackOp::Theme brings it back)
+        Rng     m_lanes;                       ///< the second lane's stream, apart from the patterns and the dice
         FigureE m_figure = FigureE::CLASSIC;   ///< the figure it was last drawn from
-        Rng m_rng;   ///< the patterns' stream
-        Rng m_dice;                 ///< probability gates, ratchets and thinning: apart from the patterns' stream
+        Rng     m_rng;                         ///< the patterns' stream
+        Rng     m_dice;   ///< probability gates, ratchets and thinning: apart from the patterns' stream
     };
     /**
      * @brief The beat of row @p r's next step.
      * @param[in] r  the row
      * @return the beat of its next step
      */
-    double nextStepBeat(const Row& r) const { return r.m_startBeat + static_cast<double>(r.m_step) * r.m_divBeats; }
+    double nextStepBeat( const Row &r ) const { return r.m_startBeat + static_cast<double>( r.m_step ) * r.m_divBeats; }
     /**
      * @brief Writes the note of row @p r's next step (row @p index) into @p score; what it does goes to @p log.
      * @param[in]     index  the row's index
@@ -261,7 +278,7 @@ private:
      * @param[in,out] score  the score, written to
      * @param[in,out] log    what happens, appended to
      */
-    void playStep(int index, Row& r, Score& score, std::vector<RackEvent>& log);
+    void playStep( int index, Row &r, Score &score, std::vector<RackEvent> &log );
     /**
      * @brief Moves row @p r on a step at @p beat: its direction, its lanes, a mutation where one is due.
      * @param[in,out] r      the row
@@ -269,7 +286,7 @@ private:
      * @param[in]     beat   the beat of the step
      * @param[in,out] log    what happens, appended to
      */
-    void advance(Row& r, int index, double beat, std::vector<RackEvent>& log);
+    void advance( Row &r, int index, double beat, std::vector<RackEvent> &log );
     /**
      * @brief Mutates row @p r at @p beat (a step changed within its rules) and logs it.
      * @param[in,out] r      the row
@@ -277,24 +294,24 @@ private:
      * @param[in]     beat   the beat of the mutation
      * @param[in,out] log    what happens, appended to
      */
-    void mutate(Row& r, int index, double beat, std::vector<RackEvent>& log);
+    void mutate( Row &r, int index, double beat, std::vector<RackEvent> &log );
     /**
      * @brief The MIDI note of row @p r's root: the key, the row's octave and transposition, the transposer's shift.
      * @param[in] r  the row
      * @return the MIDI note of its root
      */
-    int rootNote(const Row& r) const;
+    int rootNote( const Row &r ) const;
 
-    Row m_rows[Rows];   ///< the rows
-    int m_keyRoot = 9;   ///< the key's pitch class
-    int m_scale = 0;   ///< the scale (compose.scale order)
+    Row    m_rows[Rows];               ///< the rows
+    int    m_keyRoot = 9;              ///< the key's pitch class
+    int    m_scale = 0;                ///< the scale (compose.scale order)
     StyleE m_style = StyleE::COSMIC;   ///< the style the rows are drawn in
-    int m_shift = 0;           ///< the transposer's offset plus the key's, applied to every note row
-    int m_base = 0;            ///< the key's offset from the piece's key (RackOp::Key)
-    int m_degree = 0;          ///< the transposer's own offset
+    int    m_shift = 0;                ///< the transposer's offset plus the key's, applied to every note row
+    int    m_base = 0;                 ///< the key's offset from the piece's key (RackOp::Key)
+    int    m_degree = 0;               ///< the transposer's own offset
     std::vector<std::pair<double, int>> m_shiftLog;   ///< every change of the transposer's offset, as (beat, semitones)
     std::vector<std::pair<double, int>> m_scaleLog;   ///< every change of the scale, as (beat, scale)
-    double m_position = 0.0;   ///< beat up to which the rack has run
+    double                              m_position = 0.0;   ///< beat up to which the rack has run
 };
 
-} // namespace eph
+}   // namespace eph

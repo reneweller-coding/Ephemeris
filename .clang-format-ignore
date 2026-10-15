@@ -1,0 +1,6 @@
+# Files clang-format leaves alone: the generated ones (their layout is their generator's, Tools/...).
+# Third-party code is not formatted either (ThirdParty/, Tests/neonshim).
+Core/src/synth/WavetableData.cpp
+ThirdParty/**
+Tests/neonshim/**
+Tests/neonbench/**

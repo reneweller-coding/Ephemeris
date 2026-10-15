@@ -1,0 +1,55 @@
+# The family's layout after the CGVR programming guideline (Universitaet Bremen,
+# https://cgvr.informatik.uni-bremen.de/progr/guidelines.shtml): braces on lines of their own, spaces inside
+# parentheses, the pointer star at the name, four spaces, declarations and trailing comments in columns. The deviations (120 columns among them) in docs/STYLE.md.
+# Generated files are left alone (.clang-format-ignore); comments are never reflowed (the Doxygen blocks are laid
+# out by hand); the order of the includes is the author's.
+---
+Language: Cpp
+BasedOnStyle: LLVM
+Standard: c++20
+ColumnLimit: 120
+IndentWidth: 4
+TabWidth: 4
+UseTab: Never
+ContinuationIndentWidth: 4
+AccessModifierOffset: -4
+BreakBeforeBraces: Allman
+SpacesInParens: Custom
+SpacesInParensOptions:
+  InConditionalStatements: true
+  InCStyleCasts: false
+  InEmptyParentheses: false
+  Other: true
+Cpp11BracedListStyle: false
+PointerAlignment: Right
+ReferenceAlignment: Pointer
+DerivePointerAlignment: false
+AllowShortBlocksOnASingleLine: Empty
+AllowShortCaseLabelsOnASingleLine: true
+AllowShortEnumsOnASingleLine: true
+AllowShortFunctionsOnASingleLine: Inline
+AllowShortIfStatementsOnASingleLine: WithoutElse
+AllowShortLambdasOnASingleLine: All
+AllowShortLoopsOnASingleLine: true
+AlignConsecutiveDeclarations:
+  Enabled: true
+  AcrossEmptyLines: false
+  AcrossComments: false
+  AlignFunctionDeclarations: false
+  AlignFunctionPointers: false
+SpacesBeforeTrailingComments: 3
+AlignTrailingComments:
+  Kind: Always
+  OverEmptyLines: 0
+BreakTemplateDeclarations: Yes
+IndentCaseLabels: false
+IndentPPDirectives: BeforeHash
+PPIndentWidth: 2
+NamespaceIndentation: None
+FixNamespaceComments: true
+ReflowComments: false
+SortIncludes: Never
+IncludeBlocks: Preserve
+LineEnding: DeriveLF
+InsertNewlineAtEOF: true
+MaxEmptyLinesToKeep: 1

@@ -17,18 +17,21 @@
 #include <atomic>
 #include <memory>
 
-namespace frame {
+namespace frame
+{
 
 /** @brief One app's place in a Link session; the audio thread reads and writes it, the message thread switches it. */
-class LinkClock {
+class LinkClock
+{
 public:
     /** @brief What the session says at the moment a block is heard. */
-    struct Now {
-        bool m_active = false;    ///< Link is on
-        int m_peers = 0;          ///< the other apps in the session
-        double m_bpm = 120.0;     ///< the session's tempo
-        double m_beat = 0.0;      ///< the session's beat at that moment (its bar phase: beat modulo the quantum)
-        bool m_playing = false;   ///< the session's transport (start/stop sync)
+    struct Now
+    {
+        bool   m_active = false;    ///< Link is on
+        int    m_peers = 0;         ///< the other apps in the session
+        double m_bpm = 120.0;       ///< the session's tempo
+        double m_beat = 0.0;        ///< the session's beat at that moment (its bar phase: beat modulo the quantum)
+        bool   m_playing = false;   ///< the session's transport (start/stop sync)
     };
 
     LinkClock();
@@ -38,12 +41,12 @@ public:
      * @param[in] on  true to join the session
      * @pre called on the message thread
      */
-    void setEnabled(bool on);
+    void setEnabled( bool on );
     /**
      * @brief Whether it is in the session.
      * @return true while it is in the session
      */
-    bool enabled() const { return m_enabled.load(std::memory_order_relaxed); }
+    bool enabled() const { return m_enabled.load( std::memory_order_relaxed ); }
     /**
      * @brief How many other apps are in the session (any thread).
      * @return how many other apps are in the session
@@ -56,14 +59,14 @@ public:
      * @return the session at that moment
      * @pre called on the audio thread
      */
-    Now capture(double latencySeconds, double quantum) const;
+    Now capture( double latencySeconds, double quantum ) const;
     /**
      * @brief Proposes @p bpm to the session -- the app alone in it leads (audio thread).
      * @param[in] bpm             the tempo
      * @param[in] latencySeconds  the output latency in seconds
      * @pre called on the audio thread
      */
-    void proposeTempo(double bpm, double latencySeconds);
+    void proposeTempo( double bpm, double latencySeconds );
     /**
      * @brief Starts or stops the session's transport; a start lines beat 0 up with the next bar (audio thread).
      * @param[in] playing         true to start, false to stop
@@ -71,7 +74,7 @@ public:
      * @param[in] quantum         the bar's length in beats
      * @pre called on the audio thread
      */
-    void setPlaying(bool playing, double latencySeconds, double quantum);
+    void setPlaying( bool playing, double latencySeconds, double quantum );
     /**
      * @brief Whether FAMILY_LINK=1 asks for Link whatever the settings say (tests).
      * @return true when FAMILY_LINK=1 is set
@@ -84,10 +87,10 @@ public:
     void tick();
 
 private:
-    struct Impl;                     ///< the Link object itself (LinkClock.cpp): the header stays free of asio
-    std::unique_ptr<Impl> m_impl;     ///< made on construction, the session joined only when enabled
-    std::atomic<bool> m_enabled{ false };   ///< setEnabled's last word
-    double m_lastReport = 0.0;              ///< when tick() last wrote, seconds on the steady clock
+    struct Impl;                    ///< the Link object itself (LinkClock.cpp): the header stays free of asio
+    std::unique_ptr<Impl> m_impl;   ///< made on construction, the session joined only when enabled
+    std::atomic<bool>     m_enabled{ false };   ///< setEnabled's last word
+    double                m_lastReport = 0.0;   ///< when tick() last wrote, seconds on the steady clock
 };
 
-} // namespace frame
+}   // namespace frame

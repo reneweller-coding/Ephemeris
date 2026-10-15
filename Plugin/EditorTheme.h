@@ -28,23 +28,25 @@
 #include "eph/Params.h"
 #include <vector>
 
-namespace ephui {
+namespace ephui
+{
 
 /** @brief The palette. */
-namespace colour {
-const juce::Colour Bg        { 0xff0b0e14 };   ///< the window: midnight
-const juce::Colour Panel     { 0xa0131820 };   ///< a page (the orrery shows faintly through it)
-const juce::Colour Group     { 0xff1a2029 };   ///< a group box
-const juce::Colour Raised    { 0xff222a36 };   ///< buttons, menus, the knobs' bodies
-const juce::Colour Edge      { 0xff2c3544 };   ///< hairlines
-const juce::Colour Ink       { 0xffe8dfcc };   ///< text: parchment
-const juce::Colour Dim       { 0xff8e949f };   ///< names, secondary text
-const juce::Colour Faint     { 0xff4a5262 };   ///< tracks, axes, the off state
-const juce::Colour Amber     { 0xffe8a948 };   ///< the sun: the accent
-const juce::Colour Onset     { 0xffe06a5f };   ///< the playhead's red, a mute
-const juce::Colour Green     { 0xff7fd49a };   ///< a meter in range
-const juce::Colour Red       { 0xffe06a5f };   ///< a meter over, mute
-} // namespace colour
+namespace colour
+{
+const juce::Colour Bg{ 0xff0b0e14 };       ///< the window: midnight
+const juce::Colour Panel{ 0xa0131820 };    ///< a page (the orrery shows faintly through it)
+const juce::Colour Group{ 0xff1a2029 };    ///< a group box
+const juce::Colour Raised{ 0xff222a36 };   ///< buttons, menus, the knobs' bodies
+const juce::Colour Edge{ 0xff2c3544 };     ///< hairlines
+const juce::Colour Ink{ 0xffe8dfcc };      ///< text: parchment
+const juce::Colour Dim{ 0xff8e949f };      ///< names, secondary text
+const juce::Colour Faint{ 0xff4a5262 };    ///< tracks, axes, the off state
+const juce::Colour Amber{ 0xffe8a948 };    ///< the sun: the accent
+const juce::Colour Onset{ 0xffe06a5f };    ///< the playhead's red, a mute
+const juce::Colour Green{ 0xff7fd49a };    ///< a meter in range
+const juce::Colour Red{ 0xffe06a5f };      ///< a meter over, mute
+}   // namespace colour
 
 /** @brief The families of function, the logo's planets (the frame's, the same in every generator). */
 using Family = frame::FamilyE;
@@ -52,34 +54,35 @@ using Family = frame::FamilyE;
  * @brief Ephemeris' skin of the frame: the palette above, the orrery behind it, the logo.
  * @return the skin
  */
-const frame::Skin& skin();
+const frame::Skin &skin();
 /**
  * @brief The colour of a family.
  * @param[in] f  the family
  * @return its colour
  */
-juce::Colour familyColour(Family f);
+juce::Colour familyColour( Family f );
 /**
  * @brief The colour of a mixer channel (Engine channel order), from the families of what plays on it.
  * @param[in] channel  the channel
  * @return its colour
  */
-juce::Colour channelColour(int channel);
+juce::Colour channelColour( int channel );
 
 /**
  * @brief One group of a synth's panel: its title, its family and its parameters by key ("*cutoff": a large one,
  *        "~lfo1_shape": a narrow menu, "@mod1": a slot of the modulation matrix).
  */
-struct GroupSpec {
-    const char* m_title;   ///< the group's title
-    Family m_family;   ///< its family: the colour
-    std::vector<const char*> m_keys;   ///< its parameters by key
+struct GroupSpec
+{
+    const char               *m_title;    ///< the group's title
+    Family                    m_family;   ///< its family: the colour
+    std::vector<const char *> m_keys;     ///< its parameters by key
 };
 /**
  * @brief The panel of a module: its groups, in order (empty: one group of everything).
  * @param[in] m  the module
  * @return its page's groups
  */
-const std::vector<GroupSpec>& layoutOf(eph::ModuleE m);
+const std::vector<GroupSpec> &layoutOf( eph::ModuleE m );
 
-} // namespace ephui
+}   // namespace ephui

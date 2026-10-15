@@ -32,59 +32,71 @@
 #include <cstdint>
 #include <vector>
 
-namespace eph {
+namespace eph
+{
 
 /** @brief A complex radix-2 FFT of a fixed power-of-two size, in place (Noctuary's). The inverse divides by n. */
-class Fft {
+class Fft
+{
 public:
     /**
      * builds the tables for size @p n (a power of two)
      * @param[in] n  the transform length, a power of two
      */
-    explicit Fft(int n);
+    explicit Fft( int n );
     /**
      * in place; the inverse scaled by 1 / n
      * @param[in,out] re       the real parts, transformed in place
      * @param[in,out] im       the imaginary parts, transformed in place
      * @param[in]     inverse  true for the inverse transform
      */
-    void transform(float* re, float* im, bool inverse) const;
+    void transform( float *re, float *im, bool inverse ) const;
     /**
      * the transform length
      * @return the transform length
      */
     int size() const { return m_n; }
+
 private:
-    int m_n;   ///< the size
+    int                m_n;     ///< the size
     std::vector<float> m_cos;   ///< the twiddle factors: cosines
     std::vector<float> m_sin;   ///< ... sines
-    std::vector<int> m_rev;   ///< the bit-reversal permutation
+    std::vector<int>   m_rev;   ///< the bit-reversal permutation
 };
 
 /** @brief A wavetable of single cycles at eight band-limited resolutions, with the reader's arithmetic. */
-struct CycleTable {
-    static constexpr int StoreLen  = 1024;   ///< samples per stored cycle at the finest level
-    static constexpr int MaxFrames = 64;     ///< the most frames a table keeps
-    static constexpr int Levels    = 8;      ///< 1024 .. 8 samples, 128 .. 1 harmonics
-    static constexpr int Guard     = 3;      ///< one sample stored before each cycle, two after it
+struct CycleTable
+{
+    static constexpr int   StoreLen = 1024;           ///< samples per stored cycle at the finest level
+    static constexpr int   MaxFrames = 64;            ///< the most frames a table keeps
+    static constexpr int   Levels = 8;                ///< 1024 .. 8 samples, 128 .. 1 harmonics
+    static constexpr int   Guard = 3;                 ///< one sample stored before each cycle, two after it
     static constexpr float TargetRms = 0.35355339f;   ///< the RMS the loudest frame of a table is scaled to
 
-    int m_frames = 0;                ///< how many frames the table holds; 0 for an empty table
-    int m_offset[Levels] = {};      ///< where each level's cycles begin in `data`
-    std::vector<float> m_data;       ///< every frame at every level, guards included, level-major
+    int                m_frames = 0;            ///< how many frames the table holds; 0 for an empty table
+    int                m_offset[Levels] = {};   ///< where each level's cycles begin in `data`
+    std::vector<float> m_data;                  ///< every frame at every level, guards included, level-major
 
     /**
      * @brief Samples per stored cycle at a level: 1024 halved per level.
      * @param[in] level  the level
      * @return the samples per stored cycle
      */
-    static int levelLength(int level) { const int n = StoreLen >> level; return n < 8 ? 8 : n; }
+    static int levelLength( int level )
+    {
+        const int n = StoreLen >> level;
+        return n < 8 ? 8 : n;
+    }
     /**
      * @brief Highest harmonic a level keeps: an eighth of its length.
      * @param[in] level  the level
      * @return the highest harmonic it keeps
      */
-    static int levelHarmonics(int level) { const int h = (StoreLen / 8) >> level; return h < 1 ? 1 : h; }
+    static int levelHarmonics( int level )
+    {
+        const int h = ( StoreLen / 8 ) >> level;
+        return h < 1 ? 1 : h;
+    }
     /**
      * whether there is nothing to play
      * @return true when there is nothing to play
@@ -96,9 +108,10 @@ struct CycleTable {
      * @param[in] f      the frame
      * @return the stored cycle
      */
-    const float* cycle(int level, int f) const
+    const float *cycle( int level, int f ) const
     {
-        return m_data.data() + static_cast<size_t>(m_offset[level]) + static_cast<size_t>(f) * static_cast<size_t>(levelLength(level) + Guard) + 1;
+        return m_data.data() + static_cast<size_t>( m_offset[level] ) +
+               static_cast<size_t>( f ) * static_cast<size_t>( levelLength( level ) + Guard ) + 1;
     }
     /**
      * @brief One sample of frame @p f at a level, at @p phase in [0, 1): Catmull-Rom through four samples.
@@ -107,20 +120,20 @@ struct CycleTable {
      * @param[in] phase  the phase in [0, 1)
      * @return the sample
      */
-    float sample(int level, int f, double phase) const
+    float sample( int level, int f, double phase ) const
     {
-        const int len = levelLength(level);
-        const double x = phase * static_cast<double>(len);
-        int i = static_cast<int>(x);
-        if (i >= len) i = len - 1;
-        if (i < 0) i = 0;
-        const float t = static_cast<float>(x - static_cast<double>(i));
-        const float* c = cycle(level, f);
-        const float y0 = c[i - 1], y1 = c[i], y2 = c[i + 1], y3 = c[i + 2];
-        const float a = 0.5f * (y2 - y0);
-        const float b = y0 - 2.5f * y1 + 2.0f * y2 - 0.5f * y3;
-        const float d = 0.5f * (y3 - y0) + 1.5f * (y1 - y2);
-        return ((d * t + b) * t + a) * t + y1;
+        const int    len = levelLength( level );
+        const double x = phase * static_cast<double>( len );
+        int          i = static_cast<int>( x );
+        if ( i >= len ) i = len - 1;
+        if ( i < 0 ) i = 0;
+        const float  t = static_cast<float>( x - static_cast<double>( i ) );
+        const float *c = cycle( level, f );
+        const float  y0 = c[i - 1], y1 = c[i], y2 = c[i + 1], y3 = c[i + 2];
+        const float  a = 0.5f * ( y2 - y0 );
+        const float  b = y0 - 2.5f * y1 + 2.0f * y2 - 0.5f * y3;
+        const float  d = 0.5f * ( y3 - y0 ) + 1.5f * ( y1 - y2 );
+        return ( ( d * t + b ) * t + a ) * t + y1;
     }
     /**
      * @brief One sample at @p position (0..1 across the frames): the two neighbouring frames blended.
@@ -129,14 +142,15 @@ struct CycleTable {
      * @param[in] phase     the phase in cycles, [0, 1)
      * @return the sample
      */
-    float at(int level, float position, double phase) const
+    float at( int level, float position, double phase ) const
     {
-        if (m_frames <= 1) return sample(level, 0, phase);
-        const float x = (position < 0.0f ? 0.0f : (position > 1.0f ? 1.0f : position)) * static_cast<float>(m_frames - 1);
-        const int f = static_cast<int>(x);
-        const float w = x - static_cast<float>(f);
-        const float s0 = sample(level, f, phase);
-        return f + 1 < m_frames && w > 0.0f ? s0 + w * (sample(level, f + 1, phase) - s0) : s0;
+        if ( m_frames <= 1 ) return sample( level, 0, phase );
+        const float x =
+            ( position < 0.0f ? 0.0f : ( position > 1.0f ? 1.0f : position ) ) * static_cast<float>( m_frames - 1 );
+        const int   f = static_cast<int>( x );
+        const float w = x - static_cast<float>( f );
+        const float s0 = sample( level, f, phase );
+        return f + 1 < m_frames && w > 0.0f ? s0 + w * ( sample( level, f + 1, phase ) - s0 ) : s0;
     }
     /**
      * @brief Builds the table from a mono file of @p cycleLen-sample cycles laid end to end (not the audio thread).
@@ -145,15 +159,19 @@ struct CycleTable {
      * @param[in] cycleLen  the samples per cycle
      * @return false when the file holds no whole cycle
      */
-    bool build(const float* mono, int n, int cycleLen);
+    bool build( const float *mono, int n, int cycleLen );
     /**
      * @brief Builds the table from spectra, one vector per frame: element h-1 is harmonic h as the complex amplitude
      *        of a cosine. The loudest frame is brought to TargetRms. Not the audio thread.
      * @param[in] frameCoefficients  per frame its harmonics' complex amplitudes
      * @return false when there is no frame
      */
-    bool buildFromHarmonics(const std::vector<std::vector<std::complex<double>>>& frameCoefficients);
-    void clear() { m_frames = 0; m_data.clear(); }   ///< empties the table
+    bool buildFromHarmonics( const std::vector<std::vector<std::complex<double>>> &frameCoefficients );
+    void clear()
+    {
+        m_frames = 0;
+        m_data.clear();
+    }   ///< empties the table
 };
 
 /**
@@ -163,23 +181,25 @@ struct CycleTable {
  * @param[in] current     the level read so far, negative for none
  * @return the level to read
  */
-int cycleLevelFor(double hz, double sampleRate, int current);
+int cycleLevelFor( double hz, double sampleRate, int current );
 
 /** @brief A sampled table as the program keeps it (WavetableData.cpp): frames of 256 samples, 16 bit. */
-struct SampledTable {
-    const char* m_name;      ///< its name in the table menu
-    int m_frames;            ///< frames of 256 samples
-    const int16_t* m_data;   ///< frames * 256 samples
+struct SampledTable
+{
+    const char    *m_name;     ///< its name in the table menu
+    int            m_frames;   ///< frames of 256 samples
+    const int16_t *m_data;     ///< frames * 256 samples
 };
 constexpr int FormulaTableCount = 8;    ///< Classic, PWM, Sync, Formant, Vocal, Organ, Glass, Metal
 constexpr int SampledTableCount = 38;   ///< WavetableData.cpp
-constexpr int VcoTableCount = 5;       ///< 26.09.2026: the VCO models' waves (Vco.h), after the sampled ones
-constexpr int WavetableCount = FormulaTableCount + SampledTableCount + VcoTableCount;   ///< every table, the formulas first
+constexpr int VcoTableCount = 5;        ///< 26.09.2026: the VCO models' waves (Vco.h), after the sampled ones
+constexpr int WavetableCount =
+    FormulaTableCount + SampledTableCount + VcoTableCount;   ///< every table, the formulas first
 extern const SampledTable SampledTables[SampledTableCount];
 /** @brief The names of all tables, in menu order (poly.table and voice.table read them). */
-extern const char* const WavetableNames[WavetableCount];
+extern const char *const WavetableNames[WavetableCount];
 /** @brief "Analog", then every table: the row voices' choice (voice.table, 0 = the analog oscillators). */
-extern const char* const VoiceTableNames[WavetableCount + 1];
+extern const char *const VoiceTableNames[WavetableCount + 1];
 
 /** @brief Builds every table once (thread-safe); the engine's prepare calls it, so the audio thread never builds. */
 void prepareWavetables();
@@ -188,6 +208,6 @@ void prepareWavetables();
  * @param[in] index  the table's index
  * @return the table
  */
-const CycleTable& wavetable(int index);
+const CycleTable &wavetable( int index );
 
-} // namespace eph
+}   // namespace eph

@@ -17,23 +17,25 @@
 #include "eph/Dsp.h"
 #include <vector>
 
-namespace eph {
+namespace eph
+{
 
 /** @brief Two springs, one per side; returns the wet signal. */
-class Spring {
+class Spring
+{
 public:
     static constexpr int Stages = 48;   ///< all-passes per spring: the chirp's strength
     /**
      * @brief Sample rate; allocates the loop delays.
      * @param[in] sampleRate  the sample rate in Hz
      */
-    void prepare(double sampleRate);
+    void prepare( double sampleRate );
     /**
      * @brief Decay time (T60) and the loop's low pass; call at every 32-sample cell.
      * @param[in] decaySeconds  the decay time T60 in seconds
      * @param[in] toneHz        the loop's low-pass corner in Hz
      */
-    void set(float decaySeconds, float toneHz);
+    void set( float decaySeconds, float toneHz );
     /**
      * @brief Adds the springs' return of @p inL, @p inR to @p outL, @p outR.
      * @param[in]     inL   the left input
@@ -42,23 +44,24 @@ public:
      * @param[in,out] outR  the right output, added to
      * @param[in]     n     how many samples
      */
-    void process(const float* inL, const float* inR, float* outL, float* outR, int n);
+    void process( const float *inL, const float *inR, float *outL, float *outR, int n );
 
 private:
     /** @brief One spring: a delay line, a chain of first-order all-passes (the chirp), its filters in the loop. */
-    struct Tank {
-        std::vector<float> m_line;   ///< the delay line, a ring
-        size_t m_mask = 0;   ///< its size - 1
-        size_t m_write = 0;   ///< where the next sample goes
-        int m_delay = 1000;   ///< the loop delay, samples
-        float m_ap[Stages] = {};   ///< one state per first-order all-pass
-        float m_gain = 0.5f;   ///< the loop's gain (from the decay)
-        Svf m_lp;   ///< the loop's low pass
-        Svf m_hp;   ///< the loop's high pass
-        float m_y = 0.0f;   ///< the loop's last output
+    struct Tank
+    {
+        std::vector<float> m_line;              ///< the delay line, a ring
+        size_t             m_mask = 0;          ///< its size - 1
+        size_t             m_write = 0;         ///< where the next sample goes
+        int                m_delay = 1000;      ///< the loop delay, samples
+        float              m_ap[Stages] = {};   ///< one state per first-order all-pass
+        float              m_gain = 0.5f;       ///< the loop's gain (from the decay)
+        Svf                m_lp;                ///< the loop's low pass
+        Svf                m_hp;                ///< the loop's high pass
+        float              m_y = 0.0f;          ///< the loop's last output
     };
     double m_sr = 48000.0;   ///< the sample rate, Hz
-    Tank m_tanks[2];   ///< left, right
+    Tank   m_tanks[2];       ///< left, right
 };
 
-} // namespace eph
+}   // namespace eph

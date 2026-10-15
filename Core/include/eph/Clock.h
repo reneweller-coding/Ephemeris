@@ -16,26 +16,46 @@
 #pragma once
 #include <vector>
 
-namespace eph {
+namespace eph
+{
 
 /** @brief Note divisions in quarter-note beats (4/4). */
-enum class SyncDivE : int {
-    FREE = 0, BARS64, BARS32, BARS16, BARS8, BARS4, BARS2, BAR1,
-    HALF, HALF_T, QUARTER, QUARTER_D, QUARTER_T, EIGHTH, EIGHTH_D, EIGHTH_T, SIXTEENTH, SIXTEENTH_T, THIRTY_SECOND,
+enum class SyncDivE : int
+{
+    FREE = 0,
+    BARS64,
+    BARS32,
+    BARS16,
+    BARS8,
+    BARS4,
+    BARS2,
+    BAR1,
+    HALF,
+    HALF_T,
+    QUARTER,
+    QUARTER_D,
+    QUARTER_T,
+    EIGHTH,
+    EIGHTH_D,
+    EIGHTH_T,
+    SIXTEENTH,
+    SIXTEENTH_T,
+    THIRTY_SECOND,
     COUNT
 };
-constexpr int NumSyncDivs = static_cast<int>(SyncDivE::COUNT);   ///< number of divisions
-extern const char* const SyncDivNames[NumSyncDivs];              ///< display names
-extern const double      SyncBeats[NumSyncDivs];                 ///< length in beats, 0 for Free
+constexpr int            NumSyncDivs = static_cast<int>( SyncDivE::COUNT );   ///< number of divisions
+extern const char *const SyncDivNames[NumSyncDivs];                           ///< display names
+extern const double      SyncBeats[NumSyncDivs];                              ///< length in beats, 0 for Free
 
 /** @brief Beats per bar; Ephemeris is 4/4 throughout; the rows of the rack are polymetric inside it. */
 constexpr int BeatsPerBar = 4;
 
 /** @brief One point of a tempo map. */
-struct TempoPoint {
-    double m_beat = 0.0;         ///< position in beats
-    double m_bpm = 145.0;        ///< tempo at that position
-    bool   m_rampToNext = false; ///< ramp linearly (in beats) to the next point instead of holding
+struct TempoPoint
+{
+    double m_beat = 0.0;           ///< position in beats
+    double m_bpm = 145.0;          ///< tempo at that position
+    bool   m_rampToNext = false;   ///< ramp linearly (in beats) to the next point instead of holding
 };
 
 /**
@@ -44,46 +64,47 @@ struct TempoPoint {
  * Always holds at least one point at beat 0. Before the first and after the last point the tempo
  * of that point is held.
  */
-class TempoMap {
+class TempoMap
+{
 public:
-    TempoMap() { setConstant(145.0); }
+    TempoMap() { setConstant( 145.0 ); }
 
     /**
      * @brief One tempo for everything.
      * @param[in] bpm  the tempo in beats per minute
      */
-    void setConstant(double bpm);
+    void setConstant( double bpm );
     /**
      * @brief Adds or replaces a point.
      * @param[in] beat        position (>= 0); a point at the same beat is replaced
      * @param[in] bpm         tempo, clamped to 20..400
      * @param[in] rampToNext  whether the tempo ramps from here to the next point
      */
-    void add(double beat, double bpm, bool rampToNext);
+    void add( double beat, double bpm, bool rampToNext );
     /**
      * @brief The points, sorted by beat.
      * @return the tempo points, sorted by beat
      */
-    const std::vector<TempoPoint>& points() const { return m_points; }
+    const std::vector<TempoPoint> &points() const { return m_points; }
 
     /**
      * @brief Tempo at @p beat.
      * @param[in] beat  the position in beats
      * @return the tempo there, in beats per minute
      */
-    double bpmAt(double beat) const;
+    double bpmAt( double beat ) const;
     /**
      * @brief Seconds from beat 0 to @p beat.
      * @param[in] beat  the position in beats
      * @return the seconds from beat 0 to it
      */
-    double secondsAt(double beat) const;
+    double secondsAt( double beat ) const;
     /**
      * @brief Beat reached after @p seconds (inverse of secondsAt).
      * @param[in] seconds  the time from the start
      * @return the beat reached by then
      */
-    double beatAt(double seconds) const;
+    double beatAt( double seconds ) const;
 
 private:
     /** @brief Computes m_seconds from the points. */
@@ -93,9 +114,9 @@ private:
      * @param[in] beat  the position in beats
      * @return the index of the tempo point whose segment holds it
      */
-    int segmentFor(double beat) const;
-    std::vector<TempoPoint> m_points;   ///< the tempo points, by beat
-    std::vector<double> m_seconds;   ///< seconds at each point
+    int segmentFor( double beat ) const;
+    std::vector<TempoPoint> m_points;    ///< the tempo points, by beat
+    std::vector<double>     m_seconds;   ///< seconds at each point
 };
 
-} // namespace eph
+}   // namespace eph

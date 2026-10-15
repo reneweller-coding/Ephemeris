@@ -25,7 +25,8 @@
 #include "eph/Dsp.h"
 #include <cmath>
 
-namespace eph {
+namespace eph
+{
 
 /**
  * @brief Two-point PolyBLEP residual for a unit step at phase 0; @p t phase in [0,1), @p dt increment.
@@ -33,15 +34,24 @@ namespace eph {
  * @param[in] dt  the phase increment per sample
  * @return the residual to add to the naive step
  */
-inline float polyBlep(float t, float dt)
+inline float polyBlep( float t, float dt )
 {
-    if (t < dt) { const float x = t / dt; return x + x - x * x - 1.0f; }
-    if (t > 1.0f - dt) { const float x = (t - 1.0f) / dt; return x * x + x + x + 1.0f; }
+    if ( t < dt )
+    {
+        const float x = t / dt;
+        return x + x - x * x - 1.0f;
+    }
+    if ( t > 1.0f - dt )
+    {
+        const float x = ( t - 1.0f ) / dt;
+        return x * x + x + x + 1.0f;
+    }
     return 0.0f;
 }
 
 /** @brief PolyBLEP saw-to-pulse oscillator. */
-class VaOscillator {
+class VaOscillator
+{
 public:
     /**
      * @brief Sets the shape for the next samples.
@@ -50,11 +60,11 @@ public:
      * @param[in] wave        0 = saw, 1 = pulse, blended in between
      * @param[in] pulseWidth  duty cycle of the pulse, 0.05..0.95
      */
-    void set(double hz, double sampleRate, float wave, float pulseWidth)
+    void set( double hz, double sampleRate, float wave, float pulseWidth )
     {
-        m_dt = static_cast<float>(clampv(hz / sampleRate, 1e-7, 0.45));
-        m_wave = clampv(wave, 0.0f, 1.0f);
-        m_pw = clampv(pulseWidth, 0.05f, 0.95f);
+        m_dt = static_cast<float>( clampv( hz / sampleRate, 1e-7, 0.45 ) );
+        m_wave = clampv( wave, 0.0f, 1.0f );
+        m_pw = clampv( pulseWidth, 0.05f, 0.95f );
     }
     /**
      * @brief Restarts so that the fundamental has sine phase @p fundamentalPhase at the time of the
@@ -62,12 +72,12 @@ public:
      * @param[in] fundamentalPhase  phase of the fundamental in cycles
      * @param[in] late              how many samples ago (at this oscillator's rate) the restart ideally happened
      */
-    void restart(double fundamentalPhase, double late)
+    void restart( double fundamentalPhase, double late )
     {
-        double t = fundamentalPhase + 0.5 + late * static_cast<double>(m_dt);
-        t -= std::floor(t);
-        m_phase = static_cast<float>(t);
-        m_pendingJump = shapeAt(m_phase) - m_lastValue;
+        double t = fundamentalPhase + 0.5 + late * static_cast<double>( m_dt );
+        t -= std::floor( t );
+        m_phase = static_cast<float>( t );
+        m_pendingJump = shapeAt( m_phase ) - m_lastValue;
         m_hasJump = true;
     }
     /**
@@ -77,15 +87,17 @@ public:
     inline float next()
     {
         const float t = m_phase;
-        const float saw = 2.0f * t - 1.0f - polyBlep(t, m_dt);
-        float v = saw;
-        if (m_wave > 0.0f) {   // a pure saw (the tape keys' singers, most rows) skips the pulse
+        const float saw = 2.0f * t - 1.0f - polyBlep( t, m_dt );
+        float       v = saw;
+        if ( m_wave > 0.0f )
+        {   // a pure saw (the tape keys' singers, most rows) skips the pulse
             float t2 = t + 1.0f - m_pw;
-            if (t2 >= 1.0f) t2 -= 1.0f;
-            const float pulse = -((t < m_pw ? 1.0f : -1.0f) + polyBlep(t, m_dt) - polyBlep(t2, m_dt));
-            v = saw + m_wave * (pulse - saw);
+            if ( t2 >= 1.0f ) t2 -= 1.0f;
+            const float pulse = -( ( t < m_pw ? 1.0f : -1.0f ) + polyBlep( t, m_dt ) - polyBlep( t2, m_dt ) );
+            v = saw + m_wave * ( pulse - saw );
         }
-        if (m_hasJump) {
+        if ( m_hasJump )
+        {
             // The sample before the restart already went out; the first one after it carries half
             // of the step, which spreads the edge over two samples.
             v -= 0.5f * m_pendingJump;
@@ -93,7 +105,7 @@ public:
         }
         m_lastValue = v;
         m_phase += m_dt;
-        if (m_phase >= 1.0f) m_phase -= 1.0f;
+        if ( m_phase >= 1.0f ) m_phase -= 1.0f;
         return v;
     }
 
@@ -103,19 +115,19 @@ private:
      * @param[in] t  the phase in [0, 1)
      * @return the naive wave there
      */
-    float shapeAt(float t) const
+    float shapeAt( float t ) const
     {
         const float saw = 2.0f * t - 1.0f;
         const float pulse = t < m_pw ? -1.0f : 1.0f;
-        return saw + m_wave * (pulse - saw);
+        return saw + m_wave * ( pulse - saw );
     }
-    float m_phase = 0.5f;   ///< the phase, 0..1
-    float m_dt = 0.001f;   ///< the phase step per sample
-    float m_wave = 0.0f;   ///< the wave: 0 saw .. 1 pulse
-    float m_pw = 0.5f;   ///< the pulse's width
-    float m_lastValue = 0.0f;   ///< the last sample before its correction
+    float m_phase = 0.5f;         ///< the phase, 0..1
+    float m_dt = 0.001f;          ///< the phase step per sample
+    float m_wave = 0.0f;          ///< the wave: 0 saw .. 1 pulse
+    float m_pw = 0.5f;            ///< the pulse's width
+    float m_lastValue = 0.0f;     ///< the last sample before its correction
     float m_pendingJump = 0.0f;   ///< a jump still to be smoothed in the next sample (its PolyBLEP's second half)
-    bool  m_hasJump = false;   ///< m_pendingJump holds one
+    bool  m_hasJump = false;      ///< m_pendingJump holds one
 };
 
-} // namespace eph
+}   // namespace eph

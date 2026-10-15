@@ -26,16 +26,18 @@
 #include <utility>
 #include <vector>
 
-namespace eph {
+namespace eph
+{
 
 /** @brief Where and how a lead plays. */
-struct LeadPlan {
-    int m_keyRoot = 9;                ///< pitch class of the key
-    int m_scale = 0;                  ///< compose.scale order
-    int m_low = 64;                   ///< lowest note of the register (MIDI)
-    int m_high = 86;                  ///< highest note
-    float m_intensity = 0.5f;         ///< 0..1: density of the phrases, fewer rests
-    std::vector<std::pair<double, int>> m_shifts;   ///< the transposer's roots over time (Rack::shifts)
+struct LeadPlan
+{
+    int                                 m_keyRoot = 9;        ///< pitch class of the key
+    int                                 m_scale = 0;          ///< compose.scale order
+    int                                 m_low = 64;           ///< lowest note of the register (MIDI)
+    int                                 m_high = 86;          ///< highest note
+    float                               m_intensity = 0.5f;   ///< 0..1: density of the phrases, fewer rests
+    std::vector<std::pair<double, int>> m_shifts;             ///< the transposer's roots over time (Rack::shifts)
     std::vector<std::pair<double, int>> m_scales;   ///< the scale over time (Score::scaleShifts; empty: @p scale)
 };
 
@@ -47,7 +49,7 @@ struct LeadPlan {
  * @param[in]     to     last beat; no note reaches past it
  * @param[in,out] rng    the lead's stream
  */
-void writeLead(Score& score, const LeadPlan& plan, double from, double to, Rng& rng);
+void writeLead( Score &score, const LeadPlan &plan, double from, double to, Rng &rng );
 
 /**
  * @brief Whether @p pitch belongs to the scale on root @p rootPc (for the tests).
@@ -56,6 +58,6 @@ void writeLead(Score& score, const LeadPlan& plan, double from, double to, Rng& 
  * @param[in] scale   the scale
  * @return true when the note is in the scale
  */
-bool inScale(int pitch, int rootPc, int scale);
+bool inScale( int pitch, int rootPc, int scale );
 
-} // namespace eph
+}   // namespace eph

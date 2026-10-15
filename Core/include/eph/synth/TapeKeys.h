@@ -45,67 +45,76 @@
 #include "eph/synth/Modulation.h"
 #include <cstdint>
 
-namespace eph {
+namespace eph
+{
 
-constexpr int TapeKeyCount = 8;          ///< keys that can sound at once
-constexpr int Singers = 6;           ///< voices per choir key at most (the Quest plays fewer: setSingers)
-constexpr double TapeSeconds = 8.0;  ///< length of a tape
+constexpr int    TapeKeyCount = 8;    ///< keys that can sound at once
+constexpr int    Singers = 6;         ///< voices per choir key at most (the Quest plays fewer: setSingers)
+constexpr double TapeSeconds = 8.0;   ///< length of a tape
 
 /** @brief Which recordings are on the tapes. */
-enum class TapeSetE : int { CHOIR = 0, STRINGS, FLUTE, COUNT };
+enum class TapeSetE : int
+{
+    CHOIR = 0,
+    STRINGS,
+    FLUTE,
+    COUNT
+};
 
 /** @brief Settings for the following samples. */
-struct TapeSettings {
+struct TapeSettings
+{
     TapeSetE m_set = TapeSetE::CHOIR;   ///< the tapes of the next keys pressed
-    float m_vowel = 0.0f;         ///< 0 "aah" .. 1 "ooh" (choir)
-    float m_wowCents = 6.0f;      ///< capstan wow depth
-    float m_flutterCents = 2.0f;  ///< capstan flutter depth
-    float m_sagCents = 1.0f;      ///< pitch drop per key pressed beyond the first
-    float m_toneHz = 7000.0f;     ///< head and electronics low pass
-    float m_age = 0.5f;           ///< 0..1: spread of the tapes, hiss, onset thump
+    float    m_vowel = 0.0f;            ///< 0 "aah" .. 1 "ooh" (choir)
+    float    m_wowCents = 6.0f;         ///< capstan wow depth
+    float    m_flutterCents = 2.0f;     ///< capstan flutter depth
+    float    m_sagCents = 1.0f;         ///< pitch drop per key pressed beyond the first
+    float    m_toneHz = 7000.0f;        ///< head and electronics low pass
+    float    m_age = 0.5f;              ///< 0..1: spread of the tapes, hiss, onset thump
     // 26.09.2026 (compared bit for bit: 4-byte members only).
-    float m_swellMs = 1.0f;       ///< the swell over the pressure pad's rise; at 1 ms and below, none
-    float m_decayMs = 1500.0f;    ///< the decay towards the sustain level
-    float m_sustain = 1.0f;       ///< the sustain level (1: no decay)
-    float m_releaseMs = 70.0f;    ///< the fall after the key (the machine's)
-    ModSettings m_mod;            ///< two LFOs and four slots (the destinations mapped by shortModDest)
+    float       m_swellMs = 1.0f;      ///< the swell over the pressure pad's rise; at 1 ms and below, none
+    float       m_decayMs = 1500.0f;   ///< the decay towards the sustain level
+    float       m_sustain = 1.0f;      ///< the sustain level (1: no decay)
+    float       m_releaseMs = 70.0f;   ///< the fall after the key (the machine's)
+    ModSettings m_mod;                 ///< two LFOs and four slots (the destinations mapped by shortModDest)
 };
 
 /** @brief The tape keyboard: eight keys, one output (mono). */
-class TapeKeys {
+class TapeKeys
+{
 public:
     /**
      * @brief Sample rate and seed (the seed fixes the tapes).
      * @param[in] sampleRate  the sample rate in Hz
      * @param[in] seed        the seed that fixes the tapes
      */
-    void prepare(double sampleRate, uint64_t seed);
+    void prepare( double sampleRate, uint64_t seed );
     /** @brief Silences everything. */
     void reset();
     /**
      * @brief Takes the settings; call at every 32-sample cell.
      * @param[in] s  the settings
      */
-    void set(const TapeSettings& s);
+    void set( const TapeSettings &s );
     /**
      * @brief How many of a choir key's singers sound (1 .. Singers; the Quest's quality level plays 3). The
      *        sum is scaled by 1 / sqrt(6 n), which keeps the level of a choir of random phases the same for any
      *        n and is exactly 1/6 for all six, so the desktop's sound does not move by a bit.
      * @param[in] n  the singers per choir key
      */
-    void setSingers(int n) { m_singers = n < 1 ? 1 : (n > Singers ? Singers : n); }
+    void setSingers( int n ) { m_singers = n < 1 ? 1 : ( n > Singers ? Singers : n ); }
     /**
      * @brief Presses a key; if all keys sound, the oldest is taken.
      * @param[in] pitch     the MIDI note
      * @param[in] velocity  the velocity, 0..1
      * @param[in] id        the note's id
      */
-    void noteOn(int pitch, float velocity, int id);
+    void noteOn( int pitch, float velocity, int id );
     /**
      * @brief Releases the key started with @p id.
      * @param[in] id  the note's id
      */
-    void noteOff(int id);
+    void noteOff( int id );
     /**
      * @brief Whether anything sounds.
      * @return true while anything sounds
@@ -116,61 +125,68 @@ public:
      * @param[out] out  receives the output (overwritten)
      * @param[in]  n    how many samples
      */
-    void process(float* out, int n);
+    void process( float *out, int n );
     /**
      * @brief The capstan's speed factor for @p keysDown keys pressed (for the tests).
      * @param[in] keysDown  how many keys are pressed
      * @return the capstan's speed factor
      */
-    double speedFor(int keysDown) const;
+    double speedFor( int keysDown ) const;
     /**
      * @brief The piece's beat at the next sample and beats per sample (the synced LFOs); call at every cell.
      * @param[in] beat            the beat at the next sample
      * @param[in] beatsPerSample  beats per sample from there
      */
-    void setClock(double beat, double beatsPerSample) { m_beat0 = beat; m_bps = beatsPerSample; m_clockAt = m_count; }
+    void setClock( double beat, double beatsPerSample )
+    {
+        m_beat0 = beat;
+        m_bps = beatsPerSample;
+        m_clockAt = m_count;
+    }
     /**
      * @brief The matrix's pan offset (the engine adds it to the strip's pan).
      * @return the pan offset, -1..1
      */
-    float panMod() const { return m_mod.offset(m_mo, ModDestE::PAN); }
+    float panMod() const { return m_mod.offset( m_mo, ModDestE::PAN ); }
 
 private:
     /** @brief One singer of the choir tape: a saw through the glottal tilt, his detune, vibrato and wander. */
-    struct Singer {
-        VaOscillator m_osc;   ///< the band-limited saw
-        Svf m_tilt;   ///< the glottal tilt: a two-pole low pass at 1.1 kHz
-        double m_detune = 0.0;   ///< his detune, cents
-        double m_vibHz = 5.5;   ///< his vibrato's rate, Hz
-        double m_vibDepth = 20.0;   ///< his vibrato's depth, cents
-        double m_vibPhase = 0.0;   ///< his vibrato's phase, radians
-        double m_wander = 0.0;   ///< the slow wander of his pitch and level
-        double m_wanderTarget = 0.0;   ///< where it wanders to
-        double m_level = 1.0;   ///< his level
+    struct Singer
+    {
+        VaOscillator m_osc;                  ///< the band-limited saw
+        Svf          m_tilt;                 ///< the glottal tilt: a two-pole low pass at 1.1 kHz
+        double       m_detune = 0.0;         ///< his detune, cents
+        double       m_vibHz = 5.5;          ///< his vibrato's rate, Hz
+        double       m_vibDepth = 20.0;      ///< his vibrato's depth, cents
+        double       m_vibPhase = 0.0;       ///< his vibrato's phase, radians
+        double       m_wander = 0.0;         ///< the slow wander of his pitch and level
+        double       m_wanderTarget = 0.0;   ///< where it wanders to
+        double       m_level = 1.0;          ///< his level
     };
     /** @brief One key: its tape, its pressure pad, its sources, its envelope. */
-    struct Key {
-        bool m_on = false;   ///< it sounds
-        bool m_held = false;   ///< it is held
-        int m_pitch = 60;   ///< MIDI note
-        int m_id = -1;   ///< the note id it plays (the engine pairs offs with it), -1 none
-        float m_velocity = 0.8f;   ///< its velocity, 0..1
-        double m_age = 0.0;          ///< seconds since the key went down
-        double m_released = -1.0;    ///< seconds since release, -1 while held
-        double m_rise = 0.0;         ///< the pressure pad's rise, 0 .. 1 (a one-pole towards 1 after the lag)
-        double m_riseCoef = 0.0;     ///< its coefficient per sample
-        double m_fall = 1.0;         ///< the release, 1 .. 0 (a one-pole towards 0 after the key is let go)
-        double m_lag = 0.0;          ///< this tape's onset lag, seconds
-        double m_cents = 0.0;        ///< this tape's detune
-        float m_gain = 1.0f;   ///< this tape's level
-        Svf m_tone;   ///< this tape's tone: the head's low pass
-        Singer m_singers[Singers];   ///< the choir tape: its singers
-        Svf m_formant[5];   ///< the choir tape: its five formants
-        double m_phase = 0.0;        ///< flute
-        Svf m_breath;   ///< the flute tape: its breath noise's band pass
-        uint32_t m_order = 0;        ///< for taking the oldest key
+    struct Key
+    {
+        bool     m_on = false;              ///< it sounds
+        bool     m_held = false;            ///< it is held
+        int      m_pitch = 60;              ///< MIDI note
+        int      m_id = -1;                 ///< the note id it plays (the engine pairs offs with it), -1 none
+        float    m_velocity = 0.8f;         ///< its velocity, 0..1
+        double   m_age = 0.0;               ///< seconds since the key went down
+        double   m_released = -1.0;         ///< seconds since release, -1 while held
+        double   m_rise = 0.0;              ///< the pressure pad's rise, 0 .. 1 (a one-pole towards 1 after the lag)
+        double   m_riseCoef = 0.0;          ///< its coefficient per sample
+        double   m_fall = 1.0;              ///< the release, 1 .. 0 (a one-pole towards 0 after the key is let go)
+        double   m_lag = 0.0;               ///< this tape's onset lag, seconds
+        double   m_cents = 0.0;             ///< this tape's detune
+        float    m_gain = 1.0f;             ///< this tape's level
+        Svf      m_tone;                    ///< this tape's tone: the head's low pass
+        Singer   m_singers[Singers];        ///< the choir tape: its singers
+        Svf      m_formant[5];              ///< the choir tape: its five formants
+        double   m_phase = 0.0;             ///< flute
+        Svf      m_breath;                  ///< the flute tape: its breath noise's band pass
+        uint32_t m_order = 0;               ///< for taking the oldest key
         TapeSetE m_set = TapeSetE::CHOIR;   ///< the tape set the key was pressed on: a switch takes the next press
-        double m_decay = 1.0;        ///< the player's envelope: what is left of the decay towards the sustain level
+        double   m_decay = 1.0;   ///< the player's envelope: what is left of the decay towards the sustain level
     };
     /**
      * @brief One sample of key @p k at the capstan speed @p speedCents (cents off the true speed).
@@ -178,7 +194,7 @@ private:
      * @param[in]     speedCents  the capstan speed in cents off the true speed
      * @return the key's sample
      */
-    float render(Key& k, double speedCents);
+    float render( Key &k, double speedCents );
     /**
      * @brief Presses key @p k for @p pitch at @p velocity, note id @p id: its tape drawn, its sources set.
      * @param[in,out] k         the key
@@ -186,34 +202,34 @@ private:
      * @param[in]     velocity  the velocity, 0..1
      * @param[in]     id        the note's id
      */
-    void startKey(Key& k, int pitch, float velocity, int id);
-    double m_sr = 48000.0;   ///< the sample rate, Hz
-    uint64_t m_seed = 1;   ///< the seed of the tapes
-    TapeSettings m_s;   ///< the settings
-    Key m_keys[TapeKeyCount];   ///< the keys
-    Rng m_rng;   ///< the noise's stream
-    uint32_t m_counter = 0;   ///< counts the keys pressed (the oldest is taken)
-    double m_wowPhase = 0.0;   ///< the wow's phase
-    double m_flutterPhase = 0.0;   ///< the flutter's phase
-    double m_drift = 0.0;   ///< the wow's slow drift
-    double m_driftTarget = 0.0;   ///< where it drifts to
-    int64_t m_count = 0;   ///< samples rendered
-    float m_thump = 0.0f;   ///< the pressure pads' thump, decaying
-    double m_fallCoef = 0.0;       ///< the release's factor per sample (70 ms time constant)
-    float m_formantGain[5] = {};    ///< the choir's formant levels at the current vowel
-    int m_singers = Singers;       ///< setSingers()
-    double m_decayCoef = 1.0;       ///< the player's decay per sample
-    Modulator m_mod;                ///< the keyboard's LFOs and matrix
-    float m_mo[ModDests] = {};     ///< its last sums
-    double m_beat0 = 0.0;   ///< the clock: the beat at m_clockAt
-    double m_bps = 0.0;   ///< beats per sample
-    int64_t m_clockAt = 0;   ///< the sample setClock() was called at
+    void startKey( Key &k, int pitch, float velocity, int id );
+    double       m_sr = 48000.0;          ///< the sample rate, Hz
+    uint64_t     m_seed = 1;              ///< the seed of the tapes
+    TapeSettings m_s;                     ///< the settings
+    Key          m_keys[TapeKeyCount];    ///< the keys
+    Rng          m_rng;                   ///< the noise's stream
+    uint32_t     m_counter = 0;           ///< counts the keys pressed (the oldest is taken)
+    double       m_wowPhase = 0.0;        ///< the wow's phase
+    double       m_flutterPhase = 0.0;    ///< the flutter's phase
+    double       m_drift = 0.0;           ///< the wow's slow drift
+    double       m_driftTarget = 0.0;     ///< where it drifts to
+    int64_t      m_count = 0;             ///< samples rendered
+    float        m_thump = 0.0f;          ///< the pressure pads' thump, decaying
+    double       m_fallCoef = 0.0;        ///< the release's factor per sample (70 ms time constant)
+    float        m_formantGain[5] = {};   ///< the choir's formant levels at the current vowel
+    int          m_singers = Singers;     ///< setSingers()
+    double       m_decayCoef = 1.0;       ///< the player's decay per sample
+    Modulator    m_mod;                   ///< the keyboard's LFOs and matrix
+    float        m_mo[ModDests] = {};     ///< its last sums
+    double       m_beat0 = 0.0;           ///< the clock: the beat at m_clockAt
+    double       m_bps = 0.0;             ///< beats per sample
+    int64_t      m_clockAt = 0;           ///< the sample setClock() was called at
     /**
      * @brief The beat at sample @p at.
      * @param[in] at  the sample
      * @return the beat there
      */
-    double beatAt(int64_t at) const { return m_beat0 + static_cast<double>(at - m_clockAt) * m_bps; }
+    double beatAt( int64_t at ) const { return m_beat0 + static_cast<double>( at - m_clockAt ) * m_bps; }
 };
 
-} // namespace eph
+}   // namespace eph

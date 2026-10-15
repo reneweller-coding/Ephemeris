@@ -27,47 +27,60 @@
 #include <cstdint>
 #include <vector>
 
-namespace eph {
+namespace eph
+{
 
 /** @brief What a section is. */
-enum class SectionTypeE : uint8_t { ATMO, ENTRY, BUILD, LEAD, PEAK, BREAKDOWN, BRIDGE, CODA };
+enum class SectionTypeE : uint8_t
+{
+    ATMO,
+    ENTRY,
+    BUILD,
+    LEAD,
+    PEAK,
+    BREAKDOWN,
+    BRIDGE,
+    CODA
+};
 /**
  * @brief German names for the markers ("Atmo", "Einsatz", "Aufbau", ...).
  * @param[in] t  the section type
  * @return its marker's name
  */
-const char* sectionName(SectionTypeE t);
+const char *sectionName( SectionTypeE t );
 
 /** @brief One section. */
-struct Section {
+struct Section
+{
     SectionTypeE m_type = SectionTypeE::ATMO;   ///< what the section is
-    int m_phase = 0;            ///< the sequence phase it belongs to (the Atmo to the first, a Bridge to the next)
-    int m_index = 0;            ///< the n-th of its type in the phase (Build 0, 1, 2)
-    double m_beat = 0.0;        ///< start
-    double m_length = 16.0;     ///< beats
-    float m_e0 = 0.0f;          ///< energy at the start, 0..1
-    float m_e1 = 0.0f;          ///< energy at the end
+    int          m_phase = 0;       ///< the sequence phase it belongs to (the Atmo to the first, a Bridge to the next)
+    int          m_index = 0;       ///< the n-th of its type in the phase (Build 0, 1, 2)
+    double       m_beat = 0.0;      ///< start
+    double       m_length = 16.0;   ///< beats
+    float        m_e0 = 0.0f;       ///< energy at the start, 0..1
+    float        m_e1 = 0.0f;       ///< energy at the end
 };
 
 /** @brief The form of one piece. */
-struct PieceForm {
-    std::vector<Section> m_sections;   ///< the sections, in order, without gaps
-    std::vector<double> m_phaseBpm;   ///< tempo of each phase
-    std::vector<int> m_phaseKey;      ///< semitones of each phase's key from the piece's
-    double m_lengthBeats = 0.0;       ///< the piece's length
+struct PieceForm
+{
+    std::vector<Section> m_sections;            ///< the sections, in order, without gaps
+    std::vector<double>  m_phaseBpm;            ///< tempo of each phase
+    std::vector<int>     m_phaseKey;            ///< semitones of each phase's key from the piece's
+    double               m_lengthBeats = 0.0;   ///< the piece's length
     /**
      * @brief The energy at @p beat, interpolated inside its section.
      * @param[in] beat  the position in beats
      * @return the energy, 0..1
      */
-    float energy(double beat) const;
+    float energy( double beat ) const;
     /**
      * @brief The first section of @p type in @p phase, or null.
      * @param[in] type   the section type
      * @param[in] phase  the phase
      * @return the section, null when there is none
      */
-    const Section* find(SectionTypeE type, int phase) const;
+    const Section *find( SectionTypeE type, int phase ) const;
 };
 
 /**
@@ -78,7 +91,7 @@ struct PieceForm {
  * @param[in,out] rng      the form's stream
  * @return the form
  */
-PieceForm drawForm(const StyleProfile& profile, double minutes, double bpm, Rng& rng);
+PieceForm drawForm( const StyleProfile &profile, double minutes, double bpm, Rng &rng );
 
 /**
  * @brief Moves the end of every build onto a conjunction of the counter row it brings in with the bass row.
@@ -93,6 +106,6 @@ PieceForm drawForm(const StyleProfile& profile, double minutes, double bpm, Rng&
  * @param[in]     rowBeats   the counter rows' cycles in beats, in the order they come in
  * @return the number of builds moved
  */
-int snapToConjunctions(PieceForm& form, double bassBeats, const std::vector<double>& rowBeats);
+int snapToConjunctions( PieceForm &form, double bassBeats, const std::vector<double> &rowBeats );
 
-} // namespace eph
+}   // namespace eph

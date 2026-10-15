@@ -24,22 +24,24 @@
 #include <cstdint>
 #include <vector>
 
-namespace eph {
+namespace eph
+{
 
 /** @brief The figures of a measured programme. */
-struct LoudnessReport {
-    double m_integrated = -120.0;     ///< LUFS, gated
-    double m_shortTermMax = -120.0;   ///< LUFS, the loudest 3 s
-    double m_range = 0.0;             ///< LU, EBU Tech 3342
-    double m_truePeak = -120.0;       ///< dBTP
-    double m_psr = 0.0;               ///< dB: true peak in the loudest 3 s minus their loudness
-    double m_plr = 0.0;               ///< dB: true peak minus integrated loudness
-    double m_correlation = 1.0;       ///< of left and right over the whole
-    double m_correlationLow = 1.0;    ///< the lowest one-second value (of seconds above -50 dBFS RMS)
-    double m_correlationLowAt = 0.0;  ///< where that second starts, in seconds
-    double m_sideUnderMid = 0.0;      ///< dB the side's energy lies under the mid's
-    double m_crest = 0.0;             ///< dB: true peak over the RMS (the addon's 9: at least 12 keeps the transients)
-    double m_seconds = 0.0;           ///< how much was measured
+struct LoudnessReport
+{
+    double m_integrated = -120.0;      ///< LUFS, gated
+    double m_shortTermMax = -120.0;    ///< LUFS, the loudest 3 s
+    double m_range = 0.0;              ///< LU, EBU Tech 3342
+    double m_truePeak = -120.0;        ///< dBTP
+    double m_psr = 0.0;                ///< dB: true peak in the loudest 3 s minus their loudness
+    double m_plr = 0.0;                ///< dB: true peak minus integrated loudness
+    double m_correlation = 1.0;        ///< of left and right over the whole
+    double m_correlationLow = 1.0;     ///< the lowest one-second value (of seconds above -50 dBFS RMS)
+    double m_correlationLowAt = 0.0;   ///< where that second starts, in seconds
+    double m_sideUnderMid = 0.0;       ///< dB the side's energy lies under the mid's
+    double m_crest = 0.0;              ///< dB: true peak over the RMS (the addon's 9: at least 12 keeps the transients)
+    double m_seconds = 0.0;            ///< how much was measured
 };
 
 /**
@@ -51,28 +53,30 @@ struct LoudnessReport {
  * @param[in] sampleRate  the sample rate in Hz
  * @return the gain at that sample, 0..1
  */
-inline float exportFade(int64_t i, int64_t total, double sampleRate)
+inline float exportFade( int64_t i, int64_t total, double sampleRate )
 {
-    const double in = static_cast<double>(i) / (2.0 * sampleRate), out = static_cast<double>(total - i) / (10.0 * sampleRate);
-    const double x = std::min(1.0, std::min(in, out));
-    return static_cast<float>(x >= 1.0 ? 1.0 : 0.5 - 0.5 * std::cos(3.14159265358979 * std::max(0.0, x)));
+    const double in = static_cast<double>( i ) / ( 2.0 * sampleRate ),
+                 out = static_cast<double>( total - i ) / ( 10.0 * sampleRate );
+    const double x = std::min( 1.0, std::min( in, out ) );
+    return static_cast<float>( x >= 1.0 ? 1.0 : 0.5 - 0.5 * std::cos( 3.14159265358979 * std::max( 0.0, x ) ) );
 }
 
 /** @brief Measures a stereo programme; call process() for every block, then report(). */
-class LoudnessMeter {
+class LoudnessMeter
+{
 public:
     /**
      * @brief Designs the filters for @p sampleRate and clears everything.
      * @param[in] sampleRate  the sample rate in Hz
      */
-    void prepare(double sampleRate);
+    void prepare( double sampleRate );
     /**
      * @brief Measures @p n samples.
      * @param[in] L  the left channel
      * @param[in] R  the right channel
      * @param[in] n  how many samples
      */
-    void process(const float* L, const float* R, int n);
+    void process( const float *L, const float *R, int n );
     /**
      * @brief The figures of everything measured so far.
      * @return the figures of everything measured so far
@@ -81,7 +85,8 @@ public:
 
 private:
     /** @brief A biquad in transposed direct form II (the K weighting). */
-    struct Biquad {
+    struct Biquad
+    {
         double m_b0 = 1;   ///< feed-forward coefficient of x[n]
         double m_b1 = 0;   ///< ... of x[n-1]
         double m_b2 = 0;   ///< ... of x[n-2]
@@ -94,37 +99,45 @@ private:
          * @param[in] x  the input sample
          * @return the filtered sample
          */
-        double process(double x) { const double y = m_b0 * x + m_z1; m_z1 = m_b1 * x - m_a1 * y + m_z2; m_z2 = m_b2 * x - m_a2 * y; return y; }
+        double process( double x )
+        {
+            const double y = m_b0 * x + m_z1;
+            m_z1 = m_b1 * x - m_a1 * y + m_z2;
+            m_z2 = m_b2 * x - m_a2 * y;
+            return y;
+        }
     };
     /** @brief The sums of one 100 ms hop. */
-    struct Hop {
-        double m_kL = 0.0;   ///< the K-weighted sum of squares, left
-        double m_kR = 0.0;   ///< ... right
-        double m_lr = 0.0;   ///< the sum of L R, for the correlation
-        double m_ll = 0.0;   ///< the sum of L L
-        double m_rr = 0.0;   ///< the sum of R R
-        double m_mid = 0.0;   ///< the sum of squares of (L + R) / 2
-        double m_side = 0.0;   ///< the sum of squares of (L - R) / 2
-        float m_peak = 0.0f;                   ///< true peak (linear)
-        int m_samples = 0;   ///< how many samples the hop has
+    struct Hop
+    {
+        double m_kL = 0.0;      ///< the K-weighted sum of squares, left
+        double m_kR = 0.0;      ///< ... right
+        double m_lr = 0.0;      ///< the sum of L R, for the correlation
+        double m_ll = 0.0;      ///< the sum of L L
+        double m_rr = 0.0;      ///< the sum of R R
+        double m_mid = 0.0;     ///< the sum of squares of (L + R) / 2
+        double m_side = 0.0;    ///< the sum of squares of (L - R) / 2
+        float  m_peak = 0.0f;   ///< true peak (linear)
+        int    m_samples = 0;   ///< how many samples the hop has
     };
     /**
      * @brief Writes @p x into the channel history @p hist and raises the hop's true peak by what lies around it.
      * @param[in,out] hist  the channel's recent samples
      * @param[in]     x     the new sample
      */
-    void truePeak(std::vector<float>& hist, float x);
+    void truePeak( std::vector<float> &hist, float x );
 
-    double m_sr = 48000.0;   ///< the sample rate, Hz
-    int m_hopLength = 4800;   ///< a hop, samples (100 ms)
-    Biquad m_shelf[2];   ///< the K weighting's high shelf, per channel
-    Biquad m_highPass[2];   ///< the K weighting's high pass, per channel
-    std::vector<Hop> m_hops;   ///< the finished hops
-    Hop m_cur;   ///< the hop being summed
-    TruePeakInterpolator m_tp;   ///< the true-peak interpolator
-    std::vector<float> m_histL;   ///< the left channel's last Taps samples, twice over (a contiguous window at m_pos + 1)
-    std::vector<float> m_histR;   ///< ... the right channel's
-    int m_pos = 0;   ///< where the histories are written
+    double               m_sr = 48000.0;       ///< the sample rate, Hz
+    int                  m_hopLength = 4800;   ///< a hop, samples (100 ms)
+    Biquad               m_shelf[2];           ///< the K weighting's high shelf, per channel
+    Biquad               m_highPass[2];        ///< the K weighting's high pass, per channel
+    std::vector<Hop>     m_hops;               ///< the finished hops
+    Hop                  m_cur;                ///< the hop being summed
+    TruePeakInterpolator m_tp;                 ///< the true-peak interpolator
+    std::vector<float>
+        m_histL;   ///< the left channel's last Taps samples, twice over (a contiguous window at m_pos + 1)
+    std::vector<float> m_histR;     ///< ... the right channel's
+    int                m_pos = 0;   ///< where the histories are written
 };
 
-} // namespace eph
+}   // namespace eph

@@ -12,9 +12,11 @@
 #include "eph/Halfband.h"
 #include <cmath>
 
-namespace eph {
+namespace eph
+{
 
-namespace {
+namespace
+{
 
 constexpr double PiD = 3.14159265358979323846;   ///< pi
 
@@ -24,15 +26,15 @@ constexpr double PiD = 3.14159265358979323846;   ///< pi
  * @param[out] k           receives the elliptic modulus
  * @param[out] q           receives the nome
  */
-void transitionParams(double transition, double& k, double& q)
+void transitionParams( double transition, double &k, double &q )
 {
-    k = std::tan((1.0 - transition * 2.0) * PiD / 4.0);
+    k = std::tan( ( 1.0 - transition * 2.0 ) * PiD / 4.0 );
     k *= k;
-    const double kksqrt = std::pow(1.0 - k * k, 0.25);
-    const double e = 0.5 * (1.0 - kksqrt) / (1.0 + kksqrt);
+    const double kksqrt = std::pow( 1.0 - k * k, 0.25 );
+    const double e = 0.5 * ( 1.0 - kksqrt ) / ( 1.0 + kksqrt );
     const double e2 = e * e;
     const double e4 = e2 * e2;
-    q = e * (1.0 + e4 * (2.0 + e4 * (15.0 + 150.0 * e4)));
+    q = e * ( 1.0 + e4 * ( 2.0 + e4 * ( 15.0 + 150.0 * e4 ) ) );
 }
 
 /**
@@ -42,16 +44,17 @@ void transitionParams(double transition, double& k, double& q)
  * @param[in] c      the coefficient
  * @return the numerator's series
  */
-double accNum(double q, int order, int c)
+double accNum( double q, int order, int c )
 {
     double acc = 0.0, term = 0.0;
-    int i = 0, sign = 1;
-    do {
-        term = std::pow(q, i * (i + 1)) * std::sin((i * 2 + 1) * c * PiD / order) * sign;
+    int    i = 0, sign = 1;
+    do
+    {
+        term = std::pow( q, i * ( i + 1 ) ) * std::sin( ( i * 2 + 1 ) * c * PiD / order ) * sign;
         acc += term;
         sign = -sign;
         ++i;
-    } while (std::fabs(term) > 1e-100 && i < 1000);
+    } while ( std::fabs( term ) > 1e-100 && i < 1000 );
     return acc;
 }
 
@@ -62,45 +65,47 @@ double accNum(double q, int order, int c)
  * @param[in] c      the coefficient
  * @return the denominator's series
  */
-double accDen(double q, int order, int c)
+double accDen( double q, int order, int c )
 {
     double acc = 0.0, term = 0.0;
-    int i = 1, sign = -1;
-    do {
-        term = std::pow(q, i * i) * std::cos(i * 2 * c * PiD / order) * sign;
+    int    i = 1, sign = -1;
+    do
+    {
+        term = std::pow( q, i * i ) * std::cos( i * 2 * c * PiD / order ) * sign;
         acc += term;
         sign = -sign;
         ++i;
-    } while (std::fabs(term) > 1e-100 && i < 1000);
+    } while ( std::fabs( term ) > 1e-100 && i < 1000 );
     return acc;
 }
 
-} // namespace
+}   // namespace
 
-HalfbandDesign designHalfband(double attenuationDb, double transition)
+HalfbandDesign designHalfband( double attenuationDb, double transition )
 {
     HalfbandDesign out;
-    double k = 0.0, q = 0.0;
-    transitionParams(transition, k, q);
-    const double attn = std::pow(10.0, -attenuationDb / 10.0);
-    const double a = attn / (1.0 - attn);
-    int order = static_cast<int>(std::ceil(std::log(a * a / 16.0) / std::log(q)));
-    if ((order & 1) == 0) ++order;
-    if (order == 1) order = 3;
-    int count = (order - 1) / 2;
-    if (count > HalfbandMaxCoefs) count = HalfbandMaxCoefs;
+    double         k = 0.0, q = 0.0;
+    transitionParams( transition, k, q );
+    const double attn = std::pow( 10.0, -attenuationDb / 10.0 );
+    const double a = attn / ( 1.0 - attn );
+    int          order = static_cast<int>( std::ceil( std::log( a * a / 16.0 ) / std::log( q ) ) );
+    if ( ( order & 1 ) == 0 ) ++order;
+    if ( order == 1 ) order = 3;
+    int count = ( order - 1 ) / 2;
+    if ( count > HalfbandMaxCoefs ) count = HalfbandMaxCoefs;
     const int designOrder = count * 2 + 1;
-    for (int i = 0; i < count; ++i) {
-        const int c = i + 1;
-        const double num = accNum(q, designOrder, c) * std::pow(q, 0.25);
-        const double den = accDen(q, designOrder, c) + 0.5;
+    for ( int i = 0; i < count; ++i )
+    {
+        const int    c = i + 1;
+        const double num = accNum( q, designOrder, c ) * std::pow( q, 0.25 );
+        const double den = accDen( q, designOrder, c ) + 0.5;
         const double ww = num / den;
         const double wwsq = ww * ww;
-        const double x = std::sqrt((1.0 - wwsq * k) * (1.0 - wwsq / k)) / (1.0 + wwsq);
-        out.m_coef[i] = static_cast<float>((1.0 - x) / (1.0 + x));
+        const double x = std::sqrt( ( 1.0 - wwsq * k ) * ( 1.0 - wwsq / k ) ) / ( 1.0 + wwsq );
+        out.m_coef[i] = static_cast<float>( ( 1.0 - x ) / ( 1.0 + x ) );
     }
     out.m_count = count;
     return out;
 }
 
-} // namespace eph
+}   // namespace eph

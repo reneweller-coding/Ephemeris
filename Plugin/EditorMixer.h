@@ -25,24 +25,25 @@
 #include <vector>
 
 /** @brief The console: one frame::ChannelStrip per engine channel, in the mixing order, fed by a 30 Hz timer. */
-class MixerConsole final : public juce::Component, private juce::Timer {
+class MixerConsole final : public juce::Component, private juce::Timer
+{
 public:
     /**
      * @brief Builds a strip per channel and starts the meter timer.
      * @param[in,out] proc  the processor
      */
-    explicit MixerConsole(EphemerisProcessor& proc);
+    explicit MixerConsole( EphemerisProcessor &proc );
     ~MixerConsole() override;   ///< stops the timer
     void resized() override;    ///< the console fills the page
 
 private:
     /** @brief Takes the processor's readings and hands them to the strips. */
     void timerCallback() override;
-    EphemerisProcessor& m_proc;                          ///< the processor whose meters it reads
-    frame::ControlActions m_actions;                     ///< the strips' right-click menu
-    frame::LiveRings m_live;                             ///< where the faders and sends play
-    frame::Console m_console;                            ///< the strips
+    EphemerisProcessor                       &m_proc;      ///< the processor whose meters it reads
+    frame::ControlActions                     m_actions;   ///< the strips' right-click menu
+    frame::LiveRings                          m_live;      ///< where the faders and sends play
+    frame::Console                            m_console;   ///< the strips
     std::vector<std::pair<eph::ModuleE, int>> m_synths;   ///< per strip: the synth whose presets it plays (Count: none)
-    int m_tick = 0;                                      ///< timer ticks, to look at the presets now and then
-    double m_lastPoll = 0.0;                             ///< when the meters were last read, seconds
+    int                                       m_tick = 0;         ///< timer ticks, to look at the presets now and then
+    double                                    m_lastPoll = 0.0;   ///< when the meters were last read, seconds
 };

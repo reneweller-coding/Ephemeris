@@ -32,7 +32,8 @@
 #include "eph/SetFile.h"
 #include <cstdint>
 
-namespace eph {
+namespace eph
+{
 
 struct StyleProfile;
 
@@ -47,9 +48,9 @@ struct StyleProfile;
  * @param[in] profile   a profile instead of compose.style's (a concert's morph, morphProfile), or null
  * @return the piece's score
  */
-Score composePiece(const ParamStore& p, uint64_t seed, double minutes, int keyShift = 0,
-                   const Curation* curation = nullptr, const std::string& unit = std::string(),
-                   const StyleProfile* profile = nullptr);
+Score composePiece( const ParamStore &p, uint64_t seed, double minutes, int keyShift = 0,
+                    const Curation *curation = nullptr, const std::string &unit = std::string(),
+                    const StyleProfile *profile = nullptr );
 
 /**
  * @brief Writes a concert of pieces, @p minutes long in all. With compose.morph_to it wanders from compose.style
@@ -66,7 +67,7 @@ Score composePiece(const ParamStore& p, uint64_t seed, double minutes, int keySh
  * @param[in] curation  the listener's curation, or null
  * @return the concert's score
  */
-Score composeConcert(const ParamStore& p, uint64_t seed, double minutes, const Curation* curation = nullptr);
+Score composeConcert( const ParamStore &p, uint64_t seed, double minutes, const Curation *curation = nullptr );
 
 /**
  * @brief Writes an interlude (the style guide's 6.5, the album's short ambient pieces between the long ones): no
@@ -79,10 +80,10 @@ Score composeConcert(const ParamStore& p, uint64_t seed, double minutes, const C
  * @param[in] profile   the profile of the moment in the concert
  * @return the interlude's score
  */
-Score composeInterlude(const ParamStore& p, uint64_t seed, double minutes, int keyShift, const StyleProfile& profile);
+Score composeInterlude( const ParamStore &p, uint64_t seed, double minutes, int keyShift, const StyleProfile &profile );
 
 /** @brief The names of a piece's units, in stream order: form, tempo, rows, rack, layers, lead, pads, hands, sounds. */
-extern const char* const UnitNames[9];
+extern const char *const UnitNames[9];
 
 /**
  * @brief Appends @p src to @p dst at @p dst's end; its roots are moved by @p rootOffset semitones. A knob dst moved
@@ -91,7 +92,7 @@ extern const char* const UnitNames[9];
  * @param[in]     src         the score appended
  * @param[in]     rootOffset  semitones src's roots are moved by
  */
-void appendScore(Score& dst, const Score& src, int rootOffset);
+void appendScore( Score &dst, const Score &src, int rootOffset );
 
 /**
  * @brief Writes a night set (compose.night_set; a concert of up to twelve hours), as a DJ plays one: pieces of eight
@@ -110,6 +111,6 @@ void appendScore(Score& dst, const Score& src, int rootOffset);
  * @param[in] curation  the listener's curation, or null
  * @return the night set's score
  */
-Score composeNightSet(const ParamStore& p, uint64_t seed, double minutes, const Curation* curation = nullptr);
+Score composeNightSet( const ParamStore &p, uint64_t seed, double minutes, const Curation *curation = nullptr );
 
-} // namespace eph
+}   // namespace eph

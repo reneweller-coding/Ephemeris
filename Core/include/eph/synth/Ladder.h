@@ -31,20 +31,26 @@
 #pragma once
 #include "eph/Vec.h"
 
-namespace eph {
+namespace eph
+{
 
 /** @brief The ladder, one filter per lane of @p V (see the file comment). */
 template <class VT>
-struct LadderT {
-    VT m_s[4];     ///< trapezoidal integrator states
-    VT m_y[4];     ///< stage outputs of the previous sample (gain estimates)
-    VT m_u;        ///< input stage value of the previous sample
+struct LadderT
+{
+    VT m_s[4];   ///< trapezoidal integrator states
+    VT m_y[4];   ///< stage outputs of the previous sample (gain estimates)
+    VT m_u;      ///< input stage value of the previous sample
 
     /** @brief Clears all states. */
     void reset()
     {
-        for (int i = 0; i < 4; ++i) { m_s[i] = lanes<VT>(0.0f); m_y[i] = lanes<VT>(0.0f); }
-        m_u = lanes<VT>(0.0f);
+        for ( int i = 0; i < 4; ++i )
+        {
+            m_s[i] = lanes<VT>( 0.0f );
+            m_y[i] = lanes<VT>( 0.0f );
+        }
+        m_u = lanes<VT>( 0.0f );
     }
 
     /**
@@ -52,10 +58,10 @@ struct LadderT {
      * @param[in] v  the stage's input
      * @return sigma(v)/v
      */
-    static inline VT gainOf(VT v)
+    static inline VT gainOf( VT v )
     {
-        const VT one = lanes<VT>(1.0f);
-        return one / vsqrt(vfmadd(v, v, one));
+        const VT one = lanes<VT>( 1.0f );
+        return one / vsqrt( vfmadd( v, v, one ) );
     }
 
     /**
@@ -66,32 +72,36 @@ struct LadderT {
      * @param[in] comp  input gain (1 + comp k) that restores the passband level lost to resonance
      * @return the four-pole low-pass output
      */
-    inline VT tick(VT x, VT g, VT k, VT comp)
+    inline VT tick( VT x, VT g, VT k, VT comp )
     {
-        const VT one = lanes<VT>(1.0f);
-        const VT t0 = gainOf(m_u), t1 = gainOf(m_y[0]), t2 = gainOf(m_y[1]), t3 = gainOf(m_y[2]), t4 = gainOf(m_y[3]);
-        const VT d1 = one / vfmadd(g, t1, one), d2 = one / vfmadd(g, t2, one);
-        const VT d3 = one / vfmadd(g, t3, one), d4 = one / vfmadd(g, t4, one);
+        const VT one = lanes<VT>( 1.0f );
+        const VT t0 = gainOf( m_u ), t1 = gainOf( m_y[0] ), t2 = gainOf( m_y[1] ), t3 = gainOf( m_y[2] ),
+                 t4 = gainOf( m_y[3] );
+        const VT d1 = one / vfmadd( g, t1, one ), d2 = one / vfmadd( g, t2, one );
+        const VT d3 = one / vfmadd( g, t3, one ), d4 = one / vfmadd( g, t4, one );
         const VT a1 = g * t0 * d1, a2 = g * t1 * d2, a3 = g * t2 * d3, a4 = g * t3 * d4;
         const VT b1 = m_s[0] * d1, b2 = m_s[1] * d2, b3 = m_s[2] * d3, b4 = m_s[3] * d4;
         const VT a43 = a4 * a3, a432 = a43 * a2;
         const VT P = a432 * a1;
-        const VT Q = vfmadd(a432, b1, vfmadd(a43, b2, vfmadd(a4, b3, b4)));
-        const VT xin = x * vfmadd(comp, k, one);
-        const VT un = (xin - k * Q) / vfmadd(k, P, one);
-        const VT y1 = vfmadd(a1, un, b1);
-        const VT y2 = vfmadd(a2, y1, b2);
-        const VT y3 = vfmadd(a3, y2, b3);
-        const VT y4 = vfmadd(a4, y3, b4);
-        const VT two = lanes<VT>(2.0f);
+        const VT Q = vfmadd( a432, b1, vfmadd( a43, b2, vfmadd( a4, b3, b4 ) ) );
+        const VT xin = x * vfmadd( comp, k, one );
+        const VT un = ( xin - k * Q ) / vfmadd( k, P, one );
+        const VT y1 = vfmadd( a1, un, b1 );
+        const VT y2 = vfmadd( a2, y1, b2 );
+        const VT y3 = vfmadd( a3, y2, b3 );
+        const VT y4 = vfmadd( a4, y3, b4 );
+        const VT two = lanes<VT>( 2.0f );
         m_s[0] = two * y1 - m_s[0];
         m_s[1] = two * y2 - m_s[1];
         m_s[2] = two * y3 - m_s[2];
         m_s[3] = two * y4 - m_s[3];
-        m_y[0] = y1; m_y[1] = y2; m_y[2] = y3; m_y[3] = y4;
+        m_y[0] = y1;
+        m_y[1] = y2;
+        m_y[2] = y3;
+        m_y[3] = y4;
         m_u = un;
         return y4;
     }
 };
 
-} // namespace eph
+}   // namespace eph

@@ -12,21 +12,24 @@
 #pragma once
 #include <cstdint>
 
-namespace eph {
+namespace eph
+{
 
 /** @brief A fixed-capacity list of played notes; clear() before a process() call, read after it. */
-struct NoteTap {
+struct NoteTap
+{
     /** @brief One note-on or note-off as the engine played it. */
-    struct Note {
+    struct Note
+    {
         int64_t m_sample;      ///< when, on the engine's sample counter
         int64_t m_offSample;   ///< a note-on without an off of its own: when its off is due; else -1
         uint8_t m_part;        ///< the Part
         uint8_t m_pitch;       ///< MIDI note number
         uint8_t m_velocity;    ///< 1..127 for an on, 0 for an off
     };
-    static constexpr int Capacity = 2048;   ///< more notes than any block of 4096 samples plays
-    Note m_notes[Capacity];                   ///< the notes, in the order they were played
-    int m_count = 0;                           ///< how many of notes[] are valid
+    static constexpr int Capacity = 2048;     ///< more notes than any block of 4096 samples plays
+    Note                 m_notes[Capacity];   ///< the notes, in the order they were played
+    int                  m_count = 0;         ///< how many of notes[] are valid
     /** @brief Forgets the notes of the last call. */
     void clear() { m_count = 0; }
     /**
@@ -38,12 +41,16 @@ struct NoteTap {
      * @param[in] on         true for a note-on
      * @param[in] offSample  the position of its note-off, as in Note
      */
-    void add(int64_t sample, int part, int pitch, float velocity, bool on, int64_t offSample)
+    void add( int64_t sample, int part, int pitch, float velocity, bool on, int64_t offSample )
     {
-        if (m_count >= Capacity || pitch < 0 || pitch > 127) return;
-        const int v = on ? (velocity <= 0.0f ? 1 : velocity >= 1.0f ? 127 : 1 + static_cast<int>(velocity * 126.0f + 0.5f)) : 0;
-        m_notes[m_count++] = Note{ sample, on ? offSample : -1, static_cast<uint8_t>(part), static_cast<uint8_t>(pitch), static_cast<uint8_t>(v) };
+        if ( m_count >= Capacity || pitch < 0 || pitch > 127 ) return;
+        const int v = on ? ( velocity <= 0.0f   ? 1
+                             : velocity >= 1.0f ? 127
+                                                : 1 + static_cast<int>( velocity * 126.0f + 0.5f ) )
+                         : 0;
+        m_notes[m_count++] = Note{ sample, on ? offSample : -1, static_cast<uint8_t>( part ),
+                                   static_cast<uint8_t>( pitch ), static_cast<uint8_t>( v ) };
     }
 };
 
-} // namespace eph
+}   // namespace eph

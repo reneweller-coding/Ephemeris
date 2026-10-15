@@ -19,17 +19,18 @@
 #pragma once
 #include <cmath>
 
-namespace eph {
+namespace eph
+{
 
 /**
  * @brief log(cosh(x)), the antiderivative of tanh, without overflow or cancellation.
  * @param[in] x  the argument
  * @return log(cosh(x))
  */
-inline double logCosh(double x)
+inline double logCosh( double x )
 {
-    const double a = std::fabs(x);
-    return a + std::log1p(std::exp(-2.0 * a)) - 0.6931471805599453;
+    const double a = std::fabs( x );
+    return a + std::log1p( std::exp( -2.0 * a ) ) - 0.6931471805599453;
 }
 
 /**
@@ -38,7 +39,8 @@ inline double logCosh(double x)
  * Where two successive inputs are too close for the difference quotient to be accurate, the
  * curve at their midpoint is used, which is its limit.
  */
-struct TanhAdaa {
+struct TanhAdaa
+{
     float  x1 = 0.0f;   ///< previous input
     double f1 = 0.0;    ///< antiderivative at the previous input
 
@@ -47,18 +49,22 @@ struct TanhAdaa {
      * @param[in] x  the input sample
      * @return the shaped sample, half a sample behind the input
      */
-    float operator()(float x)
+    float operator()( float x )
     {
-        const double fx = logCosh(static_cast<double>(x));
-        const double dx = static_cast<double>(x) - static_cast<double>(x1);
-        const float y = std::fabs(dx) > 1.0e-5 ? static_cast<float>((fx - f1) / dx)
-                                               : std::tanh(0.5f * (x + x1));
+        const double fx = logCosh( static_cast<double>( x ) );
+        const double dx = static_cast<double>( x ) - static_cast<double>( x1 );
+        const float  y =
+            std::fabs( dx ) > 1.0e-5 ? static_cast<float>( ( fx - f1 ) / dx ) : std::tanh( 0.5f * ( x + x1 ) );
         x1 = x;
         f1 = fx;
         return y;
     }
     /** @brief Clears the state. */
-    void reset() { x1 = 0.0f; f1 = 0.0; }
+    void reset()
+    {
+        x1 = 0.0f;
+        f1 = 0.0;
+    }
 };
 
 /**
@@ -68,7 +74,8 @@ struct TanhAdaa {
  * "punchier" saturation for a kick: it keeps the attack's shape up to the ceiling and squares the
  * body off beyond it, where tanh rounds everything a little.
  */
-struct HardClipAdaa {
+struct HardClipAdaa
+{
     float  x1 = 0.0f;   ///< previous input
     double f1 = 0.0;    ///< antiderivative at the previous input
 
@@ -77,26 +84,39 @@ struct HardClipAdaa {
      * @param[in] x  the argument
      * @return the antiderivative of the hard clip at x
      */
-    static double anti(double x) { const double a = std::fabs(x); return a <= 1.0 ? 0.5 * x * x : a - 0.5; }
+    static double anti( double x )
+    {
+        const double a = std::fabs( x );
+        return a <= 1.0 ? 0.5 * x * x : a - 0.5;
+    }
 
     /**
      * @brief One sample; half a sample late.
      * @param[in] x  the input sample
      * @return the clipped sample, half a sample behind the input
      */
-    float operator()(float x)
+    float operator()( float x )
     {
-        const double fx = anti(static_cast<double>(x));
-        const double dx = static_cast<double>(x) - static_cast<double>(x1);
-        float y;
-        if (std::fabs(dx) > 1.0e-5) y = static_cast<float>((fx - f1) / dx);
-        else { const float m = 0.5f * (x + x1); y = m > 1.0f ? 1.0f : (m < -1.0f ? -1.0f : m); }
+        const double fx = anti( static_cast<double>( x ) );
+        const double dx = static_cast<double>( x ) - static_cast<double>( x1 );
+        float        y;
+        if ( std::fabs( dx ) > 1.0e-5 )
+            y = static_cast<float>( ( fx - f1 ) / dx );
+        else
+        {
+            const float m = 0.5f * ( x + x1 );
+            y = m > 1.0f ? 1.0f : ( m < -1.0f ? -1.0f : m );
+        }
         x1 = x;
         f1 = fx;
         return y;
     }
     /** @brief Clears the state. */
-    void reset() { x1 = 0.0f; f1 = 0.0; }
+    void reset()
+    {
+        x1 = 0.0f;
+        f1 = 0.0;
+    }
 };
 
-} // namespace eph
+}   // namespace eph

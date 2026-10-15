@@ -15,48 +15,50 @@
 #include <vector>
 
 /** @brief The gesture lanes of the score that plays. */
-class GestureView final : public juce::Component, private juce::Timer {
+class GestureView final : public juce::Component, private juce::Timer
+{
 public:
     /**
      * shows @p p's score and follows its playhead
      * @param[in,out] p  the processor
      */
-    explicit GestureView(EphemerisProcessor& p);
-    ~GestureView() override;                       ///< stops the timer
+    explicit GestureView( EphemerisProcessor &p );
+    ~GestureView() override;   ///< stops the timer
     /**
      * the lanes, the hands, the sections, the playhead
      * @param[in,out] g  the graphics context
      */
-    void paint(juce::Graphics& g) override;
-    void resized() override;                       ///< the curves are drawn again at the new size
+    void paint( juce::Graphics &g ) override;
+    void resized() override;   ///< the curves are drawn again at the new size
     /**
      * jumps to the clicked beat
      * @param[in] e  the mouse event
      */
-    void mouseDown(const juce::MouseEvent& e) override;
+    void mouseDown( const juce::MouseEvent &e ) override;
 
 private:
     /** @brief One knob's gestures. */
-    struct Lane {
-        int m_param = -1;                    ///< the knob
-        juce::String m_name;                 ///< its key ("voice1.cutoff")
-        std::vector<eph::Gesture> m_gestures;   ///< in time order
-        int m_hand = 0;                      ///< the hand of its first gesture (for the colour)
+    struct Lane
+    {
+        int                       m_param = -1;   ///< the knob
+        juce::String              m_name;         ///< its key ("voice1.cutoff")
+        std::vector<eph::Gesture> m_gestures;     ///< in time order
+        int                       m_hand = 0;     ///< the hand of its first gesture (for the colour)
     };
     /** @brief Follows the playhead and a new score. */
     void timerCallback() override;
-    void rebuild();                        ///< lanes and curves from a new score or size
+    void rebuild();   ///< lanes and curves from a new score or size
     /**
      * the lanes' horizontal position of @p beat
      * @param[in] beat  the position in beats
      * @return its x in pixels
      */
-    float xOf(double beat) const;
+    float xOf( double beat ) const;
 
-    EphemerisProcessor& m_proc;             ///< where the score and the playhead come from
-    eph::Score m_score;                     ///< a copy of the score the engine plays
-    int m_version = -1;                     ///< which one (EphemerisProcessor::scoreVersion)
-    std::vector<Lane> m_lanes;              ///< one per gestured knob
-    std::vector<juce::Path> m_curves;       ///< the lanes' curves at the current size
-    juce::Rectangle<float> m_area;          ///< where the lanes are drawn
+    EphemerisProcessor     &m_proc;           ///< where the score and the playhead come from
+    eph::Score              m_score;          ///< a copy of the score the engine plays
+    int                     m_version = -1;   ///< which one (EphemerisProcessor::scoreVersion)
+    std::vector<Lane>       m_lanes;          ///< one per gestured knob
+    std::vector<juce::Path> m_curves;         ///< the lanes' curves at the current size
+    juce::Rectangle<float>  m_area;           ///< where the lanes are drawn
 };

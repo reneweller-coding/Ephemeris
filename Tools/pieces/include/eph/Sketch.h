@@ -19,14 +19,15 @@
 #include "eph/Score.h"
 #include <cstdint>
 
-namespace eph {
+namespace eph
+{
 
 /**
  * @brief The energy arc of the sketch at a fraction @p f of its length: 0.15 .. 1 at 0.65 .. 0.1.
  * @param[in] f  the place in the sketch, 0..1
  * @return the energy
  */
-float sketchEnergy(double f);
+float sketchEnergy( double f );
 
 /**
  * @brief Writes the sketch.
@@ -35,6 +36,6 @@ float sketchEnergy(double f);
  * @param[in] minutes  length (at least four)
  * @return the sketch's score
  */
-Score buildSketch(const ParamStore& p, uint64_t seed, double minutes);
+Score buildSketch( const ParamStore &p, uint64_t seed, double minutes );
 
-} // namespace eph
+}   // namespace eph

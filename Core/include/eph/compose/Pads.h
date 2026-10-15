@@ -19,18 +19,20 @@
 #include <utility>
 #include <vector>
 
-namespace eph {
+namespace eph
+{
 
 /** @brief Where and how chords are written. */
-struct PadPlan {
-    PartE m_part = PartE::TAPE_KEYS;     ///< which part plays them
-    int m_keyRoot = 9;                ///< pitch class of the key
-    int m_scale = 0;                  ///< compose.scale order
-    int m_low = 50;                   ///< lowest note of the register (MIDI)
-    int m_high = 74;                  ///< highest note
-    double m_restrikeSeconds = 7.0;   ///< longest a chord is held before it is struck again
-    bool m_choir = true;              ///< a choir's plain triads (the tape keys) rather than the whole vocabulary
-    bool m_openFifth = false;         ///< only the open fifth on the tonic: how a piece ends (3.3)
+struct PadPlan
+{
+    PartE  m_part = PartE::TAPE_KEYS;   ///< which part plays them
+    int    m_keyRoot = 9;               ///< pitch class of the key
+    int    m_scale = 0;                 ///< compose.scale order
+    int    m_low = 50;                  ///< lowest note of the register (MIDI)
+    int    m_high = 74;                 ///< highest note
+    double m_restrikeSeconds = 7.0;     ///< longest a chord is held before it is struck again
+    bool   m_choir = true;              ///< a choir's plain triads (the tape keys) rather than the whole vocabulary
+    bool   m_openFifth = false;         ///< only the open fifth on the tonic: how a piece ends (3.3)
     std::vector<std::pair<double, int>> m_shifts;   ///< the transposer's roots over time
     std::vector<std::pair<double, int>> m_chords;   ///< the chord track's degrees over time (empty: the tonic)
     std::vector<std::pair<double, int>> m_scales;   ///< the scale over time (Score::scaleShifts; empty: @p scale)
@@ -46,7 +48,8 @@ struct PadPlan {
  * @param[in]     to       the end in beats
  * @param[in]     roots    the (beat, semitones) root changes, or null for the score's
  */
-void writeDrone(Score& score, int keyRoot, double from, double to, const std::vector<std::pair<double, int>>* roots = nullptr);
+void writeDrone( Score &score, int keyRoot, double from, double to,
+                 const std::vector<std::pair<double, int>> *roots = nullptr );
 
 /**
  * @brief Writes chords between two beats; returns the number of chords struck.
@@ -57,6 +60,6 @@ void writeDrone(Score& score, int keyRoot, double from, double to, const std::ve
  * @param[in,out] rng    the random stream
  * @return the number of chords struck
  */
-int writeChords(Score& score, const PadPlan& plan, double from, double to, Rng& rng);
+int writeChords( Score &score, const PadPlan &plan, double from, double to, Rng &rng );
 
-} // namespace eph
+}   // namespace eph

@@ -8,20 +8,26 @@
 #include <algorithm>
 #include <cmath>
 
-namespace eph {
+namespace eph
+{
 
-namespace {
+namespace
+{
 
 /**
  * @brief The index of @p style, clamped into the styles.
  * @param[in] style  the style
  * @return its index
  */
-int styleIndex(StyleE style) { return std::clamp(static_cast<int>(style), 0, static_cast<int>(StyleE::COUNT) - 1); }
+int styleIndex( StyleE style )
+{
+    return std::clamp( static_cast<int>( style ), 0, static_cast<int>( StyleE::COUNT ) - 1 );
+}
 
 /** @brief The transposer's moves of a style (3.7) and their weights. */
-struct StyleMoves {
-    std::vector<int> m_roots;   ///< the moves, semitones
+struct StyleMoves
+{
+    std::vector<int>   m_roots;     ///< the moves, semitones
     std::vector<float> m_weights;   ///< their weights
 };
 
@@ -30,24 +36,25 @@ struct StyleMoves {
  * @param[in] style  the style
  * @return its transposer's moves
  */
-const StyleMoves& movesOf(StyleE style)
+const StyleMoves &movesOf( StyleE style )
 {
     static const StyleMoves Styles[] = {
-        { { 7, 5 },     { 0.55f, 0.45f } },          // Cosmic
-        { { 5, -3 },    { 0.6f, 0.4f } },            // Doom
-        { { 7, 5, -3 }, { 0.4f, 0.35f, 0.25f } },    // Melodic
-        { { 7, 5 },     { 0.5f, 0.5f } },            // Modern
-        { { 5 },        { 1.0f } },                  // Drift
+        { { 7, 5 }, { 0.55f, 0.45f } },             // Cosmic
+        { { 5, -3 }, { 0.6f, 0.4f } },              // Doom
+        { { 7, 5, -3 }, { 0.4f, 0.35f, 0.25f } },   // Melodic
+        { { 7, 5 }, { 0.5f, 0.5f } },               // Modern
+        { { 5 }, { 1.0f } },                        // Drift
     };
-    return Styles[styleIndex(style)];
+    return Styles[styleIndex( style )];
 }
 
 /** @brief A style's chord classes (Static, Pendulum, Loop, Walk), harmonic rhythm and the Markov table's "stays". */
-struct StyleChords {
-    float m_cls[4];   ///< the weights of the chord classes: Static, Pendulum, Loop, Walk
-    int m_barsLow;   ///< the harmonic rhythm: a chord's least bars
-    int m_barsHigh;   ///< ... and its most
-    float m_stay;   ///< the Markov table's chance that a chord stays
+struct StyleChords
+{
+    float m_cls[4];     ///< the weights of the chord classes: Static, Pendulum, Loop, Walk
+    int   m_barsLow;    ///< the harmonic rhythm: a chord's least bars
+    int   m_barsHigh;   ///< ... and its most
+    float m_stay;       ///< the Markov table's chance that a chord stays
 };
 
 /**
@@ -55,24 +62,25 @@ struct StyleChords {
  * @param[in] style  the style
  * @return its chord classes, harmonic rhythm and stays
  */
-const StyleChords& chordsOf(StyleE style)
+const StyleChords &chordsOf( StyleE style )
 {
     static const StyleChords Styles[] = {
         // Calibrated 25.09.2026: half the style guide's values, half the reference measurement (Tools/analyze_harmony.py,
         // Tools/ref_harmony.json; six recordings a style, so the measurement is rough and weighs no more than the guide).
-        { { 0.60f, 0.22f, 0.10f, 0.08f }, 8, 16, 0.75f },    // Cosmic: 94 % of the time on i, 5 of 6 static
-        { { 0.25f, 0.43f, 0.27f, 0.05f }, 4, 16, 0.50f },    // Doom: pendulums and loops, chords of about 4.5 bars
-        { { 0.15f, 0.37f, 0.30f, 0.18f }, 4, 8, 0.45f },     // Melodic: mostly pendulums (4 bars at least: hypnosis)
-        { { 0.37f, 0.35f, 0.15f, 0.13f }, 4, 16, 0.55f },    // Modern: a third of the time on i, chords of 2 to 4 bars
-        { { 0.35f, 0.45f, 0.20f, 0.00f }, 8, 32, 0.55f },    // Drift: pendulums, chords of about 4 bars
+        { { 0.60f, 0.22f, 0.10f, 0.08f }, 8, 16, 0.75f },   // Cosmic: 94 % of the time on i, 5 of 6 static
+        { { 0.25f, 0.43f, 0.27f, 0.05f }, 4, 16, 0.50f },   // Doom: pendulums and loops, chords of about 4.5 bars
+        { { 0.15f, 0.37f, 0.30f, 0.18f }, 4, 8, 0.45f },    // Melodic: mostly pendulums (4 bars at least: hypnosis)
+        { { 0.37f, 0.35f, 0.15f, 0.13f }, 4, 16, 0.55f },   // Modern: a third of the time on i, chords of 2 to 4 bars
+        { { 0.35f, 0.45f, 0.20f, 0.00f }, 8, 32, 0.55f },   // Drift: pendulums, chords of about 4 bars
     };
-    return Styles[styleIndex(style)];
+    return Styles[styleIndex( style )];
 }
 
 /** @brief A progression and its weight. */
-struct Weighted {
+struct Weighted
+{
     std::vector<int> m_degrees;   ///< its chords, as scale degrees
-    float m_weight;               ///< how often it is drawn
+    float            m_weight;    ///< how often it is drawn
 };
 
 /**
@@ -80,19 +88,27 @@ struct Weighted {
  * @param[in] scale  the mode
  * @return the tonic's pendulum partners
  */
-const std::vector<Weighted>& pendulumsOf(int scale)
+const std::vector<Weighted> &pendulumsOf( int scale )
 {
     static const std::vector<Weighted> Modes[Scales] = {
-        { { { 6 }, 0.25f }, { { 5 }, 0.25f }, { { 3 }, 0.15f }, { { 4 }, 0.10f }, { { 2 }, 0.25f } },   // Aeolian (III measured as often as VI, VII)
-        { { { 3 }, 0.35f }, { { 6 }, 0.30f }, { { 4 }, 0.15f }, { { 2 }, 0.10f }, { { 1 }, 0.10f } },   // Dorian: IV major
-        { { { 1 }, 0.50f }, { { 3 }, 0.25f }, { { 6 }, 0.15f }, { { 5 }, 0.10f } },                     // Phrygian: bII
-        { { { 5 }, 0.50f }, { { 3 }, 0.50f } },                                                         // Harmonic minor
-        { { { 4 }, 0.40f }, { { 2 }, 0.35f }, { { 3 }, 0.25f } },                                       // Pentatonic: bVII, iv, v
-        { { { 6 }, 0.50f }, { { 3 }, 0.35f }, { { 4 }, 0.15f } },                                       // Mixolydian: bVII, IV
-        { { { 1 }, 0.60f }, { { 4 }, 0.25f }, { { 6 }, 0.15f } },                                       // Lydian: II
-        { { { 1 }, 0.50f }, { { 4 }, 0.25f }, { { 6 }, 0.25f } },                                       // Locrian
+        { { { 6 }, 0.25f },
+          { { 5 }, 0.25f },
+          { { 3 }, 0.15f },
+          { { 4 }, 0.10f },
+          { { 2 }, 0.25f } },   // Aeolian (III measured as often as VI, VII)
+        { { { 3 }, 0.35f },
+          { { 6 }, 0.30f },
+          { { 4 }, 0.15f },
+          { { 2 }, 0.10f },
+          { { 1 }, 0.10f } },                                                         // Dorian: IV major
+        { { { 1 }, 0.50f }, { { 3 }, 0.25f }, { { 6 }, 0.15f }, { { 5 }, 0.10f } },   // Phrygian: bII
+        { { { 5 }, 0.50f }, { { 3 }, 0.50f } },                                       // Harmonic minor
+        { { { 4 }, 0.40f }, { { 2 }, 0.35f }, { { 3 }, 0.25f } },                     // Pentatonic: bVII, iv, v
+        { { { 6 }, 0.50f }, { { 3 }, 0.35f }, { { 4 }, 0.15f } },                     // Mixolydian: bVII, IV
+        { { { 1 }, 0.60f }, { { 4 }, 0.25f }, { { 6 }, 0.15f } },                     // Lydian: II
+        { { { 1 }, 0.50f }, { { 4 }, 0.25f }, { { 6 }, 0.25f } },                     // Locrian
     };
-    return Modes[std::clamp(scale, 0, Scales - 1)];
+    return Modes[std::clamp( scale, 0, Scales - 1 )];
 }
 
 /**
@@ -100,20 +116,25 @@ const std::vector<Weighted>& pendulumsOf(int scale)
  * @param[in] scale  the mode
  * @return its chord loops
  */
-const std::vector<Weighted>& loopsOf(int scale)
+const std::vector<Weighted> &loopsOf( int scale )
 {
     static const std::vector<Weighted> Modes[Scales] = {
-        { { { 0, 5, 6 }, 0.25f }, { { 0, 6, 5 }, 0.20f }, { { 0, 3, 5 }, 0.15f }, { { 0, 2, 6 }, 0.10f },
-          { { 0, 5, 2, 6 }, 0.15f }, { { 0, 6, 5, 6 }, 0.10f }, { { 0, 2, 3, 2 }, 0.05f } },          // Aeolian
-        { { { 0, 3, 6 }, 0.45f }, { { 0, 6, 3 }, 0.30f }, { { 0, 2, 6 }, 0.25f } },                   // Dorian
-        { { { 0, 1, 0, 6 }, 0.50f }, { { 0, 1, 6 }, 0.30f }, { { 0, 6, 5 }, 0.20f } },                // Phrygian
-        { { { 0, 5, 3 }, 0.50f }, { { 0, 3, 5 }, 0.50f } },                                           // Harmonic minor
-        { { { 0, 4, 2 }, 0.50f }, { { 0, 2, 4 }, 0.30f }, { { 0, 3, 4 }, 0.20f } },                   // Pentatonic
-        { { { 0, 6, 3 }, 0.60f }, { { 0, 3, 6 }, 0.40f } },                                           // Mixolydian
-        { { { 0, 1, 4 }, 0.50f }, { { 0, 1, 0, 6 }, 0.50f } },                                        // Lydian
-        { { { 0, 1, 6 }, 0.50f }, { { 0, 6, 1 }, 0.50f } },                                           // Locrian
+        { { { 0, 5, 6 }, 0.25f },
+          { { 0, 6, 5 }, 0.20f },
+          { { 0, 3, 5 }, 0.15f },
+          { { 0, 2, 6 }, 0.10f },
+          { { 0, 5, 2, 6 }, 0.15f },
+          { { 0, 6, 5, 6 }, 0.10f },
+          { { 0, 2, 3, 2 }, 0.05f } },                                                   // Aeolian
+        { { { 0, 3, 6 }, 0.45f }, { { 0, 6, 3 }, 0.30f }, { { 0, 2, 6 }, 0.25f } },      // Dorian
+        { { { 0, 1, 0, 6 }, 0.50f }, { { 0, 1, 6 }, 0.30f }, { { 0, 6, 5 }, 0.20f } },   // Phrygian
+        { { { 0, 5, 3 }, 0.50f }, { { 0, 3, 5 }, 0.50f } },                              // Harmonic minor
+        { { { 0, 4, 2 }, 0.50f }, { { 0, 2, 4 }, 0.30f }, { { 0, 3, 4 }, 0.20f } },      // Pentatonic
+        { { { 0, 6, 3 }, 0.60f }, { { 0, 3, 6 }, 0.40f } },                              // Mixolydian
+        { { { 0, 1, 4 }, 0.50f }, { { 0, 1, 0, 6 }, 0.50f } },                           // Lydian
+        { { { 0, 1, 6 }, 0.50f }, { { 0, 6, 1 }, 0.50f } },                              // Locrian
     };
-    return Modes[std::clamp(scale, 0, Scales - 1)];
+    return Modes[std::clamp( scale, 0, Scales - 1 )];
 }
 
 /**
@@ -125,26 +146,27 @@ const std::vector<Weighted>& loopsOf(int scale)
  * @param[in] to     the degree moved to, 0..6
  * @return the weight of the move
  */
-float markov(int scale, int from, int to)
+float markov( int scale, int from, int to )
 {
     //                         i     bII   III   iv    v     VI    VII
     static const float T[7][7] = {
-        /* i   */ { 0.0f,  0.01f, 0.04f, 0.08f, 0.04f, 0.14f, 0.14f },
-        /* bII */ { 0.70f, 0.0f,  0.0f,  0.05f, 0.05f, 0.0f,  0.0f  },
-        /* III */ { 0.30f, 0.0f,  0.0f,  0.05f, 0.0f,  0.10f, 0.25f },
-        /* iv  */ { 0.35f, 0.0f,  0.05f, 0.0f,  0.05f, 0.15f, 0.10f },
-        /* v   */ { 0.45f, 0.0f,  0.0f,  0.10f, 0.0f,  0.10f, 0.05f },
-        /* VI  */ { 0.25f, 0.0f,  0.10f, 0.05f, 0.0f,  0.0f,  0.30f },
-        /* VII */ { 0.40f, 0.0f,  0.05f, 0.05f, 0.0f,  0.20f, 0.0f  },
+        /* i   */ { 0.0f, 0.01f, 0.04f, 0.08f, 0.04f, 0.14f, 0.14f },
+        /* bII */ { 0.70f, 0.0f, 0.0f, 0.05f, 0.05f, 0.0f, 0.0f },
+        /* III */ { 0.30f, 0.0f, 0.0f, 0.05f, 0.0f, 0.10f, 0.25f },
+        /* iv  */ { 0.35f, 0.0f, 0.05f, 0.0f, 0.05f, 0.15f, 0.10f },
+        /* v   */ { 0.45f, 0.0f, 0.0f, 0.10f, 0.0f, 0.10f, 0.05f },
+        /* VI  */ { 0.25f, 0.0f, 0.10f, 0.05f, 0.0f, 0.0f, 0.30f },
+        /* VII */ { 0.40f, 0.0f, 0.05f, 0.05f, 0.0f, 0.20f, 0.0f },
     };
-    float w = T[std::clamp(from, 0, 6)][std::clamp(to, 0, 6)];
-    if (to == 1 && scale != 2) return 0.0f;
-    if (scale == 1 && to == 3) w += 0.05f;
-    if (scale == 2 && from == 0) {
-        if (to == 1) w = 0.15f;
-        if (to == 5 || to == 6) w -= 0.07f;
+    float w = T[std::clamp( from, 0, 6 )][std::clamp( to, 0, 6 )];
+    if ( to == 1 && scale != 2 ) return 0.0f;
+    if ( scale == 1 && to == 3 ) w += 0.05f;
+    if ( scale == 2 && from == 0 )
+    {
+        if ( to == 1 ) w = 0.15f;
+        if ( to == 5 || to == 6 ) w -= 0.07f;
     }
-    return std::max(0.0f, w);
+    return std::max( 0.0f, w );
 }
 
 template <typename T>
@@ -155,14 +177,15 @@ template <typename T>
  * @param[in,out] rng  the random stream
  * @return the choice drawn
  */
-const T& pick(const std::vector<T>& v, const std::vector<float>& w, Rng& rng)
+const T &pick( const std::vector<T> &v, const std::vector<float> &w, Rng &rng )
 {
     float total = 0.0f;
-    for (float x : w) total += x;
+    for ( float x : w ) total += x;
     float u = rng.uniform() * total;
-    for (size_t i = 0; i < v.size(); ++i) {
+    for ( size_t i = 0; i < v.size(); ++i )
+    {
         u -= w[i];
-        if (u <= 0.0f && w[i] > 0.0f) return v[i];
+        if ( u <= 0.0f && w[i] > 0.0f ) return v[i];
     }
     return v.back();
 }
@@ -174,177 +197,209 @@ const T& pick(const std::vector<T>& v, const std::vector<float>& w, Rng& rng)
  * @param[in,out] rng    the random stream
  * @return the degrees drawn
  */
-const std::vector<int>& pickDegrees(const std::vector<Weighted>& list, int scale, Rng& rng)
+const std::vector<int> &pickDegrees( const std::vector<Weighted> &list, int scale, Rng &rng )
 {
     std::vector<std::vector<int>> v;
-    std::vector<float> w;
-    for (const Weighted& x : list) {
+    std::vector<float>            w;
+    for ( const Weighted &x : list )
+    {
         bool ok = true;
-        for (int d : x.m_degrees) ok = ok && usableDegree(scale, d);
-        v.push_back(x.m_degrees);
-        w.push_back(ok ? x.m_weight : 0.0f);
+        for ( int d : x.m_degrees ) ok = ok && usableDegree( scale, d );
+        v.push_back( x.m_degrees );
+        w.push_back( ok ? x.m_weight : 0.0f );
     }
     float total = 0.0f;
-    for (float x : w) total += x;
-    if (total <= 0.0f) return list.front().m_degrees;
-    const std::vector<int>& chosen = pick(v, w, rng);
-    for (const Weighted& x : list) if (x.m_degrees == chosen) return x.m_degrees;
+    for ( float x : w ) total += x;
+    if ( total <= 0.0f ) return list.front().m_degrees;
+    const std::vector<int> &chosen = pick( v, w, rng );
+    for ( const Weighted &x : list )
+        if ( x.m_degrees == chosen ) return x.m_degrees;
     return list.front().m_degrees;
 }
 
-} // namespace
+}   // namespace
 
-const std::vector<int>& progressionRoots(StyleE style) { return movesOf(style).m_roots; }
+const std::vector<int> &progressionRoots( StyleE style )
+{
+    return movesOf( style ).m_roots;
+}
 
-std::vector<int> drawProgression(StyleE style, int scale, int steps, int barsPerStep, Rng& rng)
+std::vector<int> drawProgression( StyleE style, int scale, int steps, int barsPerStep, Rng &rng )
 {
     StyleMoves m;
-    for (size_t k = 0; k < movesOf(style).m_roots.size(); ++k) {
-        const int move = movesOf(style).m_roots[k];
-        bool centreIn = false;
-        for (int d = 0; d < scaleSize(scale); ++d) centreIn = centreIn || pitchClass(scaleSemitones(scale, d) + move) == 0;
-        if (!centreIn) continue;
-        m.m_roots.push_back(move);
-        m.m_weights.push_back(movesOf(style).m_weights[k]);
+    for ( size_t k = 0; k < movesOf( style ).m_roots.size(); ++k )
+    {
+        const int move = movesOf( style ).m_roots[k];
+        bool      centreIn = false;
+        for ( int d = 0; d < scaleSize( scale ); ++d )
+            centreIn = centreIn || pitchClass( scaleSemitones( scale, d ) + move ) == 0;
+        if ( !centreIn ) continue;
+        m.m_roots.push_back( move );
+        m.m_weights.push_back( movesOf( style ).m_weights[k] );
     }
-    const int n = std::max(steps, 1);
-    std::vector<int> out(static_cast<size_t>(n), 0);
-    int pos = 0, current = 0, lastMove = 0;
-    if (m.m_roots.empty()) return out;
-    while (pos < n) {
+    const int        n = std::max( steps, 1 );
+    std::vector<int> out( static_cast<size_t>( n ), 0 );
+    int              pos = 0, current = 0, lastMove = 0;
+    if ( m.m_roots.empty() ) return out;
+    while ( pos < n )
+    {
         // A stage of four or eight bars, now and then sixteen on the tonic; at least one step.
-        const int bars = current == 0 && rng.uniform() < 0.25f ? 16 : (rng.uniform() < 0.5f ? 4 : 8);
-        int hold = std::max(1, bars / std::max(1, barsPerStep));
-        if (lastMove == 0) hold = std::min(hold, std::max(1, n / 2));   // the row's first move within its first half
-        for (int i = 0; i < hold && pos < n; ++i) out[static_cast<size_t>(pos++)] = current;
-        if (current != 0) { current = 0; continue; }
+        const int bars = current == 0 && rng.uniform() < 0.25f ? 16 : ( rng.uniform() < 0.5f ? 4 : 8 );
+        int       hold = std::max( 1, bars / std::max( 1, barsPerStep ) );
+        if ( lastMove == 0 )
+            hold = std::min( hold, std::max( 1, n / 2 ) );   // the row's first move within its first half
+        for ( int i = 0; i < hold && pos < n; ++i ) out[static_cast<size_t>( pos++ )] = current;
+        if ( current != 0 )
+        {
+            current = 0;
+            continue;
+        }
         // The next move, another than the last where the style has one: tonic, fifth, tonic, fourth, tonic.
         std::vector<float> w = m.m_weights;
-        if (m.m_roots.size() > 1)
-            for (size_t k = 0; k < m.m_roots.size(); ++k) if (m.m_roots[k] == lastMove) w[k] *= 0.25f;
-        current = lastMove = pick(m.m_roots, w, rng);
+        if ( m.m_roots.size() > 1 )
+            for ( size_t k = 0; k < m.m_roots.size(); ++k )
+                if ( m.m_roots[k] == lastMove ) w[k] *= 0.25f;
+        current = lastMove = pick( m.m_roots, w, rng );
     }
     out.back() = 0;
     return out;
 }
 
-bool usableDegree(int scale, int degree)
+bool usableDegree( int scale, int degree )
 {
-    if (scale == 4) return true;   // the pentatonic's "chords" are stacked fourths, always open
-    const int n = scaleSize(scale);
-    const int d = ((degree % n) + n) % n;
-    if (d == 0) return true;
-    return scaleSemitones(scale, d + 4) - scaleSemitones(scale, d) == 7;
+    if ( scale == 4 ) return true;   // the pentatonic's "chords" are stacked fourths, always open
+    const int n = scaleSize( scale );
+    const int d = ( ( degree % n ) + n ) % n;
+    if ( d == 0 ) return true;
+    return scaleSemitones( scale, d + 4 ) - scaleSemitones( scale, d ) == 7;
 }
 
-int bassDegree(int scale, int degree)
+int bassDegree( int scale, int degree )
 {
-    const int n = scaleSize(scale);
-    const int d = ((degree % n) + n) % n;
-    return scaleSemitones(scale, d) > 6 ? d - n : d;
+    const int n = scaleSize( scale );
+    const int d = ( ( degree % n ) + n ) % n;
+    return scaleSemitones( scale, d ) > 6 ? d - n : d;
 }
 
-std::vector<std::pair<double, int>> drawChordTrack(StyleE style, int scale, double from, double to, Rng& rng, ChordClassE* drawn)
+std::vector<std::pair<double, int>> drawChordTrack( StyleE style, int scale, double from, double to, Rng &rng,
+                                                    ChordClassE *drawn )
 {
-    const StyleChords& sc = chordsOf(style);
+    const StyleChords                  &sc = chordsOf( style );
     std::vector<std::pair<double, int>> out;
-    out.push_back({ from, 0 });
-    const ChordClassE cls = pick(std::vector<ChordClassE>{ ChordClassE::STATIC, ChordClassE::PENDULUM, ChordClassE::LOOP, ChordClassE::WALK },
-                                std::vector<float>{ sc.m_cls[0], sc.m_cls[1], sc.m_cls[2], sc.m_cls[3] }, rng);
-    if (drawn != nullptr) *drawn = cls;
+    out.push_back( { from, 0 } );
+    const ChordClassE cls = pick(
+        std::vector<ChordClassE>{ ChordClassE::STATIC, ChordClassE::PENDULUM, ChordClassE::LOOP, ChordClassE::WALK },
+        std::vector<float>{ sc.m_cls[0], sc.m_cls[1], sc.m_cls[2], sc.m_cls[3] }, rng );
+    if ( drawn != nullptr ) *drawn = cls;
     // The harmonic rhythm: 4, 8, 16 or 32 bars, inside the style's range.
     std::vector<int> choices;
-    for (int b : { 2, 4, 8, 16, 32 }) if (b >= sc.m_barsLow && b <= sc.m_barsHigh) choices.push_back(b);
-    const double span = static_cast<double>(choices[static_cast<size_t>(rng.below(static_cast<int>(choices.size())))]) * BeatsPerBar;
-    if (cls == ChordClassE::STATIC || to - from < 2.0 * span) return out;
+    for ( int b : { 2, 4, 8, 16, 32 } )
+        if ( b >= sc.m_barsLow && b <= sc.m_barsHigh ) choices.push_back( b );
+    const double span =
+        static_cast<double>( choices[static_cast<size_t>( rng.below( static_cast<int>( choices.size() ) ) )] ) *
+        BeatsPerBar;
+    if ( cls == ChordClassE::STATIC || to - from < 2.0 * span ) return out;
 
     std::vector<int> cycle;
-    if (cls == ChordClassE::PENDULUM) cycle = { 0, pickDegrees(pendulumsOf(scale), scale, rng).front() };
-    else if (cls == ChordClassE::LOOP) cycle = pickDegrees(loopsOf(scale), scale, rng);
-    if (!cycle.empty()) {
+    if ( cls == ChordClassE::PENDULUM )
+        cycle = { 0, pickDegrees( pendulumsOf( scale ), scale, rng ).front() };
+    else if ( cls == ChordClassE::LOOP )
+        cycle = pickDegrees( loopsOf( scale ), scale, rng );
+    if ( !cycle.empty() )
+    {
         size_t k = 1;
-        for (double b = from + span; b < to - BeatsPerBar; b += span, k = (k + 1) % cycle.size())
-            if (cycle[k] != out.back().second) out.push_back({ b, cycle[k] });
+        for ( double b = from + span; b < to - BeatsPerBar; b += span, k = ( k + 1 ) % cycle.size() )
+            if ( cycle[k] != out.back().second ) out.push_back( { b, cycle[k] } );
         return out;
     }
     // The walk (3.6): one draw per block; the minor modes on the guide's table, the others among their pendulums.
     const bool minor = scale <= 3;
-    int current = 0;
-    for (double b = from + span; b < to - BeatsPerBar; b += span) {
-        const float stay = current == 0 ? sc.m_stay : std::max(0.2f, sc.m_stay - 0.25f);
-        if (rng.uniform() < stay) continue;
-        std::vector<int> to7;
+    int        current = 0;
+    for ( double b = from + span; b < to - BeatsPerBar; b += span )
+    {
+        const float stay = current == 0 ? sc.m_stay : std::max( 0.2f, sc.m_stay - 0.25f );
+        if ( rng.uniform() < stay ) continue;
+        std::vector<int>   to7;
         std::vector<float> w;
-        if (minor) {
-            for (int d = 0; d < 7; ++d) {
-                if (d == current || !usableDegree(scale, d)) continue;
-                to7.push_back(d);
-                w.push_back(markov(scale, current, d));
+        if ( minor )
+        {
+            for ( int d = 0; d < 7; ++d )
+            {
+                if ( d == current || !usableDegree( scale, d ) ) continue;
+                to7.push_back( d );
+                w.push_back( markov( scale, current, d ) );
             }
-        } else if (current != 0) {
+        }
+        else if ( current != 0 )
+        {
             to7 = { 0 };
             w = { 1.0f };
-        } else {
-            for (const Weighted& x : pendulumsOf(scale))
-                if (usableDegree(scale, x.m_degrees.front())) { to7.push_back(x.m_degrees.front()); w.push_back(x.m_weight); }
+        }
+        else
+        {
+            for ( const Weighted &x : pendulumsOf( scale ) )
+                if ( usableDegree( scale, x.m_degrees.front() ) )
+                {
+                    to7.push_back( x.m_degrees.front() );
+                    w.push_back( x.m_weight );
+                }
         }
         float total = 0.0f;
-        for (float x : w) total += x;
-        if (to7.empty() || total <= 0.0f) continue;
-        current = pick(to7, w, rng);
-        out.push_back({ b, current });
+        for ( float x : w ) total += x;
+        if ( to7.empty() || total <= 0.0f ) continue;
+        current = pick( to7, w, rng );
+        out.push_back( { b, current } );
     }
     return out;
 }
 
-ChordKindE drawChordKind(int scale, int degree, bool choir, Rng& rng)
+ChordKindE drawChordKind( int scale, int degree, bool choir, Rng &rng )
 {
     using KT = ChordKindE;
-    static const std::vector<KT> kinds = { KT::FIFTH, KT::TRIAD, KT::SUS2, KT::SUS4, KT::ADD9, KT::QUARTAL, KT::STACK, KT::SEVENTH };
+    static const std::vector<KT> kinds = { KT::FIFTH, KT::TRIAD,   KT::SUS2,  KT::SUS4,
+                                           KT::ADD9,  KT::QUARTAL, KT::STACK, KT::SEVENTH };
     // The choirs (3.4: "simple minor triads are the standard") and the pads' whole vocabulary.
     static const std::vector<float> Choir = { 0.15f, 0.70f, 0.05f, 0.05f, 0.05f, 0.0f, 0.0f, 0.0f };
-    static const std::vector<float> Pads  = { 0.20f, 0.30f, 0.08f, 0.07f, 0.15f, 0.10f, 0.05f, 0.05f };
-    std::vector<float> w = choir ? Choir : Pads;
+    static const std::vector<float> Pads = { 0.20f, 0.30f, 0.08f, 0.07f, 0.15f, 0.10f, 0.05f, 0.05f };
+    std::vector<float>              w = choir ? Choir : Pads;
     // The seventh as the guide has it: a major seventh held over VI; elsewhere a little less often.
-    const int n = scaleSize(scale);
-    if (((degree % n) + n) % n != 5) w[7] *= 0.4f;
-    return pick(kinds, w, rng);
+    const int n = scaleSize( scale );
+    if ( ( ( degree % n ) + n ) % n != 5 ) w[7] *= 0.4f;
+    return pick( kinds, w, rng );
 }
 
-std::vector<int> chordTones(int scale, int degree, ChordKindE kind)
+std::vector<int> chordTones( int scale, int degree, ChordKindE kind )
 {
-    auto st = [&](int k) { return scaleSemitones(scale, degree + k); };
-    const int root = st(0);
-    std::vector<int> triad = { root, st(2), st(4) };
-    if (scale == 4) return triad;   // on the pentatonic every "triad" is already open
-    const bool fifthOk = st(4) - root == 7;
-    switch (kind) {
+    auto             st = [&]( int k ) { return scaleSemitones( scale, degree + k ); };
+    const int        root = st( 0 );
+    std::vector<int> triad = { root, st( 2 ), st( 4 ) };
+    if ( scale == 4 ) return triad;   // on the pentatonic every "triad" is already open
+    const bool fifthOk = st( 4 ) - root == 7;
+    switch ( kind )
+    {
     case ChordKindE::FIFTH:
-        if (fifthOk) return { root, st(4), root + 12 };
+        if ( fifthOk ) return { root, st( 4 ), root + 12 };
         break;
     case ChordKindE::SUS2:
-        if (fifthOk && st(1) - root == 2) return { root, st(1), st(4) };
+        if ( fifthOk && st( 1 ) - root == 2 ) return { root, st( 1 ), st( 4 ) };
         break;
     case ChordKindE::SUS4:
-        if (fifthOk && st(3) - root == 5) return { root, st(3), st(4) };
+        if ( fifthOk && st( 3 ) - root == 5 ) return { root, st( 3 ), st( 4 ) };
         break;
-    case ChordKindE::ADD9:
-        triad.push_back(st(8));
-        return triad;
+    case ChordKindE::ADD9: triad.push_back( st( 8 ) ); return triad;
     case ChordKindE::QUARTAL:
         // Fourths stacked from the root (D G C F): only where all three are perfect.
-        if (st(3) - root == 5 && st(6) - st(3) == 5 && st(9) - st(6) == 5) return { root, st(3), st(6), st(9) };
+        if ( st( 3 ) - root == 5 && st( 6 ) - st( 3 ) == 5 && st( 9 ) - st( 6 ) == 5 )
+            return { root, st( 3 ), st( 6 ), st( 9 ) };
         break;
     case ChordKindE::STACK:
         // The triad and the triad a fifth up (Dm + Am = Dm9).
-        if (fifthOk) return { root, st(2), st(4), st(6), st(8) };
+        if ( fifthOk ) return { root, st( 2 ), st( 4 ), st( 6 ), st( 8 ) };
         break;
-    case ChordKindE::SEVENTH:
-        triad.push_back(st(6));
-        return triad;
+    case ChordKindE::SEVENTH: triad.push_back( st( 6 ) ); return triad;
     default: break;
     }
     return triad;
 }
 
-} // namespace eph
+}   // namespace eph

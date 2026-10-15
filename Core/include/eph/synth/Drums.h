@@ -21,36 +21,39 @@
 #include "eph/Dsp.h"
 #include <cstdint>
 
-namespace eph {
+namespace eph
+{
 
 /** @brief Settings for the following samples. */
-struct DrumSettings {
-    float m_kickHz = 50.0f;      ///< where the kick's pitch ends
-    float m_decay = 1.0f;        ///< scales every decay
-    float m_tone = 0.5f;         ///< 0 dark .. 1 bright (hats, snare noise)
+struct DrumSettings
+{
+    float m_kickHz = 50.0f;   ///< where the kick's pitch ends
+    float m_decay = 1.0f;     ///< scales every decay
+    float m_tone = 0.5f;      ///< 0 dark .. 1 bright (hats, snare noise)
 };
 
 /** @brief The kit; stereo out. */
-class DrumKit {
+class DrumKit
+{
 public:
     /**
      * sample rate and the noise's seed
      * @param[in] sampleRate  the sample rate in Hz
      * @param[in] seed        the noise's seed
      */
-    void prepare(double sampleRate, uint64_t seed);
+    void prepare( double sampleRate, uint64_t seed );
     /**
      * call at every 32-sample cell
      * @param[in] s  the settings
      */
-    void set(const DrumSettings& s);
+    void set( const DrumSettings &s );
     /**
      * @brief Strikes the instrument of General MIDI note @p note; toms take @p tomHz as their pitch.
      * @param[in] note      the General MIDI note
      * @param[in] velocity  the velocity, 0..1
      * @param[in] tomHz     the toms' pitch in Hz
      */
-    void hit(int note, float velocity, float tomHz);
+    void hit( int note, float velocity, float tomHz );
     /**
      * whether anything still rings
      * @return true while anything rings
@@ -62,32 +65,44 @@ public:
      * @param[out] R  receives the right channel (overwritten)
      * @param[in]  n  how many samples
      */
-    void process(float* L, float* R, int n);
+    void process( float *L, float *R, int n );
 
 private:
     /** @brief The kit's instruments. */
-    enum InstE { KICK, SNARE, CLOSED, OPEN, TOM_LOW, TOM_HIGH, RIM, SHAKER, INSTS };
+    enum InstE
+    {
+        KICK,
+        SNARE,
+        CLOSED,
+        OPEN,
+        TOM_LOW,
+        TOM_HIGH,
+        RIM,
+        SHAKER,
+        INSTS
+    };
     /** @brief One instrument sounding. */
-    struct Voice {
-        double m_age = 1e9;          ///< seconds since the hit
-        float m_velocity = 0.0f;   ///< its velocity, 0..1
-        double m_phase = 0.0;   ///< its tone's phase
-        double m_phase2 = 0.0;   ///< its second tone's phase
-        float m_hz = 100.0f;   ///< its pitch, Hz
-        Svf m_bp;   ///< its noise's band pass
+    struct Voice
+    {
+        double m_age = 1e9;         ///< seconds since the hit
+        float  m_velocity = 0.0f;   ///< its velocity, 0..1
+        double m_phase = 0.0;       ///< its tone's phase
+        double m_phase2 = 0.0;      ///< its second tone's phase
+        float  m_hz = 100.0f;       ///< its pitch, Hz
+        Svf    m_bp;                ///< its noise's band pass
     };
     /**
      * @brief White noise, -1 .. 1.
      * @return a white noise sample, -1 .. 1
      */
     float noise() { return m_rng.bipolar(); }
-    double m_sr = 48000.0;   ///< the sample rate, Hz
-    DrumSettings m_s;   ///< the settings
-    Voice m_v[INSTS];   ///< the instruments
-    double m_metal[6] = {};         ///< the hats' six square phases
-    Svf m_hatBp;   ///< the hats' band pass
-    Svf m_hatHp;   ///< the hats' high pass
-    Rng m_rng;   ///< the noise's stream
+    double       m_sr = 48000.0;    ///< the sample rate, Hz
+    DrumSettings m_s;               ///< the settings
+    Voice        m_v[INSTS];        ///< the instruments
+    double       m_metal[6] = {};   ///< the hats' six square phases
+    Svf          m_hatBp;           ///< the hats' band pass
+    Svf          m_hatHp;           ///< the hats' high pass
+    Rng          m_rng;             ///< the noise's stream
 };
 
-} // namespace eph
+}   // namespace eph
