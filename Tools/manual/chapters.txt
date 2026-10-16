@@ -740,6 +740,8 @@ What leaves the instrument, in one place, as every generator of the family has i
 and the folder save and load a piece as a small .ephset file (the seed, the lengths, the rerolls and every changed knob). The
 score cues tell a visualiser such as Kaleidoscope over OSC what the score knows, at the moment it is heard.
 
+Ephemeris Sets, a small program beside the instrument (in the Start menu, or EphemerisSets.exe in its folder), renders without the instrument: the five styles and the sets you saved (.ephset files in Documents/Ephemeris and its folders), each with the length of its rendering. Choose one or several (Ctrl, Shift), what to render -- a piece (its length) or a concert of half an hour to three hours --, the format (WAV or FLAC at 24 bits, Ogg Vorbis or MP3 at 320 kbit/s) and the folder (Documents/Ephemeris/Renders at first), and Render: one after another, faster than real time, with the progress, the speed and the time left. New dice composes everything anew; the same dice give the same pieces. A saved set plays as it was saved.
+
 == Style | custom | 17 ==
 
 The five style profiles side by side, the chosen one lit. A style is not a sound but a set of ranges and

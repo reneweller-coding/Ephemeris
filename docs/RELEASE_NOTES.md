@@ -1,5 +1,16 @@
 # Ephemeris release notes
 
+## 1.4.0 (16.10.2026, not released)
+
+**Ephemeris Sets.** A small program beside the instrument (Start menu, EphemerisSets.exe) that renders into files: the
+five styles, each composed into a piece or a concert (30 minutes to three hours) with the dice of the moment, and the
+sets you saved in the instrument (.ephset, played back exactly: seed, lengths, rerolls, knobs). Every row shows the
+length of its rendering -- composed before a sample is rendered, so the length is exact --; several chosen are
+rendered one after another, with progress, speed and time left. WAV or FLAC at 24 bits, Ogg Vorbis or MP3 at 320
+kbit/s (MP3 through Windows' own encoder). The same samples as eph_render: composed, levelled, rendered offline, the
+rooms' twenty seconds after the end, faded as eph_render fades. The family's render app (Tools/renderapp, the same in
+all six instruments); `--list`, `--render`, and a self-test of every format and the queue (ctest `renderapp`).
+
 ## 1.3.0 (15.10.2026): the family plays together
 
 **The family jam** (Settings > Family jam: Off, Lead or Follow; in the plugin and in the standalone). The five

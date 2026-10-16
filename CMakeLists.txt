@@ -9,7 +9,7 @@
 #
 # Built after Phosphene's root CMakeLists.txt at 9a2f615; the rules below are its rules.
 cmake_minimum_required(VERSION 3.22)
-project(Ephemeris VERSION 1.3.0 LANGUAGES C CXX)
+project(Ephemeris VERSION 1.4.0 LANGUAGES C CXX)
 
 # The family's layout (01.10.2026): build/<preset>, bin/<preset>, dist/, work/ -- cmake/Family.cmake,
 # CMakePresets.json and build.ps1, the same in every repository of the family.
@@ -74,6 +74,9 @@ endif()
 if(EPH_BUILD_PLUGIN)
     family_juce(${EPH_JUCE_TAG})   # ThirdParty/JUCE, the sibling Phosphene's, or fetched (cmake/Family.cmake)
     add_subdirectory(Plugin)
+    # Ephemeris Sets: pieces and concerts rendered into WAV, FLAC, Ogg Vorbis or MP3, faster than real time
+    # (16.10.2026), on the family's render app (Tools/renderapp/RenderKit.h).
+    add_subdirectory(Tools/renderapp)
     # The built VST3 loaded the way a DAW loads it (Tests/vst3test.cpp). Here and not in Tests/, because the
     # plugin's target exists only from this point on.
     if(EPH_BUILD_TOOLS AND TARGET Ephemeris_VST3)

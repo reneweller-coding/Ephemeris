@@ -54,12 +54,14 @@ Name: "de"; MessagesFile: "compiler:Languages\German.isl"
 en.CompStandalone=Standalone application
 en.CompVst3=VST3 plug-in (for a DAW)
 en.CompRender=Offline renderer (eph_render, command line)
+en.CompSets=Ephemeris Sets (pieces and concerts into WAV, FLAC, Ogg Vorbis or MP3)
 en.CompManual=Manual (PDF)
 en.TaskDesktop=Create a desktop shortcut
 en.NoAvx2=This processor reports no AVX2 support.%n%nEphemeris is built for AVX2, which every x86-64 processor since 2013 has. Without it, it will not start.%n%nInstall anyway?
 de.CompStandalone=Eigenstaendiges Programm
 de.CompVst3=VST3-Plugin (fuer eine DAW)
 de.CompRender=Offline-Renderer (eph_render, Kommandozeile)
+de.CompSets=Ephemeris Sets (Stuecke und Konzerte als WAV, FLAC, Ogg Vorbis oder MP3)
 de.CompManual=Handbuch (PDF)
 de.TaskDesktop=Verknuepfung auf dem Desktop anlegen
 de.NoAvx2=Dieser Prozessor meldet keine AVX2-Unterstuetzung.%n%nEphemeris ist fuer AVX2 gebaut, das jeder x86-64-Prozessor seit 2013 hat. Ohne AVX2 startet es nicht.%n%nTrotzdem installieren?
@@ -72,6 +74,7 @@ Name: "custom"; Description: "Custom"; Flags: iscustom
 Name: "standalone"; Description: "{cm:CompStandalone}"; Types: full custom; Flags: fixed
 Name: "vst3";       Description: "{cm:CompVst3}";       Types: full custom
 Name: "render";     Description: "{cm:CompRender}";     Types: full custom
+Name: "sets";       Description: "{cm:CompSets}";       Types: full custom
 Name: "manual";     Description: "{cm:CompManual}";     Types: full custom
 
 [Tasks]
@@ -89,12 +92,14 @@ Source: "{#Stage}\ephemeris.ico";          DestDir: "{app}";                 Fla
 Source: "{#Stage}\README.txt";             DestDir: "{app}";                 Flags: ignoreversion isreadme; Components: standalone
 Source: "{#Stage}\LICENSE.txt";            DestDir: "{app}";                 Flags: ignoreversion; Components: standalone
 Source: "{#Stage}\eph_render.exe";         DestDir: "{app}";                 Flags: ignoreversion; Components: render
+Source: "{#Stage}\EphemerisSets.exe";      DestDir: "{app}";                 Flags: ignoreversion; Components: sets
 Source: "{#Stage}\Ephemeris-Manual.pdf";   DestDir: "{app}";                 Flags: ignoreversion; Components: manual
 Source: "{#Stage}\Ephemeris.vst3\*";       DestDir: "{autocf}\VST3\Ephemeris.vst3"; Flags: ignoreversion recursesubdirs createallsubdirs; Components: vst3
 
 [Icons]
 Name: "{autoprograms}\{#AppName}";          Filename: "{app}\Ephemeris.exe"; IconFilename: "{app}\ephemeris.ico"
 Name: "{autoprograms}\{#AppName} Manual";   Filename: "{app}\Ephemeris-Manual.pdf"; Components: manual
+Name: "{autoprograms}\{#AppName} Sets";     Filename: "{app}\EphemerisSets.exe"; IconFilename: "{app}\ephemeris.ico"; Components: sets
 Name: "{autodesktop}\{#AppName}";           Filename: "{app}\Ephemeris.exe"; IconFilename: "{app}\ephemeris.ico"; Tasks: desktopicon
 
 [Run]

@@ -118,17 +118,21 @@ $art = Join-Path $build "Plugin\Ephemeris_artefacts\Release"
 Copy-Item (Join-Path $art "Standalone\Ephemeris.exe") $stage
 Copy-Item -Recurse (Join-Path $art "VST3\Ephemeris.vst3") $stage
 Copy-Item $render $stage
+# Ephemeris Sets, the render app beside the instrument (Tools/renderapp).
+$sets = Get-ChildItem -Recurse (Join-Path $build "Tools\renderapp") -Filter EphemerisSets.exe | Select-Object -First 1
+if (-not $sets) { throw "no EphemerisSets.exe in the build" }
+Copy-Item $sets.FullName $stage
 Copy-Item (Join-Path $root "docs\manual\Ephemeris-Manual.pdf") $stage
 Copy-Item (Join-Path $deploy "ephemeris.ico") $stage
 Copy-Item (Join-Path $root "LICENSE") (Join-Path $stage "LICENSE.txt")
 Copy-Item (Join-Path $root "README.md") (Join-Path $stage "README.txt")
 
 # 5. Check: the files, and no dependency on the dynamic MSVC runtime.
-$expected = @("Ephemeris.exe", "eph_render.exe", "Ephemeris.vst3", "Ephemeris-Manual.pdf", "ephemeris.ico", "LICENSE.txt", "README.txt")
+$expected = @("Ephemeris.exe", "eph_render.exe", "EphemerisSets.exe", "Ephemeris.vst3", "Ephemeris-Manual.pdf", "ephemeris.ico", "LICENSE.txt", "README.txt")
 foreach ($f in $expected) { if (-not (Test-Path (Join-Path $stage $f))) { throw "missing in the stage: $f" } }
 $dumpbin = Get-ChildItem "C:\Program Files\Microsoft Visual Studio\*\*\VC\Tools\MSVC\*\bin\Hostx64\x64\dumpbin.exe" -ErrorAction SilentlyContinue | Select-Object -First 1
 if ($dumpbin) {
-    $binaries = @((Join-Path $stage "Ephemeris.exe"), (Join-Path $stage "eph_render.exe")) +
+    $binaries = @((Join-Path $stage "Ephemeris.exe"), (Join-Path $stage "eph_render.exe"), (Join-Path $stage "EphemerisSets.exe")) +
                 @(Get-ChildItem -Recurse (Join-Path $stage "Ephemeris.vst3") -Filter *.vst3 -File | ForEach-Object { $_.FullName })
     foreach ($b in $binaries) {
         $deps = & $dumpbin.FullName /DEPENDENTS $b | Select-String -Pattern "(?i)((vcruntime|msvcp)\d+.*|libmmd|svml_disp\w*|libirngmd|libiomp\w*)\.dll"

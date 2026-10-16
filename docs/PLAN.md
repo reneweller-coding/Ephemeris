@@ -9,6 +9,17 @@ Ein Sequenzer ist eine solche Tafel, und die Musik, die hier entstehen soll, bes
 verschiedener Länge um einen gemeinsamen Grundton, die nur selten wieder zusammenfallen.
 
 
+## Ephemeris Sets, die Render-App der Familie (16.10.2026, 1.4.0)
+
+Nutzer (in Empyrean, nach Empyrean Journeys): „Können wir solche ein Zusatz-Progrämmchen auch für die anderen
+Synthesizer bauen? (Dort die Parameter eben angepasst, wenn diese keine Journeys haben).“
+- **Tools/renderapp:** der Baukasten der Familie (RenderKit, RenderWindow, Mp3Writer; kanonisch in Empyrean, unverändert
+  kopiert) und Ephemeris' `Source.cpp`: die fünf Stile und die gespeicherten `.ephset` aus Documents/Ephemeris
+  (rekursiv; exakt wiedergegeben, soundsInParams beachtet). Wahl „What“ (ein Stück, Konzert 30 min .. 3 h) und „Piece“
+  (compose.piece_minutes 10 .. 40). Länge je Zeile = komponiert + 20 s Räume wie eph_render; die Aufnahme:
+  composePiece/composeConcert, levelScore, setTapeSingers(6), prepare 48 kHz/512, load, exportFade -- dieselben Samples
+  wie eph_render.
+
 ## Die Wege durchs Panel (15.10.2026, aus Empyrean, Frame.h)
 
 Nutzer: „Bitte baue alles ein, die Tests erst am Ende.“ -- die GUI-Verbesserungen und ASIO in allen fünf Instrumenten:
