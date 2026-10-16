@@ -198,7 +198,10 @@ private:
     juce::TextButton                      m_cancel{ "Cancel" };             ///< stops the renderings
     juce::ProgressBar                     m_bar{ m_progress };              ///< the progress
     juce::Label                           m_status;                         ///< what it is doing
+    int                                   m_failed = 0;                     ///< renderings of this batch that failed
+    juce::String                          m_lastFailure;                    ///< the last one's message
     std::unique_ptr<juce::FileChooser>    m_chooser;                        ///< the folder dialog while it is open
+    juce::TooltipWindow                   m_tips{ this, 600 };              ///< shows the controls' tooltips
 };
 
 }   // namespace renderkit

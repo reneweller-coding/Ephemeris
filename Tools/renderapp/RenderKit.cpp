@@ -697,6 +697,18 @@ bool Renderer::render( Source &source, const Job &job, const std::function<bool(
         why = "the file could not be finished";
         ok = false;
     }
+    if ( ok )
+    {   // read back: JUCE's writers keep a failed write to themselves (a full disk, a FAT32 stick past 4 GB), so a file
+        // cut short is found by its length (MP3's encoder pads its end: never shorter, never much)
+        juce::AudioFormatManager formats;
+        formats.registerBasicFormats();
+        const std::unique_ptr<juce::AudioFormatReader> reader{ formats.createReaderFor( file ) };
+        if ( !reader || reader->lengthInSamples + 1 < frames )
+        {
+            why = "the file came out shorter than rendered (is the disk full?)";
+            ok = false;
+        }
+    }
     return ok;
 }
 

@@ -422,13 +422,18 @@ void RenderWindow::reload()
     for ( const Item &it : m_items ) dice = dice || it.m_dice;
     m_dice.setVisible( dice );
     m_diceNote.setVisible( dice );
+    relength();   // the new rows' lengths asked for before the rows are sorted by them
     refilter();
-    relength();
     if ( keep.isNotEmpty() ) choose( keep );
 }
 
 void RenderWindow::refilter()
 {
+    // The rows chosen, by what they are: the table keeps row numbers, which a new order or a new search moves to
+    // other rows.
+    std::vector<char> was( m_items.size(), 0 );
+    for ( int i : chosen() )
+        if ( i >= 0 && i < static_cast<int>( was.size() ) ) was[static_cast<size_t>( i )] = 1;
     const juce::StringArray words = juce::StringArray::fromTokens( m_filter.getText().toLowerCase(), " ", "" );
     m_rows.clear();
     for ( size_t i = 0; i < m_items.size(); ++i )
@@ -440,30 +445,50 @@ void RenderWindow::refilter()
         for ( const juce::String &w : words ) all = all && ( w.isEmpty() || hay.contains( w ) );
         if ( all ) m_rows.push_back( static_cast<int>( i ) );
     }
-    const auto less = [this]( int a, int b )
+    // The lengths as they stand now (the length thread goes on filling them in): an order that cannot change while
+    // it is being sorted.
+    std::vector<double> lengths( m_items.size(), -1.0 );
+    if ( m_sortColumn == LENGTH )
+        for ( size_t i = 0; i < m_items.size(); ++i )
+        {
+            bool         known = false;
+            const double len = m_lengths.get( static_cast<int>( i ), known );
+            lengths[i] = known ? len : -1.0;
+        }
+    const auto key = [this]( int i, int k )
+    {
+        const Item &it = m_items[static_cast<size_t>( i )];
+        return static_cast<int>( it.m_keys.size() ) > k ? it.m_keys[static_cast<size_t>( k )] : std::nan( "" );
+    };
+    const auto less = [this, &lengths, &key]( int a, int b )
     {
         const Item &x = m_items[static_cast<size_t>( a )], &y = m_items[static_cast<size_t>( b )];
         if ( m_sortColumn == LENGTH )
         {
-            bool         kx = false, ky = false;
-            const double lx = m_lengths.get( a, kx ), ly = m_lengths.get( b, ky );
-            if ( kx != ky ) return kx;   // the known first
+            const double lx = lengths[static_cast<size_t>( a )], ly = lengths[static_cast<size_t>( b )];
+            if ( ( lx < 0.0 ) != ( ly < 0.0 ) ) return ly < 0.0;   // the known first
             return lx < ly;
         }
         const int k = m_sortColumn - FIRST;
-        if ( k >= 0 && k < x.m_cells.size() && k < y.m_cells.size() )
+        if ( k >= 0 )
         {
-            const bool numbers = static_cast<int>( x.m_keys.size() ) > k && static_cast<int>( y.m_keys.size() ) > k &&
-                                 !std::isnan( x.m_keys[static_cast<size_t>( k )] ) &&
-                                 !std::isnan( y.m_keys[static_cast<size_t>( k )] );
-            if ( numbers ) return x.m_keys[static_cast<size_t>( k )] < y.m_keys[static_cast<size_t>( k )];
-            return x.m_cells[k].compareNatural( y.m_cells[k] ) < 0;
+            const double kx = key( a, k ), ky = key( b, k );
+            if ( std::isnan( kx ) != std::isnan( ky ) ) return std::isnan( ky );   // the numbers first
+            if ( !std::isnan( kx ) ) return kx < ky;
+            const juce::String tx = k < x.m_cells.size() ? x.m_cells[k] : juce::String();
+            const juce::String ty = k < y.m_cells.size() ? y.m_cells[k] : juce::String();
+            return tx.compareNatural( ty ) < 0;
         }
         return x.m_name.compareNatural( y.m_name ) < 0;
     };
     std::stable_sort( m_rows.begin(), m_rows.end(),
                       [&]( int a, int b ) { return m_sortForward ? less( a, b ) : less( b, a ); } );
     m_table.updateContent();
+    juce::SparseSet<int> rows;
+    for ( size_t r = 0; r < m_rows.size(); ++r )
+        if ( was[static_cast<size_t>( m_rows[r] )] != 0 )
+            rows.addRange( { static_cast<int>( r ), static_cast<int>( r ) + 1 } );
+    m_table.setSelectedRows( rows, juce::dontSendNotification );
     m_table.repaint();
     updateChosen();
 }
@@ -549,6 +574,13 @@ void RenderWindow::updateChosen()
 
 void RenderWindow::renderChosen()
 {
+    juce::String name;
+    int          waiting = 0, finished = 0;
+    if ( !m_queue.status( name, waiting, finished ) && waiting == 0 )
+    {   // a new batch: its failures counted afresh
+        m_failed = 0;
+        m_lastFailure.clear();
+    }
     const std::vector<int> c = chosen();
     if ( c.empty() )
     {
@@ -577,13 +609,21 @@ void RenderWindow::timerCallback()
 {
     if ( m_lengths.takeNews() > 0 )
     {
-        m_table.repaint();
+        if ( m_sortColumn == LENGTH )
+            refilter();   // sorted by length: the order again as the lengths come in
+        else
+            m_table.repaint();
         updateChosen();
     }
     juce::String       name;
     int                waiting = 0, finished = 0;
     const bool         busy = m_queue.status( name, waiting, finished );
     const juce::String message = m_queue.takeMessage();
+    if ( message.isNotEmpty() && !message.startsWith( "Written" ) )
+    {   // kept: the next rendering begins at once and would hide it
+        ++m_failed;
+        m_lastFailure = message;
+    }
     m_cancel.setEnabled( busy || waiting > 0 );
     if ( busy )
     {
@@ -607,12 +647,16 @@ void RenderWindow::timerCallback()
         }
         if ( waiting > 0 ) s << "\n" << juce::String( waiting ) << " more waiting";
         if ( finished > 0 ) s << "\n" << juce::String( finished ) << " written";
+        if ( m_failed > 0 ) s << "\n" << juce::String( m_failed ) << " failed, the last: " << m_lastFailure;
         m_status.setText( s, juce::dontSendNotification );
     }
     else if ( message.isNotEmpty() )
     {
         m_progress = message.startsWith( "Written" ) ? 1.0 : 0.0;
-        m_status.setText( message, juce::dontSendNotification );
+        juce::String s = message;
+        if ( m_failed > 0 && message.startsWith( "Written" ) )
+            s << "\n" << juce::String( m_failed ) << " failed, the last: " << m_lastFailure;
+        m_status.setText( s, juce::dontSendNotification );
     }
 }
 
