@@ -312,7 +312,19 @@ int renderCommand( Source &source, const juce::StringArray &args )
             }
             return false;
         };
-        const bool ok = r.render( source, job, ask, file, why );
+        // --cues, --chapters: the time line beside the sound (CueSheet), for Kaleidoscope and the video's chapters
+        const juce::String cues = argument( args, "--cues", {} ), chapters = argument( args, "--chapters", {} );
+        CueSheet           sheet;
+        const bool         ok =
+            r.render( source, job, ask, file, why, cues.isNotEmpty() || chapters.isNotEmpty() ? &sheet : nullptr );
+        if ( ok && cues.isNotEmpty() )
+            sheet.writeCues( juce::File::getCurrentWorkingDirectory().getChildFile( cues ),
+                             source.product() + ", " + item.m_name );
+        if ( ok && chapters.isNotEmpty() )
+            sheet.writeChapters( juce::File::getCurrentWorkingDirectory().getChildFile( chapters ) );
+        if ( ok && ( cues.isNotEmpty() || chapters.isNotEmpty() ) )
+            std::printf( "time line: %d cues, %d chapters\n", static_cast<int>( sheet.cues() ),
+                         static_cast<int>( sheet.chapters() ) );
         if ( ok )
             std::printf( "%s written into %s, %.1fx real time\n", clockText( r.m_total.load() ).toRawUTF8(),
                          file.getFullPathName().toRawUTF8(), r.m_speed.load() );
@@ -696,7 +708,7 @@ juce::String Renderer::now() const
 }
 
 bool Renderer::render( Source &source, const Job &job, const std::function<bool()> &cancelled, juce::File &file,
-                       juce::String &why )
+                       juce::String &why, CueSheet *sheet )
 {
     m_done.store( 0.0 );
     m_total.store( 0.0 );
@@ -721,6 +733,11 @@ bool Renderer::render( Source &source, const Job &job, const std::function<bool(
         return false;
     }
     m_total.store( total );
+    if ( sheet != nullptr )
+    {   // the time line as composed, cut where the rendering ends
+        rendering->timeline( *sheet );
+        sheet->crop( total );
+    }
     file = job.m_file != juce::File()
                ? job.m_file
                : job.m_folder.getChildFile( fileNameFor( job.m_item.m_name, total, job.m_format ) )
@@ -798,6 +815,72 @@ bool Renderer::render( Source &source, const Job &job, const std::function<bool(
         }
     }
     return ok;
+}
+
+// ---- the time line
+
+void CueSheet::section( double seconds, const juce::String &kind, double energy, bool drop )
+{
+    m_cues.push_back( { seconds, 1, "/phos/section", { kind, juce::String( std::clamp( energy, 0.0, 1.0 ), 2 ) } } );
+    if ( drop ) m_cues.push_back( { seconds, 4, "/phos/drop", {} } );
+}
+
+void CueSheet::key( double seconds, const juce::String &key )
+{
+    m_cues.push_back( { seconds, 0, "/phos/key", { key } } );
+}
+
+void CueSheet::grid( const std::function<double( double )> &secondsAtBeat, double beats, int beatsPerBar )
+{
+    const int n = static_cast<int>( std::floor( beats ) );
+    for ( int b = 0; b < n; ++b )
+    {
+        const double t = secondsAtBeat( static_cast<double>( b ) );
+        if ( b % std::max( 1, beatsPerBar ) == 0 )
+            m_cues.push_back( { t, 2, "/phos/bar", { juce::String( b / std::max( 1, beatsPerBar ) ) } } );
+        m_cues.push_back( { t, 3, "/phos/beat", { juce::String( b ) } } );
+    }
+}
+
+void CueSheet::chapter( double seconds, const juce::String &title )
+{
+    m_chapters.push_back( { seconds, title } );
+}
+
+void CueSheet::crop( double seconds )
+{
+    m_cues.erase(
+        std::remove_if( m_cues.begin(), m_cues.end(), [seconds]( const Cue &c ) { return c.m_seconds >= seconds; } ),
+        m_cues.end() );
+    m_chapters.erase( std::remove_if( m_chapters.begin(), m_chapters.end(),
+                                      [seconds]( const auto &c ) { return c.first >= seconds; } ),
+                      m_chapters.end() );
+}
+
+bool CueSheet::writeCues( const juce::File &file, const juce::String &title ) const
+{
+    std::vector<Cue> sorted = m_cues;
+    std::stable_sort( sorted.begin(), sorted.end(), []( const Cue &a, const Cue &b )
+                      { return a.m_seconds != b.m_seconds ? a.m_seconds < b.m_seconds : a.m_order < b.m_order; } );
+    juce::String text = "# " + title + ": score cues for KaleidoscopeEnhanced -k (seconds, address, arguments)\n";
+    for ( const Cue &c : sorted )
+    {
+        text << juce::String( std::max( 0.0, c.m_seconds ), 3 ) << "\t" << c.m_address;
+        for ( const juce::String &a : c.m_args ) text << "\t" << a;
+        text << "\n";
+    }
+    return file.replaceWithText( text, false, false, "\n" );
+}
+
+bool CueSheet::writeChapters( const juce::File &file ) const
+{
+    std::vector<std::pair<double, juce::String>> sorted = m_chapters;
+    std::stable_sort( sorted.begin(), sorted.end(), []( const auto &a, const auto &b ) { return a.first < b.first; } );
+    juce::String text;
+    for ( const auto &[at, title] : sorted )
+        text << juce::String( std::max( 0.0, at ), 3 ) << "\t" << title.replace( "\t", " " ).replace( "\n", " " )
+             << "\n";
+    return file.replaceWithText( text, false, false, "\n" );
 }
 
 // ---- the queue

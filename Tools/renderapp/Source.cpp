@@ -12,6 +12,7 @@
  * @author Rene Weller
  */
 #include "RenderKit.h"
+#include "eph/Cue.h"
 #include "eph/Engine.h"
 #include "eph/FactorySets.h"
 #include "eph/Leveler.h"
@@ -116,6 +117,66 @@ eph::Score compose( const eph::ParamStore &p, const Setup &s )
                              : eph::composePiece( p, s.m_seed, s.m_minutes, 0, &s.m_curation );
 }
 
+/**
+ * @brief A score's time line (renderkit::CueSheet): its phases as Kaleidoscope's sections (the atmosphere an intro,
+ *        the entry and the bridge a groove, the build, the lead and the peak drops -- the peak lands as one --, the
+ *        breakdown a break, the coda an outro), the roots the transposer moves to, a bar every four beats; the chapters
+ *        a concert's pieces (a night set's with their style), or a piece's phases.
+ * @param[out] sheet    receives it
+ * @param[in]  score    the score
+ * @param[in]  concert  pieces, not one
+ */
+void buildTimeline( renderkit::CueSheet &sheet, const eph::Score &score, bool concert )
+{
+    struct Kind
+    {
+        const char *m_phase, *m_kind, *m_title;
+        double      m_energy;
+        bool        m_drop;
+    };
+    static const Kind Kinds[] = {
+        { "ATMOSPHERE", "Intro", "Atmosphere", 0.2, false },
+        { "ENTRY", "Groove", "Entry", 0.45, false },
+        { "BUILD", "Build", "Build", 0.6, false },
+        { "LEAD", "Drop", "Lead", 0.75, false },
+        { "PEAK", "Drop", "Peak", 0.95, true },
+        { "BREAKDOWN", "Break", "Breakdown", 0.35, false },
+        { "BRIDGE", "Groove", "Bridge", 0.5, false },
+        { "CODA", "Outro", "Coda", 0.3, false },
+    };
+    const eph::TempoMap &tm = score.m_tempo;
+    for ( const eph::CueMark &m : eph::cueMarksOf( score ) )
+    {
+        const double at = tm.secondsAt( m.m_beat );
+        if ( m.m_kind == eph::CueKindE::KEY && m.m_text[0] != 0 )
+            sheet.key( at, m.m_text );
+        else if ( m.m_kind == eph::CueKindE::PHASE )
+            for ( const Kind &k : Kinds )
+                if ( juce::String( m.m_text ).equalsIgnoreCase( k.m_phase ) )
+                {
+                    sheet.section( at, k.m_kind, k.m_energy, k.m_drop );
+                    if ( !concert ) sheet.chapter( at, k.m_title );
+                }
+    }
+    if ( concert )
+    {   // a piece's markers begin "Stueck 2: ..." (a night set's "Stueck 2 (Cosmic): ..."): a chapter at its first
+        int last = 0;
+        for ( const eph::Marker &mk : score.m_markers )
+        {
+            const juce::String text( mk.m_text );
+            if ( !text.startsWith( "Stueck " ) ) continue;
+            const int n = text.substring( 7 ).getIntValue();
+            if ( n == last ) continue;
+            last = n;
+            const juce::String style =
+                text.fromFirstOccurrenceOf( "(", false, false ).upToFirstOccurrenceOf( ")", false, false );
+            sheet.chapter( tm.secondsAt( mk.m_beat ),
+                           "Piece " + juce::String( n ) + ( style.isNotEmpty() ? ", " + style : "" ) );
+        }
+    }
+    sheet.grid( [&tm]( double b ) { return tm.secondsAt( b ); }, score.m_lengthBeats );
+}
+
 /** @brief A piece or a concert being rendered: the engine offline, levelled first, faded at both ends. */
 class EphemerisRendering : public renderkit::Rendering
 {
@@ -140,6 +201,7 @@ public:
             return;
         }
         Score score = compose( p, s );
+        buildTimeline( m_sheet, score, s.m_concert > 0.0 );
         levelScore( score, p );   // every piece as loud as its style means (Leveler.h), as the plugin does
         m_engine->prepare( Rate, EngineBlock );
         m_engine->load( score, !s.m_soundsKept );
@@ -178,7 +240,10 @@ public:
         return s;
     }
 
+    void timeline( renderkit::CueSheet &sheet ) const override { sheet = m_sheet; }
+
 private:
+    renderkit::CueSheet                          m_sheet;           ///< its time line, as composed
     std::unique_ptr<eph::Engine>                 m_engine;          ///< the instrument offline
     double                                       m_seconds = 0.0;   ///< the length
     std::int64_t                                 m_frames = 0;      ///< the length in samples

@@ -14,6 +14,8 @@
  *     <App> --catalog [--seed N] [--KEY VALUE]...    the same as one JSON document, the options with it (Heliacal)
  *     <App> --render NAME [--format wav|flac|ogg|mp3] [--out FILE] [--seed N] [--seconds S] [--KEY VALUE]...
  *                 [--progress]                       (--progress: "progress DONE TOTAL SPEED" twice a second)
+ *                 [--cues FILE] [--chapters FILE]    its time line: score cues for KaleidoscopeEnhanced (-k) and
+ *                                                    the video's chapters (CueSheet)
  *     <App> --selftest [S]                           every format, S seconds each, and the queue (the ctest)
  *     <App> --shot FILE [--choose NAME]              the window as a PNG, a row chosen (the manual's picture)
  *
@@ -139,6 +141,82 @@ struct Request
     }
 };
 
+/**
+ * @brief What a rendering tells a visualiser and a video about its time line (17.10.2026, for Heliacal): the score cues
+ *        KaleidoscopeEnhanced reads with -k -- the sections with their energy, the drops, the keys, the bars and the
+ *        beats -- and the video's chapters (a journey's steps, a set's tracks, a track's sections).
+ *
+ * The cues speak Phosphene's dialect, which Kaleidoscope reads whatever the instrument (its CueReceiver.h): a line each,
+ * tab-separated -- the second, the address, the arguments: `/phos/section KIND ENERGY` (KIND Intro, Groove, Build,
+ * Drop, Break or Outro, ENERGY 0..1), `/phos/drop`, `/phos/key F# Phrygian`, `/phos/bar i`, `/phos/beat i`. A section
+ * moves Kaleidoscope to a new scene, a drop lands as one, the bar line is its downbeat.
+ */
+class CueSheet
+{
+public:
+    /**
+     * @brief A section begins.
+     * @param[in] seconds  where
+     * @param[in] kind     Intro, Groove, Build, Drop, Break or Outro
+     * @param[in] energy   0 .. 1
+     * @param[in] drop     it lands as a drop as well
+     */
+    void section( double seconds, const juce::String &kind, double energy, bool drop = false );
+    /**
+     * @brief The key from here.
+     * @param[in] seconds  where
+     * @param[in] key      its name ("F# Phrygian")
+     */
+    void key( double seconds, const juce::String &key );
+    /**
+     * @brief The bars and beats: a beat at every whole beat of the score, a bar at every @p beatsPerBar of them.
+     * @param[in] secondsAtBeat  the score's tempo map: seconds at a beat
+     * @param[in] beats          how many beats the score has
+     * @param[in] beatsPerBar    beats in a bar
+     */
+    void grid( const std::function<double( double )> &secondsAtBeat, double beats, int beatsPerBar = 4 );
+    /**
+     * @brief A chapter of the video begins.
+     * @param[in] seconds  where
+     * @param[in] title    its title
+     */
+    void chapter( double seconds, const juce::String &title );
+    /**
+     * @brief Only what begins before a time: the rendering is cut there (--seconds).
+     * @param[in] seconds  the end
+     */
+    void crop( double seconds );
+    /**
+     * @brief The cues as KaleidoscopeEnhanced's -k reads them, in order of time.
+     * @param[in] file   the file
+     * @param[in] title  the comment on its first line
+     * @return false when it cannot be written
+     */
+    bool writeCues( const juce::File &file, const juce::String &title ) const;
+    /**
+     * @brief The chapters, a line each: the second and the title, tab-separated, in order of time.
+     * @param[in] file  the file
+     * @return false when it cannot be written
+     */
+    bool writeChapters( const juce::File &file ) const;
+    /** @brief How many cues. @return the count */
+    size_t cues() const { return m_cues.size(); }
+    /** @brief How many chapters. @return the count */
+    size_t chapters() const { return m_chapters.size(); }
+
+private:
+    /** @brief One cue. */
+    struct Cue
+    {
+        double            m_seconds = 0.0;   ///< where
+        int               m_order = 0;       ///< key, section, bar, beat, drop: the order on the same instant
+        juce::String      m_address;         ///< "/phos/section"
+        juce::StringArray m_args;            ///< its arguments
+    };
+    std::vector<Cue>                             m_cues;       ///< the cues, as they came
+    std::vector<std::pair<double, juce::String>> m_chapters;   ///< the chapters, as they came
+};
+
 /** @brief One rendering under way: the instrument's engine set up offline, handing out its samples block by block. */
 class Rendering
 {
@@ -157,6 +235,12 @@ public:
     virtual void render( float *left, float *right, int frames ) = 0;
     /** @brief What plays now, for the status line ("step 3 of 24: Velvet Tide"). @return the text, or "" */
     virtual juce::String now() const { return {}; }
+    /**
+     * @brief Its time line for a visualiser and a video (CueSheet): its sections, drops, keys, bars, chapters. Asked
+     *        once, when it is set up and before a sample is rendered; nothing by default.
+     * @param[out] sheet  receives them
+     */
+    virtual void timeline( CueSheet &sheet ) const { juce::ignoreUnused( sheet ); }
 };
 
 /**
@@ -251,10 +335,11 @@ public:
      * @param[in]     cancelled  asked between blocks: true stops it (the file is closed as far as it went)
      * @param[out]    file       receives the file written (named after the row and the length when the job names none)
      * @param[out]    why        receives why it failed ("cancelled" when it was)
+     * @param[out]    sheet      receives the rendering's time line, cut at its end (null: not asked)
      * @return true when the whole was written
      */
     bool render( Source &source, const Job &job, const std::function<bool()> &cancelled, juce::File &file,
-                 juce::String &why );
+                 juce::String &why, CueSheet *sheet = nullptr );
     /** @brief What plays now (the rendering's own words). @return the text */
     juce::String now() const;
 
