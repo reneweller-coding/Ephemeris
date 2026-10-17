@@ -11,7 +11,9 @@
  *
  *     <App>                                          the window
  *     <App> --list                                   every row with the length of its rendering
+ *     <App> --catalog [--seed N] [--KEY VALUE]...    the same as one JSON document, the options with it (Heliacal)
  *     <App> --render NAME [--format wav|flac|ogg|mp3] [--out FILE] [--seed N] [--seconds S] [--KEY VALUE]...
+ *                 [--progress]                       (--progress: "progress DONE TOTAL SPEED" twice a second)
  *     <App> --selftest [S]                           every format, S seconds each, and the queue (the ctest)
  *     <App> --shot FILE [--choose NAME]              the window as a PNG, a row chosen (the manual's picture)
  *

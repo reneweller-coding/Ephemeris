@@ -201,6 +201,72 @@ int listCommand( Source &source, const juce::StringArray &args )
 }
 
 /**
+ * @brief --catalog: what the instrument offers, as one JSON document for the programs that drive it (Heliacal,
+ *        17.10.2026): the product, the columns, the options with their choices and defaults, and every row with its
+ *        kind, its cells, whether the dice change it, the options that apply to it and the length of its rendering
+ *        for the dice and the options of the command line. The seed is text: a 64-bit number is no JSON number.
+ * @param[in,out] source  the instrument
+ * @param[in]     args    the command line (the dice, the options)
+ * @return 0
+ */
+int catalogCommand( Source &source, const juce::StringArray &args )
+{
+    const Request r = requestFrom( source, args );
+    auto         *root = new juce::DynamicObject();
+    root->setProperty( "product", source.product() );
+    root->setProperty( "title", source.title() );
+    root->setProperty( "noun", source.noun() );
+    root->setProperty( "seed", juce::String( static_cast<juce::int64>( r.m_seed ) ) );
+    juce::Array<juce::var> columns;
+    for ( const Column &c : source.columns() )
+    {
+        auto *o = new juce::DynamicObject();
+        o->setProperty( "name", c.m_name );
+        o->setProperty( "right", c.m_right );
+        columns.add( juce::var( o ) );
+    }
+    root->setProperty( "columns", columns );
+    const std::vector<Option> options = source.options();
+    juce::Array<juce::var>    ops;
+    for ( const Option &op : options )
+    {
+        auto                  *o = new juce::DynamicObject();
+        juce::Array<juce::var> choices;
+        for ( const juce::String &c : op.m_choices ) choices.add( c );
+        o->setProperty( "key", op.m_key );
+        o->setProperty( "label", op.m_label );
+        o->setProperty( "tooltip", op.m_tooltip );
+        o->setProperty( "choices", choices );
+        o->setProperty( "default", op.m_default );
+        o->setProperty( "length", op.m_length );
+        ops.add( juce::var( o ) );
+    }
+    root->setProperty( "options", ops );
+    juce::Array<juce::var> items;
+    for ( const Item &it : source.list() )
+    {
+        auto                  *o = new juce::DynamicObject();
+        juce::Array<juce::var> cells, applies;
+        for ( const juce::String &c : it.m_cells ) cells.add( c );
+        for ( const Option &op : options )
+            if ( source.applies( it, op.m_key ) ) applies.add( op.m_key );
+        o->setProperty( "name", it.m_name );
+        o->setProperty( "kind", it.m_kind );
+        o->setProperty( "cells", cells );
+        o->setProperty( "detail", it.m_detail );
+        o->setProperty( "dice", it.m_dice );
+        o->setProperty( "applies", applies );
+        o->setProperty( "length", source.length( it, r ) );
+        items.add( juce::var( o ) );
+    }
+    root->setProperty( "items", items );
+    std::fputs( juce::JSON::toString( juce::var( root ), true ).toRawUTF8(), stdout );
+    std::fputs( "\n", stdout );
+    std::fflush( stdout );
+    return 0;
+}
+
+/**
  * @brief --render: one row without the window, its progress printed.
  * @param[in,out] source  the instrument
  * @param[in]     args    the command line
@@ -227,10 +293,26 @@ int renderCommand( Source &source, const juce::StringArray &args )
         else
             job.m_folder = juce::File::getCurrentWorkingDirectory();
         std::printf( "%s: %s\n", name.toRawUTF8(), clockText( source.length( item, job.m_request ) ).toRawUTF8() );
+        std::fflush( stdout );
         Renderer     r;
         juce::File   file;
         juce::String why;
-        const bool   ok = r.render( source, job, [] { return false; }, file, why );
+        // --progress: the seconds rendered, the seconds in all and the speed, twice a second, for a program that
+        // drives this one (Heliacal) -- read where the renderer asks whether to stop, between two blocks.
+        const bool progress = args.contains( "--progress" );
+        auto       last = std::chrono::steady_clock::now();
+        const auto ask = [&]()
+        {
+            const auto t = std::chrono::steady_clock::now();
+            if ( progress && t - last > std::chrono::milliseconds( 500 ) )
+            {
+                last = t;
+                std::printf( "progress %.1f %.1f %.2f\n", r.m_done.load(), r.m_total.load(), r.m_speed.load() );
+                std::fflush( stdout );
+            }
+            return false;
+        };
+        const bool ok = r.render( source, job, ask, file, why );
         if ( ok )
             std::printf( "%s written into %s, %.1fx real time\n", clockText( r.m_total.load() ).toRawUTF8(),
                          file.getFullPathName().toRawUTF8(), r.m_speed.load() );
@@ -499,6 +581,12 @@ public:
         if ( args.contains( "--list" ) )
         {
             setApplicationReturnValue( listCommand( source(), args ) );
+            quit();
+            return;
+        }
+        if ( args.contains( "--catalog" ) )
+        {
+            setApplicationReturnValue( catalogCommand( source(), args ) );
             quit();
             return;
         }
