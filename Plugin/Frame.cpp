@@ -3258,11 +3258,12 @@ void PresetBrowser::open( Bank bank )
         {
             section = e.m_section;
             m_categories.push_back( { section, 4, section } );
+            group.clear();   // a section begins its groups afresh
         }
         if ( e.m_group != group )
-        {
+        {   // under its section: the same group name in another section is another group (the DJ sets' arcs)
             group = e.m_group;
-            m_categories.push_back( { group, 5, group } );
+            m_categories.push_back( { group, 5, group, e.m_section } );
         }
     }
     m_categoryList->updateContent();
@@ -3301,7 +3302,9 @@ void PresetBrowser::filter()
         if ( c.m_kind == 2 && !recent.contains( e.m_name ) ) continue;
         if ( c.m_kind == 3 && !e.m_yours ) continue;
         if ( c.m_kind == 4 && ( e.m_yours || e.m_section != c.m_which ) ) continue;
-        if ( c.m_kind == 5 && ( e.m_yours || e.m_group != c.m_which ) ) continue;
+        if ( c.m_kind == 5 &&
+             ( e.m_yours || e.m_group != c.m_which || ( c.m_section.isNotEmpty() && e.m_section != c.m_section ) ) )
+            continue;
         if ( q.isNotEmpty() && !e.m_name.toLowerCase().contains( q ) && !e.m_group.toLowerCase().contains( q ) )
             continue;
         m_shown.push_back( static_cast<int>( i ) );

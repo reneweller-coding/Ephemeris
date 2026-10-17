@@ -12,6 +12,7 @@
 #include "eph/Engine.h"
 #include "eph/Loudness.h"
 #include "eph/Leveler.h"
+#include "eph/FactorySets.h"
 #include "eph/Presets.h"
 #include "eph/Cue.h"
 #include "eph/fx/Plate.h"
@@ -3975,6 +3976,66 @@ void testKeySplit()
            fmt( "%.3g against %.3g", named, plain ) );
 }
 
+/** The factory's concerts (FactorySets.h, 17.10.2026): 256, every name unique, every one a set that reads and is a
+ *  concert, in its style or a night set; every eighth composed -- about as long as it says. */
+void testFactorySets()
+{
+    section( "the factory's concerts" );
+    std::set<std::string> names;
+    int                   unread = 0, unknown = 0;
+    std::string           firstError;
+    for ( int i = 0; i < numFactorySets(); ++i )
+    {
+        const FactorySet &f = factorySet( i );
+        names.insert( f.m_name );
+        auto        p = std::make_unique<ParamStore>();
+        SetFile     sf;
+        std::string error;
+        if ( !loadSetText( f.m_text, sf, *p, &error ) || sf.m_concert <= 0.0 )
+        {
+            if ( unread++ == 0 ) firstError = std::string( f.m_name ) + ": " + error;
+            continue;
+        }
+        const bool night = std::string( f.m_section ) == "Night sets";
+        bool       style = night && p->getBool( p->id( ModuleE::COMPOSE, 0, compose::NIGHT_SET ) );
+        for ( int k = 0; k < static_cast<int>( StyleE::COUNT ); ++k )
+            style = style || ( std::string( StyleNames[k] ) == f.m_section &&
+                               p->getInt( p->id( ModuleE::COMPOSE, 0, compose::STYLE ) ) == k &&
+                               !p->getBool( p->id( ModuleE::COMPOSE, 0, compose::NIGHT_SET ) ) );
+        if ( !style ) ++unknown;
+    }
+    check( numFactorySets() == 256 && static_cast<int>( names.size() ) == numFactorySets() && unread == 0 &&
+               unknown == 0,
+           "256 factory concerts, every name its own, every one a concert in its style or a night set",
+           fmt( "%d concerts, %zu names, %d unread, %d not what their section says %s", numFactorySets(), names.size(),
+                unread, unknown, firstError.c_str() ) );
+    int         composed = 0, offLength = 0;
+    std::string worst;
+    double      worstRatio = 1.0;
+    for ( int i = 0; i < numFactorySets(); i += 8 )
+    {
+        const FactorySet &f = factorySet( i );
+        auto              p = std::make_unique<ParamStore>();
+        SetFile           sf;
+        if ( !loadSetText( f.m_text, sf, *p ) ) continue;
+        if ( sf.m_minutes > 0.0 )
+            p->set( p->id( ModuleE::COMPOSE, 0, compose::PIECE_MINUTES ), static_cast<float>( sf.m_minutes ) );
+        const Score score = composeConcert( *p, sf.m_seed, sf.m_concert, &sf.m_curation );
+        if ( score.m_lengthBeats <= 0.0 ) continue;
+        ++composed;
+        const double minutes = score.m_tempo.secondsAt( score.m_lengthBeats ) / 60.0;
+        const double ratio = minutes / sf.m_concert;
+        if ( ratio < 0.85 || ratio > 1.3 ) ++offLength;
+        if ( std::fabs( ratio - 1.0 ) > std::fabs( worstRatio - 1.0 ) )
+        {
+            worstRatio = ratio;
+            worst = fmt( "%s: %.0f of %.0f min", f.m_name, minutes, sf.m_concert );
+        }
+    }
+    check( composed == 32 && offLength == 0, "every eighth factory concert composed, as long as it says",
+           fmt( "%d composed, %d off their length (the farthest %s)", composed, offLength, worst.c_str() ) );
+}
+
 /** @brief Every section, in the order they run. */
 const TestSection Sections[] = {
     { "testTempoMap", testTempoMap },
@@ -4026,6 +4087,7 @@ const TestSection Sections[] = {
     { "testBlockSizes", testBlockSizes },
     { "testEcho", testEcho },
     { "testDrift", testDrift },
+    { "testFactorySets", testFactorySets },
 };
 
 }   // namespace

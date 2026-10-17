@@ -273,6 +273,19 @@ public:
      */
     bool loadSet( const juce::File &file );
     /**
+     * @brief Loads one of the factory's concerts (eph/FactorySets.h) and composes it.
+     * @param[in] index  the concert
+     * @return false when there is none of that index
+     */
+    bool loadFactorySet( int index );
+    /**
+     * @brief Reads a set from its text (a file's, a factory concert's) and composes it.
+     * @param[in] name  what the undo step calls it
+     * @param[in] text  the set's text
+     * @return false when the text is no set
+     */
+    bool loadSetText( const juce::String &name, const std::string &text );
+    /**
      * @brief Renders the current score offline to WAV and MIDI beside each other, on a thread; returns at once.
      *        With @p stems also a 24-bit WAV per channel strip and one for the rooms (Engine::setStems) into the
      *        folder "\<name\>_stems" beside them: their sum is the mix before the master.

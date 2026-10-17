@@ -83,5 +83,14 @@ bool saveSet( const char *path, const SetFile &set, const ParamStore &params );
  * @return false when the file cannot be read
  */
 bool loadSet( const char *path, SetFile &set, ParamStore &params, std::string *error = nullptr );
+/**
+ * @brief Reads a set from its text (a `.ephset`'s, a factory concert's) and applies its parameters to @p params.
+ * @param[in]  text    the set's text
+ * @param[out] set     receives the set's seed, lengths and rerolls
+ * @param[out] params  receives the knobs
+ * @param[out] error   receives why it failed, or null
+ * @return false when the text is no set
+ */
+bool loadSetText( const std::string &text, SetFile &set, ParamStore &params, std::string *error = nullptr );
 
 }   // namespace eph

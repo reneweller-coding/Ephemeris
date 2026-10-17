@@ -42,6 +42,14 @@ bool loadSet( const char *path, SetFile &set, ParamStore &params, std::string *e
         if ( error ) *error = std::string( "cannot read " ) + path;
         return false;
     }
+    std::ostringstream text;
+    text << f.rdbuf();
+    return loadSetText( text.str(), set, params, error );
+}
+
+bool loadSetText( const std::string &text, SetFile &set, ParamStore &params, std::string *error )
+{
+    std::istringstream f( text );
     set = SetFile{};
     std::string line, paramText;
     int         n = 0;

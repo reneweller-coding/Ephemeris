@@ -2015,6 +2015,7 @@ private:
         juce::String m_title;      ///< as listed
         int          m_kind = 0;   ///< 0 all, 1 favourites, 2 recent, 3 yours, 4 a section, 5 a group
         juce::String m_which;      ///< the section's or the group's name
+        juce::String m_section;    ///< a group's section (empty: the group wherever it is)
     };
     class Row;          ///< a row of the list: the play mark, the star, the name, the group
     class Categories;   ///< the categories' list

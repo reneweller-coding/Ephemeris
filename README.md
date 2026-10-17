@@ -70,6 +70,9 @@ track's own score cues (the bars, the sections, the drops). `Tools/demo/make_dem
   the piece already plays, the correction gliding in.
 * **Reroll any part on its own** -- form, tempo, rows, rack, layers, lead, pads, moves, sounds -- save a piece as a
   small set file, export WAV (with stems) and MIDI.
+* **256 concerts to begin with:** the Concerts button opens the factory's concerts -- each style as a concert, along
+  an arc, as an album, on a journey, through a long night, and the night sets -- and your own; the one taken is composed
+  and plays.
 
 ## The instruments
 
@@ -160,8 +163,9 @@ bin/msvc/eph_render.exe --set-file work/renders/piece.ephset --reroll lead --sav
 bin/msvc/eph_render.exe --list
 ```
 
-**Ephemeris Sets** (`EphemerisSets.exe`, in the Start menu) renders with a small window of its own: the five styles and
-the sets you saved (`.ephset` in Documents/Ephemeris), each listed with the length of its rendering, as a piece or a
+**Ephemeris Sets** (`EphemerisSets.exe`, in the Start menu) renders with a small window of its own: the five styles,
+the factory's 256 concerts and the sets you saved (`.ephset` in Documents/Ephemeris), each listed with the length of
+its rendering, as a piece or a
 concert of half an hour to three hours, written as WAV or FLAC (24 bit), Ogg Vorbis or MP3 (320 kbit/s), faster than
 real time; `EphemerisSets --render Drift --what "Concert, 1 hour" --format flac` without the window.
 

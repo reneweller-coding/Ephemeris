@@ -521,6 +521,11 @@ public:
      */
     void browsePresets( eph::ModuleE m, int instance, std::function<void( int )> chosen );
     /**
+     * @brief Opens the preset browser on the concerts: the factory's 256 (eph/FactorySets.h, by their style and form,
+     *        and the night sets) and the player's own (.ephset in Documents/Ephemeris). The one taken is composed.
+     */
+    void browseSets();
+    /**
      * @brief Shows a line in the info line (an Alt-drag's depth).
      * @param[in] text  the line
      */
@@ -616,6 +621,7 @@ private:
     juce::Label       m_lengthLabel;                ///< the length's name
     int               m_lengthKind = -1;   ///< what the slider shows (0: compose.piece_minutes, else concert_minutes)
     bool              m_syncing = false;   ///< the slider is set from its parameter, not by a hand
+    juce::TextButton  m_sets{ "Concerts" };           ///< the concerts: the factory's and the player's own
     juce::TextButton  m_compose{ "Compose piece" };   ///< composes a piece, a concert or a night set
     frame::IconButton m_seed{ frame::IconButton::IconE::DICE, "New seed" };   ///< a new seed, then composes: a die
     frame::IconButton m_play{ frame::IconButton::IconE::PLAY,

@@ -10,6 +10,7 @@
 #include <tuple>
 #include "PluginEditor.h"
 #include "eph/Loudness.h"
+#include "eph/FactorySets.h"
 #include "eph/Presets.h"
 #include "eph/compose/Composer.h"
 #include "eph/Midi.h"
@@ -913,10 +914,23 @@ bool EphemerisProcessor::saveSet( const juce::File &file )
 
 bool EphemerisProcessor::loadSet( const juce::File &file )
 {
+    if ( !file.existsAsFile() ) return false;
+    return loadSetText( file.getFileName(), file.loadFileAsString().toStdString() );
+}
+
+bool EphemerisProcessor::loadFactorySet( int index )
+{
+    if ( index < 0 || index >= numFactorySets() ) return false;
+    const FactorySet &f = factorySet( index );
+    return loadSetText( f.m_name, f.m_text );
+}
+
+bool EphemerisProcessor::loadSetText( const juce::String &name, const std::string &text )
+{
     SetFile     sf;
     std::string err;
-    beginStep( "load " + file.getFileName() );
-    if ( !eph::loadSet( file.getFullPathName().toRawUTF8(), sf, store(), &err ) )
+    beginStep( "load " + name );
+    if ( !eph::loadSetText( text, sf, store(), &err ) )
     {
         endStep();
         return false;

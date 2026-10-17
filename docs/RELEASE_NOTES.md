@@ -2,6 +2,13 @@
 
 ## 1.4.0 (16.10.2026, not released)
 
+**256 concerts to begin with.** The Concerts button in the header opens the browser on the factory's concerts and on
+your own `.ephset` files; the one taken is composed and plays. Each of the five styles in every form a concert takes:
+pieces flowing into each other, along an arc of tension, as an album (the interludes, the darkest piece in the middle),
+on a journey to another style, through a long night of up to twelve hours -- and 26 night sets mixing the styles along
+waves of energy, from an hour to a whole night. Each is a concert as you would save it: a seed and its knobs. Ephemeris
+Sets lists them too, and so Heliacal. In the browser a group under a section now shows that section's alone.
+
 **Ephemeris Sets.** A small program beside the instrument (Start menu, EphemerisSets.exe) that renders into files: the
 five styles, each composed into a piece or a concert (30 minutes to three hours) with the dice of the moment, and the
 sets you saved in the instrument (.ephset, played back exactly: seed, lengths, rerolls, knobs). Every row shows the
