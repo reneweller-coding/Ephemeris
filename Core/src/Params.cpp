@@ -653,7 +653,8 @@ const ParamDesc MasterParams[master::COUNT] = {
     { "level", "Level", "dB", -60.0f, 6.0f, 0.0f, CurveE::LINEAR },
     // How much the bus compressor works: 0 off, 1 a ratio of 1.5 from -16 dB. The music keeps its dynamics.
     { "compress", "Compress", "", 0.0f, 1.0f, 0.5f, CurveE::LINEAR },
-    { "ceiling", "Ceiling", "dBTP", -6.0f, 0.0f, -1.0f, CurveE::LINEAR },
+    // -1.5 (20.10.2026): the mix audit read the demos' Opus up to -0.5 dBTP over a -1 dBTP master.
+    { "ceiling", "Ceiling", "dBTP", -6.0f, 0.0f, -1.5f, CurveE::LINEAR },
     { "width", "Width", "dB", -6.0f, 6.0f, 4.5f, CurveE::LINEAR },   // the side above 300 Hz; under 100 Hz mono
     { "mono", "Mono", "", 0.0f, 1.0f, 0.0f, CurveE::TOGGLE },        // a mono check for listening
     { "cascade", "Cascade Duck", "dB", 0.0f, 6.0f, 2.5f,

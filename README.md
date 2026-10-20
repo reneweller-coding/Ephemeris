@@ -94,7 +94,7 @@ track's own score cues (the bars, the sections, the drops). `Tools/demo/make_dem
 Tape echo or a bucket-brigade delay, springs, a second echo for the counter rows, early reflections, a blend room
 that feeds an eight-line FDN hall (or a plate), a shimmer hall. A mix after a production guide for depth and
 clarity: a distance per source (level, highs and hall together), cascaded ducking in six bands, a resonance tamer, the
-bass mono under 100 Hz, a guarded width, a gentle compressor, a soft clipper and a true-peak limiter at -1 dBTP.
+bass mono under 100 Hz, a guarded width, a gentle compressor, a soft clipper and a true-peak limiter at -1.5 dBTP (a lossy codec's peaks stay under -1).
 
 ## The pages
 
